@@ -180,7 +180,9 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(-
 .section h3,.h3{margin:0 0 4px;font:700 1rem var(--display);letter-spacing:.03em}
 .shead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 .hint{color:var(--muted);font-size:.9rem;margin:2px 0 0}
-.taxrow{display:flex;align-items:center;gap:12px;margin-top:8px}
+.taxrow{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:8px}
+.taxrow .btn{min-width:48px;font-size:1.2rem}
+.taxrow .taxval{font:700 1.5rem var(--display);min-width:3.2em;text-align:center}
 .taxrow input{flex:1;accent-color:var(--brass)}
 .taxrow b{min-width:3.2em;text-align:right}
 .note{color:var(--muted);font-size:.92rem;margin:0 0 10px}
@@ -458,36 +460,36 @@ INNER.farm=INNER.food; INNER.sawmill=INNER.lumber; INNER.quarry=INNER.stone; INN
 var ICON = {}; for (var ik in INNER) ICON[ik] = '<svg viewBox="0 0 24 24" '+P+' aria-hidden="true">'+INNER[ik]+'</svg>';
 
 var DEF = {
-  townhall:{name:"Town Hall",cost:{food:200,lumber:250,stone:150,iron:50},t:90,
+  townhall:{name:"Town Hall",cost:{food:200,lumber:3000,stone:2500,iron:100},t:900,
     desc:"The heart of your city. Its level caps every other building and opens more field plots."},
-  cottage:{name:"Cottage",cost:{food:50,lumber:150,stone:100,iron:25},t:45,
+  cottage:{name:"Cottage",cost:{food:100,lumber:500,stone:100,iron:50},t:75,
     desc:"Houses your people. More people means more field workers and more tax."},
-  academy:{name:"Academy",cost:{food:200,lumber:300,stone:250,iron:100},t:90,unique:true,
+  academy:{name:"Academy",cost:{food:120,lumber:2500,stone:1500,iron:200},t:480,unique:true,
     desc:"Unlocks research. Its level caps how far each tech can go."},
-  market:{name:"Marketplace",cost:{food:100,lumber:250,stone:150,iron:50},t:60,unique:true,
-    desc:"Trade one resource for another. Rates improve as it levels up."},
-  inn:{name:"Inn",cost:{food:150,lumber:300,stone:200,iron:50},t:60,unique:true,
+  market:{name:"Marketplace",cost:{food:300,lumber:1500,stone:1000,iron:300},t:240,unique:true,
+    desc:"Trade resources for gold and gold for resources at daily market prices. Higher levels take a smaller fee."},
+  inn:{name:"Inn",cost:{food:400,lumber:1200,stone:800,iron:200},t:120,unique:true,
     desc:"Wandering heroes stop here looking for work. Higher levels draw more of them, and stronger ones."},
-  feasting:{name:"Feasting Hall",cost:{food:300,lumber:400,stone:300,iron:100},t:90,unique:true,
+  feasting:{name:"Feasting Hall",cost:{food:800,lumber:1600,stone:1200,iron:400},t:180,unique:true,
     desc:"Your heroes live here. Each level holds one more hero."},
-  walls:{name:"Walls",cost:{food:500,lumber:2000,stone:5000,iron:500},t:120,
+  walls:{name:"Walls",cost:{food:1000,lumber:8000,stone:20000,iron:2000},t:600,
     desc:"Your city wall. Each level adds durability attackers must break and room for fortifications, and extends archer tower reach."},
-  barracks:{name:"Barracks",cost:{food:120,lumber:350,stone:200,iron:150},t:60,
+  barracks:{name:"Barracks",cost:{food:400,lumber:1500,stone:800,iron:600},t:150,
     desc:"Trains troops, one batch at a time. Its level decides which units you can train. Build several to train in parallel."},
-  stable:{name:"Stable",cost:{food:150,lumber:400,stone:250,iron:200},t:75,unique:true,
+  stable:{name:"Stable",cost:{food:600,lumber:1600,stone:1000,iron:800},t:240,unique:true,
     desc:"Home of your horses. Its level caps Horseback Riding research."},
-  workshop:{name:"Workshop",cost:{food:200,lumber:500,stone:300,iron:300},t:90,unique:true,
+  workshop:{name:"Workshop",cost:{food:800,lumber:2000,stone:1200,iron:1200},t:300,unique:true,
     desc:"Builds engines of war. Needed for siege units, and caps Machinery and Engineering."},
-  forge:{name:"Forge",cost:{food:150,lumber:300,stone:300,iron:350},t:75,unique:true,
+  forge:{name:"Forge",cost:{food:600,lumber:1200,stone:1200,iron:1400},t:240,unique:true,
     desc:"Metalworking for arms and armor. Caps Iron Working and Metal Casting."},
-  rally:{name:"Rally Spot",cost:{food:100,lumber:300,stone:200,iron:100},t:60,unique:true,
+  rally:{name:"Rally Spot",cost:{food:400,lumber:1200,stone:800,iron:400},t:180,unique:true,
     desc:"Where armies muster. Each level allows one more march at a time and 10,000 more troops per march."},
-  warehouse:{name:"Warehouse",cost:{food:100,lumber:250,stone:250,iron:50},t:45,
+  warehouse:{name:"Warehouse",cost:{food:400,lumber:1000,stone:1000,iron:200},t:120,
     desc:"Protects resources from plunder when AI lords raid you, and holds your auto-train reserve. Caps Stockpile."},
-  farm:{name:"Farm",cost:{food:25,lumber:60,stone:40,iron:20},t:30,res:"food",desc:"Grows food."},
-  sawmill:{name:"Sawmill",cost:{food:50,lumber:30,stone:50,iron:20},t:30,res:"lumber",desc:"Cuts lumber."},
-  quarry:{name:"Quarry",cost:{food:50,lumber:60,stone:20,iron:20},t:30,res:"stone",desc:"Cuts stone."},
-  ironmine:{name:"Iron Mine",cost:{food:60,lumber:60,stone:50,iron:15},t:36,res:"iron",desc:"Digs iron."}
+  farm:{name:"Farm",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"food",desc:"Grows food."},
+  sawmill:{name:"Sawmill",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"lumber",desc:"Cuts lumber."},
+  quarry:{name:"Quarry",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"stone",desc:"Cuts stone."},
+  ironmine:{name:"Iron Mine",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"iron",desc:"Digs iron."}
 };
 var INSIDE = ["cottage","barracks","academy","feasting","inn","market","stable","forge","workshop","rally","warehouse"];
 var FIELD = ["farm","sawmill","quarry","ironmine"];
@@ -500,12 +502,12 @@ var TECH = {
   militarytradition:{g:"Military",name:"Military Tradition",b:"barracks",desc:"+5% army attack per level"},
   ironworking:{g:"Military",name:"Iron Working",b:"forge",desc:"+5% army defense per level"},
   medicine:{g:"Military",name:"Medicine",desc:"+5% life for ground troops per level"},
-  archery:{g:"Military",name:"Archery",b:"barracks",tm:1.5,desc:"+5% range for archers, ballistae and catapults per level"},
+  archery:{g:"Military",name:"Archery",b:"barracks",t:2000,desc:"+5% range for archers, ballistae and catapults per level"},
   militaryscience:{g:"Military",name:"Military Science",b:"barracks",desc:"Troops train 10% faster per level"},
   metalcasting:{g:"Military",name:"Metal Casting",b:"forge",desc:"Siege engines and transporters build 10% faster per level"},
-  horsebackriding:{g:"Movement",name:"Horseback Riding",b:"stable",desc:"+5% speed for cavalry and machines per level"},
+  horsebackriding:{g:"Movement",name:"Horseback Riding",b:"stable",t:170,desc:"+5% speed for cavalry and machines per level"},
   compass:{g:"Movement",name:"Compass",b:"rally",desc:"+10% speed for infantry per level"},
-  cartography:{g:"Movement",name:"Cartography",b:"rally",tm:1.3,desc:"Armies travel the map 10% faster per level (march time only; battlefield speed still comes from Compass and Horseback Riding)"},
+  cartography:{g:"Movement",name:"Cartography",b:"rally",t:620,desc:"Armies travel the map 10% faster per level (march time only; battlefield speed still comes from Compass and Horseback Riding)"},
   logistics:{g:"Movement",name:"Logistics",b:"rally",desc:"+10% carrying load per level, so every army hauls home more plunder"},
   informatics:{g:"City and defense",name:"Informatics",desc:"Trains your spies: required before you can recruit Scouts"},
   stockpile:{g:"City and defense",name:"Stockpile",b:"warehouse",desc:"+10% warehouse protection against AI raids per level"},
@@ -513,7 +515,7 @@ var TECH = {
   machinery:{g:"City and defense",name:"Machinery",b:"workshop",desc:"Unlocks Defensive Trebuchets, and repairs 5% of fortifications lost in each defense per level (up to 50%)"},
   privateering:{g:"City and defense",name:"Privateering",b:"rally",desc:"+5% plunder from NPC cities, AI lords and historic cities per level"}
 };
-var TECH_COST = {food:300,lumber:300,stone:300,iron:300,gold:150}, TECH_T = 120;
+var TECH_COST = {food:1000,gold:6000}, TECH_COST_ECO = {food:250,lumber:250,gold:1500}, TECH_T = 480;
 function techReqs(k,L){ var r=[["academy",L]]; if (TECH[k].b) r.push([TECH[k].b,L]); return r; }
 var MAXLV = 10, HERO_MAX = 100;
 function fieldSlots(th){ return 8 + 4*(th-1); }
@@ -775,6 +777,10 @@ function bestFor(stat){
 function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.995, m?hs(m,"atk"):0); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
 function barracksList(){ var out=[]; S.inside.forEach(function(x,i){ if (x && x.type==="barracks" && x.level>0) out.push(i); }); return out; }
 function trainingAt(slot){ for (var i=0;i<S.train.length;i++) if (S.train[i].slot===slot) return S.train[i]; return null; }
+function barracksReq(i){ var r=U[i].req.filter(function(x){ return x[0]==="barracks"; })[0]; return r?r[1]:1; }
+function pickBarracks(i){ // lowest-level idle barracks that can train this unit, keeping the big ones free for siege
+  var req=barracksReq(i), best=-1; barracksList().forEach(function(sl){ if (!trainingAt(sl) && S.inside[sl].level>=req && (best<0 || S.inside[sl].level<S.inside[best].level)) best=sl; }); return best;
+}
 function idleBarracks(){ var b=barracksList(); for (var i=0;i<b.length;i++) if (!trainingAt(b[i])) return b[i]; return -1; }
 function simResearch(){ return {military_tradition:S.tech.militarytradition||0, iron_working:S.tech.ironworking||0, medicine:S.tech.medicine||0, compass:S.tech.compass||0, horseback_riding:S.tech.horsebackriding||0, archery:S.tech.archery||0}; }
 function effStats(i, r){ // display stats with research applied, mirroring the simulator
@@ -829,7 +835,9 @@ var TITLES = [
 var BOX_W = [30,25,18,12,7,4,2.5,1,0.5];
 function rollMedal(){ var sum=BOX_W.reduce(function(a,b){return a+b;},0), r=Math.random()*sum; for (var i=0;i<9;i++){ r-=BOX_W[i]; if (r<0) return i; } return 0; }
 function medalIcon(i,size){ size=size||26; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h3l1 5-3 0zM16 2h-3l-1 5 3 0z" fill="'+MEDAL_COL[i]+'" opacity=".6"/><circle cx="12" cy="15" r="7" fill="'+MEDAL_COL[i]+'"/><circle cx="12" cy="15" r="4.6" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.2"/><path d="M12 12.3l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z" fill="rgba(0,0,0,.3)"/></svg>'; }
-function addPrestige(n){ S.prestige += n; }
+function totalTH(){ return S.cities.reduce(function(a,c){ return a+(c.th||1); },0) || 1; }
+function addPrestige(n){ S.prestige += Math.floor(n/totalTH()); } // Age 1: experience / sum of all Town Hall levels, rounded down
+function addPrestigeFlat(n){ S.prestige += n; }
 function reqChecks(q, isTitle){
   var out=[];
   if (q.th) out.push([S.th>=q.th, "Town Hall level "+q.th]);
@@ -1919,6 +1927,10 @@ S.speed=1;
 installProxies(S);
 if (S._rebuildLog){ S.reports.slice().reverse().forEach(function(r){ var c=compactRep(r); c.c=""; S.log.unshift(c); bumpStats(c); }); delete S._rebuildLog; }
 var saveUi="";
+function offlineStatus(){
+  if (!("serviceWorker" in navigator) || !/^https:/.test(location.protocol) || /claude\.ai|claudeusercontent/.test(location.hostname)) return "Offline play: available in the installed app.";
+  return navigator.serviceWorker.controller ? "Offline play: ready \u2713" : "Offline play: not ready yet. Close and reopen the app once with internet.";
+}
 function getTheme(){ try { return localStorage.getItem("stonewatch-theme")||"auto"; } catch(e){ return "auto"; } }
 function applyTheme(){
   var t=getTheme(), root=document.documentElement;
@@ -1932,8 +1944,8 @@ function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catc
 function getSlot(w,i){ return w==="wall" ? {type:"walls",level:S.wall||0} : w==="th" ? {type:"townhall",level:S.th} : (w==="in" ? S.inside[i] : S.fields[i]); }
 function costFor(type,L){ var b=DEF[type].cost,o={}; for (var k in b) o[k]=Math.round(b[k]*Math.pow(2,L-1)); return o; }
 function timeFor(type,L){ return DEF[type].t*Math.pow(2,L-1)*1000/(1+0.1*S.tech.construction)/(1+hs(bestFor("pol"),"pol")/200); }
-function techCost(key,L){ var o={}, m=TECH[key].g==="Economy"?1:1.4; for (var k in TECH_COST) o[k]=Math.round(TECH_COST[k]*m*Math.pow(2,L-1)); return o; }
-function techTime(key,L){ return TECH_T*(TECH[key].tm||1)*Math.pow(2,L-1)*1000/(1+hs(bestFor("int"),"int")/200); }
+function techCost(key,L){ var o={}, base=TECH[key].g==="Economy"?TECH_COST_ECO:TECH_COST; for (var k in base) o[k]=Math.round(base[k]*Math.pow(2,L-1)); return o; }
+function techTime(key,L){ return (TECH[key].t||TECH_T)*Math.pow(2,L-1)*1000/(1+hs(bestFor("int"),"int")/200); }
 function afford(c){ for (var k in c) if (S.res[k] < c[k]) return false; return true; }
 function pay(c,sign){ for (var k in c) S.res[k] -= sign*c[k]; }
 function findUnique(type){ for (var i=0;i<S.inside.length;i++){ var s=S.inside[i]; if (s && s.type===type) return s; } return null; }
@@ -2106,6 +2118,8 @@ function tickText(){
   if (S.research){ var t2=document.getElementById("qr-t"), bar2=document.getElementById("qr-bar");
     if (t2){ t2.textContent=fmtT(realMs(S.research.end-S.gt)); bar2.style.width = Math.min(100,(S.gt-S.research.start)/(S.research.end-S.research.start)*100)+"%"; } }
   if (document.getElementById("m-have")) updateMarket();
+  if (tab==="army"){ U.forEach(function(u,i){ updateTrainRow(i); }); setText(document.getElementById("idlepop"), fmt(idlePop())); }
+  if (tab==="city") FORTS.forEach(function(f,i){ updateFortRow(i); });
   if (S.fortQ){ var fe=document.getElementById("fq-t"), fb=document.getElementById("fq-bar"); if (fe){ fe.textContent=fmtT(realMs(S.fortQ.end-S.gt)); fb.style.width=Math.min(100,(S.gt-S.fortQ.start)/Math.max(1,S.fortQ.end-S.fortQ.start)*100)+"%"; } }
   renderThreats(); renderMarchStrip(); [].forEach.call(document.querySelectorAll("#threats .tt"), function(e){ e.textContent=fmtT(realMs(+e.dataset.t-S.gt)); });
   S.marches.forEach(function(m){ var el=document.getElementById("mt-"+m.id); if (el) el.textContent=(m.phase==="wait"?"launches in ":"")+fmtT(realMs(marchT(m)-S.gt))+(m.phase==="wait"?", lands in "+fmtT(realMs(m.arr-S.gt)):""); });
@@ -2254,7 +2268,7 @@ function fortSection(){
     var miss=missing(f.req);
     h+='<div class="unit'+(miss.length?' locked':'')+'"><h4>'+f.name+'</h4><span class="own">'+fmt(S.forts[i])+'</span><div class="us"><span>'+f.desc+'</span><span>Space <b>'+f.space+'</b></span></div>';
     if (miss.length) h+='<div class="reqs">Needs '+miss.map(reqName).join(", ")+'</div>';
-    else h+='<div style="grid-column:1/-1">'+chips(f.cost)+'</div><div class="trainrow"><input type="number" min="0" data-fort="'+i+'" id="ft-amt-'+i+'" value="'+(fortAmt[i]||"")+'" placeholder="Amount"><button class="btn ghost small" data-act="fort-max" data-f="'+i+'">Max '+fmt(fortMax(i))+'</button><button class="btn small" data-act="fort-build" data-f="'+i+'" id="ft-btn-'+i+'">Build</button><span id="ft-info-'+i+'" class="dur"></span></div>';
+    else h+='<div style="grid-column:1/-1">'+chips(f.cost)+'</div><div class="trainrow"><input type="number" min="0" data-fort="'+i+'" id="ft-amt-'+i+'" value="'+(fortAmt[i]||"")+'" placeholder="Amount"><button class="btn ghost small" data-act="fort-max" data-f="'+i+'" id="ft-max-'+i+'">Max</button><button class="btn small" data-act="fort-build" data-f="'+i+'" id="ft-btn-'+i+'">Build</button><span id="ft-info-'+i+'" class="dur"></span></div>';
     h+='</div>';
   });
   return h+'</div></div>';
@@ -2262,8 +2276,10 @@ function fortSection(){
 function updateFortRow(i){
   var b=document.getElementById("ft-btn-"+i), inf=document.getElementById("ft-info-"+i); if (!b) return;
   var n=fortAmt[i]||0, why=fortWhy(i,n);
-  b.disabled=!!why; b.textContent="Build"+(n>0?" "+fmt(n):""); inf.textContent= why || fmtT(realMs(fortTime(i)*n)); inf.className= why?"why":"dur";
+  setText(b, "Build"+(n>0?" "+fmt(n):"")); b.disabled=!!why; setText(inf, why || fmtT(realMs(fortTime(i)*n))); inf.className= why?"why":"dur";
+  var mx=document.getElementById("ft-max-"+i); if (mx) setText(mx, "Max "+fmt(fortMax(i)));
 }
+function setText(el,t){ if (el && el.textContent!==t) el.textContent=t; }
 
 /* armory */
 var armoryFilter="all";
@@ -2378,10 +2394,27 @@ function upgradeBlock(w,i){
     h+=chips(costFor(s.type,L+1))+'<div class="act"><span class="dur">'+fmtT(realMs(timeFor(s.type,L+1)))+'</span>'+(why?'<span class="why">'+why+'</span>':'')+'<button class="btn" data-act="upgrade"'+(why?' disabled':'')+'>Upgrade to level '+(L+1)+'</button></div>'+
       '<div class="act"><span class="dur">'+(qn?qn+' already queued here.':'Queued upgrades start on their own when a builder is free and you can afford them.')+'</span><button class="btn ghost" data-act="queue-up">Add to queue</button></div>';
   } else h+='<p class="sub">Fully upgraded.</p>';
+  if (L>0 && w!=="th" && w!=="wall"){
+    var dw=demolishWhy(w,i);
+    h+='<div class="act"><span class="dur">'+(dw?dw:'Clears the plot for something else. Nothing is refunded.')+'</span><button class="btn ghost danger small" data-act="demolish"'+(dw?' disabled':'')+'>'+(armed==="demolish"?"Tap again to demolish":"Demolish")+'</button></div>';
+  }
   return h;
 }
+function demolishWhy(w,i){
+  var s=getSlot(w,i); if (!s) return "Nothing here";
+  if (buildOn(w,i)) return "Finish or cancel the upgrade first";
+  if (s.type==="barracks" && trainingAt(i)) return "This Barracks is training troops";
+  if (s.type==="academy" && S.research) return "Research is in progress";
+  if (s.type==="feasting" && S.heroes.length) return "Move or dismiss the heroes living here first";
+  if (s.type==="rally" && cityMarches().length) return "Armies are out from this Rally Spot";
+  return "";
+}
 function ctxPlot(){ return (sheetFor && sheetFor.kind==="plot") ? sheetFor : pg; }
-function taxSection(){ return '<div class="section"><h3>Tax rate</h3><div class="taxrow"><input type="range" id="tax" min="0" max="80" step="5" value="'+S.tax+'" aria-label="Tax rate"><b id="taxlbl">'+S.tax+'%</b></div><p class="hint">Higher tax brings in more gold but slows population growth. Hero salaries come out of gold.</p></div>'; }
+function taxSection(){
+  return '<div class="section"><div class="shead"><h3>Tax rate</h3><span class="dur">'+esc(S.name)+' only</span></div>'+
+    '<div class="taxrow"><button class="btn ghost small" data-act="tax" data-d="-5" aria-label="Lower tax"'+(S.tax<=0?' disabled':'')+'>\u2212</button><b class="taxval">'+S.tax+'%</b><button class="btn ghost small" data-act="tax" data-d="5" aria-label="Raise tax"'+(S.tax>=80?' disabled':'')+'>+</button></div>'+
+    '<p class="hint">Gold '+fmt(S.pop*S.tax/100)+'/h from '+fmt(S.pop)+' people. Higher tax brings in more gold but slows population growth. Hero salaries come out of gold. Each city sets its own rate.</p></div>';
+}
 function viewBuilding(){
   var s=pg && getSlot(pg.w,pg.i);
   if (!s || !s.level || !PAGE_TYPES[s.type]){ tab="city"; return viewCity(); }
@@ -2426,7 +2459,7 @@ function viewTitlesBody(t,nt,nr){
 
 function goalsSection(){
   var have=armyCount(), h='<div class="section"><div class="shead"><h3>Troop goals</h3><label class="chk"><input type="checkbox" id="autotrain"'+(S.autoTrain?' checked':'')+'> Auto-train</label></div>'+
-    '<p class="hint">Set the army you want this city to keep. With auto-train on, every idle Barracks trains toward the goal furthest from done, and losses get replaced automatically. Set a resource reserve in any Warehouse so it never starves your build queue. Counts include troops in training and out on marches.</p>'+
+    '<p class="hint">Set the army you want this city to keep. With auto-train on, every idle Barracks takes a small batch (about 30 minutes of work): siege engines first in the highest-level Barracks, then archers, then whatever is furthest from its goal. Losses get replaced automatically. Set a resource reserve in any Warehouse so it never starves your build queue. Counts include troops in training and out on marches.</p>'+
     '<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Unit</th><th>Have</th><th>Goal</th></tr></thead><tbody>';
   U.forEach(function(u,i){ var locked=missing(u.req).length, g=S.goals[i]||0;
     if (locked && !g && !have[i]) return;
@@ -2451,6 +2484,7 @@ function trainWhy(i,n){
   if (missing(u.req).length) return "Locked";
   if (!barracksList().length) return "Build a Barracks";
   if (idleBarracks()<0) return "All barracks busy";
+  if (pickBarracks(i)<0) return "Needs an idle level "+barracksReq(i)+" Barracks";
   if (!n || n<1) return "Enter an amount";
   var c={}; for (var k in u.cost) c[k]=u.cost[k]*n;
   if (!afford(c)) return "Not enough resources";
@@ -2460,14 +2494,15 @@ function trainWhy(i,n){
 function updateTrainRow(i){
   var b=document.getElementById("tr-btn-"+i), inf=document.getElementById("tr-info-"+i); if (!b) return;
   var n=trainAmt[i]||0, why=trainWhy(i,n);
-  b.disabled=!!why; b.textContent = "Train"+(n>0?" "+fmt(n):"");
-  inf.textContent = why ? why : fmtT(realMs(trainTime(i)*n));
+  b.disabled=!!why; setText(b, "Train"+(n>0?" "+fmt(n):""));
+  setText(inf, why ? why : fmtT(realMs(trainTime(i)*n)));
   inf.className = why ? "why" : "dur";
+  var mx=document.getElementById("tr-max-"+i); if (mx) setText(mx, "Max "+fmt(maxTrain(i)));
 }
 function viewArmy(){
   var bl=barracksList(), total=S.troops.reduce(function(a,b){return a+b;},0), r=simResearch();
   var h='<div class="section"><div class="shead"><h3>Your army</h3><span class="dur">'+fmt(total)+' troops, eating '+fmt(upkeep())+' food/h</span></div>'+
-    '<p class="hint">Troops eat food but never starve; food just stops at zero. Training draws from idle people (population not working the fields): '+fmt(idlePop())+' right now.</p>';
+    '<p class="hint">Troops eat food but never starve; food just stops at zero. Training draws from idle people (population not working the fields): <b id="idlepop"></b> right now.</p>';
   if (!bl.length) h+='<p class="warn">Build a Barracks on an empty city plot to train troops.</p>';
   var sp=hasSpeedups();
   bl.forEach(function(slot,n){
@@ -2484,7 +2519,7 @@ function viewArmy(){
     if (miss.length) h+='<div class="reqs">Needs '+miss.map(reqName).join(", ")+'</div>';
     else {
       h+='<div style="grid-column:1/-1">'+chips(u.cost)+'</div><div class="trainrow"><input type="number" min="0" step="1" id="tr-amt-'+i+'" data-unit="'+i+'" value="'+(trainAmt[i]||"")+'" placeholder="Amount" aria-label="How many '+u.name+'s">'+
-        '<button class="btn ghost small" data-act="train-max" data-unit="'+i+'">Max '+fmt(maxTrain(i))+'</button><button class="btn small" data-act="train" data-unit="'+i+'" id="tr-btn-'+i+'">Train</button><span id="tr-info-'+i+'" class="dur"></span></div>';
+        '<button class="btn ghost small" data-act="train-max" data-unit="'+i+'" id="tr-max-'+i+'">Max</button><button class="btn small" data-act="train" data-unit="'+i+'" id="tr-btn-'+i+'">Train</button><span id="tr-info-'+i+'" class="dur"></span></div>';
     }
     h+='</div>';
   });
@@ -2584,24 +2619,34 @@ function renderSimResult(){
   el.innerHTML=h+'</div>';
 }
 
-var mkt = {give:"food",get:"lumber",amt:1000};
+var mkt = {res:"lumber", side:"sell", amt:1000};
+var MKT_BASE={food:0.35, lumber:0.8, stone:0.6, iron:1.0};
+function mktPrice(k,day){ if (day==null) day=gameDay(); var u=hash3(day, RES.indexOf(k)*977+13, S.map.seed+404); return Math.round(MKT_BASE[k]*(0.6+0.9*u)*1000)/1000; }
+function mktFee(){ return Math.max(0.02, 0.1-0.008*marketLv()); }
 function viewMarket(){
   var ml=marketLv();
-  if (!ml) return '<div class="empty-state"><p>Build a Marketplace on an empty city plot to trade resources.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
-  var opts=function(sel){ return RES.map(function(k){ return '<option value="'+k+'"'+(k===sel?' selected':'')+'>'+RNAME[k]+'</option>'; }).join(""); };
-  return '<div class="section market"><h3>Merchant\u2019s rate '+tradeRate(ml)+' : 1</h3><p class="hint">Give '+tradeRate(ml)+' of one resource for 1 of another. Upgrade the Marketplace for better rates.</p>'+
-    '<div class="mrow"><label for="m-give">Give</label><select id="m-give">'+opts(mkt.give)+'</select>'+
-    '<label for="m-amt">Amount</label><input type="number" id="m-amt" min="0" step="100" value="'+mkt.amt+'">'+
-    '<span></span><div class="presets"><button data-act="preset" data-v="1000">1k</button><button data-act="preset" data-v="10000">10k</button><button data-act="preset" data-v="half">Half</button><button data-act="preset" data-v="all">All</button></div>'+
-    '<label for="m-get">Get</label><select id="m-get">'+opts(mkt.get)+'</select></div>'+
-    '<div class="act"><span class="mresult">You get <b id="m-out">0</b> <span id="m-have" class="dur"></span></span><button class="btn" data-act="trade" id="m-btn">Trade</button></div></div>';
+  if (!ml) return '<div class="empty-state"><p>Build a Marketplace on an empty city plot to trade.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
+  var day=gameDay(), rows=["food","lumber","stone","iron"].map(function(k){ var p=mktPrice(k,day), y=mktPrice(k,day-1), vs=p/MKT_BASE[k];
+    return '<tr><td>'+RNAME[k]+'</td><td>'+p.toFixed(3)+'</td><td class="'+(p>y?'ok':p<y?'loss':'')+'">'+(p>y?'\u25b2':p<y?'\u25bc':'\u2013')+' '+Math.abs(Math.round((p/y-1)*100))+'%</td><td class="dur">'+(vs>1.25?'pricey':vs<0.8?'cheap':'normal')+'</td></tr>'; }).join("");
+  return '<div class="section market"><div class="shead"><h3>Today\u2019s prices</h3><span class="dur">New prices in '+fmtT(realMs((day+1)*86400000-S.gt))+'</span></div>'+
+    '<p class="hint">Gold per unit. Prices move every day; buy when a resource is cheap and sell when it\u2019s pricey. Your Marketplace takes a '+Math.round(mktFee()*1000)/10+'% fee on every trade, dropping as it levels up.</p>'+
+    '<table class="simtab"><thead><tr><th>Resource</th><th>Price</th><th>vs yesterday</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="farmadd"><button class="chipbtn'+(mkt.side==="sell"?' on':'')+'" data-act="mkt-side" data-v="sell">Sell for gold</button><button class="chipbtn'+(mkt.side==="buy"?' on':'')+'" data-act="mkt-side" data-v="buy">Buy with gold</button></div>'+
+    '<div class="mrow" style="margin-top:8px"><label for="m-res">Resource</label><select id="m-res">'+["food","lumber","stone","iron"].map(function(k){ return '<option value="'+k+'"'+(k===mkt.res?' selected':'')+'>'+RNAME[k]+'</option>'; }).join("")+'</select>'+
+    '<label for="m-amt">Amount</label><input type="number" inputmode="numeric" id="m-amt" min="0" step="1000" value="'+mkt.amt+'">'+
+    '<span></span><div class="presets"><button data-act="preset" data-v="1000">1k</button><button data-act="preset" data-v="10000">10k</button><button data-act="preset" data-v="100000">100k</button><button data-act="preset" data-v="all">Max</button></div></div>'+
+    '<div class="act"><span class="mresult" id="m-out"></span><button class="btn" data-act="trade" id="m-btn">Trade</button></div><span id="m-have" hidden></span></div>';
+}
+function mktQuote(){
+  var p=mktPrice(mkt.res), f=mktFee(), n=Math.max(0,Math.floor(mkt.amt||0));
+  return mkt.side==="sell" ? {gold:Math.floor(n*p*(1-f)), ok:n>0 && S.res[mkt.res]>=n} : {gold:Math.ceil(n*p*(1+f)), ok:n>0 && S.res.gold>=Math.ceil(n*p*(1+f))};
 }
 function updateMarket(){
-  var ml=marketLv(), out=Math.floor(mkt.amt/tradeRate(ml));
-  var ok = mkt.give!==mkt.get && mkt.amt>0 && S.res[mkt.give]>=mkt.amt;
-  document.getElementById("m-out").textContent = fmt(mkt.give===mkt.get?0:out)+" "+RNAME[mkt.get].toLowerCase();
-  document.getElementById("m-have").textContent = "(you have "+fmt(S.res[mkt.give])+" "+RNAME[mkt.give].toLowerCase()+")";
-  document.getElementById("m-btn").disabled = !ok;
+  var o=document.getElementById("m-out"), b=document.getElementById("m-btn"); if (!o) return;
+  var qt=mktQuote();
+  o.innerHTML = mkt.side==="sell" ? 'Sell '+fmt(mkt.amt)+' '+RNAME[mkt.res].toLowerCase()+' for <b>'+fmt(qt.gold)+' gold</b> <span class="dur">(have '+fmt(S.res[mkt.res])+')</span>'
+    : 'Buy '+fmt(mkt.amt)+' '+RNAME[mkt.res].toLowerCase()+' for <b>'+fmt(qt.gold)+' gold</b> <span class="dur">(have '+fmt(S.res.gold)+' gold)</span>';
+  b.disabled=!qt.ok; b.textContent = mkt.side==="sell" ? "Sell" : "Buy";
 }
 
 /* wheel view */
@@ -2751,7 +2796,7 @@ function effectLine(type,L){
   if (type==="townhall") return "Level cap "+L+", "+fieldSlots(L)+" field plots"+(top?"":" → cap "+nx+", "+fieldSlots(nx)+" plots");
   if (type==="cottage") return "Houses "+fmt(tri(L)*100)+" people"+(top?"":" → "+fmt(tri(nx)*100));
   if (type==="academy") return "Research up to level "+L+(top?"":" → "+nx);
-  if (type==="market") return "Trade rate "+tradeRate(L)+" : 1"+(top?"":" → "+tradeRate(nx)+" : 1");
+  if (type==="market") return "Trade fee "+Math.round(Math.max(0.02,0.1-0.008*L)*1000)/10+"%"+(top?"":" → "+Math.round(Math.max(0.02,0.1-0.008*nx)*1000)/10+"%");
   if (type==="walls") return "Durability "+fmt(wallDurability(L))+", "+fmt(1000*tri(L))+" fortification space"+(top?"":" → "+fmt(wallDurability(nx))+", "+fmt(1000*tri(nx)));
   if (type==="barracks") return "Trains units needing up to Barracks "+L+(top?"":" → "+nx);
   if (type==="stable") return "Horseback Riding up to level "+L+(top?"":" → "+nx);
@@ -2780,6 +2825,7 @@ function renderSheet(){
     h='<div class="head"><div><h2>Settings</h2><div class="sub">Timers keep running while you\u2019re away.</div></div></div>'+
 
       '<div><div class="h3" style="margin-bottom:6px">Theme</div><div class="speeds">'+[["auto","Match phone"],["light","Light"],["dark","Dark"]].map(function(t){ return '<button data-act="theme" data-v="'+t[0]+'" aria-pressed="'+(getTheme()===t[0])+'">'+t[1]+'</button>'; }).join("")+'</div></div>'+
+      '<div class="sub" id="offlinestat">'+offlineStatus()+'</div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
       '<div><div class="h3" style="margin-bottom:6px">Move your save</div><p class="hint">Copy a save code here, then paste it into the game on another device. The code holds everything: every city, hero, gear piece and the whole map.</p>'+
@@ -2900,11 +2946,13 @@ function bqState(it){ // "go", "wait" or "drop"
   return "go";
 }
 function uname(i,n){ var nm=U[i].name; return n===1?nm:/man$/.test(nm)?nm.replace(/man$/,"men"):nm+"s"; }
-function startTrain(tu,tn){
+function startTrain(tu,tn,slot){
   if (trainWhy(tu,tn)) return false;
+  if (slot==null) slot=pickBarracks(tu);
+  if (slot<0 || trainingAt(slot) || S.inside[slot].level<barracksReq(tu)) return false;
   var tc={}; for (var ck in U[tu].cost) tc[ck]=U[tu].cost[ck]*tn;
   pay(tc,1); S.pop -= U[tu].pop*tn;
-  S.train.push({slot:idleBarracks(),u:tu,n:tn,start:S.gt,end:S.gt+trainTime(tu)*tn});
+  S.train.push({slot:slot,u:tu,n:tn,start:S.gt,end:S.gt+trainTime(tu)*tn});
   return true;
 }
 function armyCount(){ // home + training + in the field, for this city
@@ -2913,15 +2961,20 @@ function armyCount(){ // home + training + in the field, for this city
   S.marches.forEach(function(m){ if (m.city===me) m.t.forEach(function(n,i){ c[i]+=n; }); });
   return c;
 }
+var AUTO_BATCH_MS=30*60000, AUTO_FIRST=[[9,11,10],[5]];
 function autoTrainStep(){
   if (!S.autoTrain) return;
-  for (var guard=0; guard<12 && idleBarracks()>=0; guard++){
-    var have=armyCount(), best=-1, bestR=0;
-    for (var i=0;i<12;i++){ var g=S.goals[i]||0, d=g-have[i]; if (d<=0 || missing(U[i].req).length || maxTrainAuto(i)<1) continue; var r=d/g; if (r>bestR){ bestR=r; best=i; } }
-    if (best<0) return;
-    var n=Math.min((S.goals[best]||0)-have[best], maxTrainAuto(best));
-    if (!startTrain(best,n)) return;
-  }
+  var idle=barracksList().filter(function(sl){ return !trainingAt(sl); }).sort(function(a,b){ return S.inside[b].level-S.inside[a].level; });
+  idle.forEach(function(slot){
+    var lv=S.inside[slot].level, have=armyCount();
+    var need=function(i){ var g=S.goals[i]||0, d=g-have[i]; return (g>0 && d>0 && !missing(U[i].req).length && barracksReq(i)<=lv && maxTrainAuto(i)>=1) ? d : 0; };
+    var pick=-1;
+    for (var gi=0; gi<AUTO_FIRST.length && pick<0; gi++) for (var k=0;k<AUTO_FIRST[gi].length;k++){ if (need(AUTO_FIRST[gi][k])){ pick=AUTO_FIRST[gi][k]; break; } }
+    if (pick<0){ var bestR=0; for (var i=0;i<12;i++){ var d=need(i); if (d && d/S.goals[i]>bestR){ bestR=d/S.goals[i]; pick=i; } } }
+    if (pick<0) return;
+    var cap=Math.max(1, Math.floor(AUTO_BATCH_MS*S.speed/trainTime(pick)));
+    startTrain(pick, Math.min(need(pick), maxTrainAuto(pick), cap), slot);
+  });
 }
 function processQueues(){
   autoTrainStep();
@@ -2956,7 +3009,7 @@ document.addEventListener("click",function(e){
   if (p && arrange && (p.dataset.w==="wall" || p.dataset.w==="th")) return;
   if (p && !p.classList.contains("locked")){
     var ps=getSlot(p.dataset.w,+p.dataset.i);
-    if (ps && ps.level>0 && PAGE_TYPES[ps.type]){ closeSheet(); pg={w:p.dataset.w,i:+p.dataset.i}; tab="bldg"; lastView=""; renderView(true); window.scrollTo({top:0}); return; }
+    if (ps && ps.level>0 && PAGE_TYPES[ps.type]){ closeSheet(); armed=null; pg={w:p.dataset.w,i:+p.dataset.i}; tab="bldg"; lastView=""; renderView(true); window.scrollTo({top:0}); return; }
     openSheet({kind:"plot",w:p.dataset.w,i:+p.dataset.i}); return; }
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
@@ -2986,6 +3039,15 @@ document.addEventListener("click",function(e){
     S=newState(); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; armed=null; lastPrize=null; document.getElementById("cityname").textContent=S.name; closeSheet(); refresh(); toast("A new city begins."); return;
   }
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
+  if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
+  if (act==="demolish"){
+    var dc=ctxPlot(); if (!dc || demolishWhy(dc.w,dc.i)) return;
+    if (armed!=="demolish"){ armed="demolish"; lastSheet=""; renderSheet(); lastView=""; renderView(true); return; }
+    armed=null; var ds=getSlot(dc.w,dc.i), dn=DEF[ds.type].name;
+    if (dc.w==="in") S.inside[dc.i]=null; else S.fields[dc.i]=null;
+    S.bq=S.bq.filter(function(it){ return !(it.w===dc.w && it.i===dc.i); });
+    closeSheet(); if (tab==="bldg"){ tab="city"; pg=null; } lastView=""; toast(dn+" demolished"); refresh(); return;
+  }
   if (act==="queue-up"){ var qc=ctxPlot(), qs=getSlot(qc.w,qc.i); if (qs){ S.bq.push({w:qc.w,i:qc.i,type:qs.type}); toast(DEF[qs.type].name+" upgrade queued"); } closeSheet(); processQueues(); refresh(); return; }
   if (act==="bq-remove"){ S.bq.splice(+a.dataset.k,1); refresh(); return; }
   if (act==="rq-add"){ S.rq.push(a.dataset.tech); toast(TECH[a.dataset.tech].name+" queued"); processQueues(); refresh(); return; }
@@ -3018,8 +3080,8 @@ document.addEventListener("click",function(e){
     pay(rc,-1); S.pop += U[ct.u].pop*ct.n; S.train=S.train.filter(function(x){return x!==ct;});
     toast("Training cancelled. Resources returned."); refresh(); return;
   }
-  if (act==="rankup"){ var nr=RANKS[S.rank+1]; if (!nr || !allMet(reqChecks(nr,false))) return; payQuest(nr); S.rank++; addPrestige(nr.prest); toast("Promoted to "+nr.name); refresh(); return; }
-  if (act==="titleup"){ var nt=TITLES[S.title+1]; if (!nt || !allMet(reqChecks(nt,true))) return; payQuest(nt); S.title++; addPrestige(nt.award); toast("You are now "+nt.name+". "+nt.cities+" cities allowed."); refresh(); return; }
+  if (act==="rankup"){ var nr=RANKS[S.rank+1]; if (!nr || !allMet(reqChecks(nr,false))) return; payQuest(nr); S.rank++; addPrestigeFlat(nr.prest); toast("Promoted to "+nr.name); refresh(); return; }
+  if (act==="titleup"){ var nt=TITLES[S.title+1]; if (!nt || !allMet(reqChecks(nt,true))) return; payQuest(nt); S.title++; addPrestigeFlat(nt.award); toast("You are now "+nt.name+". "+nt.cities+" cities allowed."); refresh(); return; }
   if (act==="npc-make"){
     var mt=a.dataset.tile, mq=TILE_BY[mt];
     if (S.map.owned[mt]!==C().id || mq.k!=="flat") return;
@@ -3218,20 +3280,20 @@ document.addEventListener("click",function(e){
     toast(wh.name+" joined your hall"); refresh(); return;
   }
   if (act==="sendaway"){ var sid=+a.dataset.id; S.waiting=S.waiting.filter(function(x){return x.id!==sid;}); refresh(); return; }
+  if (act==="mkt-side"){ mkt.side=a.dataset.v; lastView=""; renderView(true); return; }
   if (act==="preset"){
-    var v=a.dataset.v, have=Math.floor(S.res[mkt.give]);
-    mkt.amt = v==="all"?have : v==="half"?Math.floor(have/2) : +v;
+    var v=a.dataset.v, p0=mktPrice(mkt.res), f0=mktFee();
+    mkt.amt = v==="all" ? (mkt.side==="sell" ? Math.floor(S.res[mkt.res]) : Math.floor(S.res.gold/(p0*(1+f0)))) : +v;
     document.getElementById("m-amt").value=mkt.amt; updateMarket(); return;
   }
   if (act==="trade"){
-    var ml=marketLv(), out=Math.floor(mkt.amt/tradeRate(ml));
-    if (mkt.give===mkt.get || mkt.amt<=0 || S.res[mkt.give]<mkt.amt) return;
-    S.res[mkt.give]-=mkt.amt; S.res[mkt.get]+=out;
-    toast("Traded "+fmt(mkt.amt)+" "+mkt.give+" for "+fmt(out)+" "+mkt.get); tickText(); save(); return;
+    var qt=mktQuote(); if (!qt.ok) return;
+    if (mkt.side==="sell"){ S.res[mkt.res]-=mkt.amt; S.res.gold+=qt.gold; toast("Sold "+fmt(mkt.amt)+" "+mkt.res+" for "+fmt(qt.gold)+" gold"); }
+    else { S.res.gold-=qt.gold; S.res[mkt.res]+=mkt.amt; toast("Bought "+fmt(mkt.amt)+" "+mkt.res+" for "+fmt(qt.gold)+" gold"); }
+    tickText(); updateMarket(); save(); return;
   }
 });
 document.addEventListener("input",function(e){
-  if (e.target.id==="tax"){ S.tax=+e.target.value; document.getElementById("taxlbl").textContent=S.tax+"%"; tickText(); save(); }
   if (e.target.id==="m-amt"){ mkt.amt=Math.max(0,Math.floor(+e.target.value||0)); updateMarket(); }
   if (e.target.dataset.unit!=null && e.target.tagName==="INPUT"){ var iu=+e.target.dataset.unit; trainAmt[iu]=Math.max(0,Math.floor(+e.target.value||0)); updateTrainRow(iu); }
   if (e.target.dataset.ptroop!=null){ S.presets[sheetFor.p].t[+e.target.dataset.ptroop]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
@@ -3252,8 +3314,7 @@ document.addEventListener("input",function(e){
   }
 });
 document.addEventListener("change",function(e){
-  if (e.target.id==="m-give"){ mkt.give=e.target.value; updateMarket(); }
-  if (e.target.id==="m-get"){ mkt.get=e.target.value; updateMarket(); }
+  if (e.target.id==="m-res"){ mkt.res=e.target.value; updateMarket(); }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.id==="phero"){ S.presets[sheetFor.p].hero=+e.target.value; save(); }

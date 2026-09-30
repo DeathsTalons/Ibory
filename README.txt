@@ -26,3 +26,9 @@ GOOD TO KNOW
 UPDATING LATER
 Upload a new index.html to the repo, replacing the old one. The app picks it up the next time
 it opens with a connection. If it looks unchanged, close it fully and reopen it once more.
+
+IF OFFLINE STOPS WORKING
+Open Settings in the game: it says "Offline play: ready" when the app has saved itself.
+If it says "not ready", open the app once with internet, close it fully, and open it again.
+Removing and reinstalling the app from the home screen resets the offline copy, so do that
+step again after any reinstall. (Back up your save code before reinstalling.)
