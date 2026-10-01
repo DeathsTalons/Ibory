@@ -599,7 +599,7 @@ function fight(atk, def, opts){
   var trap=fortIn[0]||0, abatis=fortIn[1]||0, logs=fortIn[3]||0, rocks=fortIn[4]||0;
   var trapDie = trap>0 ? trunc(trap*(5+Math.floor(rand()*5))/100) : 0;
   var abatisDie = trunc(abatis/10), logDie=trunc(logs/10), rockDie=trunc(rocks/10);
-  var trapKP=def.trapKillPower||1.25, logKP=def.logKillPower||1.25, rockKP=def.rockKillPower||1.25;
+  var trapKP=def.trapKillPower||0.95, logKP=def.logKillPower||1.25, rockKP=def.rockKillPower||1.25;
   var log = opts.log ? [] : null;
   var round, attackerAlive=false, defenderAlive=false;
 
@@ -709,7 +709,7 @@ function fight(atk, def, opts){
       for (j=0;j<12;j++){ var lp4=A[j]; var v4=F(lp4.eff*lp4.stat.attack); if (lp4.eff>0 && lp4.loc>=pos4 && lp4.loc<fs && v4>best4){ t4=lp4; best4=v4; } }
       if (t4){
         var tdv=t4.eff*t4.stat.life*t4.stat.defense, tav=rockDie*rockKP*FS[4].attack;
-        if (tdv>tav){ rocks-=rockDie; t4.eff=Math.max(t4.eff - Math.floor(F(rockDie*FS[4].attack*rockKP)/F(t4.stat.defense*t4.stat.life)),0); }
+        if (tdv>tav){ var rd=Math.min(rocks,rockDie); rocks-=rd; t4.eff=Math.max(t4.eff - Math.floor(F(rd*FS[4].attack*rockKP)/F(t4.stat.defense*t4.stat.life)),0); }
         else { rocks-=Math.ceil(F(t4.stat.defense*t4.stat.life*t4.eff)/F(rockKP*FS[4].attack)); if (rocks<0) rocks=0; }
       }
     }
