@@ -51,6 +51,9 @@ h1{font:700 1.5rem/1.1 var(--display);letter-spacing:.04em;margin:0}
 .lordline b{color:var(--brass);font-weight:700}
 .speedchip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;cursor:pointer;display:flex;gap:8px;align-items:center;font-size:.95rem}
 .speedchip b{color:var(--brass)}
+.speedchip b:empty{display:none}
+header{flex-wrap:wrap}
+.chiprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
 .ledger{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .res{background:var(--panel);padding:8px 6px 7px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
@@ -274,6 +277,14 @@ summary{cursor:pointer;color:var(--muted);font-size:.92rem}
 .invitem{display:flex;gap:8px;align-items:center;background:var(--panel2);border-radius:8px;padding:7px 10px;font-size:.92rem}
 .invitem svg{width:20px;height:20px;color:var(--brass);flex:none}
 .gt td.pri{white-space:nowrap}
+.achlist{display:grid;gap:8px;margin-top:8px}
+.achrow{display:grid;grid-template-columns:24px 1fr auto;gap:3px 10px;align-items:center;background:var(--panel2);border-radius:10px;padding:9px 12px}
+.achrow>svg{width:22px;height:22px;color:var(--muted);grid-row:1/3}
+.achrow.on>svg{color:var(--brass)}
+.achrow .ad{grid-column:1/-1}
+.achrow .ab{text-align:right;font-size:.86rem;color:var(--muted)}
+.achrow .ab b{color:var(--brass)}
+.atier{color:var(--brass);font-weight:700}
 .gt td.pri .link{padding:2px 5px;font-size:1rem}
 .irow{display:grid;grid-template-columns:24px 1fr auto;gap:2px 12px;align-items:center;background:var(--panel2);border-radius:10px;padding:9px 12px}
 .irow>svg{width:22px;height:22px;color:var(--brass);grid-row:1/3}
@@ -396,8 +407,11 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <div class="wrap">
   <header>
     <div><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div>
+    <div class="chiprow">
     <button class="speedchip" data-act="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
+    <button class="speedchip" data-act="ach" aria-label="Achievements">Achievements<b id="abadge"></b></button>
     <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</button>
+    </div>
   </header>
 
   <div class="citybar" id="citybar"></div>
@@ -817,21 +831,21 @@ function waveDesc(t, bl){ // what a beacon of this level can make out of an inco
 }
 function beaconText(L){ return L>=9?"exact armies, plan and enemy research":L>=7?"exact troop counts":L>=5?"rough troop counts":L>=3?"who is coming and with what":L>=1?"warning and landing times":"no warning"; }
 var BREQ={beacon:function(){ return [["walls",1]]; },townhall:function(L){ return L>=3?[["walls",L-2]]:[]; }, walls:function(){ return [["quarry",2],["workshop",1]]; },
-  workshop:function(){ return [["forge",2]]; }, forge:function(){ return [["ironmine",3]]; }, stable:function(){ return [["farm",5]]; },
+  workshop:function(){ return [["forge",2]]; }, forge:function(){ return [["ironmine",2]]; }, stable:function(){ return [["farm",5]]; },
   barracks:function(){ return [["rally",1]]; }, academy:function(){ return [["townhall",2]]; }, feasting:function(){ return [["inn",1]]; }, market:function(){ return [["warehouse",1]]; }};
 function buildReqWhy(type,to){ var f=BREQ[type]; if (!f) return ""; var m=missing(f(to)); return m.length ? "Needs "+m.map(reqName).join(" and ") : ""; }
 function reqMet(r){ return r[0].indexOf("t:")===0 ? (S.tech[r[0].slice(2)]||0)>=r[1] : bLevel(r[0])>=r[1]; }
 function missing(reqs){ return reqs.filter(function(r){ return !reqMet(r); }); }
 function reqName(r){ return (r[0].indexOf("t:")===0 ? TECH[r[0].slice(2)].name : DEF[r[0]].name)+" "+r[1]; }
 function rationMult(){ var m=0; S.cities.forEach(function(c){ m=Math.max(m, (c.tech&&c.tech.grandtreasury)||0); }); return Math.max(0.1, 1-0.05*m); }
-function upkeep(){ var u=0; for (var i=0;i<12;i++) u += (S.troops[i]||0)*U[i].up; return u*rationMult(); }
+function upkeep(){ var u=0; for (var i=0;i<12;i++) u += (S.troops[i]||0)*U[i].up; return u*rationMult()*bUpkeep(); }
 function idlePop(){ return Math.max(0, Math.floor(S.pop - workersNeeded())); }
 function bestFor(stat){
   if (!S.autoMayor) return mayorActive();
   if (S.res.gold<=0 && salary()>0) return null;
   var best=null; S.heroes.forEach(function(h){ if (!h.away && (!best || hs(h,stat)>hs(best,stat))) best=h; }); return best;
 }
-function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.995, m?hs(m,"atk"):0); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
+function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.995, m?hs(m,"atk"):0)/bTrain(); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
 function barracksList(){ var out=[]; S.inside.forEach(function(x,i){ if (x && x.type==="barracks" && x.level>0) out.push(i); }); return out; }
 function trainingAt(slot){ for (var i=0;i<S.train.length;i++) if (S.train[i].slot===slot) return S.train[i]; return null; }
 function barracksReq(i){ var r=U[i].req.filter(function(x){ return x[0]==="barracks"; })[0]; return r?r[1]:1; }
@@ -1099,7 +1113,9 @@ function ownedIds(){ var me=C().id; return Object.keys(S.map.owned).filter(funct
 function valleyBonus(){ var o={food:0,lumber:0,stone:0,iron:0}; ownedIds().forEach(function(id){ var q=TILE_BY[id]; if (q && VTYPES[q.k] && VTYPES[q.k].res) o[VTYPES[q.k].res]+=VALLEY_BONUS*q.L; }); return o; }
 function rallyLv(){ return bLevel("rally"); }
 function marchSpeed(t){ var r=simResearch(), s=Infinity; t.forEach(function(n,i){ if (n>0) s=Math.min(s, effStats(i,r).speed); }); return s===Infinity?0:s; }
-function travelMs(t,q,heroId){ var sp=marchSpeed(t), h=heroId?heroById(heroId):null; return sp ? Math.max(1, tdist(q))*36000/sp*1000/(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))/(1+hs(h,"int")/100) : 0; }
+function travelMs(t,q,heroId,mission){ var sp=marchSpeed(t), h=heroId?heroById(heroId):null;
+  var ab=bMarch()*(mission==="scout"?bScout():1);
+  return sp ? Math.max(1, tdist(q))*36000/sp*1000/(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))/(1+hs(h,"int")/100)/ab : 0; }
 // Age 1 medal sources: Cross L1-2 valleys (grasslands), Rose L1-4 (hills, lakes), Lion L2-5 valleys & L2-3 NPCs,
 // Honor L5-6 valleys & L2-4 NPCs, Courage L6-7 valleys & L3-5 NPCs, Wisdom L6-8 valleys (swamps) & L5+ NPCs,
 // Freedom L7-8 valleys (L9-10 deserts, grasslands) & L5+ NPCs, Justice & Nation L10 NPCs (Nation from L9-10 hills and grasslands, Justice barely ever from L10 valleys).
@@ -1162,6 +1178,7 @@ function historicHero(q){
   return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0};
 }
 function captureCity(q, troops){
+  achCapture(q);
   var nc=newCity(S.nextCityId++, q.k==="hc" ? (q.name||"Historic City") : "Captured City "+(S.cities.length+1), q.x, q.y), L=q.L;
   nc.troops=troops.slice();
   if (q.k==="npc" || q.k==="ai"){
@@ -1213,7 +1230,7 @@ function resolveMarch(m){
   if (m.mission==="transport" || m.mission==="reinforce") return friendlyArrive(m);
   if (m.mission==="scout") return scoutArrive(m);
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
-  var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100)};
+  var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
   var gateClosed=false;
   var r=SIM.fight(A,D), won=r.result===1, xp=0, i;
@@ -1227,32 +1244,33 @@ function resolveMarch(m){
     var tot=RES.reduce(function(a,k){ return a+cur.res[k]; },0), take=tot?Math.min(1,cap/tot):0;
     RES.forEach(function(k){ loot[k]=Math.floor(cur.res[k]*take); });
   }
+  achKills(cur.t, r.defender);
   var left={}; RES.forEach(function(k){ left[k]=cur.res[k]-loot[k]; });
   S.map.hit[q.id]={t:r.defender, f:r.forts, res:left, at:S.gt};
   var medal=-1;
   if (won && q.k==="npc") qmax("npcWin", q.L);
-  if (won && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0) S.medals[MEDALS[medal][0]]++; }
+  if (won && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
   var drops=[];
   if (won && q.k!=="home"){
     var dl=q.L||1;
-    if (Math.random()<0.35){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
-    if (dl>=5 && Math.random()<0.04+0.01*(dl-5)){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
-    if (q.k!=="monster"){ var bm=Math.random(), mk=null; // crafting materials: very rare, better ones only from tougher targets
+    if (Math.random()<0.35*bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
+    if (dl>=5 && Math.random()<(0.04+0.01*(dl-5))*bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
+    if (q.k!=="monster"){ var bm=Math.random()/bMats(), mk=null; // crafting materials: very rare, better ones only from tougher targets
       if (dl>=10 && bm<0.0005) mk="starmetal"; else if (dl>=7 && bm<0.0015) mk="mithril"; else if (dl>=4 && bm<0.004) mk="ingot"; else if (bm<0.008) mk="ore";
       if (mk){ S.items[mk]=(S.items[mk]||0)+1; drops.push(ITEMS[mk].name); } }
     // experience books: very rare, better ones only from tougher targets
-    if (q.k!=="home"){ var bk=Math.random();
+    if (q.k!=="home"){ var bk=Math.random()/bItems();
       if (dl>=10 && bk<0.0005) { S.items.annals=(S.items.annals||0)+1; drops.push("Annals of Conquest"); }
       else if (dl>=7 && bk<0.002) { S.items.codex=(S.items.codex||0)+1; drops.push("a War Codex"); }
       else if (dl>=4 && bk<0.005) { S.items.tome=(S.items.tome||0)+1; drops.push("a Tome of Wisdom"); }
       else if (bk<0.01) { S.items.primer=(S.items.primer||0)+1; drops.push("a Soldier's Primer"); } }
-    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
-    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
+    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007*bItems()){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
+    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01*bItems()){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
     if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
-      if (Math.random()<0.12+0.04*q.L){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
+      if (Math.random()<(0.12+0.04*q.L)*bMats()){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
-    if (q.k==="npc" && dl>=10 && Math.random()<0.001){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
-    if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
+    if (q.k==="npc" && dl>=10 && Math.random()<0.001*bItems()){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
+    if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015*bItems()){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
   }
   var occ=false;
   if (won && m.mission==="occupy" && VTYPES[q.k] && ownedIds().length < S.th){ S.map.owned[q.id]=C().id; S.map.ownedL[q.id]=q.L; S.map.ownedK=S.map.ownedK||{}; S.map.ownedK[q.id]=q.k; qbump("occupy"); delete S.map.hit[q.id]; occ=true; miniDirty=true; }
@@ -1408,7 +1426,7 @@ function cityDefense(c){
   return withCity(cityIndex(c.id), function(){ var m=mayorActive();
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
     return {troops:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.map(function(n,i){ return n+helpT[i]; }), fortifications:S.forts.slice(), wallLevel:S.wall||0, research:simResearch(), hero:{intel:hs(m,"int")}, life_modifier:setLife(m),
-      attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(m,"atk")/100), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}; });
+      defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(m,"atk")/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}; });
 }
 function wavePick(pool, frac, types){ return pool.map(function(n,i){ return (!types || types.indexOf(i)>=0) ? Math.floor(n*frac) : 0; }); }
 function oneEach(pool, arr){ pool.forEach(function(n,i){ if (n>0 && !arr[i] && i!==2 && i!==6) arr[i]=1; }); return arr; }
@@ -1483,6 +1501,7 @@ function resolveDefense(w){
       var prot=warehouseProtect(), avail={}, tot=0; RES.forEach(function(k){ avail[k]=Math.max(0,S.res[k]-prot); tot+=avail[k]; });
       var take=tot?Math.min(1,cap/tot):0; RES.forEach(function(k){ loot[k]=Math.floor(avail[k]*take); S.res[k]-=loot[k]; });
     }
+    achKills(w.t, r.attacker);
     var myLost=0, theirLost=0; for (var j=0;j<12;j++){ myLost+=before[j]-r.defender[j]; theirLost+=w.t[j]-r.attacker[j]; }
     var tot2=RES.reduce(function(a,k){ return a+loot[k]; },0), spoils=[];
     if (r.result!==1){ var atkN=0; for (var u=0;u<12;u++) atkN+=w.t[u]; var sp=tauntSpoils(atkN);
@@ -1814,7 +1833,7 @@ function marchWhy(){
     if (cargoTotal() > marchCap(d.t)) return "Too heavy: capacity "+fmt(marchCap(d.t));
   }
   if (d.mission==="conquer" && S.cities.length >= cityCap()) return "Your title allows "+capText()+" cities";
-  var fneed=marchFood(d.t,d.mission,travelMs(d.t,TILE_BY[d.tile],d.hero))+(d.mission==="transport"?(d.cargo.food||0):0)+(d.mission==="found"?10000:0);
+  var fneed=marchFood(d.t,d.mission,travelMs(d.t,TILE_BY[d.tile],d.hero,d.mission))+(d.mission==="transport"?(d.cargo.food||0):0)+(d.mission==="found"?10000:0);
   if (S.res.food<fneed) return "Needs "+fmt(fneed)+" food for the trip";
   if (d.mission==="found"){
     if (S.cities.length + S.marches.filter(function(x){return x.mission==="found";}).length >= cityCap()) return "Your title allows "+capText()+" cities";
@@ -1824,7 +1843,7 @@ function marchWhy(){
 }
 function updateMarchInfo(){
   var el=document.getElementById("marchinfo"), b=document.getElementById("marchgo"); if (!el) return;
-  var q=TILE_BY[marchDraft.tile], tm=travelMs(marchDraft.t,q,marchDraft.hero), cap=0;
+  var q=TILE_BY[marchDraft.tile], tm=travelMs(marchDraft.t,q,marchDraft.hero,marchDraft.mission), cap=0;
   marchDraft.t.forEach(function(n,i){ cap+=n*LOAD[i]*(1+0.1*(S.tech.logistics||0)); });
   el.textContent = !tm ? "" : marchDraft.mission==="reinforce" ? "Travel "+fmtT(realMs(tm))+". These troops will stay there." :
     marchDraft.mission==="transport" ? "Travel "+fmtT(realMs(tm))+" each way. Carrying "+fmt(cargoTotal())+" of "+fmt(cap)+" capacity." : "Travel "+fmtT(realMs(tm))+" each way. Carries "+fmt(cap)+" loot.";
@@ -1864,7 +1883,7 @@ function previewMarch(){
   var d=marchDraft, q=TILE_BY[d.tile], cur=needScout(q)?intelOf(q):current(q), hero=d.hero?heroById(d.hero):null;
   if (!cur){ d.preview='<p class="why">Scout it first: you don\u2019t know what\u2019s defending it.</p>'; updateMarchInfo(); return; }
   if (!d.t.some(function(n){return n>0;})){ d.preview='<p class="why">Choose some troops first.</p>'; updateMarchInfo(); return; }
-  var A={troops:d.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100)};
+  var A={troops:d.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var wins=0, clean=0, worst=0;
   for (var k=0;k<10;k++){ var r=SIM.fight(A,{troops:cur.t,fortifications:cur.f,wallLevel:cur.wall,research:cur.r,attack_modifier:cur.am||1,fortBonus:cur.fb||1,hero:{intel:cur.hint||0}}); var lost=0; for (var i=0;i<12;i++) lost+=A.troops[i]-r.attacker[i]; worst=Math.max(worst,lost); if (r.result===1){ wins++; if (!lost) clean++; } }
   d.preview='<p class="'+(wins===10?'okc':'badc')+'" style="font-weight:700">Preview: won '+wins+' of 10'+(wins?', '+clean+' without losses':'')+'. Worst case lost '+fmt(worst)+'.</p>';
@@ -1872,7 +1891,8 @@ function previewMarch(){
 }
 function cityMarches(){ var me=C().id; return S.marches.filter(function(x){ return x.city===me; }); }
 function launchMarch(tileId, mission, t, heroId, opt){
-  opt=opt||{}; var q=TILE_BY[tileId], tm=travelMs(t,q,heroId), dep=opt.dep!=null?opt.dep:S.gt, food=marchFood(t,mission,tm);
+  opt=opt||{}; var q=TILE_BY[tileId], tm=travelMs(t,q,heroId,mission), dep=opt.dep!=null?opt.dep:S.gt, food=marchFood(t,mission,tm);
+  achStore().tiles += tdist(q);
   S.res.food-=food;
   for (var i=0;i<12;i++) S.troops[i]-=t[i];
   var hero=heroId?heroById(heroId):null; if (hero) hero.away=true;
@@ -1883,7 +1903,8 @@ function launchMarch(tileId, mission, t, heroId, opt){
 }
 function sendMarch(){
   if (marchWhy()) return;
-  var d=marchDraft, q=TILE_BY[d.tile], tm=travelMs(d.t,q,d.hero), food=marchFood(d.t,d.mission,tm);
+  var d=marchDraft, q=TILE_BY[d.tile], tm=travelMs(d.t,q,d.hero,d.mission), food=marchFood(d.t,d.mission,tm);
+  achStore().tiles += tdist(q);
   S.res.food-=food; if (d.ensign && S.items.ensign>0) S.items.ensign--;
   for (var i=0;i<12;i++) S.troops[i]-=d.t[i];
   var hero=d.hero?heroById(d.hero):null; if (hero) hero.away=true;
@@ -1945,6 +1966,84 @@ function upgradeGear(g){
 function gearTierFor(L){ var w = L>=12?[.2,.45,.3,.05] : L>=10?[.35,.4,.22,.03] : L>=7?[.55,.35,.09,.01] : L>=4?[.75,.22,.03,0] : [.95,.05,0,0], r=Math.random();
   for (var i=0;i<4;i++){ r-=w[i]; if (r<0) return i; } return 0; }
 
+/* ---------- achievements ---------- */
+// Eleven lines of work, five tiers each. Every tier earns +1% of that line's buff, so a finished line is +5%.
+var ACH_PCT=0.01;
+function achStore(){ if (!S.ach) S.ach={tiles:0, kills:[0,0,0,0,0,0,0,0,0,0,0,0], trained:[0,0,0,0,0,0,0,0,0,0,0,0], medals:{}, caps:{}, seen:{}}; return S.ach; }
+function minAcross(arr){ return arr.reduce(function(a,b){ return Math.min(a,b); }, Infinity); }
+function heroCountAll(){ var n=0; S.cities.forEach(function(c){ n+=(c.heroes||[]).length; }); return n; }
+function bestGearSet(){ var best=-1; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ best=Math.max(best, starSet(h)); }); }); return Math.max(0,best); }
+function tech10Count(){ var n=0; for (var k in (S.techG||{})) if (S.techG[k]>=10) n++; return n; }
+var CAP_ORDER=[10,12,14,16,18];
+function capProgress(){ var a=achStore().caps||{}, n=0; for (var i=0;i<CAP_ORDER.length;i++){ if (!a[CAP_ORDER[i]]) break; n++; } return n; }
+var ACH=[
+  {k:"scout", name:"Eyes of the Realm", icon:"beacon", goal:"Scout successfully", buff:"Scouts march faster",
+   tiers:[10,100,1000,10000,100000], prog:function(){ return qs("scouts"); }},
+  {k:"march", name:"The Long Road", icon:"rally", goal:"Tiles marched", buff:"All armies march faster",
+   tiers:[500,10000,250000,5000000,100000000], prog:function(){ return Math.floor(achStore().tiles); }},
+  {k:"kill", name:"Gravedigger", icon:"barracks", goal:"Kill this many of EVERY troop type", buff:"Troop defense",
+   tiers:[100,2500,50000,500000,10000000], prog:function(){ return minAcross(achStore().kills); }, each:true},
+  {k:"train", name:"Drillmaster", icon:"barracks", goal:"Train this many of EVERY troop type", buff:"Training speed",
+   tiers:[50,1000,20000,250000,5000000], prog:function(){ return minAcross(achStore().trained); }, each:true},
+  {k:"hero", name:"Court of Generals", icon:"crest", goal:"Heroes in your halls", buff:"Heroes gain more experience",
+   tiers:[3,8,16,30,50], prog:function(){ return heroCountAll(); }},
+  {k:"medal", name:"Decorated", icon:"medalseg", goal:"Earn this many of EVERY medal", buff:"Item drop rate",
+   tiers:[1,5,25,100,500], prog:function(){ var m=achStore().medals||{}, lo=Infinity; MEDALS.forEach(function(x){ lo=Math.min(lo, m[x[0]]||0); }); return lo; }, each:true},
+  {k:"tech", name:"Scholars of North March", icon:"academy", goal:"Technologies at level 10", buff:"Research speed",
+   tiers:[1,5,10,15,20], prog:function(){ return tech10Count(); }},
+  {k:"city", name:"Realm Builder", icon:"townhall", goal:"Cities ruled", buff:"Construction speed",
+   tiers:[2,3,5,7,10], prog:function(){ return S.cities.length; }},
+  {k:"conq", name:"Breaker of Cities", icon:"walls", goal:"Take a level 10 NPC, then a historic 12, 14, 16 and 18", buff:"Troop attack",
+   tiers:[1,2,3,4,5], prog:capProgress, steps:["level 10 NPC","historic 12","historic 14","historic 16","historic 18"]},
+  {k:"gear", name:"Starforged", icon:"anvil", goal:"Stars on every piece a hero wears", buff:"Gem and material drop rate",
+   tiers:[3,6,9,12,15], prog:bestGearSet},
+  {k:"total", name:"Hall of Fame", icon:"crest", goal:"Achievement tiers unlocked elsewhere", buff:"Troop upkeep",
+   tiers:[5,15,25,35,45], prog:function(){ var n=0; ACH.forEach(function(a){ if (a.k!=="total") n+=achTier(a); }); return n; }}
+];
+function achByKey(k){ for (var i=0;i<ACH.length;i++) if (ACH[i].k===k) return ACH[i]; return null; }
+function achTier(a){ var v=a.prog(), n=0; for (var i=0;i<a.tiers.length;i++) if (v>=a.tiers[i]) n++; return n; }
+function achLv(k){ var a=achByKey(k); return a?achTier(a):0; }
+function achTotal(){ var n=0; ACH.forEach(function(a){ n+=achTier(a); }); return n; }
+// the buffs
+function bScout(){ return 1+ACH_PCT*achLv("scout"); }
+function bMarch(){ return 1+ACH_PCT*achLv("march"); }
+function bDefend(){ return 1+ACH_PCT*achLv("kill"); }
+function bTrain(){ return 1+ACH_PCT*achLv("train"); }
+function bHeroXp(){ return 1+ACH_PCT*achLv("hero"); }
+function bItems(){ return 1+ACH_PCT*achLv("medal"); }
+function bResearch(){ return 1+ACH_PCT*achLv("tech"); }
+function bBuild(){ return 1+ACH_PCT*achLv("city"); }
+function bAttack(){ return ACH_PCT*achLv("conq"); }
+function bMats(){ return 1+ACH_PCT*achLv("gear"); }
+function bUpkeep(){ return 1-ACH_PCT*achLv("total"); }
+// tracking
+function achKills(before, after){ var a=achStore(); for (var i=0;i<12;i++) a.kills[i]+=Math.max(0,(before[i]||0)-(after[i]||0)); }
+function achMedal(key,n){ var a=achStore(); a.medals[key]=(a.medals[key]||0)+(n==null?1:n); }
+function achCapture(q){ var a=achStore(); if (q.k==="npc" && q.L>=10) a.caps[10]=1; if (q.k==="hc" && CAP_ORDER.indexOf(q.L)>0) a.caps[q.L]=1; }
+function achCheck(){ // toast a line the moment it earns a new tier
+  var a=achStore(); a.seen=a.seen||{};
+  ACH.forEach(function(x){ var t=achTier(x); if ((a.seen[x.k]||0)<t){ a.seen[x.k]=t; if (!a.quiet) toast("Achievement: "+x.name+" "+ROMAN[t-1]+" \u2014 "+x.buff+" +"+t+"%"); } });
+  if (a.quiet) delete a.quiet; // the first pass after loading an old save credits silently; after that, speak up
+}
+var ROMAN=["I","II","III","IV","V"];
+function achSheet(){
+  var tot=achTotal();
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>Achievements</h2><div class="sub">'+tot+' of '+(ACH.length*5)+' tiers earned</div></div></div>'+
+    '<p class="hint">Every tier is permanent and stacks: +1% per tier, so a finished line is +5%. They apply across every city you rule.</p><div class="achlist">';
+  ACH.forEach(function(a){
+    var t=achTier(a), v=a.prog(), nxt=t<5?a.tiers[t]:null;
+    var line = a.steps ? (t<5?"Next: "+a.steps[t]:"Every city taken") : (nxt!=null ? fmt(v)+" / "+fmt(nxt) : fmt(v)+" \u2014 complete");
+    var pct2 = nxt!=null ? Math.max(0,Math.min(100, (t?((v-a.tiers[t-1])/(nxt-a.tiers[t-1])):(v/nxt))*100)) : 100;
+    h+='<div class="achrow'+(t?' on':'')+'">'+ICON[a.icon]+'<span class="an"><b>'+a.name+'</b>'+(t?' <span class="atier">'+ROMAN[t-1]+'</span>':'')+'</span>'+
+      '<span class="ab">'+a.buff+' <b>+'+t+'%</b></span>'+
+      '<span class="dur ad">'+esc(a.goal)+(a.each?'':'')+'</span>'+
+      '<div class="bar ad"><i style="width:'+pct2.toFixed(1)+'%"></i></div>'+
+      '<span class="dur ad">'+esc(line)+'</span>'+
+      '<span class="dur ad">Tiers: '+a.tiers.map(function(x,i){ return (i<t?"\u2605":"\u2606")+fmt(x); }).join("  ")+'</span></div>';
+  });
+  return h+'</div><button class="closebtn" data-act="close">Close</button>';
+}
+
 /* ---------- heroes ---------- */
 var TIERS = {
   common:{name:"Common",lo:15,hi:48,color:"var(--t-common)",txt:"#fff"},
@@ -1968,6 +2067,7 @@ function genHero(tier, level, spikeStat){
 }
 function xpNeed(L){ return 100*L*L; }
 function giveXp(h, xp){
+  xp=Math.round(xp*bHeroXp());
   h.xp += xp; var up=0;
   while (h.level<HERO_MAX && h.xp >= xpNeed(h.level)){ h.xp -= xpNeed(h.level); h.level++; h.pts++; up++; }
   if (h.level>=HERO_MAX) h.xp=0;
@@ -2058,7 +2158,7 @@ function awardPrize(i, forced){
   else if (ITEMS[s.k]){ S.items[s.k]=(S.items[s.k]||0)+1; txt = ITEMS[s.k].name; }
   else if (s.k==="stones"){ if (Math.random()<0.2){ var fn=1+Math.floor(Math.random()*2); S.items.gemF=(S.items.gemF||0)+fn; txt=fn+" Flawless Gem"+(fn>1?"s":""); } else { var sn=3+Math.floor(Math.random()*6); S.items.gemD=(S.items.gemD||0)+sn; txt=sn+" Delicate Gems"; } }
   else if (s.k==="gear"){ var wm=MAT[gearTierFor(Math.min(12,2+S.th))]; S.items[wm]=(S.items[wm]||0)+1; txt="a "+ITEMS[wm].name; }
-  else if (s.k==="medal"){ var mi=rollMedal(); S.medals[MEDALS[mi][0]]++; txt = "a "+MEDALS[mi][1]+" medal"; }
+  else if (s.k==="medal"){ var mi=rollMedal(); S.medals[MEDALS[mi][0]]++; achMedal(MEDALS[mi][0]); txt = "a "+MEDALS[mi][1]+" medal"; }
   else {
     var h=genHero(s.tier);
     if (S.heroes.length < hallCap()){ S.heroes.push(h); txt = TIERS[s.tier].name+" hero "+h.name+" joined your hall"; }
@@ -2157,6 +2257,9 @@ function migrate(s){
   if (s.v===29){ // research becomes empire-wide: keep the best level each city had reached
     s.techG={}; Object.keys(TECH).forEach(function(k){ var m=0; s.cities.forEach(function(cc){ m=Math.max(m,(cc.tech&&cc.tech[k])||0); }); s.techG[k]=m; });
     s.cities.forEach(function(cc){ cc.gorder=AUTO_ORDER.slice(); }); s.v=30; }
+  if (s.v===30){ // achievements: start the counters, and credit the medals already in the case
+    s.ach={tiles:0, kills:[0,0,0,0,0,0,0,0,0,0,0,0], trained:[0,0,0,0,0,0,0,0,0,0,0,0], medals:Object.assign({}, s.medals||{}), caps:{}, seen:{}, quiet:true};
+    s.v=31; }
   return s;
 }
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
@@ -2192,7 +2295,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=30) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=31) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=1;
 installProxies(S);
@@ -2223,9 +2326,9 @@ function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catc
 
 function getSlot(w,i){ return w==="wall" ? {type:"walls",level:S.wall||0} : w==="th" ? {type:"townhall",level:S.th} : (w==="in" ? S.inside[i] : S.fields[i]); }
 function costFor(type,L){ var b=DEF[type].cost,o={}; for (var k in b) o[k]=Math.round(b[k]*Math.pow(2,L-1)); return o; }
-function timeFor(type,L){ return DEF[type].t*Math.pow(2,L-1)*1000/(1+0.1*S.tech.construction)/(1+hs(bestFor("pol"),"pol")/200); }
+function timeFor(type,L){ return DEF[type].t*Math.pow(2,L-1)*1000/(1+0.1*S.tech.construction)/(1+hs(bestFor("pol"),"pol")/200)/bBuild(); }
 function techCost(key,L){ var o={}, base=TECH[key].g==="Economy"?TECH_COST_ECO:TECH_COST; for (var k in base) o[k]=Math.round(base[k]*Math.pow(2,L-1)); return o; }
-function techTime(key,L){ return (TECH[key].t||TECH_T)*Math.pow(2,L-1)*1000/(1+0.1*(S.tech.scholarship||0))/(1+hs(bestFor("int"),"int")/200); }
+function techTime(key,L){ return (TECH[key].t||TECH_T)*Math.pow(2,L-1)*1000/(1+0.1*(S.tech.scholarship||0))/(1+hs(bestFor("int"),"int")/200)/bResearch(); }
 function afford(c){ for (var k in c) if (S.res[k] < c[k]) return false; return true; }
 function pay(c,sign){ for (var k in c) S.res[k] -= sign*c[k]; }
 function findUnique(type){ for (var i=0;i<S.inside.length;i++){ var s=S.inside[i]; if (s && s.type===type) return s; } return null; }
@@ -2281,7 +2384,7 @@ function completeFort(){
   finished.push(fmt(q.n)+" "+FORTS[q.f].name+" built"); S.fortQ=null;
 }
 function completeTrain(ti){
-  var t=S.train[ti]; S.troops[t.u]+=t.n; S.amulets+=AMULET_RATE; addPrestige(Math.round(t.n*PREST_U[t.u]));
+  var t=S.train[ti]; S.troops[t.u]+=t.n; achStore().trained[t.u]+=t.n; S.amulets+=AMULET_RATE; addPrestige(Math.round(t.n*PREST_U[t.u]));
   finished.push(fmt(t.n)+" "+uname(t.u,t.n)+" trained");
   S.train.splice(ti,1);
 }
@@ -2403,6 +2506,8 @@ function tickText(){
     if (t2){ t2.textContent=fmtT(realMs(S.research.end-S.gt)); bar2.style.width = Math.min(100,(S.gt-S.research.start)/(S.research.end-S.research.start)*100)+"%"; } }
   if (document.getElementById("m-have")) updateMarket();
   var ibt=document.querySelector('nav.tabs [data-tab="items"]'); if (ibt){ var inn=pkgsReady(), itx=inn?"Items "+inn:"Items"; if (ibt.textContent!==itx) ibt.textContent=itx; }
+  achCheck();
+  var abd=document.getElementById("abadge"); if (abd){ var at=" "+achTotal(); if (abd.textContent!==at) abd.textContent=at; }
   var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt; }
   if (tab==="army"){ U.forEach(function(u,i){ updateTrainRow(i); }); setText(document.getElementById("idlepop"), fmt(idlePop())); }
   if (tab==="city") FORTS.forEach(function(f,i){ updateFortRow(i); });
@@ -2743,12 +2848,13 @@ function bullyCampBattle(m){
   var A=AL(), B=A.bully, b=bullyOf(), q=TILE_BY[m.tile], hero=m.hero?heroById(m.hero):null;
   if (!B || !b){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
   var base=bullyBase();
-  var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100)};
+  var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1, lost=0, i;
   for (i=0;i<12;i++) lost+=m.t[i]-r.attacker[i];
   var before=sumT(B.garrison)+B.forts.reduce(function(a,c){ return a+c; },0);
   B.garrison=r.defender.slice(); B.forts=r.forts.map(function(n){ return Math.max(0,n); });
   var after=sumT(B.garrison)+B.forts.reduce(function(a,c){ return a+c; },0), dmg=Math.max(0,(before-after)/Math.max(1,B.campStart));
+  achKills(base.t, r.defender);
   var xp=0; for (i=0;i<12;i++) xp+=(base.t[i]-r.defender[i])*KILLXP[i]; for (i=0;i<5;i++) xp+=(base.f[i]-r.forts[i])*FORTXP[i]; if (hero) giveXp(hero, Math.round(xp));
   var loot={food:0,lumber:0,stone:0,iron:0,gold:0}, drops=[], gain=0;
   if (won){
@@ -2904,7 +3010,7 @@ function claimQuest(id){
   S.qdone=S.qdone||{}; S.qdone[id]=S.gt;
   if (q.rw.res) RES.forEach(function(k){ S.res[k]+=q.rw.res[k]||0; });
   if (q.rw.items) for (var k in q.rw.items) S.items[k]=(S.items[k]||0)+q.rw.items[k];
-  if (q.rw.medals) for (var m in q.rw.medals) S.medals[m]=(S.medals[m]||0)+q.rw.medals[m];
+  if (q.rw.medals) for (var m in q.rw.medals){ S.medals[m]=(S.medals[m]||0)+q.rw.medals[m]; achMedal(m, q.rw.medals[m]); }
   toast("Quest complete: "+q.name+". "+rewardText(q.rw));
 }
 
@@ -3299,7 +3405,7 @@ function openMedalBox(){
   if (!(S.items.medalbox>0)) return;
   S.items.medalbox--;
   var span=BOX_MEDALS[1]-BOX_MEDALS[0]+1, cr=BOX_MEDALS[0]+Math.floor(Math.random()*span), ro=BOX_MEDALS[0]+Math.floor(Math.random()*span);
-  S.medals.cross=(S.medals.cross||0)+cr; S.medals.rose=(S.medals.rose||0)+ro;
+  S.medals.cross=(S.medals.cross||0)+cr; S.medals.rose=(S.medals.rose||0)+ro; achMedal("cross",cr); achMedal("rose",ro);
   itemsNote="The box held "+cr+" Cross and "+ro+" Rose medals.";
   toast("Medal box: "+cr+" Cross, "+ro+" Rose"); save(); lastView=""; refresh();
 }
@@ -3514,6 +3620,8 @@ function renderSheet(){
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=marchSheet();
+  } else if (sheetFor.kind==="ach"){
+    h=achSheet();
   } else if (sheetFor.kind==="quests"){
     h=questSheet();
   } else if (sheetFor.kind==="threat"){
@@ -3744,6 +3852,7 @@ document.addEventListener("click",function(e){
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
   if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
   if (act==="quests"){ openSheet({kind:"quests"}); return; }
+  if (act==="ach"){ openSheet({kind:"ach"}); return; }
   if (act==="quest-claim"){ claimQuest(a.dataset.q); save(); lastSheet=""; renderSheet(); tickText(); return; }
   if (act==="ally-invite"){
     var iq=TILE_BY[a.dataset.tile], A=S.alliance; if (!iq || iq.k!=="ai") return;
