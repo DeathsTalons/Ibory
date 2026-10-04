@@ -415,6 +415,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <div><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div>
     <div class="chiprow">
     <button class="speedchip" data-act="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
+    <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
     <button class="speedchip" data-act="ach" aria-label="Achievements">Achievements<b id="abadge"></b></button>
     <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</button>
     </div>
@@ -998,7 +999,7 @@ function tileAt(x,y){
   var id=x+","+y, c=cityAtXY(x,y);
   if (c) return {x:x,y:y,id:id,k:"home",L:0,city:c.id};
   var mo=monsterAt(id); if (mo) return {x:x,y:y,id:id,k:"monster",L:mo.L,mon:mo.kind};
-  var A_=S.alliance; if (A_){ if (A_.bully && A_.bully.tile===id) return {x:x,y:y,id:id,k:"bully",L:0}; if (A_.war && A_.war.active){ var we=warAt(id); if (we>=0) return {x:x,y:y,id:id,k:"war",L:0,eid:we}; } var sa=A_.sat[id]; if (sa) return {x:x,y:y,id:id,k:"allycity",L:sa.L,ally:sa.ally}; }
+  var A_=S.alliance; if (A_){ if (A_.bully && A_.bully.tile===id) return {x:x,y:y,id:id,k:"bully",L:0}; if (A_.war && A_.war.active){ var we=warAt(id); if (we>=0) return {x:x,y:y,id:id,k:"war",L:0,eid:we}; } if (A_.challenges && A_.challenges.length){ var ch=chalAt(id); if (ch) return ch.seat ? {x:x,y:y,id:id,k:"chal",L:12,cid:ch.c.id,seat:true} : {x:x,y:y,id:id,k:"chal",L:0,cid:ch.c.id,j:ch.j}; } var sa=A_.sat[id]; if (sa) return {x:x,y:y,id:id,k:"allycity",L:sa.L,ally:sa.ally}; }
   var hc=HC_AT[id]; if (hc && !(S.map.hcTaken && S.map.hcTaken[id])) return {x:x,y:y,id:id,k:"hc",L:hc.L,name:hc.name,hero:hc.hero};
   var k, L;
   if (S.map.npc[id]!=null){ k="npc"; L=S.map.npc[id]; }
@@ -1083,7 +1084,7 @@ function aiBase(q){
   var cap=60000*Math.pow(th,1.6)*p.hoard, res={food:Math.round(cap*3), lumber:Math.round(cap), stone:Math.round(cap), iron:Math.round(cap), gold:Math.round(cap*0.5)};
   return {t:t, f:forts, wall:th, r:{archery:tl, medicine:tl, iron_working:tl, horseback_riding:tl, compass:tl}, res:res, am:(1+0.05*tl+a.heroAtk/100)};
 }
-function tileName(q){ if (q.k==="war"){ var wb=rosterById(W().enemies[q.eid].rid); return (wb?wb.name:"A rival")+"\u2019s war camp"; } if (q.k==="bully"){ var bb=S.alliance&&bullyOf(); return (bb?bb.name:"A bully")+"'s stronghold"; } if (q.k==="allycity"){ var pq=TILE_BY[q.ally]; return (pq&&pq.ai?pq.ai.name:"An ally")+"'s city"; } return q.k==="monster" ? "Tier "+q.L+" "+MONSTERS[q.mon] : q.k==="ai" ? q.ai.name : q.k==="home" ? S.cities[cityIndex(q.city)].name : q.k==="hc" ? (q.name ? q.name+" (level "+q.L+" historic)" : "Level 12 Historic City") : q.k==="npc" ? "Level "+q.L+" NPC city" : "Level "+q.L+" "+VTYPES[q.k].name; }
+function tileName(q){ if (q.k==="chal"){ var cc=chalById(q.cid), cb=cc&&rosterById(cc.rid); return (cb?cb.name:"A challenger")+"\u2019s "+(q.seat?"seat":(cc&&cc.cities[q.j]&&cc.cities[q.j].capital?"capital":"city")); } if (q.k==="war"){ var wb=rosterById(W().enemies[q.eid].rid); return (wb?wb.name:"A rival")+"\u2019s war camp"; } if (q.k==="bully"){ var bb=S.alliance&&bullyOf(); return (bb?bb.name:"A bully")+"'s stronghold"; } if (q.k==="allycity"){ var pq=TILE_BY[q.ally]; return (pq&&pq.ai?pq.ai.name:"An ally")+"'s city"; } return q.k==="monster" ? "Tier "+q.L+" "+MONSTERS[q.mon] : q.k==="ai" ? q.ai.name : q.k==="home" ? S.cities[cityIndex(q.city)].name : q.k==="hc" ? (q.name ? q.name+" (level "+q.L+" historic)" : "Level 12 Historic City") : q.k==="npc" ? "Level "+q.L+" NPC city" : "Level "+q.L+" "+VTYPES[q.k].name; }
 function valleyTroops(L){ var v=[[50,0,0,0,0],[100,0,0,20,0],[200,50,0,50,0],[400,100,50,100,0],[800,200,100,200,50],[1500,400,200,400,100],[3000,800,400,800,200],[6000,1500,800,1500,400],[12000,3000,1500,3000,800],[40000,5000,2500,5000,1500]][L-1];
   return [0,v[0],0,v[1],v[2],v[3],0,v[4],0,0,0,0]; }
 function valleyRes(k,L){ var o={}, big=L*L*15000, main=VTYPES[k].res; RES.forEach(function(x){ o[x]=Math.round(big*0.05); }); if (main) o[main]=big; else { o.food=big/2; o.gold=big/10; } return o; }
@@ -1102,6 +1103,7 @@ function comboText(q){ var t=hcTroops(q), out=[]; [[3,4],[7,8],[9,10,11]].forEac
 function baseOf(q){
   if (q.k==="bully" && S.alliance && S.alliance.bully) return bullyBase();
   if (q.k==="war" && warOn()) return warBase(q.eid);
+  if (q.k==="chal") return chalBase(q);
   if (q.k==="allycity") return {t:[0,0,0,0,0,0,0,0,0,0,0,0], f:[0,0,0,0,0], wall:0, r:{}, res:{food:0,lumber:0,stone:0,iron:0,gold:0}};
   if (q.k==="monster") return monsterBase(q);
   if (q.k==="ai") return aiBase(q);
@@ -1201,7 +1203,7 @@ function captureCity(q, troops){
   q.k="home"; q.city=nc.id; q.L=0; miniDirty=true;
   return nc;
 }
-function needScout(q){ return q && (q.k==="ai"||q.k==="hc"||q.k==="monster"||q.k==="bully"||q.k==="war"); }
+function needScout(q){ return q && (q.k==="ai"||q.k==="hc"||q.k==="monster"||q.k==="bully"||q.k==="war"||q.k==="chal"); }
 function intelOf(q){ var it=S.map.intel&&S.map.intel[q.id]; return it||null; }
 function scoutArrive(m){
   var q=TILE_BY[m.tile], cur=current(q), inf=S.tech.informatics||0;
@@ -1235,6 +1237,7 @@ function resolveMarch(m){
   if (m.mission==="transport" && TILE_BY[m.tile] && TILE_BY[m.tile].k==="ai") return allyTransportArrive(m);
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="bully") return bullyCampBattle(m);
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="war") return warCityBattle(m);
+  if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="chal") return chalCityBattle(m);
   if (m.mission==="transport" || m.mission==="reinforce") return friendlyArrive(m);
   if (m.mission==="scout") return scoutArrive(m);
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
@@ -1515,7 +1518,8 @@ function resolveDefense(w){
     var myLost=0, theirLost=0; for (var j=0;j<12;j++){ myLost+=before[j]-r.defender[j]; theirLost+=w.t[j]-r.attacker[j]; }
     var tot2=RES.reduce(function(a,k){ return a+loot[k]; },0), spoils=[];
     if (w.war) warDefended(w, before, r);
-    if (r.result!==1 && !w.war){ var atkN=0; for (var u=0;u<12;u++) atkN+=w.t[u]; var sp=tauntSpoils(atkN);
+    if (w.chal) chalDefended(w, r);
+    if (r.result!==1 && !w.war && !w.chal){ var atkN=0; for (var u=0;u<12;u++) atkN+=w.t[u]; var sp=tauntSpoils(atkN);
       S.items.gemF=(S.items.gemF||0)+sp.gems; spoils.push(sp.gems+" Flawless Gem"+(sp.gems>1?"s":""));
       if (sp.scales){ S.items.scale=(S.items.scale||0)+sp.scales; spoils.push(sp.scales+" Dragon Scale"+(sp.scales>1?"s":"")); } }
     addReport({id:S.nextMarchId++, at:S.gt, def:true, tile:C().x+","+C().y, name:w.name+"\u2019s "+w.label.toLowerCase()+" on "+S.name+(shut?" (gate closed)":""), result:r.result, rounds:r.rounds,
@@ -1571,7 +1575,7 @@ function clampView(){ var c=document.getElementById("mapc"); if (!c) return;
   if (!isFinite(mv.z) || mv.z<=0) mv.z=30;
   if (!isFinite(mv.x) || !isFinite(mv.y)){ var hm=S.map.home; mv.x=hm[0]; mv.y=hm[1]; }
   var vw=c.clientWidth/mv.z, vh=c.clientHeight/mv.z; mv.x=Math.max(-2,Math.min(MAPW-vw+2,mv.x)); mv.y=Math.max(-2,Math.min(MAPH-vh+2,mv.y)); }
-function tileColor(q){ return q.k==="home" ? null : (q.k==="bully"||q.k==="war") ? "#b8322a" : q.k==="allycity" ? "#3f8f5a" : q.k==="monster" ? "#5b2a6e" : q.k==="ai" ? "#2c6763" : q.k==="npc" ? "#4a4541" : q.k==="hc" ? HC_COL[q.L] : VTYPES[q.k].col; }
+function tileColor(q){ return q.k==="home" ? null : (q.k==="bully"||q.k==="war"||q.k==="chal") ? "#b8322a" : q.k==="allycity" ? "#3f8f5a" : q.k==="monster" ? "#5b2a6e" : q.k==="ai" ? "#2c6763" : q.k==="npc" ? "#4a4541" : q.k==="hc" ? HC_COL[q.L] : VTYPES[q.k].col; }
 var miniJob=null;
 function startMiniJob(){ // build the overview a few rows per frame so the map never freezes
   var mc=document.createElement("canvas"); mc.width=MAPW; mc.height=MAPH; var g=mc.getContext("2d"); if (!g || !g.createImageData){ miniJob=null; return; }
@@ -1617,8 +1621,8 @@ function drawMap(){
       if (detail){ g.fillStyle="#2a2210"; var u=z/30; g.fillRect(x+7*u,y+11*u,16*u,12*u); g.fillRect(x+7*u,y+7*u,4*u,4*u); g.fillRect(x+13*u,y+7*u,4*u,4*u); g.fillRect(x+19*u,y+7*u,4*u,4*u); } }
     else if (q.k==="npc"){ var hit=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<REGEN_T; g.fillStyle=hit?"#6d6660":"#4a4541"; g.fillRect(x,y,z,z);
       if (detail){ var u2=z/30; g.fillStyle="#b9b2a6"; g.fillRect(x+6*u2,y+13*u2,18*u2,10*u2); g.fillRect(x+6*u2,y+9*u2,4*u2,4*u2); g.fillRect(x+13*u2,y+9*u2,4*u2,4*u2); g.fillRect(x+20*u2,y+9*u2,4*u2,4*u2); g.fillStyle="#fff"; g.fillText(q.L,x+z/2,y+z*0.6); } }
-    else if (q.k==="bully" || q.k==="war" || q.k==="allycity"){ g.fillStyle=q.k==="allycity"?"#3f8f5a":"#b8322a"; g.fillRect(x,y,z,z);
-      if (detail){ g.fillStyle="#fff"; g.fillText(q.k==="bully"?"!":q.k==="war"?"W":"A",x+z/2,y+z/2+1); } }
+    else if (q.k==="bully" || q.k==="war" || q.k==="chal" || q.k==="allycity"){ g.fillStyle=q.k==="allycity"?"#3f8f5a":"#b8322a"; g.fillRect(x,y,z,z);
+      if (detail){ g.fillStyle="#fff"; g.fillText(q.k==="bully"?"!":q.k==="war"?"W":q.k==="chal"?(q.seat?"\u2605":"C"):"A",x+z/2,y+z/2+1); } }
     else if (q.k==="monster"){ g.fillStyle="#5b2a6e"; g.fillRect(x,y,z,z);
       if (detail){ var u5=z/30; g.fillStyle="#e7c6f5"; g.beginPath(); g.moveTo(x+6*u5,y+22*u5); g.lineTo(x+10*u5,y+8*u5); g.lineTo(x+15*u5,y+14*u5); g.lineTo(x+20*u5,y+8*u5); g.lineTo(x+24*u5,y+22*u5); g.fill(); g.fillStyle="#fff"; g.fillText(q.L,x+z/2,y+z*0.8); } }
     else if (q.k==="ai"){ var hitA=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<24*3.6e6; g.fillStyle=hitA?"#4f7c78":"#2c6763"; g.fillRect(x,y,z,z);
@@ -1728,6 +1732,9 @@ function renderTileInfo(){
       '<div class="btnrow" style="margin-top:8px"><button class="btn" data-act="march-open" data-tile="'+q.id+'" data-mission="allyguard">Reinforce</button><button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="transport">Send resources</button><button class="btn ghost" data-act="tab" data-tab="alliance">Alliance</button></div></div>'; return; }
   if (q.k==="npc" && S.alliance && S.alliance.farms[q.id]){ var fq=TILE_BY[S.alliance.farms[q.id]]; el.innerHTML=h+'<p class="hint">A level '+q.L+' NPC farm kept by your ally '+esc(fq&&fq.ai?fq.ai.name:"")+'. Hands off.</p></div>'; return; }
   var cur=current(q);
+  if (q.k==="chal"){ var cC=chalById(q.cid), cB=cC&&rosterById(cC.rid), cF=cB&&friendOf(cB);
+    if (cC) h+='<p class="hint">'+(q.seat ? esc(cB.name)+' took this historic city and holds it harder than its old garrison did: more troops, heavier fortifications, a fiercer hero. Break the garrison to defeat them, then conquer the empty city.' :
+      'Part of '+esc(cB.name)+'\u2019s host, massing to march on the historic city at ('+cC.target.replace(",",", ")+') in '+fmtT(realMs(cC.siegeAt-S.gt))+'. Every troop you kill here is one fewer in the siege. Raze the city and its troops are gone for good.')+(cF?' <span style="color:var(--brass)">'+esc(cF.note)+'</span>':'')+'</p>'; }
   if (q.k==="war"){ var wE=W().enemies[q.eid], wb2=rosterById(wE.rid), wf=friendOf(wb2); h+='<p class="hint">'+esc(wb2.name)+'\u2019s war camp: level '+wE.wall+' walls, full fortifications, a hero with '+wE.hero[0]+' Attack. Its field army is out raiding; the garrison rebuilds a little each day. Take the camp to knock '+esc(wb2.name)+' out of the war. Every troop you kill here scores.'+(wf?' <span style="color:var(--brass)">'+esc(wf.note)+'</span>':'')+'</p>'; }
   if (q.k==="bully"){ var bb2=bullyOf(), B2=S.alliance.bully; h+='<p class="hint">'+(bb2?esc(bb2.name)+'\u2019s stronghold: a fortified city with level '+B2.wall+' walls, a full set of fortifications and a hero with '+B2.hero[0]+' Attack. Its field army is out raiding your allies; the garrison stays home and nothing rebuilds while the bully is here, so you can wear it down over several attacks. Taking it ends the event for a large chunk of alliance rep, its treasury, rare books and materials.':'')+'</p>'; }
   if (q.k==="hc") h+='<p class="hint">Today\u2019s garrison mix: '+comboText(q)+'. It changes daily. Historic cities recover within an hour, and are led by a powerful hero ('+HC_SET[q.L].hero[0]+' Attack, '+HC_SET[q.L].hero[1]+' Intelligence).'+
@@ -2278,6 +2285,7 @@ function migrate(s){
   if (s.v===31){ s.items=s.items||{}; s.items.medalbox2=s.items.medalbox2||0; s.items.medalbox3=s.items.medalbox3||0; s.v=32; }
   if (s.v===32){ s.cities.forEach(function(cc){ while (cc.inside.length<CITY_PLOTS) cc.inside.push(null); }); s.v=33; }
   if (s.v===33){ s.items=s.items||{}; s.items.banish=s.items.banish||0; if (s.alliance){ s.alliance.war=null; s.alliance.warReady=0; s.alliance.banishUntil=0; s.alliance.warLast=null; } s.v=34; }
+  if (s.v===34){ if (s.alliance){ s.alliance.challenges=[]; s.alliance.chalReady=0; s.alliance.chalWins=0; s.alliance.chalNext=0; } s.v=35; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -2314,9 +2322,9 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=34) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=35) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
-S.speed=1;
+S.speed=S.testSpeed||1; // real time unless a testing speed is set
 installProxies(S);
 S.cities.forEach(function(cc,ci){ withCity(ci,function(){
   S.train.slice().forEach(function(t){ var b=S.inside[t.slot];
@@ -2458,8 +2466,8 @@ function fmt(n){ n=Math.floor(n); if (n>=1e6) return (n/1e6).toFixed(1)+"M"; if 
 function fmtT(ms){ var s=Math.max(0,Math.ceil(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   if (h) return h+"h "+String(m).padStart(2,"0")+"m"; if (m) return m+"m "+String(x).padStart(2,"0")+"s"; return x+"s"; }
 function realMs(gameMs){ return gameMs/S.speed; }
-function saveAge(){ // real time only, so the game clock is the save's age
-  var ms=realMs(S.gt), mins=Math.floor(ms/60000), d=Math.floor(mins/1440), h=Math.floor(mins%1440/60), m=mins%60;
+function saveAge(){ // the game clock is the save's age (real time at 1x)
+  var ms=S.gt, mins=Math.floor(ms/60000), d=Math.floor(mins/1440), h=Math.floor(mins%1440/60), m=mins%60;
   return d+" day"+(d===1?"":"s")+", "+h+" hour"+(h===1?"":"s")+" and "+m+" minute"+(m===1?"":"s");
 }
 function pct(x){ return Math.round(x*100)+"%"; }
@@ -2551,6 +2559,7 @@ function tickText(){
   if (document.getElementById("m-have")) updateMarket();
   var ibt=document.querySelector('nav.tabs [data-tab="items"]'); if (ibt){ var inn=pkgsReady(), itx=inn?"Items "+inn:"Items"; if (ibt.textContent!==itx) ibt.textContent=itx; }
   var sa=document.getElementById("saveage"); if (sa){ var sat=saveAge(); if (sa.textContent!==sat) sa.textContent=sat; }
+  var stg=document.getElementById("speedtag"); if (stg){ var on=S.speed>1, txt="\u23e9 "+S.speed+"\u00d7"; if (stg.style.display!==(on?"":"none")) stg.style.display=on?"":"none"; if (on && stg.textContent!==txt) stg.textContent=txt; }
   achCheck();
   var abd=document.getElementById("abadge"); if (abd){ var at=" "+achTotal(); if (abd.textContent!==at) abd.textContent=at; }
   var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt; }
@@ -2857,8 +2866,8 @@ function bullyHeroMul(b){ var f=friendOf(b); return f?f.hero:1; }
 function bullyStyleName(b){ var f=friendOf(b); return f?f.tag:BULLY_STYLE[b.style].n; }
 // Athena keeps part of her garrison out of sight of scouts
 function scoutHide(q, troops){
-  if (q.k!=="bully" && q.k!=="war") return troops;
-  var f=q.k==="war" ? friendOf(rosterById(W().enemies[q.eid].rid)) : friendOf(bullyOf()); if (!f||!f.hide) return troops;
+  if (q.k!=="bully" && q.k!=="war" && q.k!=="chal") return troops;
+  var f=q.k==="war" ? friendOf(rosterById(W().enemies[q.eid].rid)) : q.k==="chal" ? friendOf(rosterById((chalById(q.cid)||{}).rid)) : friendOf(bullyOf()); if (!f||!f.hide) return troops;
   return troops.map(function(n){ return Math.round(n*(1-f.hide)); });
 }
 function AL(){ return S.alliance; }
@@ -2881,7 +2890,7 @@ function allianceDaily(){
     if (sats.length<3 && Math.random()<0.25){ var sp=freeSpot(q,6,10); if (sp){ A.sat[sp]={ally:q.id, L:Math.max(1,q.ai.th-2)}; A.log.unshift({at:S.gt,t:q.ai.name+" founded a new city at ("+sp.replace(",",", ")+")"}); miniDirty=true; } }
     if (farms.length<5 && Math.random()<0.4){ var fp=freeSpot(q,3,7); if (fp){ S.map.npc[fp]=Math.min(10,Math.max(3,q.ai.th-1)); delete S.map.flat[fp]; A.farms[fp]=q.id; miniDirty=true; } }
   });
-  warDaily();
+  warDaily(); chalDaily();
   if (!A.bully && !warOn() && !banished() && A.allies.length && Math.random()<0.4) spawnBully();
 }
 function freeSpot(q,r1,r2){
@@ -3209,6 +3218,231 @@ function warSection(){
   if (banished()) h2+='<p class="hint">Banishment in force for another '+fmtT(realMs(A.banishUntil-S.gt))+'.</p>';
   return h2+'</div>';
 }
+/* ---------- challenge bully ---------- */
+// At 100% reputation you can call out any bully on your roster. They teleport up to ten cities around an
+// unclaimed level 12 historic city and spend three days massing. Then everything they have marches on it,
+// through the real battle engine against its real garrison. Thin the herd first, or they take it and stay.
+var CHAL_PREP_DAYS=3, CHAL_COOLDOWN_DAYS=7, CHAL_UNLOCK_WINS=5;
+var CHAL_SEAT_MUL=1.5; // a settled challenger holds the city harder than its old historic garrison did
+var CHAL_MARGIN=1.8; // their host is this many times the smallest army that could take the city
+function CH(){ return (S.alliance && S.alliance.challenges) || []; }
+function chalById(id){ var a=CH(); for (var i=0;i<a.length;i++) if (a[i].id===id) return a[i]; return null; }
+function hcTileFree(id){
+  var hc=HC_AT[id]; if (!hc || hc.L!==12) return false;
+  if (S.map.hcTaken && S.map.hcTaken[id]) return false;
+  if (S.cities.some(function(c){ return c.x+","+c.y===id; })) return false;
+  return !CH().some(function(c){ return c.target===id || c.seat===id; });
+}
+function freeHc12Near(x,y){
+  var best=null, bd=Infinity;
+  for (var id in HC_AT){ if (!hcTileFree(id)) continue; var p=id.split(","), dx=+p[0]-x, dy=+p[1]-y, dd=dx*dx+dy*dy; if (dd<bd){ bd=dd; best=id; } }
+  return best;
+}
+function chalWhy(rid){
+  var A=AL();
+  if (A.rep<REP_MAX) return "Needs 100% reputation";
+  if (!A.roster.length) return "Meet a bully first: you can only challenge names on your roster";
+  if (A.chalReady && S.gt<A.chalReady) return "Ready again in "+fmtT(realMs(A.chalReady-S.gt));
+  if (rid!=null && CH().some(function(c){ return c.rid===rid; })) return "Already challenging them";
+  if (!freeHc12Near(C().x, C().y)) return "No unclaimed level 12 historic city left to fight over";
+  return "";
+}
+function chalResearch(c){ return {archery:c.tech, medicine:c.tech, iron_working:c.tech, horseback_riding:c.tech, compass:c.tech}; }
+function chalAm(c){ return 1+0.05*c.tech+c.hero[0]/100; }
+function chalArmy(c){ var t=[0,0,0,0,0,0,0,0,0,0,0,0]; c.cities.forEach(function(x){ x.garrison.forEach(function(n,i){ t[i]+=n; }); }); return t; }
+function hcTileOf(id){ var p=id.split(","); return tileAt(+p[0],+p[1]); }
+// would this army take the city right now?
+function chalSiegeFight(c, army){
+  var q=hcTileOf(c.target), cur=current(q);
+  return SIM.fight({troops:army, research:chalResearch(c), attack_modifier:chalAm(c)},
+                   {troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, hero:{intel:cur.hint||0}, fortBonus:cur.fb||1});
+}
+function challenge(rid){
+  if (chalWhy(rid)) return false;
+  var A=AL(), b=rosterById(rid); if (!b) return false;
+  var target=freeHc12Near(C().x, C().y), tq=hcTileOf(target), hcT=current(tq).t;
+  var c={id:(A.chalNext=(A.chalNext||0)+1), rid:rid, phase:"prep", target:target, start:S.gt, siegeAt:S.gt+CHAL_PREP_DAYS*86400000, cities:[], pending:[]};
+  var camp={}; buildCamp(camp, b, 0);
+  c.tech=Math.min(12, 9+Math.floor(b.iq/70)); c.hero=camp.hero.map(function(h){ return Math.round(h*1.2); });
+  // size the host by the battle engine: find the smallest host of their mix that just takes the city,
+  // then bring CHAL_MARGIN times that. Every challenger then needs about the same share killed to be stopped,
+  // whatever they field. Bigger names (size multiplier) bring a bigger margin on top.
+  var mix=bullyMix(b,"atk"), base0=sumT(hcT);
+  function mk(sz){ return mix.map(function(w){ return Math.round(sz*w); }); }
+  function wins(sz){ return chalSiegeFight(c, mk(sz)).result===1; }
+  var lo=base0*0.05, hi=base0*0.5, guard=0;
+  while (!wins(hi) && guard++<12){ lo=hi; hi*=2; }
+  for (var k=0;k<14;k++){ var mid=(lo+hi)/2; if (wins(mid)) hi=mid; else lo=mid; }
+  var host=mk(hi*CHAL_MARGIN*Math.max(1,bullySizeMul(b)));
+  var n=Math.min(10, 5+Math.floor(b.iq/40)+(friendOf(b)?1:0)), used={};
+  for (var i=0;i<n;i++){
+    var tile=null;
+    for (var tr=0; tr<40 && !tile; tr++){ var sp=freeSpot({x:tq.x,y:tq.y}, 5, 16); if (sp && !used[sp]) tile=sp; }
+    if (!tile) continue; used[tile]=1;
+    var cc={}; buildCamp(cc, b, 0);
+    c.cities.push({tile:tile, capital:i===0, garrison:[], forts:cc.forts, wall:cc.wall, hero:cc.hero, treasury:cc.treasury});
+  }
+  if (!c.cities.length) return false;
+  var capShare=0.3, rest=(1-capShare)/Math.max(1,c.cities.length-1);
+  c.cities.forEach(function(x){ var sh=c.cities.length===1?1:(x.capital?capShare:rest); x.garrison=host.map(function(v){ return Math.round(v*sh); }); });
+  c.army0=sumT(host);
+  A.challenges=A.challenges||[]; A.challenges.push(c);
+  A.chalReady=S.gt+CHAL_COOLDOWN_DAYS*86400000;
+  A_log("You challenged "+b.name+". They are massing "+c.cities.length+" cities around the historic city at ("+tq.x+", "+tq.y+").");
+  finished.push(b.name+" accepts. "+c.cities.length+" cities appear around ("+tq.x+", "+tq.y+"). They march on it in "+CHAL_PREP_DAYS+" days.");
+  miniDirty=true; return true;
+}
+function chalAt(id){ var a=CH();
+  for (var i=0;i<a.length;i++){ var c=a[i];
+    if (c.phase==="settled" && c.seat===id) return {c:c, seat:true};
+    if (c.phase==="prep") for (var j=0;j<c.cities.length;j++) if (c.cities[j].tile===id) return {c:c, j:j}; }
+  return null;
+}
+function chalBase(q){
+  var c=chalById(q.cid); if (!c) return {t:[0,0,0,0,0,0,0,0,0,0,0,0], f:[0,0,0,0,0], wall:0, r:{}, res:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+  if (q.seat){ var tr=Math.round(c.treasury/5);
+    return {t:c.garrison.slice(), f:c.forts.slice(), wall:10, r:chalResearch(c), res:{food:tr,lumber:tr,stone:tr,iron:tr,gold:tr}, am:chalAm(c), hint:c.hero[1], fb:1+0.1*c.tech}; }
+  var x=c.cities[q.j], t2=Math.round(x.treasury/5);
+  return {t:x.garrison.slice(), f:x.forts.slice(), wall:x.wall, r:chalResearch(c), res:{food:t2,lumber:t2,stone:t2,iron:t2,gold:t2}, am:1+0.05*c.tech+x.hero[0]/100, hint:x.hero[1], fb:1+0.1*c.tech};
+}
+// you hit one of their cities, or their seat
+function chalCityBattle(m){
+  var q=TILE_BY[m.tile], c=q&&chalById(q.cid), hero=m.hero?heroById(m.hero):null;
+  if (!c){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
+  var b=rosterById(c.rid), base=chalBase(q);
+  var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
+  var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1, k;
+  achKills(base.t, r.defender);
+  var xp=0; for (k=0;k<12;k++) xp+=(base.t[k]-r.defender[k])*KILLXP[k]; for (k=0;k<5;k++) xp+=(base.f[k]-r.forts[k])*FORTXP[k]; if (hero) giveXp(hero, Math.round(xp));
+  var lost=sumT(killedOf(m.t, r.attacker)), loot={food:0,lumber:0,stone:0,iron:0,gold:0}, nm;
+  if (q.seat){
+    c.garrison=r.defender.slice(); c.forts=r.forts.map(function(n){ return Math.max(0,n); }); nm=b.name+"\u2019s seat";
+    if (won){ chalDefeated(c, "lost the historic city they took"); finished.push("You broke "+b.name+"\u2019s hold on the historic city! It stands empty: conquer it before it recovers."); }
+    else finished.push(b.name+"\u2019s seat held. You lost "+fmt(lost)+" troops.");
+  } else {
+    var x=c.cities[q.j]; x.garrison=r.defender.slice(); x.forts=r.forts.map(function(n){ return Math.max(0,n); }); nm=b.name+"\u2019s "+(x.capital?"capital":"city");
+    if (won){ var cap=0; for (k=0;k<12;k++) cap+=r.attacker[k]*LOAD[k]*(1+0.1*(S.tech.logistics||0)); var tr=Math.round(x.treasury/5); RES.forEach(function(rr){ loot[rr]=Math.min(tr, Math.floor(cap/5)); });
+      c.cities.splice(q.j,1); miniDirty=true;
+      finished.push("You razed "+nm+". Their host shrinks to about "+fmt(roughN(sumT(chalArmy(c))))+".");
+      if (!c.cities.length) chalDefeated(c, "lost every city before the siege");
+    } else finished.push(nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
+  }
+  addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
+  if (!r.attacker.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
+  m.t=r.attacker; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+}
+function chalDefeated(c, why){
+  var A=AL(), b=rosterById(c.rid);
+  if (b) b.losses++;
+  A.chalWins=(A.chalWins||0)+1;
+  if (c.phase==="settled") S.map.hit[c.seat]={t:[0,0,0,0,0,0,0,0,0,0,0,0], f:[0,0,0,0,0], res:{food:0,lumber:0,stone:0,iron:0,gold:0}, at:S.gt};
+  S.aiWar=S.aiWar.filter(function(x){ return x.chal!==c.id; });
+  A.challenges=CH().filter(function(x){ return x!==c; });
+  A_log((b?b.name:"The challenger")+" "+why+". Challengers defeated: "+A.chalWins+".");
+  if (A.chalWins===CHAL_UNLOCK_WINS) finished.push("Five challengers defeated. Something stirs in North March\u2026");
+  miniDirty=true;
+}
+// the three days are up: everything they have left marches on the city
+function chalSiege(c){
+  var b=rosterById(c.rid), army=chalArmy(c);
+  // if you (or another challenger) took their target in the meantime, they turn on the nearest free level 12
+  var still=hcTileOf(c.target).k==="hc" && !CH().some(function(x){ return x!==c && x.phase==="settled" && x.seat===c.target; });
+  if (!still){
+    var nt=freeHc12Near(+c.target.split(",")[0], +c.target.split(",")[1]);
+    if (!nt){ chalDefeated(c, "found nothing left to take and gave up"); return; }
+    c.target=nt;
+  }
+  if (sumT(army)<=0){ chalDefeated(c, "had no army left to march"); return; }
+  var tq=hcTileOf(c.target), cur=current(tq), r=chalSiegeFight(c, army);
+  if (r.result===1){
+    var base=hcTroops(tq);
+    c.phase="settled"; c.seat=c.target; c.cities=[];
+    c.garrison=base.map(function(n,i){ return Math.round(n*CHAL_SEAT_MUL)+r.attacker[i]; });
+    c.gar0=c.garrison.slice();
+    c.forts=HC_FORTS.map(function(n){ return Math.round(n*CHAL_SEAT_MUL); });
+    c.hero=[Math.max(c.hero[0], Math.round(HC_SET[12].hero[0]*1.3)), Math.max(c.hero[1], Math.round(HC_SET[12].hero[1]*1.3))];
+    c.tech=Math.max(c.tech, 11);
+    c.treasury=4000000;
+    c.army=r.attacker.map(function(n){ return Math.round(n*0.25); }); c.army0=c.army.slice();
+    c.nextAt=S.gt+(4+Math.random()*8)*3600000;
+    if (b) b.wins++;
+    A_log(b.name+" took the historic city at ("+tq.x+", "+tq.y+") and settled in for good.");
+    finished.push("\u2694 "+b.name+" took the historic city at ("+tq.x+", "+tq.y+"). They\u2019ll raid you and your allies until you break them.");
+  } else {
+    S.map.hit[c.target]={t:r.defender.slice(), f:r.forts.slice(), res:Object.assign({},cur.res), at:S.gt};
+    chalDefeated(c, "threw everything at the historic city and broke against its walls");
+    finished.push(b.name+"\u2019s siege failed! You thinned them enough.");
+  }
+  miniDirty=true;
+}
+// a settled challenger raids, one or two times a day
+function chalRaid(c){
+  c.nextAt=S.gt+(12+Math.random()*12)*3600000;
+  var b=rosterById(c.rid), f=friendOf(b);
+  var frac=(f&&f.allin)?1:0.4+Math.random()*0.3, t=c.army.map(function(n){ return Math.floor(n*frac); });
+  if (sumT(t)<100) return;
+  for (var k=0;k<12;k++) c.army[k]-=t[k];
+  var allies=allyTiles(), lead=(1+Math.random()*3)*3600000;
+  if (!allies.length || Math.random()<0.5){
+    var city=S.cities[Math.floor(Math.random()*S.cities.length)];
+    S.aiWar.push({id:S.nextMarchId++, ai:c.seat, name:b.name, pers:bullyStyleName(b), iq:b.iq, city:city.id, label:"Raid", plan:"assault",
+      t:t, r:chalResearch(c), am:chalAm(c), dep:S.gt, arr:S.gt+lead, phase:"out", chal:c.id});
+  } else {
+    var q=allies[Math.floor(Math.random()*allies.length)];
+    c.pending.push({target:q.id, t:t, arr:S.gt+lead});
+    finished.push(b.name+" is raiding your ally "+q.ai.name+" from the historic city.");
+  }
+}
+function chalAllyHit(c, j){
+  var p=c.pending[j]; c.pending.splice(j,1);
+  var q=TILE_BY[p.target];
+  if (!q || !isAlly(p.target)){ for (var k=0;k<12;k++) c.army[k]+=p.t[k]; return; }
+  var cur=current(q), guards=guardsAt(q.id), mine=[0,0,0,0,0,0,0,0,0,0,0,0];
+  guards.forEach(function(m){ m.t.forEach(function(n,i){ mine[i]+=n; }); });
+  var dt=cur.t.map(function(n,i){ return n+mine[i]; });
+  var r=SIM.fight({troops:p.t, research:chalResearch(c), attack_modifier:chalAm(c)},{troops:dt, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, hero:{intel:cur.hint||0}});
+  var allyLost=[0,0,0,0,0,0,0,0,0,0,0,0];
+  for (var i=0;i<12;i++){ var tot=dt[i]; if (!tot) continue; var ratio=r.defender[i]/tot; allyLost[i]=cur.t[i]-Math.round(cur.t[i]*ratio);
+    guards.forEach(function(m){ var n=m.t[i]; if (n) m.t[i]=Math.min(n, Math.round(n*ratio)); }); }
+  S.marches=S.marches.filter(function(m){ if (m.mission==="allyguard" && m.phase==="stay" && sumT(m.t)<=0){ if (m.hero){ var hh=heroById(m.hero); if (hh) hh.away=false; } return false; } return true; });
+  S.map.hit[q.id]={t:cur.t.map(function(n,i){ return n-allyLost[i]; }), f:r.forts.slice(), res:Object.assign({},cur.res), at:S.gt};
+  for (i=0;i<12;i++) c.army[i]+=r.attacker[i];
+  if (sumT(mine)) achKills(p.t, r.attacker);
+}
+function chalDefended(w, r){ var c=chalById(w.chal); if (c && c.army) for (var i=0;i<12;i++) c.army[i]+=r.attacker[i]; }
+function chalDaily(){ CH().forEach(function(c){ if (c.phase!=="settled") return;
+  for (var k=0;k<12;k++){ c.garrison[k]=Math.min(c.gar0[k], c.garrison[k]+Math.round(0.1*c.gar0[k])); c.army[k]=Math.min(c.army0[k], c.army[k]+Math.round(0.1*c.army0[k])); }
+  c.forts=c.forts.map(function(n,i){ return Math.min(Math.round(HC_FORTS[i]*CHAL_SEAT_MUL), n+Math.round(HC_FORTS[i]*0.1)); }); }); }
+var chalArmed=false, chalForecast={};
+function chalSection(){
+  var A=AL(), list=CH(), h='<div class="section"><div class="shead"><h3>Challenge a bully</h3><span class="dur">'+(A.rep<REP_MAX?'unlocks at 100% rep':'defeated '+(A.chalWins||0)+' of '+CHAL_UNLOCK_WINS)+'</span></div>';
+  h+='<p class="hint">Call out any bully on your roster. They teleport up to ten cities around an unclaimed level 12 historic city and mass for three days, then march everything they have left at it. If their host beats its garrison, they take the city and stay, raiding you and your allies until you break them. Every city of theirs you hit thins the host. Regular bully events keep coming meanwhile.</p>';
+  list.forEach(function(c){ var b=rosterById(c.rid), f=friendOf(b), tq=hcTileOf(c.phase==="settled"?c.seat:c.target);
+    h+='<div class="bullybox" style="margin-top:8px;padding:10px 12px;border-radius:10px"><div class="shead"><h3>'+(f?'\u2605 ':'')+esc(b.name)+'</h3><span class="dur">'+(c.phase==="prep"?'siege in '+fmtT(realMs(c.siegeAt-S.gt)):'settled')+'</span></div>';
+    if (c.phase==="prep"){
+      var hostN=sumT(chalArmy(c)), garN=sumT(current(tq).t);
+      h+='<p class="hint">Target: the historic city at ('+tq.x+', '+tq.y+'). Their host about <b>'+fmt(roughN(hostN))+'</b> across '+c.cities.length+' cities; the city\u2019s garrison about '+fmt(roughN(garN))+'.</p>';
+      var fc=chalForecast[c.id];
+      h+=(fc?'<p class="hint" style="color:'+(fc.win?'var(--red)':'var(--brass)')+'">'+fc.txt+'</p>':'')+
+        '<div class="btnrow"><button class="btn ghost small" data-act="chal-forecast" data-c="'+c.id+'">Forecast the siege</button></div>';
+      h+='<div class="gearlist" style="margin-top:6px">'+c.cities.map(function(x){ var xq=hcTileOf(x.tile);
+        return '<div class="gearrow"><span class="gn">'+(x.capital?'Capital':'City')+' ('+xq.x+', '+xq.y+')</span><span class="gb">about '+fmt(roughN(sumT(x.garrison)))+'</span><span class="btnrow" style="grid-column:1/-1;justify-content:flex-end"><button class="btn ghost small" data-act="goto-tile" data-tile="'+x.tile+'">Show on map</button></span></div>'; }).join("")+'</div>';
+    } else {
+      h+='<p class="hint">Holds the historic city at ('+tq.x+', '+tq.y+') with about '+fmt(roughN(sumT(c.garrison)))+' troops behind level 10 walls, and raids you and your allies once or twice a day. Break the garrison to defeat them; the city then stands empty for you to conquer.</p>'+
+        '<div class="btnrow"><button class="btn ghost small" data-act="goto-tile" data-tile="'+c.seat+'">Show on map</button></div>';
+      if (c.pending.length) h+=c.pending.map(function(p){ var pq=TILE_BY[p.target]; return '<div class="bq"><span>Raid \u2192 '+esc(pq&&pq.ai?pq.ai.name:"an ally")+': '+waveDesc(p.t, bestBeacon())+'</span><span class="qtime">lands in '+fmtT(realMs(p.arr-S.gt))+'</span>'+(pq?'<div class="qacts"><button class="link strong" data-act="march-open" data-tile="'+pq.id+'" data-mission="allyguard">Reinforce</button></div>':'')+'</div>'; }).join("");
+    }
+    h+='</div>';
+  });
+  var opts=A.roster.filter(function(x){ return !list.some(function(c){ return c.rid===x.id; }); });
+  var why=chalWhy();
+  if (A.rep>=REP_MAX && opts.length){
+    h+='<div class="farmadd" style="margin-top:10px"><select id="chalpick">'+opts.map(function(x){ return '<option value="'+x.id+'">'+(friendOf(x)?'\u2605 ':'')+esc(x.name)+' ('+x.wins+'-'+x.losses+')</option>'; }).join("")+'</select>'+
+      '<button class="btn'+(chalArmed?' danger':'')+'" data-act="chal-go"'+(why?' disabled':'')+'>'+(chalArmed?'Tap again: challenge':'Challenge')+'</button></div>';
+  }
+  if (why) h+='<p class="why" style="margin-top:6px">'+why+'</p>';
+  return h+'</div>';
+}
 function nextAllianceEvent(){
   var A=S.alliance; if (!A) return null; var best=null;
   function take(t,o){ if (!best || t<best.t){ o.t=t; best=o; } }
@@ -3217,11 +3451,15 @@ function nextAllianceEvent(){
     take(w.until,{w:"warend"});
     w.enemies.forEach(function(E,i){ if (!E.out && E.nextAt<w.until) take(E.nextAt,{w:"warlaunch",i:i}); });
     w.pending.forEach(function(p,j){ take(p.arr,{w:"warhit",j:j}); }); }
+  (A.challenges||[]).forEach(function(c){
+    if (c.phase==="prep") take(c.siegeAt,{w:"chalsiege",id:c.id});
+    else { take(c.nextAt,{w:"chalraid",id:c.id}); c.pending.forEach(function(p,j){ take(p.arr,{w:"chalhit",id:c.id,j:j}); }); } });
   return best;
 }
 function handleAlliance(e){
   if (e.w==="wave") bullyWave(); else if (e.w==="end") endBully("packed up and left");
   else if (e.w==="warend") warEnd(); else if (e.w==="warlaunch") warLaunch(e.i); else if (e.w==="warhit") warAllyHit(e.j);
+  else { var c=chalById(e.id); if (!c) return; if (e.w==="chalsiege") chalSiege(c); else if (e.w==="chalraid") chalRaid(c); else if (e.w==="chalhit") chalAllyHit(c, e.j); }
 }
 function bullyBase(){
   var A=AL(), B=A.bully, b=bullyOf();
@@ -3284,6 +3522,7 @@ function viewAlliance(){
     '<div class="gearrow'+(d.guard?' t3':'')+'"><span class="gn">Station troops with an ally</span><span class="gb">'+(d.guard?'Done':'+60 rep')+'</span></div>'+
     '<div class="gearrow"><span class="gn">Defend an ally from a bully</span><span class="gb">+150 to +1,200 rep per wave</span></div></div></div>';
   h+=warSection();
+  h+=chalSection();
   if (B && b){
     var tq=TILE_BY[B.target], bq=TILE_BY[B.tile];
     h+='<div class="section bullybox"><div class="shead"><h3>Bully: '+esc(b.name)+'</h3><span class="dur">leaves in '+fmtT(realMs(B.until-S.gt))+'</span></div>'+
@@ -4043,7 +4282,11 @@ function renderSheet(){
       (saveUi==="export"?'<textarea id="savecode" readonly rows="4">'+esc(exportCode())+'</textarea><div class="btnrow"><button class="btn small" data-act="save-copy">Copy code</button><span class="dur" id="copymsg"></span></div>':'')+
       (saveUi==="import"?'<textarea id="saveinput" rows="4" placeholder="Paste a save code"></textarea><div class="btnrow"><button class="btn small danger" data-act="save-import">'+(armed==="import"?"Tap again to replace this game":"Load this save")+'</button><span class="why" id="importmsg"></span></div>':'')+'</div>'+
       '<details class="det"><summary><b>Testing tools</b> <span class="dur">for trying late-game features early</span></summary><p class="hint">These change your save directly.</p>'+
-        '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="dbg-rep" data-v="50">Rep to 50%</button><button class="btn ghost small" data-act="dbg-rep" data-v="100">Rep to 100%</button><button class="btn ghost small" data-act="dbg-warcd">Clear war cooldown</button><button class="btn ghost small" data-act="dbg-warend">End war now</button></div></details>'+
+        '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="dbg-rep" data-v="50">Rep to 50%</button><button class="btn ghost small" data-act="dbg-rep" data-v="100">Rep to 100%</button><button class="btn ghost small" data-act="dbg-warcd">Clear war cooldown</button><button class="btn ghost small" data-act="dbg-warend">End war now</button></div>'+
+        '<div class="h3" style="margin-top:10px">Game speed</div><p class="hint">Everything runs this many times faster: builds, research, training, marches, AI and events. Timers show real time left. Stays on until you set it back to 1\u00d7.</p>'+
+        '<div class="farmadd">'+[1,10,100,1000].map(function(x){ return '<button class="chipbtn'+(S.speed===x?' on':'')+'" data-act="dbg-speed" data-v="'+x+'">'+x+'\u00d7</button>'; }).join("")+'</div>'+
+        '<div class="h3" style="margin-top:10px">Troops in '+esc(S.name)+'</div><p class="hint">Instant and free. Doesn\u2019t count toward prestige, quests or achievements. Remember they still eat food.</p>'+
+        '<div class="btnrow"><button class="btn ghost small" data-act="dbg-goals">Fill troop goals now</button><button class="btn ghost small" data-act="dbg-troops" data-v="10000">+10k of every unlocked troop</button><button class="btn ghost small" data-act="dbg-troops" data-v="100000">+100k</button></div></details>'+
       '<div class="act"><button class="btn ghost danger" data-act="reset">'+(armed==="reset"?"Tap again to erase your city":"Start a new city")+'</button><button class="closebtn" data-act="close">Done</button></div>';
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
@@ -4235,7 +4478,7 @@ document.addEventListener("click",function(e){
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
   if (advance(Date.now())) flushFinished();
-  if (act==="tab"){ closeSheet(); arrange=null; warArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
+  if (act==="tab"){ closeSheet(); arrange=null; warArmed=false; chalArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     var tb=document.querySelector('nav.tabs [data-tab="'+tab+'"]'); if (tb && tb.scrollIntoView) tb.scrollIntoView({block:"nearest",inline:"center"}); setTimeout(updateTabArrows,350); return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
   if (act==="city-go"){ closeSheet(); S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
@@ -4262,7 +4505,7 @@ document.addEventListener("click",function(e){
           fi.value="";
           if (!ob || !ob.v || !(ob.cities||ob.res)){ toast("That file isn\u2019t an Ibory save."); return; }
           if (!window.confirm("Replace your current game with this save file?")) return;
-          ob.real=Date.now(); ob.speed=1; S=migrate(ob); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+          ob.real=Date.now(); ob.speed=1; ob.testSpeed=0; S=migrate(ob); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
           document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded from file."); };
         rd.readAsText(f); }); }
     fi.click(); return; }
@@ -4271,7 +4514,7 @@ document.addEventListener("click",function(e){
     try { obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,""))))); } catch(e){ obj=null; }
     if (!obj || !obj.v || !(obj.cities||obj.res)){ document.getElementById("importmsg").textContent="That doesn\u2019t look like a save code."; return; }
     if (armed!=="import"){ armed="import"; var keep=code; lastSheet=""; renderSheet(); var ni=document.getElementById("saveinput"); if (ni) ni.value=keep; return; }
-    armed=null; saveUi=""; obj.real=Date.now(); obj.speed=1; S=migrate(obj); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+    armed=null; saveUi=""; obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; S=migrate(obj); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
     document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded. Welcome back, "+TITLES[S.title].name+"."); return; }
   if (act==="reset"){
     if (armed!=="reset"){ armed="reset"; lastSheet=""; renderSheet(); return; }
@@ -4491,8 +4734,17 @@ document.addEventListener("click",function(e){
   if (act==="goto-tile"){ if (tab!=="map"){ closeSheet(); tab="map"; lastView=""; renderView(true); setTabs(); } selectTile(a.dataset.tile,true); window.scrollTo({top:0,behavior:"smooth"}); return; }
   if (act==="war-declare"){ if (warWhy()) return; if (!warArmed){ warArmed=true; lastView=""; renderView(true); return; } warArmed=false; declareWar(); flushFinished(); save(); lastView=""; refresh(); return; }
   if (act==="use-banish"){ useBanish(); return; }
+  if (act==="chal-go"){ var pick=document.getElementById("chalpick"), rid=pick?+pick.value:null; if (rid==null || chalWhy(rid)) return;
+    if (!chalArmed){ chalArmed=true; lastView=""; renderView(true); var pk=document.getElementById("chalpick"); if (pk) pk.value=String(rid); return; }
+    chalArmed=false; challenge(rid); flushFinished(); save(); lastView=""; refresh(); return; }
+  if (act==="chal-forecast"){ var fc=chalById(+a.dataset.c); if (!fc || fc.phase!=="prep") return; var fr=chalSiegeFight(fc, chalArmy(fc)), left=sumT(fr.attacker);
+    chalForecast[fc.id]={win:fr.result===1, txt: fr.result===1 ? "If they marched now, they would take it with about "+fmt(roughN(left))+" troops to spare." : "If they marched now, the garrison would hold. Keep them there."};
+    lastView=""; renderView(true); return; }
   if (act==="dbg-rep"){ AL().rep=Math.round(REP_MAX*(+a.dataset.v)/100); toast("Reputation set to "+a.dataset.v+"%"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="dbg-warcd"){ AL().warReady=0; toast("War cooldown cleared"); save(); lastSheet=""; renderSheet(); refresh(); return; }
+  if (act==="dbg-speed"){ var nsp=+a.dataset.v; if ([1,10,100,1000].indexOf(nsp)<0) return; advance(Date.now()); S.speed=nsp; S.testSpeed=nsp>1?nsp:0; toast(nsp>1?"Game speed "+nsp+"\u00d7":"Back to real time"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
+  if (act==="dbg-goals"){ var hv=armyCount(), added=0; for (var gi=0;gi<12;gi++){ var need=Math.max(0,(S.goals[gi]||0)-hv[gi]); if (need){ S.troops[gi]+=need; added+=need; } } toast(added?"Added "+fmt(added)+" troops":"Already at every goal"); save(); lastView=""; refresh(); return; }
+  if (act==="dbg-troops"){ var per=+a.dataset.v, tot=0; U.forEach(function(u,ui){ if (!missing(u.req).length && ui!==0 && ui!==6){ S.troops[ui]+=per; tot+=per; } }); toast(tot?"Added "+fmt(tot)+" troops":"No troop types unlocked here yet"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-warend"){ if (warOn()){ warEnd(); flushFinished(); save(); refresh(); } return; }
   if (act==="rep-filter"){ repFilter=a.dataset.f; repPage=0; lastView=""; renderView(true); return; }
   if (act==="rep-page"){ repPage=Math.max(0,repPage+(+a.dataset.d)); fillRepList(); window.scrollTo({top:0}); return; }
