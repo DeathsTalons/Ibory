@@ -1249,8 +1249,10 @@ function resolveMarch(m){
   S.map.hit[q.id]={t:r.defender, f:r.forts, res:left, at:S.gt};
   var medal=-1;
   if (won && q.k==="npc") qmax("npcWin", q.L);
-  if (won && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
+  var boxKey = won ? rollMedalBox(q) : null;
   var drops=[];
+  if (boxKey){ S.items[boxKey]=(S.items[boxKey]||0)+1; drops.push("a "+ITEMS[boxKey].name); }
+  else if (won && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
   if (won && q.k!=="home"){
     var dl=q.L||1;
     if (Math.random()<0.35*bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
@@ -2131,6 +2133,8 @@ var ITEMS = {
   ensign:{name:"War Ensign",icon:"rally"},
   marchsp:{name:"March Speed-up",icon:"hourglass"},
   medalbox:{name:"Junior Medal Box",icon:"warehouse"},
+  medalbox2:{name:"Medium Medal Box",icon:"warehouse"},
+  medalbox3:{name:"Senior Medal Box",icon:"warehouse"},
   ore:{name:"Rough Ore",icon:"anvil"},
   ingot:{name:"Fine Ingot",icon:"anvil"},
   mithril:{name:"Mithril",icon:"anvil"},
@@ -2260,6 +2264,7 @@ function migrate(s){
   if (s.v===30){ // achievements: start the counters, and credit the medals already in the case
     s.ach={tiles:0, kills:[0,0,0,0,0,0,0,0,0,0,0,0], trained:[0,0,0,0,0,0,0,0,0,0,0,0], medals:Object.assign({}, s.medals||{}), caps:{}, seen:{}, quiet:true};
     s.v=31; }
+  if (s.v===31){ s.items=s.items||{}; s.items.medalbox2=s.items.medalbox2||0; s.items.medalbox3=s.items.medalbox3||0; s.v=32; }
   return s;
 }
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
@@ -2295,7 +2300,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=31) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=32) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=1;
 installProxies(S);
@@ -2439,6 +2444,10 @@ function fmt(n){ n=Math.floor(n); if (n>=1e6) return (n/1e6).toFixed(1)+"M"; if 
 function fmtT(ms){ var s=Math.max(0,Math.ceil(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   if (h) return h+"h "+String(m).padStart(2,"0")+"m"; if (m) return m+"m "+String(x).padStart(2,"0")+"s"; return x+"s"; }
 function realMs(gameMs){ return gameMs/S.speed; }
+function saveAge(){ // real time only, so the game clock is the save's age
+  var ms=realMs(S.gt), mins=Math.floor(ms/60000), d=Math.floor(mins/1440), h=Math.floor(mins%1440/60), m=mins%60;
+  return d+" day"+(d===1?"":"s")+", "+h+" hour"+(h===1?"":"s")+" and "+m+" minute"+(m===1?"":"s");
+}
 function pct(x){ return Math.round(x*100)+"%"; }
 function chips(c){ var h=""; RES.forEach(function(k){ if (c[k]) h += '<span class="chip'+(S.res[k]<c[k]?' short':'')+'" title="'+RNAME[k]+'">'+ICON[k]+fmt(c[k])+'</span>'; }); return '<div class="chips">'+h+'</div>'; }
 function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
@@ -2506,6 +2515,7 @@ function tickText(){
     if (t2){ t2.textContent=fmtT(realMs(S.research.end-S.gt)); bar2.style.width = Math.min(100,(S.gt-S.research.start)/(S.research.end-S.research.start)*100)+"%"; } }
   if (document.getElementById("m-have")) updateMarket();
   var ibt=document.querySelector('nav.tabs [data-tab="items"]'); if (ibt){ var inn=pkgsReady(), itx=inn?"Items "+inn:"Items"; if (ibt.textContent!==itx) ibt.textContent=itx; }
+  var sa=document.getElementById("saveage"); if (sa){ var sat=saveAge(); if (sa.textContent!==sat) sa.textContent=sat; }
   achCheck();
   var abd=document.getElementById("abadge"); if (abd){ var at=" "+achTotal(); if (abd.textContent!==at) abd.textContent=at; }
   var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt; }
@@ -3143,7 +3153,7 @@ function viewTitlesBody(t,nt,nr){
     '<div class="act" style="margin-top:6px"><div><div class="bigstat">'+fmt(S.prestige)+'</div><span class="dur">prestige</span></div><div style="text-align:right"><div class="bigstat">'+S.cities.length+' / '+(hasHC(18)?'\u221e':t.cities)+'</div><span class="dur">cities allowed'+(hasHC(18)?' (Atlantis)':'')+'</span></div></div>'+
     '<p class="hint" style="margin-top:8px">Prestige comes from every building level, research level and trained troop in all your cities. Found new cities on Flats from the Map.</p></div>';
   h+='<div class="section"><h3>Medal case</h3><div class="medals">'+MEDALS.map(function(m,i){ return '<div class="medal">'+medalIcon(i)+'<b>'+(S.medals[m[0]]||0)+'</b><span>'+m[1]+'</span></div>'; }).join("")+'</div>'+
-    '<p class="hint" style="margin-top:8px">Medals are rare, just like the original: under 1% of victories drop one. Low valleys give Cross and Rose, mid valleys and low NPC cities give Lion, Honor and Courage, high valleys and level 5+ NPCs give Wisdom and Freedom, and Justice and Nation come from level 10 NPCs and historic cities. Tap any target on the map to see what it drops.</p></div>';
+    '<p class="hint" style="margin-top:8px">Medals are rare, just like the original: under 1% of victories drop one. Low valleys give Cross and Rose, mid valleys and low NPC cities give Lion, Honor and Courage, high valleys and level 5+ NPCs give Wisdom and Freedom, and Justice and Nation come from level 10 NPCs and historic cities. Tap any target on the map to see what it drops. Level 5 to 9 NPC cities sometimes drop a Junior Medal Box instead, and level 10s a Medium or Senior one.</p></div>';
   h+='<div class="section"><h3>'+(nr?'Next rank: '+nr.name:'Highest rank reached')+'</h3>'+(nr?questCard(nr,false,"rankup","Promote to "+nr.name):'<p class="hint">You are a General. Only titles remain.</p>')+'</div>';
   h+='<div class="section"><h3>'+(nt?'Next title: '+nt.name:'Highest title reached')+'</h3>'+(nt?'<p class="hint">Allows '+nt.cities+' cities.</p>'+questCard(nt,true,"titleup","Run for "+nt.name):'<p class="hint">You are Prinzessin. Ten cities are yours to rule.</p>')+'</div>';
   h+='<details class="section"><summary>All titles</summary><div class="ladder">'+TITLES.map(function(x,i){ return '<span class="'+(i===S.title?'cur':'')+'">'+x.name+'</span><span class="dur">'+(i?fmt(x.prestige)+' prestige, '+fmt(x.gold)+' gold, '+MEDALS.filter(function(m){return x.m[m[0]];}).map(function(m){return x.m[m[0]]+' '+m[1];}).join(" + "):'Starting title')+'</span><span>'+x.cities+' '+(x.cities===1?'city':'cities')+'</span>'; }).join("")+'</div></details>';
@@ -3351,6 +3361,29 @@ var wheelRot = 0, spinning = false, lastPrize = null;
 /* ---------- items and packages ---------- */
 var itemsAll=false, itemsNote="";
 var BOX_MEDALS=[2,4]; // Junior Medal Box: this many Cross medals AND this many Rose medals (min, max each)
+// Medium and Senior hold fixed sets. Junior rolls its two counts in the range above.
+var MEDAL_BOXES={
+  medalbox:  {name:"Junior Medal Box",  roll:true,  medals:["cross","rose"]},
+  medalbox2: {name:"Medium Medal Box",  fixed:{honor:2, courage:2, wisdom:2}},
+  medalbox3: {name:"Senior Medal Box",  fixed:{freedom:1, justice:1, nation:1}}
+};
+var BOX_DROP={ npc10senior:0.005, npc10medium:0.01, npc5junior:0.005 };
+function medalName(k){ for (var i=0;i<MEDALS.length;i++) if (MEDALS[i][0]===k) return MEDALS[i][1]; return k; }
+function boxText(k){ var b=MEDAL_BOXES[k];
+  if (b.roll) return BOX_MEDALS[0]+" to "+BOX_MEDALS[1]+" "+b.medals.map(medalName).join(" and ")+" medals, rolled separately";
+  return Object.keys(b.fixed).map(function(m){ return b.fixed[m]+" "+medalName(m); }).join(", ")+" medal"+(Object.keys(b.fixed).length>1?"s":"");
+}
+// a victory can drop at most one box, and a box replaces the single-medal roll entirely
+function rollMedalBox(q){
+  if (q.k!=="npc") return null;
+  if (q.L>=10){
+    if (Math.random()<BOX_DROP.npc10senior) return "medalbox3";
+    if (Math.random()<BOX_DROP.npc10medium) return "medalbox2";
+    return null;
+  }
+  if (q.L>=5 && Math.random()<BOX_DROP.npc5junior) return "medalbox";
+  return null;
+}
 var PACKAGES=[
   {id:"beginner",name:"Beginner Package",th:1,res:25000,items:{s15:1,s60:1,s150:1,s480:1,teleport:1}},
   {id:"lords",name:"Lords Package",th:3,res:100000,items:{s15:2,s60:2,s150:2,teleport:1,gemF:20}},
@@ -3358,7 +3391,7 @@ var PACKAGES=[
 ];
 var ITEM_GROUPS=[
   ["Speed-ups",["s15","s60","s150","s480","build50","marchsp"]],
-  ["Boxes and orders",["medalbox","teleport","ensign"]],
+  ["Boxes and orders",["medalbox","medalbox2","medalbox3","teleport","ensign"]],
   ["Hero books",["primer","tome","codex","annals"]],
   ["Gear materials",["ore","ingot","mithril","starmetal","scale"]],
   ["Gems",["gemD","gemF"]]
@@ -3370,7 +3403,9 @@ var ITEM_INFO={
   s480:"Cuts 8 hours off a build, research, training or fortification timer. Use it from the queue.",
   build50:"Halves the time left on a building that is under construction. Use it from the build queue.",
   marchsp:"Speeds up a march that is already on the road. Use it from the march timer.",
-  medalbox:"Holds 2 to 4 Cross medals and 2 to 4 Rose medals.",
+  medalbox:"Holds 2 to 4 Cross medals and 2 to 4 Rose medals. Level 5 to 9 NPC cities drop it.",
+  medalbox2:"Holds 2 Honor, 2 Courage and 2 Wisdom medals. Level 10 NPC cities drop it.",
+  medalbox3:"Holds 1 Freedom, 1 Justice and 1 Nation medal. The rarest drop from a level 10 NPC city.",
   teleport:"Moves a whole city to an open flat. Use it from the Map.",
   ensign:"Raises your army size by 25% for one march. Tick it when you send a march.",
   primer:"+500 experience for a hero. Use it on a hero\u2019s page.",
@@ -3401,13 +3436,18 @@ function claimPkg(id){
   itemsNote="Claimed the "+pk.name+" in "+S.name+": "+pkgText(pk)+".";
   toast(pk.name+" claimed"); save(); lastView=""; refresh();
 }
-function openMedalBox(){
-  if (!(S.items.medalbox>0)) return;
-  S.items.medalbox--;
-  var span=BOX_MEDALS[1]-BOX_MEDALS[0]+1, cr=BOX_MEDALS[0]+Math.floor(Math.random()*span), ro=BOX_MEDALS[0]+Math.floor(Math.random()*span);
-  S.medals.cross=(S.medals.cross||0)+cr; S.medals.rose=(S.medals.rose||0)+ro; achMedal("cross",cr); achMedal("rose",ro);
-  itemsNote="The box held "+cr+" Cross and "+ro+" Rose medals.";
-  toast("Medal box: "+cr+" Cross, "+ro+" Rose"); save(); lastView=""; refresh();
+function openMedalBox(key){
+  key=key||"medalbox";
+  var b=MEDAL_BOXES[key]; if (!b || !(S.items[key]>0)) return;
+  S.items[key]--;
+  var got={};
+  if (b.roll){ var span=BOX_MEDALS[1]-BOX_MEDALS[0]+1;
+    b.medals.forEach(function(m){ got[m]=BOX_MEDALS[0]+Math.floor(Math.random()*span); }); }
+  else for (var m in b.fixed) got[m]=b.fixed[m];
+  var parts=[];
+  for (var k in got){ S.medals[k]=(S.medals[k]||0)+got[k]; achMedal(k, got[k]); parts.push(got[k]+" "+medalName(k)); }
+  itemsNote="The "+b.name+" held "+parts.join(", ")+".";
+  toast(b.name+": "+parts.join(", ")); save(); lastView=""; refresh();
 }
 function viewItems(){
   var h='<div class="section"><div class="shead"><h3>Packages</h3><span class="dur">Resources go to '+esc(S.name)+'</span></div><div class="ilist">';
@@ -3423,7 +3463,7 @@ function viewItems(){
     if (!rows.length) return; shown+=rows.length;
     h+='<div class="section"><h3>'+g[0]+'</h3><div class="ilist">'+rows.map(function(k){
       var n=S.items[k]||0, acts="";
-      if (k==="medalbox" && n) acts='<button class="btn small" data-act="open-box">Open</button>';
+      if (MEDAL_BOXES[k] && n) acts='<button class="btn small" data-act="open-box" data-box="'+k+'">Open</button>';
       else if (k==="teleport" && n) acts='<button class="btn ghost small" data-act="tab" data-tab="map">Open map</button>';
       else if (ITEMS[k].xp && n) acts='<button class="btn ghost small" data-act="tab" data-tab="heroes">Heroes</button>';
       return '<div class="irow">'+ICON[ITEMS[k].icon]+'<span><b>'+ITEMS[k].name+'</b></span><span class="n">'+fmt(n)+'</span><span class="dur d">'+ITEM_INFO[k]+'</span>'+(acts?'<div class="ia">'+acts+'</div>':'')+'</div>';
@@ -3610,6 +3650,7 @@ function renderSheet(){
 
       '<div><div class="h3" style="margin-bottom:6px">Theme</div><div class="speeds">'+[["auto","Match phone"],["light","Light"],["dark","Dark"]].map(function(t){ return '<button data-act="theme" data-v="'+t[0]+'" aria-pressed="'+(getTheme()===t[0])+'">'+t[1]+'</button>'; }).join("")+'</div></div>'+
       '<div class="sub" id="offlinestat">'+offlineStatus()+'</div>'+
+      '<div class="sub">This realm has stood <b id="saveage">'+saveAge()+'</b>.</div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
       '<div><div class="h3" style="margin-bottom:6px">Move your save</div><p class="hint">Save a backup file to your phone, or copy a save code and paste it into the game on another device. The code holds everything: every city, hero, gear piece and the whole map.</p>'+
@@ -4113,7 +4154,7 @@ document.addEventListener("click",function(e){
     refresh(); return;
   }
   if (act==="claim-pkg"){ claimPkg(a.dataset.pkg); return; }
-  if (act==="open-box"){ openMedalBox(); return; }
+  if (act==="open-box"){ openMedalBox(a.dataset.box||"medalbox"); return; }
   if (act==="items-all"){ itemsAll=!itemsAll; lastView=""; renderView(true); return; }
   if (act==="spin"){ doSpin(); return; }
   if (act==="legend-open"){ openSheet({kind:"legend"}); return; }
