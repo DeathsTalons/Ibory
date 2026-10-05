@@ -578,7 +578,7 @@ var TECH = {
 };
 var TECH_COST = {food:1000,gold:6000}, TECH_COST_ECO = {food:250,lumber:250,gold:1500}, TECH_T = 480;
 function techReqs(k,L){ var r=[["academy",Math.max(L,TECH[k].gate||0)]]; if (TECH[k].b) r.push([TECH[k].b,Math.min(L,MAXLV)]); (TECH[k].pre||[]).forEach(function(p){ r.push(["t:"+p[0], p[1]]); }); return r; }
-var MAXLV = 10, HERO_MAX = 100;
+var MAXLV = 10, HERO_MAX = Infinity; // heroes level forever; the XP curve (100 x level squared) is the only brake
 function fieldSlots(th){ return Math.min(44, 8 + 4*(th-1)); }
 function cityMax(){ return C().fieldCap ? Math.max(MAXLV, C().fieldCap) : MAXLV; } // historic cities build past 10, up to their own level
 function techMax(){ return C().fieldCap ? Math.max(MAXLV, Math.min(C().fieldCap, academyLv())) : MAXLV; }
