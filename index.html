@@ -283,6 +283,7 @@ summary{cursor:pointer;color:var(--muted);font-size:.92rem}
 .invitem{display:flex;gap:8px;align-items:center;background:var(--panel2);border-radius:8px;padding:7px 10px;font-size:.92rem}
 .invitem svg{width:20px;height:20px;color:var(--brass);flex:none}
 .gt td.pri{white-space:nowrap}
+body.bfmode #tabs, body.bfmode .tabarrow, body.bfmode .queue, body.bfmode #marchstrip, body.bfmode #threats{display:none!important}
 .achlist{display:grid;gap:8px;margin-top:8px}
 .achrow{display:grid;grid-template-columns:24px 1fr auto;gap:3px 10px;align-items:center;background:var(--panel2);border-radius:10px;padding:9px 12px}
 .achrow>svg{width:22px;height:22px;color:var(--muted);grid-row:1/3}
@@ -548,14 +549,14 @@ var TECH = {
   mining:{g:"Economy",name:"Mining",desc:"+10% iron per level"},
   construction:{g:"Economy",name:"Construction",desc:"Buildings finish 10% faster per level"},
   scholarship:{g:"Economy",name:"Scholarship",desc:"Research finishes 10% faster per level (stacks with hero Intelligence)"},
-  militarytradition:{g:"Military",name:"Military Tradition",b:"barracks",desc:"+5% army attack per level"},
-  ironworking:{g:"Military",name:"Iron Working",b:"forge",desc:"+5% army defense per level"},
-  medicine:{g:"Military",name:"Medicine",desc:"+5% life for ground troops per level"},
-  archery:{g:"Military",name:"Archery",b:"barracks",t:2000,desc:"+5% range for archers, ballistae and catapults per level"},
+  militarytradition:{g:"Military",name:"Military Tradition",b:"barracks",pre:[["militaryscience",1]],desc:"+5% army attack per level"},
+  ironworking:{g:"Military",name:"Iron Working",b:"forge",pre:[["militaryscience",2]],desc:"+5% army defense per level"},
+  medicine:{g:"Military",name:"Medicine",pre:[["logistics",3]],desc:"+5% life for ground troops per level"},
+  archery:{g:"Military",name:"Archery",b:"barracks",pre:[["militaryscience",4]],t:2000,desc:"+5% range for archers, ballistae and catapults per level"},
   militaryscience:{g:"Military",name:"Military Science",b:"barracks",desc:"Troops train 10% faster per level"},
   metalcasting:{g:"Military",name:"Metal Casting",b:"forge",desc:"Siege engines and transporters build 10% faster per level"},
-  horsebackriding:{g:"Movement",name:"Horseback Riding",b:"stable",t:170,desc:"+5% speed for cavalry and machines per level"},
-  compass:{g:"Movement",name:"Compass",b:"rally",desc:"+10% speed for infantry per level"},
+  horsebackriding:{g:"Movement",name:"Horseback Riding",b:"stable",pre:[["militaryscience",5]],t:170,desc:"+5% speed for cavalry and machines per level"},
+  compass:{g:"Movement",name:"Compass",b:"rally",pre:[["militaryscience",3]],desc:"+10% speed for infantry per level"},
   cartography:{g:"Movement",name:"Cartography",b:"rally",t:620,desc:"Armies travel the map 10% faster per level (march time only; battlefield speed still comes from Compass and Horseback Riding)"},
   logistics:{g:"Movement",name:"Logistics",b:"rally",desc:"+10% carrying load per level, so every army hauls home more plunder"},
   informatics:{g:"City and defense",name:"Informatics",desc:"Trains your spies: required before you can recruit Scouts"},
@@ -568,7 +569,7 @@ var TECH = {
   privateering:{g:"City and defense",name:"Privateering",b:"rally",desc:"+5% plunder from NPC cities, AI lords and historic cities per level"}
 };
 var TECH_COST = {food:1000,gold:6000}, TECH_COST_ECO = {food:250,lumber:250,gold:1500}, TECH_T = 480;
-function techReqs(k,L){ var r=[["academy",Math.max(L,TECH[k].gate||0)]]; if (TECH[k].b) r.push([TECH[k].b,Math.min(L,MAXLV)]); return r; }
+function techReqs(k,L){ var r=[["academy",Math.max(L,TECH[k].gate||0)]]; if (TECH[k].b) r.push([TECH[k].b,Math.min(L,MAXLV)]); (TECH[k].pre||[]).forEach(function(p){ r.push(["t:"+p[0], p[1]]); }); return r; }
 var MAXLV = 10, HERO_MAX = 100;
 function fieldSlots(th){ return Math.min(44, 8 + 4*(th-1)); }
 function cityMax(){ return C().fieldCap ? Math.max(MAXLV, C().fieldCap) : MAXLV; } // historic cities build past 10, up to their own level
@@ -576,6 +577,32 @@ function techMax(){ return C().fieldCap ? Math.max(MAXLV, Math.min(C().fieldCap,
 function hcLevels(){ return S.cities.filter(function(c){ return c.fieldCap; }).map(function(c){ return c.fieldCap; }); }
 function placeLeft(){ var n=hcLevels().filter(function(l){ return l===12; }).length; if (!n) return 0; var pl=S.map.placed||{day:-1,n:0}; return Math.max(0, n-(pl.day===gameDay()?pl.n:0)); }
 function hasHC(L){ return hcLevels().indexOf(L)>=0; }
+var GIFT_REP={12:10000, 14:15000, 16:22000, 18:30000}; // giving an ally a historic city: the biggest rep there is
+function giftWhy(c){
+  if (!c || !c.fieldCap) return "Only historic cities can be given";
+  if (S.cities.length<2) return "You can\u2019t give away your only city";
+  if (!allyTiles().length) return "You have no allies to give it to";
+  return "";
+}
+function giftCity(aid, allyId){
+  var ai=cityIndex(aid), ac=S.cities[ai], A=AL(), q=TILE_BY[allyId];
+  if (giftWhy(ac) || !q || !isAlly(allyId)) return false;
+  var L=ac.fieldCap, tid=ac.x+","+ac.y, rep=GIFT_REP[L]||GIFT_REP[12];
+  S.marches.filter(function(m){ return m.city===aid; }).forEach(function(m){ var hh=m.hero?heroById(m.hero):null; if (hh) hh.away=false; });
+  ac.heroes.forEach(function(hh){ hh.away=false; S.waiting.push(hh); });
+  S.marches=S.marches.filter(function(m){ return m.city!==aid && !(TILE_BY[m.tile] && TILE_BY[m.tile].city===aid); });
+  S.aiWar=S.aiWar.filter(function(w){ return w.city!==aid; });
+  A.help=(A.help||[]).filter(function(h){ return h.city!==aid; });
+  for (var ok in S.map.owned) if (S.map.owned[ok]===aid){ delete S.map.owned[ok]; delete S.map.ownedL[ok]; }
+  var tq=TILE_BY[tid]; delete S.map.npc[tid];
+  A.sat[tid]={ally:allyId, L:L, gift:true};
+  if (tq){ tq.k="allycity"; tq.L=L; tq.ally=allyId; delete tq.city; }
+  var viewingId=C().id; S.cities.splice(ai,1); S.cur = viewingId===aid ? 0 : cityIndex(viewingId);
+  addRep(rep, "gave "+q.ai.name+" the historic city of "+ac.name);
+  A.log.unshift({at:S.gt, t:"You gave "+q.ai.name+" the level "+L+" historic city "+ac.name+". +"+fmt(rep)+" reputation."});
+  miniDirty=true;
+  return rep;
+}
 function cityCap(){ return hasHC(18) ? Infinity : TITLES[S.title].cities; }
 function capText(){ return cityCap()===Infinity ? "unlimited" : String(cityCap()); }
 
@@ -1061,11 +1088,11 @@ function applyDailyLevels(initial){
 /* AI lords: they never attack; they just grow, research and hoard */
 var AI_SPEED=1;
 var AI_PERS=[
-  {n:"Turtle",army:0.8,hoard:1,tech:1.1,forts:1.6,w:[0,.25,0,.35,.3,.05,0,.05,0,0,0,0]},
-  {n:"Archer lord",army:1,hoard:1,tech:1,forts:1,w:[0,.3,0,.1,.05,.5,0,.05,0,0,0,0]},
-  {n:"Horse lord",army:1,hoard:.9,tech:1,forts:.6,w:[0,.3,0,.1,.05,.05,0,.35,.15,0,0,0]},
-  {n:"Hoarder",army:.4,hoard:2.2,tech:.8,forts:.8,w:[.1,.5,0,.15,.1,.15,0,0,0,0,0,0]},
-  {n:"Warlord",army:1.4,hoard:.8,tech:1.2,forts:1,w:[0,.35,0,.15,.1,.2,0,.1,.05,.03,.01,.01]}
+  {n:"Turtle",army:0.8,hoard:1,tech:1.1,forts:1.6,w:[0,.22,.03,.35,.3,.05,0,.05,0,0,0,0]},
+  {n:"Archer lord",army:1,hoard:1,tech:1,forts:1,w:[0,.27,.03,.1,.05,.5,0,.05,0,0,0,0]},
+  {n:"Horse lord",army:1,hoard:.9,tech:1,forts:.6,w:[0,.27,.03,.1,.05,.05,0,.35,.15,0,0,0]},
+  {n:"Hoarder",army:.4,hoard:2.2,tech:.8,forts:.8,w:[.1,.47,.03,.15,.1,.15,0,0,0,0,0,0]},
+  {n:"Warlord",army:1.4,hoard:.8,tech:1.2,forts:1,w:[0,.32,.03,.15,.1,.2,0,.1,.05,.03,.01,.01]}
 ];
 var LORD_F=["Aldous","Berengar","Cassia","Dunstan","Edric","Faramond","Gisela","Hrothgar","Isembard","Jocelyn","Konrad","Leofwine","Mathilde","Norbert","Odile","Percival","Radegund","Sigmar","Tancred","Ulla","Waleran","Ysolde","Godwin","Brunhild"];
 var LORD_P=["of Ashvale","of Greymoor","of Thornwick","of Redbarrow","of Wolfhollow","of Eastmere","of Coldharbor","of Brackenfield","the Grasping","the Patient","the Hoarder","the Cautious","the Proud","the Miser","of Stonebridge","of Highcrag"];
@@ -1207,7 +1234,10 @@ function needScout(q){ return q && (q.k==="ai"||q.k==="hc"||q.k==="monster"||q.k
 function intelOf(q){ var it=S.map.intel&&S.map.intel[q.id]; return it||null; }
 function scoutArrive(m){
   var q=TILE_BY[m.tile], cur=current(q), inf=S.tech.informatics||0;
-  var dInf = q.k==="ai" ? q.ai.tech : q.k==="npc" ? q.L : q.k==="hc" ? 10 : 0;
+  var dInf = q.k==="ai" ? q.ai.tech : q.k==="npc" ? q.L : q.k==="hc" ? 10 :
+             q.k==="bully" ? ((S.alliance&&S.alliance.bully&&S.alliance.bully.tech)||0) :
+             q.k==="war" ? ((W()&&W().enemies[q.eid]&&W().enemies[q.eid].tech)||0) :
+             q.k==="chal" ? ((chalById(q.cid)||{}).tech||0) : 0;
   var ds=cur.t[2]||0, as=m.t[2]||0, aE=as*(1+0.1*inf), dE=ds*(1+0.1*dInf), ok=aE>dE;
   var aLost = ok ? Math.min(as, Math.ceil(dE/(1+0.1*inf))) : as;
   var snap=null;
@@ -1235,11 +1265,11 @@ function allyTransportArrive(m){
 function resolveMarch(m){
   if (m.mission==="allyguard") return allyGuardArrive(m);
   if (m.mission==="transport" && TILE_BY[m.tile] && TILE_BY[m.tile].k==="ai") return allyTransportArrive(m);
+  if (m.mission==="scout") return scoutArrive(m); // scouting never turns into a battle, whatever the target
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="bully") return bullyCampBattle(m);
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="war") return warCityBattle(m);
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="chal") return chalCityBattle(m);
   if (m.mission==="transport" || m.mission==="reinforce") return friendlyArrive(m);
-  if (m.mission==="scout") return scoutArrive(m);
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
   var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
@@ -1316,9 +1346,9 @@ function resolveMarch(m){
   if (m.mission==="found" && won){ RES.forEach(function(k){ loot[k]=(loot[k]||0)+10000; }); m.foundFail=true; }
   var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
   finished.push(msg+loyNote);
-  var alive = r.attacker.some(function(n){ return n>0; });
+  var saved=surgeonHeal(m.t, r.attacker), alive = saved.some(function(n){ return n>0; });
   if (!alive){ if (hero) hero.away=false; return false; }
-  m.t=r.attacker; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel;
+  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel;
   return true;
 }
 function marchHome(m){
@@ -1503,7 +1533,7 @@ function resolveDefense(w){
     var shut=S.gate==="closed", before=S.troops.slice(), fBefore=S.forts.slice(), r=SIM.fight(A,def);
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
     if (shut) r.defender=before.slice();
-    else { S.troops=before.map(function(n,i){ var tot=n+helpT[i]; return tot? Math.round(n*r.defender[i]/tot) : 0; });
+    else { S.troops=before.map(function(n,i){ var tot=n+helpT[i]; return tot? Math.round(n*r.defender[i]/tot) : 0; }); S.troops=surgeonHeal(before, S.troops);
       if (S.alliance) S.alliance.help.forEach(function(hp){ if (hp.city===C().id && hp.arr<=S.gt && S.gt<hp.until) hp.t=hp.t.map(function(n,i){ var tot=before[i]+helpT[i]; return tot?Math.round(n*r.defender[i]/tot):0; }); }); }
     var RR_FORT=[0.55,0.66,0.33,0.77,0.88], mach=Math.pow(2,S.tech.machinery||0)/1024; // traps, abatis, towers, logs, trebuchets
     var lostF=fBefore.map(function(n,i){ return n-r.forts[i]; }), rep=Math.round(0.33*mach*100)/100;
@@ -1710,7 +1740,11 @@ function renderTileInfo(){
   var q=TILE_BY[selTile], h='<div class="section"><div class="shead"><h3>'+esc(tileName(q))+'</h3><span class="dur">('+q.x+', '+q.y+')'+(q.k!=="home"?', '+tdist(q).toFixed(1)+' tiles away':'')+'</span></div>';
   if (q.k==="home"){
     var hc=S.cities[cityIndex(q.city)], canAb = S.cities.length>1 && !hc.fieldCap, abBtn = canAb ? '<button class="btn ghost danger" data-act="city-abandon" data-city="'+hc.id+'">'+(armedTile==="ab"+hc.id?"Tap again to abandon "+esc(hc.name):"Abandon city")+'</button>' : '';
-    var abNote = canAb ? '<p class="hint" style="margin-top:6px">Abandoning turns the tile back into a flat. Its troops disband, its heroes wait at the gate, and any marches from it are lost.</p>' : (hc.fieldCap ? '<p class="hint" style="margin-top:6px">Historic cities can\u2019t be abandoned.</p>' : '');
+    var abNote = canAb ? '<p class="hint" style="margin-top:6px">Abandoning turns the tile back into a flat. Its troops disband, its heroes wait at the gate, and any marches from it are lost.</p>' : (hc.fieldCap ? '<p class="hint" style="margin-top:6px">Historic cities can\u2019t be abandoned, but you can give one to an ally.</p>' : '');
+    if (hc.fieldCap){ var gw=giftWhy(hc), gr=GIFT_REP[hc.fieldCap]||GIFT_REP[12];
+      abNote+='<div class="section" style="margin-top:8px"><h3>Give to an ally</h3><p class="hint">Hand '+esc(hc.name)+' to an ally as one of their cities, for <b>+'+fmt(gr)+' reputation</b>. Everything in it goes with it: troops, resources and buildings. Its heroes come home to wait at your gate.</p>'+
+        (gw?'<p class="why">'+gw+'</p>':'<div class="farmadd"><select id="giftally">'+allyTiles().map(function(aq){ return '<option value="'+aq.id+'">'+esc(aq.ai.name)+'</option>'; }).join("")+'</select>'+
+        '<button class="btn'+(armedTile==="gift"+hc.id?' danger':'')+'" data-act="city-gift" data-city="'+hc.id+'">'+(armedTile==="gift"+hc.id?'Tap again to give it away':'Give city')+'</button></div>')+'</div>'; }
     if (q.city===C().id){ el.innerHTML=h+'<p class="hint">The city you\u2019re viewing. Armies march from here.</p>'+(abBtn?'<div class="btnrow" style="margin-top:8px">'+abBtn+'</div>':'')+abNote+'</div>'; return; }
     else el.innerHTML=h+'<p class="hint">One of your cities. Send resources (the escort returns) or reinforce it (troops and a hero stay).</p><div class="btnrow" style="margin-top:8px"><button class="btn" data-act="city-go" data-city="'+cityIndex(q.city)+'">Switch to this city</button><button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="transport">Send resources</button><button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="reinforce">Reinforce</button>'+abBtn+'</div>'+abNote+'</div>';
     return;
@@ -1990,6 +2024,8 @@ function gearTierFor(L){ var w = L>=12?[.2,.45,.3,.05] : L>=10?[.35,.4,.22,.03] 
 var ACH_PCT=0.01;
 function achStore(){ if (!S.ach) S.ach={tiles:0, kills:[0,0,0,0,0,0,0,0,0,0,0,0], trained:[0,0,0,0,0,0,0,0,0,0,0,0], medals:{}, caps:{}, seen:{}}; return S.ach; }
 function minAcross(arr){ return arr.reduce(function(a,b){ return Math.min(a,b); }, Infinity); }
+// only generals worth fielding count toward Court of Generals: legendary and historic, serving in your halls
+function eliteHeroCount(){ var n=0; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ if (h.tier==="legendary"||h.tier==="historic") n++; }); }); return n; }
 function heroCountAll(){ var n=0; S.cities.forEach(function(c){ n+=(c.heroes||[]).length; }); return n; }
 function bestGearSet(){ var best=-1; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ best=Math.max(best, starSet(h)); }); }); return Math.max(0,best); }
 function tech10Count(){ var n=0; for (var k in (S.techG||{})) if (S.techG[k]>=10) n++; return n; }
@@ -2004,8 +2040,8 @@ var ACH=[
    tiers:[100,2500,50000,500000,10000000], prog:function(){ return minAcross(achStore().kills); }, each:true},
   {k:"train", name:"Drillmaster", icon:"barracks", goal:"Train this many of EVERY troop type", buff:"Training speed",
    tiers:[50,1000,20000,250000,5000000], prog:function(){ return minAcross(achStore().trained); }, each:true},
-  {k:"hero", name:"Court of Generals", icon:"crest", goal:"Heroes in your halls", buff:"Heroes gain more experience",
-   tiers:[3,8,16,30,50], prog:function(){ return heroCountAll(); }},
+  {k:"hero", name:"Court of Generals", icon:"crest", goal:"Legendary and historic heroes in your halls", buff:"Heroes gain more experience",
+   tiers:[1,5,15,40,100], prog:function(){ return eliteHeroCount(); }},
   {k:"medal", name:"Decorated", icon:"medalseg", goal:"Earn this many of EVERY medal", buff:"Item drop rate",
    tiers:[1,5,25,100,500], prog:function(){ var m=achStore().medals||{}, lo=Infinity; MEDALS.forEach(function(x){ lo=Math.min(lo, m[x[0]]||0); }); return lo; }, each:true},
   {k:"tech", name:"Scholars of North March", icon:"academy", goal:"Technologies at level 10", buff:"Research speed",
@@ -2016,6 +2052,12 @@ var ACH=[
    tiers:[1,2,3,4,5], prog:capProgress, steps:["level 10 NPC","historic 12","historic 14","historic 16","historic 18"]},
   {k:"gear", name:"Starforged", icon:"anvil", goal:"Stars on every piece a hero wears", buff:"Gem and material drop rate",
    tiers:[3,6,9,12,15], prog:bestGearSet},
+  {k:"bfwin", name:"Field Commander", icon:"crest", goal:"Battlefields won", buff:"Battlefield cooldown shorter",
+   tiers:[1,5,15,40,100], prog:function(){ return achStore().bfWins||0; }},
+  {k:"bfhold", name:"Keeper of the Keep", icon:"walls", goal:"Minutes your side held The Keep", buff:"Battlefield cooldown shorter",
+   tiers:[30,150,500,1500,5000], prog:function(){ return achStore().bfHoldMin||0; }},
+  {k:"bfbest", name:"Champion of the Field", icon:"rally", goal:"Your best points in one battlefield", buff:"Battlefield cooldown shorter",
+   tiers:[1000,5000,20000,75000,250000], prog:function(){ return achStore().bfBest||0; }},
   {k:"total", name:"Hall of Fame", icon:"crest", goal:"Achievement tiers unlocked elsewhere", buff:"Troop upkeep",
    tiers:[5,15,25,35,45], prog:function(){ var n=0; ACH.forEach(function(a){ if (a.k!=="total") n+=achTier(a); }); return n; }}
 ];
@@ -2153,6 +2195,7 @@ var ITEMS = {
   medalbox2:{name:"Medium Medal Box",icon:"warehouse"},
   medalbox3:{name:"Senior Medal Box",icon:"warehouse"},
   banish:{name:"Banishment Order",icon:"crest"},
+  surgeon:{name:"Field Surgeon\u2019s Kit",icon:"plus"},
   ore:{name:"Rough Ore",icon:"anvil"},
   ingot:{name:"Fine Ingot",icon:"anvil"},
   mithril:{name:"Mithril",icon:"anvil"},
@@ -2286,6 +2329,7 @@ function migrate(s){
   if (s.v===32){ s.cities.forEach(function(cc){ while (cc.inside.length<CITY_PLOTS) cc.inside.push(null); }); s.v=33; }
   if (s.v===33){ s.items=s.items||{}; s.items.banish=s.items.banish||0; if (s.alliance){ s.alliance.war=null; s.alliance.warReady=0; s.alliance.banishUntil=0; s.alliance.warLast=null; } s.v=34; }
   if (s.v===34){ if (s.alliance){ s.alliance.challenges=[]; s.alliance.chalReady=0; s.alliance.chalWins=0; s.alliance.chalNext=0; } s.v=35; }
+  if (s.v===35){ s.bf=null; s.surgeonUntil=0; s.items=s.items||{}; s.items.surgeon=s.items.surgeon||0; if (s.alliance){ s.alliance.bfReady=0; s.alliance.bfLast=null; } s.v=36; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -2322,10 +2366,11 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=35) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=36) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=S.testSpeed||1; // real time unless a testing speed is set
 installProxies(S);
+if (S.bf && S.bf.active) S.bf.last=Date.now(); // time with the app closed never counts
 S.cities.forEach(function(cc,ci){ withCity(ci,function(){
   S.train.slice().forEach(function(t){ var b=S.inside[t.slot];
     if (b && b.type==="barracks" && b.level>=barracksReq(t.u)) return;
@@ -2789,7 +2834,7 @@ function gearPickSheet(hr, slot){
 /* ---------- alliance ---------- */
 var ALLY_MAX=10, REP_MAX=100000;
 var BULLY_F=["Grak","Morda","Vesk","Brannoc","Ulric","Sable","Torvald","Hexa","Draven","Kozma","Ysolde","Bram"], BULLY_E=["the Cruel","Ironjaw","the Hungry","Bonebreaker","the Sly","Blackhand","the Red","Skullcap","the Unwashed","Gutripper"];
-var BULLY_STYLE=[ {n:"Brute",w:[0,.55,0,.2,.1,0,0,.15,0,0,0,0]}, {n:"Raider",w:[0,.15,0,0,.1,.15,0,.5,.1,0,0,0]}, {n:"Tactician",w:[0,.25,0,.1,.1,.3,0,.1,.05,.07,.03,0]}, {n:"Sieger",w:[0,.3,0,.1,.1,.2,0,.05,0,.15,.05,.05]} ];
+var BULLY_STYLE=[ {n:"Brute",w:[0,.52,.03,.2,.1,0,0,.15,0,0,0,0]}, {n:"Raider",w:[0,.12,.03,0,.1,.15,0,.5,.1,0,0,0]}, {n:"Tactician",w:[0,.22,.03,.1,.1,.3,0,.1,.05,.07,.03,0]}, {n:"Sieger",w:[0,.27,.03,.1,.1,.2,0,.05,0,.15,.05,.05]} ];
 // ---- old friends: named veterans who replace an ordinary bully now and then.
 // atk is what they march at you with, def what waits in their stronghold. Every def mix carries
 // a bit of everything on purpose, so you can't hard-counter the thing they're famous for.
@@ -2919,7 +2964,7 @@ function spawnBully(){
   miniDirty=true;
 }
 // a bully's camp is a real fortified city: big defensive garrison, full fortifications, high walls and a strong hero
-var CAMP_MIX=[0,.3,0,.15,.1,.25,0,.1,0,.05,0,.05];
+var CAMP_MIX=[0,.27,.03,.15,.1,.25,0,.1,0,.05,0,.05];
 function buildCamp(B, b, allyTroops){
   var mine=0; S.cities.forEach(function(c){ mine+=sumT(c.troops); });
   var grow=1+0.15*b.wins, smart=0.7+b.iq/200, size=Math.round(Math.max(150000, (allyTroops||0)*3, mine*0.5)*grow*smart*bullySizeMul(b));
@@ -3152,8 +3197,9 @@ function warCityBattle(m){
     miniDirty=true;
   } else finished.push(b.name+"\u2019s war camp held. You lost "+fmt(sumT(lostT))+" troops.");
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
-  if (!r.attacker.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
-  m.t=r.attacker; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  var saved=surgeonHeal(m.t, r.attacker);
+  if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
+  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
 // rivals rebuild a little each day of the war
 function warDaily(){
@@ -3328,8 +3374,9 @@ function chalCityBattle(m){
     } else finished.push(nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
   }
   addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
-  if (!r.attacker.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
-  m.t=r.attacker; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  var saved=surgeonHeal(m.t, r.attacker);
+  if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
+  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
 function chalDefeated(c, why){
   var A=AL(), b=rosterById(c.rid);
@@ -3443,6 +3490,288 @@ function chalSection(){
   if (why) h+='<p class="why" style="margin-top:6px">'+why+'</p>';
   return h+'</div>';
 }
+/* ---------- battlefield ---------- */
+// You and two allies against three strong rivals on a small field of their own, for one battle-hour. A copy of
+// one of your cities fights; the real one stays home. The hour only runs while you're on the Battlefield screen,
+// and you can't leave it until the hour is over or you retreat (an automatic loss). 24 real hours max.
+var BF_MIN=60, BF_COOLDOWN_DAYS=4, BF_CAP_MS=24*3600000, BF_HEAL=0.10, BF_BANNER=1.25;
+var BF_FAVORS=[["balanced","Balanced"],["infantry","Infantry"],["archers","Archers"],["cavalry","Cavalry"],["siege","Siege"]];
+var BF_FAVOR_W={infantry:[0,3,0,3,3,1,0,1,1,1,1,1], archers:[0,1,0,1,1,4,0,1,1,1,1,1], cavalry:[0,1,0,1,1,1,0,4,4,1,1,1], siege:[0,1,0,1,1,1,0,1,1,4,4,4]};
+// points per battle-minute as a share of every army's starting value, tuned so holding the Keep all hour
+// is worth about what a team earns by out-killing the other side
+var BF_B=[
+  {k:"banner",    name:"War Banner", y:0, ppm:0.0008, eff:"Your team marches 25% larger while it\u2019s held"},
+  {k:"center",    name:"The Keep",   y:1, ppm:0.0035, eff:"The big prize: most points per minute"},
+  {k:"infirmary", name:"Infirmary",  y:2, ppm:0.0008, eff:"Heals 10% of your team\u2019s losses while it\u2019s held"}
+];
+var BF_LADDER=[ // personal points, as a share of the average army's starting value
+  {f:0.05, r:{s15:3, marchsp:1, gemD:10, ingot:2}},
+  {f:0.15, r:{s60:2, marchsp:2, gemF:3, ingot:3}},
+  {f:0.30, r:{s150:1, marchsp:2, gemF:6, ingot:4, mithril:1}},
+  {f:0.50, r:{s150:2, marchsp:3, gemF:10, ingot:5, mithril:2}},
+  {f:0.80, r:{s480:1, marchsp:3, gemF:14, ingot:6, mithril:3}},
+  {f:1.20, r:{s480:2, marchsp:4, gemF:20, ingot:8, mithril:4, starmetal:1}}
+];
+var Z12=function(){ return [0,0,0,0,0,0,0,0,0,0,0,0]; };
+function BF(){ return S.bf; }
+function bfOn(){ return !!(S.bf && S.bf.active); }
+function bfCooldownMul(){ return Math.max(0.5, 1-ACH_PCT*(achLv("bfwin")+achLv("bfhold")+achLv("bfbest"))); }
+function bfWhy(){
+  var A=AL();
+  if (repPct()<75) return "Needs 75% reputation ("+fmt(REP_MAX*0.75)+")";
+  if (allyTiles().length<2) return "Needs at least two allies";
+  if (bfOn()) return "Already on the field";
+  if (A.bfReady && S.gt<A.bfReady) return "Ready again in "+fmtT(realMs(A.bfReady-S.gt));
+  return "";
+}
+function bfPos(p){ return p.team===0 ? {x:0, y:p.slot} : {x:4, y:p.slot}; }
+function bfTravel(pi, bi, t){
+  var p=BF().p[pi], a=bfPos(p), d=Math.hypot(2-a.x, BF_B[bi].y-a.y), slow=(t[9]||t[10]||t[11])?1.25:1;
+  return Math.round(27000*d*slow/(1+(p.hint||0)/400)); // about a minute on most routes
+}
+function bfAm(p){ var lb=0; if (p.team===1) BF().p.forEach(function(o){ if (o!==p && o.team===1 && o.leader) lb=Math.max(lb,o.leader); }); return p.am+lb; }
+function bfCap(p){ var B=BF().b[0]; return Math.round(p.rally*10000*(B.owner===p.team?BF_BANNER:1)); }
+function bfOut(pi){ return BF().m.filter(function(m){ return m.p===pi; }).length; }
+function bfGar(B){ var t=Z12(); for (var k in B.gar) B.gar[k].forEach(function(n,i){ t[i]+=n; }); return t; }
+function bfSide(p){ return {troops:null, research:p.r, attack_modifier:bfAm(p), defence_modifier:p.dm||1, life_modifier:p.life||1, hero:{intel:p.hint||0}}; }
+function bfMyPts(){ return BF().p[0].pts; }
+function bfTeamPts(team){ var s2=0; BF().p.forEach(function(p){ if (p.team===team) s2+=p.pts; }); return s2; }
+function bfLog(t){ var bf=BF(); bf.log.unshift({t:bf.t, s:t}); if (bf.log.length>30) bf.log.length=30; }
+function bfMin(ms){ var m=Math.floor(ms/60000), sec=Math.floor(ms%60000/1000); return m+":"+(sec<10?"0":"")+sec; }
+// pick a march from a reserve: favor weights for allies, their own mix for rivals, the whole reserve otherwise
+function bfPick(p, cap, frac){
+  var w=p.favor && BF_FAVOR_W[p.favor] ? BF_FAVOR_W[p.favor] : (p.mix||null), want=Z12(), tot=0;
+  for (var i=0;i<12;i++){ if (i===0||i===6) continue; var v=p.reserve[i]*(w?w[i]:1); want[i]=v; tot+=v; }
+  if (!tot) return Z12();
+  var size=Math.min(cap, Math.round(sumT(p.reserve)*(frac||1)));
+  var t=want.map(function(v,i){ return Math.min(p.reserve[i], Math.floor(size*v/tot)); });
+  // top up from what's left if weights left room
+  var left=size-sumT(t);
+  for (i=1;i<12 && left>0;i++){ if (i===6) continue; var add=Math.min(left, p.reserve[i]-t[i]); if (add>0){ t[i]+=add; left-=add; } }
+  return t;
+}
+function bfSend(pi, bi, t, hasten){
+  var bf=BF(), p=bf.p[pi]; if (sumT(t)<=0) return false;
+  if (bfOut(pi)>=p.rally) return false;
+  for (var i=0;i<12;i++){ if ((t[i]||0)>p.reserve[i]) return false; }
+  if (sumT(t)>bfCap(p)) return false;
+  for (i=0;i<12;i++) p.reserve[i]-=t[i]||0;
+  var tr=bfTravel(pi, bi, t);
+  bf.m.push({id:++bf.mid, p:pi, b:bi, t:t.slice(), arr:bf.t+tr, back:false});
+  return true;
+}
+function bfRecall(pi, bi){ // pull your troops out of a building you hold
+  var bf=BF(), B=bf.b[bi], t=B.gar[pi]; if (!t || !sumT(t)) return false;
+  delete B.gar[pi];
+  if (!sumT(bfGar(B))){ B.owner=-1; B.gar={}; B.neutral=Z12(); }
+  bf.m.push({id:++bf.mid, p:pi, b:bi, t:t.slice(), arr:bf.t+bfTravel(pi,bi,t), back:true});
+  return true;
+}
+function bfDefender(B){
+  if (B.owner<0) return {troops:(B.neutral||Z12()).slice(), fortifications:B.forts.slice(), wallLevel:B.wall, research:npcSimResearch(10), attack_modifier:1+0.5+npcHero(10)[0]/100, hero:{intel:npcHero(10)[1]}, fortBonus:2};
+  var top=-1, best=-1; for (var k in B.gar){ var n=sumT(B.gar[k]); if (n>best){ best=n; top=+k; } }
+  var lead=BF().p[top], d=bfSide(lead); d.troops=bfGar(B); d.fortifications=B.forts.slice(); d.wallLevel=B.wall; d.fortBonus=2; return d;
+}
+function bfHeal(team, lost, pi){ // the Infirmary gives back a tenth of what its holders lose
+  var bf=BF(); if (bf.b[2].owner!==team) return;
+  var p=bf.p[pi]; for (var i=0;i<12;i++) p.reserve[i]+=Math.floor((lost[i]||0)*BF_HEAL);
+}
+function bfArrive(m){
+  var bf=BF(), B=bf.b[m.b], p=bf.p[m.p], i, k;
+  if (m.back){ for (i=0;i<12;i++) p.reserve[i]+=m.t[i]; return; }
+  if (B.owner===p.team){ B.gar[m.p]=(B.gar[m.p]||Z12()).map(function(n,j){ return n+m.t[j]; }); return; }
+  var A=bfSide(p); A.troops=m.t.slice();
+  var def=bfDefender(B), before=def.troops.slice(), r=SIM.fight(A, def), won=r.result===1;
+  var atkLost=killedOf(m.t, r.attacker), defLost=killedOf(before, r.defender);
+  // kills score for whoever made them; neutral guards score nothing
+  if (B.owner>=0){
+    p.pts+=ptsOf(defLost);
+    var tot=sumT(before)||1;
+    for (k in B.gar){ var o=bf.p[+k], share=sumT(B.gar[k])/tot; o.pts+=ptsOf(atkLost)*share;
+      var mine=B.gar[k], lostK=mine.map(function(n,j){ var ratio=before[j]?r.defender[j]/before[j]:0; return n-Math.round(n*ratio); });
+      B.gar[k]=mine.map(function(n,j){ return n-lostK[j]; }); bfHeal(B.owner, lostK, +k); }
+  } else B.neutral=r.defender.slice();
+  bfHeal(p.team, atkLost, m.p);
+  B.forts=r.forts.map(function(n){ return Math.max(0,n); });
+  var nm=BF_B[m.b].name;
+  if (won){
+    var was=B.owner;
+    B.owner=p.team; B.gar={}; B.gar[m.p]=r.attacker.slice(); B.forts=[0,0,0,0,0]; B.wall=0; // the guard's walls and traps are gone for good: troop against troop from here
+    bfLog(p.name+" took "+nm+(was<0?"":" from "+(was===0?"your side":"the rivals"))+".");
+  } else {
+    if (sumT(r.attacker)) bf.m.push({id:++bf.mid, p:m.p, b:m.b, t:r.attacker.slice(), arr:bf.t+bfTravel(m.p,m.b,r.attacker), back:true});
+    if (m.p===0 || B.owner===0) bfLog(p.name+" hit "+nm+" and was thrown back"+(B.owner>=0?" (killed "+fmt(sumT(defLost))+")":"")+".");
+  }
+  for (k in B.gar) if (!sumT(B.gar[k])) delete B.gar[k];
+  if (B.owner>=0 && !Object.keys(B.gar).length){ B.owner=-1; B.neutral=Z12(); }
+}
+// rival and ally AI: smarter ones decide more often and only attack fights they've simulated as wins
+function bfThink(pi){
+  var bf=BF(), p=bf.p[pi];
+  p.nextAt=bf.t+Math.round(60000*(1.6-Math.min(195,p.iq)/200)*(0.7+Math.random()*0.6));
+  if (bfOut(pi)>=p.rally || sumT(p.reserve)<300) return;
+  var cap=bfCap(p), smart=p.iq>=140, opts=[];
+  bf.b.forEach(function(B,bi){
+    var val=(bi===1?3:1.5)*(0.8+Math.random()*0.4);
+    if (B.owner===p.team){
+      var threat=0; bf.p.forEach(function(o){ if (o.team!==p.team) threat=Math.max(threat, Math.min(sumT(o.reserve), bfCap(o))); });
+      if (sumT(bfGar(B))<threat*0.8) opts.push({bi:bi, v:val*(smart?1.3:0.8), kind:"reinforce"});
+    } else opts.push({bi:bi, v:val, kind:"attack"});
+  });
+  opts.sort(function(a,b){ return b.v-a.v; });
+  for (var oi=0; oi<opts.length; oi++){
+    var o=opts[oi], B=bf.b[o.bi];
+    if (o.kind==="reinforce"){ var rt=bfPick(p, cap, 0.4); if (bfSend(pi, o.bi, rt)) return; continue; }
+    var def=bfDefender(B), defN=sumT(def.troops);
+    var big=bfPick(p, cap, smart?0.75:0.9); if (sumT(big)<300) continue;
+    var A=bfSide(p); A.troops=big.slice(); var test=SIM.fight(A, def);
+    if (test.result===1){ if (bfSend(pi, o.bi, big)) return; continue; }
+    // can't win it outright: grind it with a smaller march if each hit takes a real bite
+    var part=bfPick(p, cap, 0.35); if (sumT(part)<300) continue;
+    A.troops=part.slice(); var t2=SIM.fight(A, def), bite=(defN-sumT(t2.defender))/Math.max(1,defN);
+    var go = smart ? (bite>=0.05 && Math.random()<0.6) : Math.random()<0.3; // neutral guards never recover, so every bite counts
+    if (go && bfSend(pi, o.bi, part)) return;
+  }
+}
+function bfEnter(cityIdx, allyIds){
+  if (bfWhy()) return false;
+  var A=AL(), bf={active:true, t:0, last:Date.now(), realStart:Date.now(), m:[], mid:0, log:[], p:[], b:[], tier:0, centerMs:0, sgt:S.gt};
+  // you: a copy of one city
+  var me=null;
+  withCity(cityIdx, function(){
+    var hero=null, best=-1; (S.heroes||[]).forEach(function(h){ var a=hs(h,"atk"); if (a>best){ best=a; hero=h; } });
+    var cp=S.troops.slice(); cp[0]=0; cp[6]=0; // workers and transporters stay home
+    me={name:"You", team:0, slot:0, kind:"me", city:S.name, reserve:cp, r:simResearch(), am:1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack(),
+      dm:bDefend(), life:hero?setLife(hero):1, hint:hs(hero,"int"), hero:hero?hero.name:null, rally:Math.max(1,bLevel("rally")), iq:200, pts:0};
+  });
+  bf.p.push(me);
+  allyIds.slice(0,2).forEach(function(id,ix){ var q=TILE_BY[id], cur=current(q), rt=cur.t.slice(); rt[0]=0; rt[6]=0; // their real army
+    bf.p.push({name:q.ai.name, team:0, slot:ix+1, kind:"ally", tile:id, reserve:rt, r:cur.r, am:cur.am||1, hint:0, rally:10, // peers on the field: same march size as the rivals
+      iq:60+10*(q.ai.tech||0), favor:"balanced", pts:0}); });
+  var ours=0; bf.p.forEach(function(p){ p.reserve[0]=0; p.reserve[6]=0; ours+=sumT(p.reserve); });
+  var used=[];
+  for (var k=0;k<3;k++){
+    var b=warPickEnemy(used); used.push(b.id); var f=friendOf(b), camp={}; buildCamp(camp, b, 0);
+    var am=bullyMix(b,"atk"), dm=bullyMix(b,"def"), mix=am.map(function(v,i){ return (v+dm[i])/2; });
+    var size=ours/3*(1+Math.random()*0.15)*bullySizeMul(b), res=mix.map(function(v){ return Math.round(size*v); });
+    bf.p.push({name:b.name, team:1, slot:k, kind:"foe", rid:b.id, reserve:res, mix:mix, r:{archery:10,medicine:10,iron_working:10,horseback_riding:10,compass:10},
+      am:1+0.5+camp.hero[0]/100, hint:camp.hero[1], rally:10, iq:Math.max(150,b.iq), leader:f&&f.leader?f.leader:0, pts:0});
+  }
+  BF_B.forEach(function(d){ bf.b.push({owner:-1, gar:{}, neutral:NPC[10].t.slice(), forts:NPC[10].f.slice(), wall:10, held:[0,0]}); });
+  var T=0; bf.p.forEach(function(p){ T+=ptsOf(p.reserve); }); bf.T=T;
+  bf.p.forEach(function(p,pi){ if (pi>0) p.nextAt=Math.round(5000+Math.random()*25000); });
+  S.bf=bf; A.bfReady=0;
+  A_log("You took the field with "+bf.p[1].name+" and "+bf.p[2].name+" against "+bf.p.slice(3).map(function(p){ return p.name; }).join(", ")+".");
+  return true;
+}
+function bfLadderCheck(){
+  var bf=BF(), avg=bf.T/6;
+  while (bf.tier<BF_LADDER.length && bfMyPts()>=BF_LADDER[bf.tier].f*avg){
+    var t=BF_LADDER[bf.tier]; for (var k in t.r) S.items[k]=(S.items[k]||0)+t.r[k];
+    bfLog("Spoils: "+rewardText({items:t.r})+"."); bf.tier++;
+  }
+}
+function bfAdvance(dt){
+  var bf=BF(), end=BF_MIN*60000, target=Math.min(end, bf.t+dt);
+  while (bf.t<target){
+    var next=target, ev=null;
+    bf.m.forEach(function(m){ if (m.arr<next){ next=m.arr; ev={m:m}; } });
+    bf.p.forEach(function(p,pi){ if (pi>0 && p.nextAt<next){ next=p.nextAt; ev={ai:pi}; } });
+    var step=Math.max(0,next-bf.t);
+    // points for holding, shared by garrison size
+    bf.b.forEach(function(B,bi){ if (B.owner<0) return; var g=bfGar(B), tot=sumT(g); if (!tot) return;
+      B.held[B.owner]+=step; if (bi===1 && B.owner===0) bf.centerMs+=step;
+      var pts=BF_B[bi].ppm*bf.T*step/60000; for (var k in B.gar) bf.p[+k].pts+=pts*sumT(B.gar[k])/tot; });
+    bf.t=next;
+    if (ev && ev.m){ bf.m=bf.m.filter(function(x){ return x!==ev.m; }); bfArrive(ev.m); }
+    else if (ev && ev.ai!=null) bfThink(ev.ai);
+  }
+  bfLadderCheck();
+  if (bf.t>=end) bfEnd("done");
+}
+function bfTick(){
+  var bf=BF(); if (!bf || !bf.active) return;
+  var now=Date.now();
+  if (now-bf.realStart>BF_CAP_MS){ bfEnd("timeout"); return; }
+  if (document.hidden){ bf.last=now; return; } // the hour only runs while you're watching
+  var dt=Math.min(1500, Math.max(0, now-bf.last))*S.speed; bf.last=now;
+  if (dt>0) bfAdvance(dt);
+}
+function bfEnd(why){
+  var A=AL(), bf=BF(); if (!bf || !bf.active) return;
+  bf.active=false;
+  var us=bfTeamPts(0), them=bfTeamPts(1), win=why==="done" && us>them;
+  var a=achStore();
+  a.bfWins=(a.bfWins||0)+(win?1:0); a.bfHoldMin=(a.bfHoldMin||0)+Math.floor(bf.centerMs/60000); a.bfBest=Math.max(a.bfBest||0, Math.round(bfMyPts()));
+  bf.p.forEach(function(p){ if (p.kind!=="foe") return; var b=rosterById(p.rid); if (!b) return; if (win) b.losses++; else b.wins++; });
+  if (win) S.items.surgeon=(S.items.surgeon||0)+1;
+  A.bfReady=S.gt+BF_COOLDOWN_DAYS*86400000*bfCooldownMul();
+  A.bfLast={win:win, us:Math.round(us), them:Math.round(them), mine:Math.round(bfMyPts()), why:why, tiers:bf.tier, at:S.gt};
+  var msg = why==="quit" ? "You retreated from the battlefield. It counts as a loss." :
+            why==="timeout" ? "The battlefield ran out its 24 hours unfinished. It counts as a loss." :
+            win ? "Battlefield won, "+fmt(Math.round(us))+" to "+fmt(Math.round(them))+"! A Field Surgeon\u2019s Kit is yours." : "Battlefield lost, "+fmt(Math.round(us))+" to "+fmt(Math.round(them))+".";
+  A_log(msg); finished.push(msg);
+  S.bf=null; document.body.classList.remove("bfmode"); tab="alliance"; lastView="";
+}
+// the Field Surgeon's Kit, used outside the battlefield
+function surgeonOn(){ return S.surgeonUntil && S.gt<S.surgeonUntil; }
+function surgeonHeal(before, after){
+  if (!surgeonOn()) return after;
+  return after.map(function(n,i){ return n+Math.floor(Math.max(0,(before[i]||0)-n)*0.5); });
+}
+function useSurgeon(){
+  if (!(S.items.surgeon>0) || bfOn()) return;
+  S.items.surgeon--; S.surgeonUntil=Math.max(S.surgeonUntil||0, S.gt)+3600000;
+  toast("Surgeons ready: half your losses heal for the next hour"); save(); lastView=""; refresh();
+}
+var bfArmed=false, bfQuitArmed=false;
+function bfSection(){
+  var A=AL(), why=bfWhy(), last=A.bfLast, allies=allyTiles();
+  var h='<div class="section"><div class="shead"><h3>Battlefield</h3><span class="dur">'+(repPct()<75?'unlocks at 75% rep':'every '+(BF_COOLDOWN_DAYS*bfCooldownMul()).toFixed(1).replace(/\.0$/,"")+' days')+'</span></div>'+
+    '<p class="hint">You and two allies against three strong rivals on a small field of your own, for one hour. A copy of one of your cities fights, so home stays defended. Each starts behind a level 10 guard with full walls and traps; once taken, the walls are gone and it\u2019s troop against troop. Three buildings: <b>The Keep</b> scores the most, the <b>War Banner</b> makes your team\u2019s marches 25% larger, the <b>Infirmary</b> heals 10% of your team\u2019s losses. Only buildings you have troops in score, and kills score too. Everything is healed when it ends.</p>'+
+    '<p class="hint">The hour only runs while you\u2019re on the Battlefield screen, and you can\u2019t return to the rest of the game until it\u2019s done. Retreat at any time for an automatic loss; it must finish within 24 hours.</p>';
+  if (last) h+='<p class="hint">Last battlefield: '+(last.win?'<b>won</b>':'lost')+', '+fmt(last.us)+' to '+fmt(last.them)+'. You scored '+fmt(last.mine)+'.</p>';
+  if (!why && allies.length>=2){
+    h+='<div class="farmadd" style="margin-top:6px"><label for="bfcity" class="dur">City</label><select id="bfcity">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===S.cur?' selected':'')+'>'+esc(c.name)+' ('+fmt(sumT(c.troops))+')</option>'; }).join("")+'</select></div>'+
+      '<div class="farmadd"><label class="dur">Allies</label>'+[0,1].map(function(n){ return '<select id="bfally'+n+'">'+allies.map(function(q,i){ return '<option value="'+q.id+'"'+(i===n?' selected':'')+'>'+esc(q.ai.name)+'</option>'; }).join("")+'</select>'; }).join("")+'</div>';
+  }
+  h+='<div class="act"><span class="why">'+why+'</span><button class="btn'+(bfArmed?' danger':'')+'" data-act="bf-enter"'+(why?' disabled':'')+'>'+(bfArmed?'Tap again: take the field':'Take the field')+'</button></div>';
+  return h+'</div>';
+}
+function viewBattlefield(){
+  var bf=BF(), left=BF_MIN*60000-bf.t, me=bf.p[0], us=bfTeamPts(0), them=bfTeamPts(1), nt=BF_LADDER[bf.tier];
+  var h='<div class="section bullybox"><div class="shead"><h3>Battlefield</h3><span class="dur"><b>'+bfMin(left)+'</b> left</span></div>'+
+    '<div class="act"><div><div class="bigstat">'+fmt(Math.round(us))+'</div><span class="dur">your side</span></div><div style="text-align:center"><div class="bigstat">'+fmt(Math.round(bfMyPts()))+'</div><span class="dur">you</span></div><div style="text-align:right"><div class="bigstat">'+fmt(Math.round(them))+'</div><span class="dur">rivals</span></div></div>'+
+    '<p class="hint">'+(nt?'Next spoils at '+fmt(Math.round(nt.f*bf.T/6))+' of your points: '+rewardText({items:nt.r})+'.':'Every rung of spoils claimed.')+' The clock stops whenever you leave this screen.</p></div>';
+  bf.b.forEach(function(B,bi){ var d=BF_B[bi], g=bfGar(B), mineHere=B.gar[0]?sumT(B.gar[0]):0;
+    var holder=B.owner<0?'Neutral guards':B.owner===0?'<b style="color:var(--green,#3f8f5a)">Your side</b>':'<b style="color:var(--red)">Rivals</b>';
+    var garN=B.owner<0?sumT(B.neutral||Z12()):sumT(g);
+    h+='<div class="section"><div class="shead"><h3>'+d.name+'</h3><span class="dur">'+holder+'</span></div><p class="hint">'+d.eff+'. '+(B.wall?'Level '+B.wall+' walls, traps '+(B.forts.reduce(function(a,c){ return a+c; },0)?'set':'spent')+'.':'Walls down: troop against troop.')+' Garrison '+(B.owner===0?fmt(garN):'about '+fmt(roughN(garN)))+(mineHere?', '+fmt(mineHere)+' of them yours':'')+'.</p>'+
+      '<div class="btnrow"><button class="btn small" data-act="bf-send" data-b="'+bi+'"'+(bfOut(0)>=me.rally?' disabled':'')+'>'+(B.owner===0?'Reinforce':'Attack')+'</button>'+(mineHere?'<button class="btn ghost small" data-act="bf-recall" data-b="'+bi+'">Withdraw yours</button>':'')+'</div></div>'; });
+  var mine=bf.m.filter(function(m){ return m.p===0; });
+  h+='<div class="section"><div class="shead"><h3>Your army</h3><span class="dur">'+mine.length+' of '+me.rally+' marches out, up to '+fmt(bfCap(me))+' each</span></div>'+
+    '<p class="hint">In reserve: '+(U.map(function(u,i){ return me.reserve[i]?fmt(me.reserve[i])+' '+u.name:''; }).filter(Boolean).join(", ")||'nothing')+'.'+(me.hero?' '+esc(me.hero)+' leads every march.':'')+'</p>'+
+    mine.map(function(m){ return '<div class="bq"><span>'+(m.back?'Returning from ':'\u2192 ')+BF_B[m.b].name+': '+fmt(sumT(m.t))+'</span><span class="qtime">'+bfMin(Math.max(0,m.arr-bf.t))+'</span>'+((S.items.marchsp||0)>0?'<div class="qacts"><button class="link strong" data-act="bf-hasten" data-m="'+m.id+'">Speed up ('+S.items.marchsp+')</button></div>':'')+'</div>'; }).join("")+'</div>';
+  h+='<div class="section"><h3>Allies</h3><div class="gearlist">'+bf.p.filter(function(p){ return p.kind==="ally"; }).map(function(p){ var pi=bf.p.indexOf(p);
+    return '<div class="gearrow"><span class="gn">'+esc(p.name)+'</span><span class="gb">'+fmt(Math.round(p.pts))+' pts</span><span class="dur" style="grid-column:1/-1">Reserve '+fmt(sumT(p.reserve))+'. Favor: <select data-bffavor="'+pi+'">'+BF_FAVORS.map(function(f){ return '<option value="'+f[0]+'"'+(p.favor===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join("")+'</select></span></div>'; }).join("")+'</div></div>';
+  h+='<div class="section"><h3>Rivals</h3><div class="gearlist">'+bf.p.filter(function(p){ return p.kind==="foe"; }).map(function(p){ var b=rosterById(p.rid), f=b&&friendOf(b);
+    return '<div class="gearrow'+(f?' t3':'')+'"><span class="gn">'+(f?'\u2605 ':'')+esc(p.name)+'</span><span class="gb">'+fmt(Math.round(p.pts))+' pts</span><span class="dur" style="grid-column:1/-1">'+esc(b?bullyStyleName(b):'')+'. Reserve about '+fmt(roughN(sumT(p.reserve)))+'.'+(p.leader?' Leads the others: +'+Math.round(p.leader*100)+'% attack.':'')+'</span></div>'; }).join("")+'</div></div>';
+  if (bf.log.length) h+='<div class="section"><h3>Field reports</h3><ul class="log">'+bf.log.slice(0,10).map(function(l){ return '<li><span class="dur">'+bfMin(l.t)+'</span> '+esc(l.s)+'</li>'; }).join("")+'</ul></div>';
+  h+='<div class="section"><div class="act"><span class="dur">Retreating ends it now as a loss.</span><button class="btn ghost danger" data-act="bf-quit">'+(bfQuitArmed?'Tap again: retreat':'Retreat')+'</button></div></div>';
+  return h;
+}
+var bfDraft=null, bfSimTxt="";
+function bfSendSheet(){
+  var bf=BF(), me=bf.p[0], bi=sheetFor.b, B=bf.b[bi], cap=bfCap(me), d=bfDraft||(bfDraft=Z12());
+  var tot=sumT(d), why=tot<=0?"Pick some troops":tot>cap?"Over the march limit of "+fmt(cap):bfOut(0)>=me.rally?"All your marches are out":"";
+  var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>'+(B.owner===0?'Reinforce ':'Attack ')+BF_B[bi].name+'</h2><div class="sub">Up to '+fmt(cap)+' per march'+(bf.b[0].owner===0?' (War Banner +25%)':'')+', arriving in about '+bfMin(bfTravel(0,bi,d))+'</div></div></div>';
+  h+='<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Reserve</th><th>Send</th></tr></thead><tbody>'+U.map(function(u,i){ if (!me.reserve[i] || i===0 || i===6) return '';
+    return '<tr><td>'+u.name+'</td><td>'+fmt(me.reserve[i])+'</td><td><input type="number" min="0" max="'+me.reserve[i]+'" data-bfn="'+i+'" value="'+(d[i]||'')+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
+  h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="bf-fill" data-v="all">Fill to the limit</button><button class="btn ghost small" data-act="bf-fill" data-v="none">Clear</button>'+(B.owner!==0?'<button class="btn ghost small" data-act="bf-sim">Simulate</button>':'')+'</div>';
+  if (bfSimTxt) h+='<p class="hint">'+bfSimTxt+'</p>';
+  h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="bf-go"'+(why?' disabled':'')+'>Send '+fmt(tot)+'</button></div><button class="closebtn" data-act="close">Close</button>';
+  return h;
+}
 function nextAllianceEvent(){
   var A=S.alliance; if (!A) return null; var best=null;
   function take(t,o){ if (!best || t<best.t){ o.t=t; best=o; } }
@@ -3495,8 +3824,9 @@ function bullyCampBattle(m){
     finished.push(b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
   }
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
-  if (!r.attacker.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
-  m.t=r.attacker; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  var saved=surgeonHeal(m.t, r.attacker);
+  if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
+  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
 // ally help arriving at your city
 // allyId given: only that ally's troops. The Embassy hosts 10,000 per level from EACH ally.
@@ -3521,8 +3851,18 @@ function viewAlliance(){
     '<div class="gearrow'+(d.res?' t3':'')+'"><span class="gn">Send 10k+ resources to an ally</span><span class="gb">'+(d.res?'Done':'+50 rep')+'</span></div>'+
     '<div class="gearrow'+(d.guard?' t3':'')+'"><span class="gn">Station troops with an ally</span><span class="gb">'+(d.guard?'Done':'+60 rep')+'</span></div>'+
     '<div class="gearrow"><span class="gn">Defend an ally from a bully</span><span class="gb">+150 to +1,200 rep per wave</span></div></div></div>';
-  h+=warSection();
-  h+=chalSection();
+  h+='<div class="section"><h3>Allies</h3>';
+  if (!A.allies.length) h+='<p class="hint">No allies yet. Tap an AI lord on the map and choose Invite to alliance.</p>';
+  allyTiles().forEach(function(q){
+    var g=sumT(guardsAt(q.id).reduce(function(x,m){ return x.concat(m.t); },[])), sats=Object.keys(A.sat).filter(function(id){ return A.sat[id].ally===q.id; }).length, farms=Object.keys(A.farms).filter(function(id){ return A.farms[id]===q.id && S.map.npc[id]!=null; }).length;
+    var asked=A.lastReq&&A.lastReq[q.id]===gameDay();
+    h+='<div class="unit"><h4>'+esc(q.ai.name)+(B&&B.target===q.id?' <span class="badc">targeted</span>':'')+'</h4><span class="own" style="font-size:.85rem">('+q.x+', '+q.y+'), '+tdist(q).toFixed(1)+' tiles</span>'+
+      '<div class="us"><span>Town Hall <b>'+q.ai.th+'</b></span><span>Troops <b>'+fmt(sumT(allyArmy(q)))+'</b></span><span>Your guards <b>'+fmt(g)+'</b></span><span>Cities <b>'+(1+sats)+'</b></span><span>NPC farms <b>'+farms+'</b></span></div>'+
+      '<div class="trainrow"><button class="btn small" data-act="march-open" data-tile="'+q.id+'" data-mission="allyguard">Reinforce</button><button class="btn ghost small" data-act="march-open" data-tile="'+q.id+'" data-mission="transport">Send resources</button><button class="btn ghost small" data-act="ally-request" data-tile="'+q.id+'"'+(asked?' disabled':'')+'>'+(asked?'Asked today':'Request help')+'</button><button class="btn ghost small" data-act="goto-tile" data-tile="'+q.id+'">Show</button><button class="btn ghost small danger" data-act="ally-leave" data-tile="'+q.id+'">'+(armedTile==="al"+q.id?"Tap again":"Leave")+'</button></div></div>';
+  });
+  h+='</div>';
+  var help=(A.help||[]).filter(function(x){ return S.gt<x.until; });
+  if (help.length) h+='<div class="section"><h3>Allied troops for you</h3>'+help.map(function(x){ var aq=TILE_BY[x.ally], c=S.cities[cityIndex(x.city)]; return '<div class="bq"><span>'+fmt(sumT(x.t))+' from '+esc(aq?aq.ai.name:"an ally")+' for '+esc(c?c.name:"")+'</span><span class="qtime">'+(x.arr>S.gt?'arrives in '+fmtT(realMs(x.arr-S.gt)):'stays '+fmtT(realMs(x.until-S.gt)))+'</span></div>'; }).join("")+'</div>';
   if (B && b){
     var tq=TILE_BY[B.target], bq=TILE_BY[B.tile];
     h+='<div class="section bullybox"><div class="shead"><h3>Bully: '+esc(b.name)+'</h3><span class="dur">leaves in '+fmtT(realMs(B.until-S.gt))+'</span></div>'+
@@ -3537,20 +3877,11 @@ function viewAlliance(){
     } else h+='<p class="hint">No more waves planned before '+esc(b.name)+' leaves.</p>';
     h+='</div>';
   } else h+='<div class="section"><h3>Bullies</h3><p class="hint">'+(A.allies.length?'All quiet. Each day there\'s a chance a bully moves into North March for 1 to 3 days and goes after your allies.':'Bullies only come after alliances. Invite an AI lord from its map tile to get started.')+'</p></div>';
-  var help=(A.help||[]).filter(function(x){ return S.gt<x.until; });
-  if (help.length) h+='<div class="section"><h3>Allied troops for you</h3>'+help.map(function(x){ var aq=TILE_BY[x.ally], c=S.cities[cityIndex(x.city)]; return '<div class="bq"><span>'+fmt(sumT(x.t))+' from '+esc(aq?aq.ai.name:"an ally")+' for '+esc(c?c.name:"")+'</span><span class="qtime">'+(x.arr>S.gt?'arrives in '+fmtT(realMs(x.arr-S.gt)):'stays '+fmtT(realMs(x.until-S.gt)))+'</span></div>'; }).join("")+'</div>';
-  h+='<div class="section"><h3>Allies</h3>';
-  if (!A.allies.length) h+='<p class="hint">No allies yet. Tap an AI lord on the map and choose Invite to alliance.</p>';
-  allyTiles().forEach(function(q){
-    var g=sumT(guardsAt(q.id).reduce(function(x,m){ return x.concat(m.t); },[])), sats=Object.keys(A.sat).filter(function(id){ return A.sat[id].ally===q.id; }).length, farms=Object.keys(A.farms).filter(function(id){ return A.farms[id]===q.id && S.map.npc[id]!=null; }).length;
-    var asked=A.lastReq&&A.lastReq[q.id]===gameDay();
-    h+='<div class="unit"><h4>'+esc(q.ai.name)+(B&&B.target===q.id?' <span class="badc">targeted</span>':'')+'</h4><span class="own" style="font-size:.85rem">('+q.x+', '+q.y+'), '+tdist(q).toFixed(1)+' tiles</span>'+
-      '<div class="us"><span>Town Hall <b>'+q.ai.th+'</b></span><span>Troops <b>'+fmt(sumT(allyArmy(q)))+'</b></span><span>Your guards <b>'+fmt(g)+'</b></span><span>Cities <b>'+(1+sats)+'</b></span><span>NPC farms <b>'+farms+'</b></span></div>'+
-      '<div class="trainrow"><button class="btn small" data-act="march-open" data-tile="'+q.id+'" data-mission="allyguard">Reinforce</button><button class="btn ghost small" data-act="march-open" data-tile="'+q.id+'" data-mission="transport">Send resources</button><button class="btn ghost small" data-act="ally-request" data-tile="'+q.id+'"'+(asked?' disabled':'')+'>'+(asked?'Asked today':'Request help')+'</button><button class="btn ghost small" data-act="goto-tile" data-tile="'+q.id+'">Show</button><button class="btn ghost small danger" data-act="ally-leave" data-tile="'+q.id+'">'+(armedTile==="al"+q.id?"Tap again":"Leave")+'</button></div></div>';
-  });
-  h+='</div>';
   if (A.roster.length) h+='<div class="section"><h3>Known bullies</h3><div class="gearlist">'+A.roster.map(function(x){ var xf=friendOf(x);
     return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future alliance events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></div>';
+  h+=warSection();
+  h+=bfSection();
+  h+=chalSection();
   if (A.log.length) h+='<details class="section"><summary>Alliance log</summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
   return h;
 }
@@ -3833,7 +4164,7 @@ function viewArmy(){
   var sp=hasSpeedups();
   bl.forEach(function(slot,n){
     var t=trainingAt(slot);
-    h+='<div class="bq"><span>Barracks '+(n+1)+', level '+S.inside[slot].level+(t?': '+fmt(t.n)+' '+uname(t.u,t.n):': idle')+'</span>';
+    h+='<div class="bq"><span>Barracks '+(n+1)+', level '+S.inside[slot].level+(t?': '+fmt(t.n)+' '+uname(t.u,t.n):'<span class="dur"> '+idleWhy(slot)+'</span>')+'</span>';
     if (t) h+='<span class="qtime" id="tq-t-'+slot+'"></span><div class="bar"><i id="tq-bar-'+slot+'"></i></div><div class="qacts">'+(sp?'<button class="link strong" data-act="speedup" data-target="train" data-slot="'+slot+'">Speed up</button>':'')+'<button class="link" data-act="cancel-train" data-slot="'+slot+'">Cancel</button></div>';
     h+='</div>';
   });
@@ -4010,7 +4341,7 @@ var PACKAGES=[
 ];
 var ITEM_GROUPS=[
   ["Speed-ups",["s15","s60","s150","s480","build50","marchsp"]],
-  ["Boxes and orders",["banish","medalbox","medalbox2","medalbox3","teleport","ensign"]],
+  ["Boxes and orders",["surgeon","banish","medalbox","medalbox2","medalbox3","teleport","ensign"]],
   ["Hero books",["primer","tome","codex","annals"]],
   ["Gear materials",["ore","ingot","mithril","starmetal","scale"]],
   ["Gems",["gemD","gemF"]]
@@ -4023,6 +4354,7 @@ var ITEM_INFO={
   build50:"Halves the time left on a building that is under construction. Use it from the build queue.",
   marchsp:"Speeds up a march that is already on the road. Use it from the march timer.",
   medalbox:"Holds 2 to 4 Cross medals and 2 to 4 Rose medals. Level 5 to 9 NPC cities drop it.",
+  surgeon:"For the next hour, half of every troop you lose in battle is saved, attacking or defending. Losses still count against you in war points. Won on the battlefield.",
   banish:"Ends any bully event in progress and keeps every bully out of North March for 7 days. Won by finishing an Alliance War ahead on points.",
   medalbox2:"Holds 2 Honor, 2 Courage and 2 Wisdom medals. Level 10 NPC cities drop it.",
   medalbox3:"Holds 1 Freedom, 1 Justice and 1 Nation medal. The rarest drop from a level 10 NPC city.",
@@ -4084,12 +4416,14 @@ function viewItems(){
     h+='<div class="section"><h3>'+g[0]+'</h3><div class="ilist">'+rows.map(function(k){
       var n=S.items[k]||0, acts="";
       if (MEDAL_BOXES[k] && n) acts='<button class="btn small" data-act="open-box" data-box="'+k+'">Open</button>';
+      else if (k==="surgeon" && n) acts='<button class="btn small" data-act="use-surgeon">'+(surgeonOn()?'Add another hour':'Use')+'</button>';
       else if (k==="banish" && n) acts='<button class="btn small" data-act="use-banish">'+(AL().bully?'Banish '+esc(bullyOf()?bullyOf().name:"the bully"):'Post the order')+'</button>';
       else if (k==="teleport" && n) acts='<button class="btn ghost small" data-act="tab" data-tab="map">Open map</button>';
       else if (ITEMS[k].xp && n) acts='<button class="btn ghost small" data-act="tab" data-tab="heroes">Heroes</button>';
       return '<div class="irow">'+ICON[ITEMS[k].icon]+'<span><b>'+ITEMS[k].name+'</b></span><span class="n">'+fmt(n)+'</span><span class="dur d">'+ITEM_INFO[k]+'</span>'+(acts?'<div class="ia">'+acts+'</div>':'')+'</div>';
     }).join("")+'</div></div>';
   });
+  if (surgeonOn()) h='<div class="inote">Surgeons on hand for another '+fmtT(realMs(S.surgeonUntil-S.gt))+': half your battle losses are saved.</div>'+h;
   if (!shown) h+='<div class="empty-state"><p>Your satchel is empty. Wheel prizes, quest rewards and battle drops land here.</p></div>';
   h+='<div class="section"><div class="act"><span class="dur">Medals are kept in the Medal case on your Town Hall page.</span><button class="btn ghost small" data-act="items-all">'+(itemsAll?'Hide empty items':'Show every item')+'</button></div></div>';
   return h;
@@ -4206,7 +4540,8 @@ function renderView(force){
   }
   if (v.contains(document.activeElement) && document.activeElement.tagName!=="BUTTON") return;
   if (tab==="fields") tab="city"; // fields now live under the city, not in the tab bar
-  var h = tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():viewCity();
+  document.body.classList.toggle("bfmode", bfOn());
+  var h = bfOn()?viewBattlefield():tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():viewCity();
   if (h===lastView && !force) return;
   lastView=h; v.innerHTML=h; setTabs(); wireDetails(v);
   if (document.getElementById("m-have")) updateMarket();
@@ -4291,6 +4626,8 @@ function renderSheet(){
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=marchSheet();
+  } else if (sheetFor.kind==="bfsend"){
+    if (!bfOn()){ closeSheet(); return; } h=bfSendSheet();
   } else if (sheetFor.kind==="ach"){
     h=achSheet();
   } else if (sheetFor.kind==="quests"){
@@ -4435,9 +4772,23 @@ function autoTrainStep(){
     var pick=-1, ord=goalOrder();
     for (var k=0;k<ord.length && pick<0;k++){ if (need(ord[k])) pick=ord[k]; }
     if (pick<0) return;
-    var cap=Math.max(1, Math.floor(AUTO_BATCH_MS*S.speed/trainTime(pick)));
-    startTrain(pick, Math.min(need(pick), maxTrainAuto(pick), cap), slot);
+    var cap=Math.max(1, Math.floor(AUTO_BATCH_MS*S.speed/trainTime(pick))), want=Math.min(need(pick), cap), n=Math.min(want, maxTrainAuto(pick));
+    // don't dribble out tiny batches as people trickle in: wait until a fifth of a batch can start, unless that finishes the goal
+    if (n<want && n<Math.max(1, Math.floor(want*0.2))) return;
+    startTrain(pick, n, slot);
   });
+}
+// why an idle Barracks isn't training, in plain words
+function idleWhy(slot){
+  if (!S.autoTrain) return "idle";
+  var lv=S.inside[slot].level, have=armyCount(), ord=goalOrder(), shortAny=false;
+  for (var k=0;k<ord.length;k++){ var i=ord[k], g=S.goals[i]||0; if (!(g>0 && have[i]<g)) continue; shortAny=true;
+    if (missing(U[i].req).length || barracksReq(i)>lv) continue;
+    var u=U[i];
+    if (idlePop()<u.pop*Math.max(1,Math.floor(Math.min(g-have[i], Math.floor(AUTO_BATCH_MS*S.speed/trainTime(i)))*0.2))) return "idle, waiting for idle people to train "+u.name+"s";
+    return "idle, short of resources for "+u.name+"s"+(Object.keys(S.reserve||{}).length?" (or held by your Warehouse reserve)":"");
+  }
+  return shortAny ? "idle: nothing short of its goal can train at level "+lv : "idle: every goal is met";
 }
 function processQueues(){
   autoTrainStep();
@@ -4478,7 +4829,7 @@ document.addEventListener("click",function(e){
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
   if (advance(Date.now())) flushFinished();
-  if (act==="tab"){ closeSheet(); arrange=null; warArmed=false; chalArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
+  if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     var tb=document.querySelector('nav.tabs [data-tab="'+tab+'"]'); if (tb && tb.scrollIntoView) tb.scrollIntoView({block:"nearest",inline:"center"}); setTimeout(updateTabArrows,350); return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
   if (act==="city-go"){ closeSheet(); S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
@@ -4633,6 +4984,14 @@ document.addEventListener("click",function(e){
     dq.k="flat"; dq.L=dayLevel(dq); miniDirty=true;
     toast("Demolished. It\u2019s a level "+dq.L+" flat today."); refresh(); return;
   }
+  if (act==="city-gift"){
+    var gid=+a.dataset.city, gc=S.cities[cityIndex(gid)], gsel=document.getElementById("giftally"), gally=gsel?gsel.value:null;
+    if (!gc || giftWhy(gc) || !gally) return;
+    if (armedTile!=="gift"+gid){ armedTile="gift"+gid; renderTileInfo(); var gs2=document.getElementById("giftally"); if (gs2) gs2.value=gally; return; }
+    armedTile=null; var gname=gc.name, got=giftCity(gid, gally);
+    if (got){ document.getElementById("cityname").textContent=S.name; toast(gname+" given away: +"+fmt(got)+" reputation"); save(); lastView=""; selectTile(gally); refresh(); }
+    return;
+  }
   if (act==="city-abandon"){
     var aid=+a.dataset.city, ai=cityIndex(aid), ac=S.cities[ai];
     if (S.cities.length<2 || ac.fieldCap) return;
@@ -4734,6 +5093,21 @@ document.addEventListener("click",function(e){
   if (act==="goto-tile"){ if (tab!=="map"){ closeSheet(); tab="map"; lastView=""; renderView(true); setTabs(); } selectTile(a.dataset.tile,true); window.scrollTo({top:0,behavior:"smooth"}); return; }
   if (act==="war-declare"){ if (warWhy()) return; if (!warArmed){ warArmed=true; lastView=""; renderView(true); return; } warArmed=false; declareWar(); flushFinished(); save(); lastView=""; refresh(); return; }
   if (act==="use-banish"){ useBanish(); return; }
+  if (act==="use-surgeon"){ useSurgeon(); return; }
+  if (act==="bf-enter"){ if (bfWhy()) return; var bc=document.getElementById("bfcity"), b0=document.getElementById("bfally0"), b1=document.getElementById("bfally1");
+    var ci=bc?+bc.value:S.cur, al=[b0&&b0.value, b1&&b1.value];
+    if (!al[0] || !al[1] || al[0]===al[1]){ toast("Pick two different allies"); return; }
+    if (!bfArmed){ bfArmed=true; lastView=""; renderView(true); var r0=document.getElementById("bfcity"), r1=document.getElementById("bfally0"), r2=document.getElementById("bfally1"); if (r0) r0.value=String(ci); if (r1) r1.value=al[0]; if (r2) r2.value=al[1]; return; }
+    bfArmed=false; if (bfEnter(ci, al)){ closeSheet(); window.scrollTo({top:0}); } save(); lastView=""; refresh(); return; }
+  if (act==="bf-send"){ if (!bfOn()) return; bfDraft=null; bfSimTxt=""; openSheet({kind:"bfsend", b:+a.dataset.b}); return; }
+  if (act==="bf-recall"){ if (bfOn() && bfRecall(0,+a.dataset.b)) { toast("Withdrawing your troops"); lastView=""; refresh(); } return; }
+  if (act==="bf-hasten"){ var bm=BF().m.filter(function(x){ return x.id===+a.dataset.m && x.p===0; })[0]; if (!bm || !(S.items.marchsp>0)) return; S.items.marchsp--; bm.arr=BF().t+(bm.arr-BF().t)/2; toast("March hastened: half the remaining time"); lastView=""; refresh(); return; }
+  if (act==="bf-quit"){ if (!bfOn()) return; if (!bfQuitArmed){ bfQuitArmed=true; lastView=""; renderView(true); return; } bfQuitArmed=false; bfEnd("quit"); flushFinished(); save(); lastView=""; refresh(); return; }
+  if (act==="bf-fill"){ var me0=BF().p[0]; if (a.dataset.v==="none") bfDraft=Z12(); else bfDraft=bfPick(me0, bfCap(me0), 1); bfSimTxt=""; lastSheet=""; renderSheet(); return; }
+  if (act==="bf-sim"){ var me1=BF().p[0], sb=sheetFor.b, AA=bfSide(me1); AA.troops=(bfDraft||Z12()).slice(); var sr=SIM.fight(AA, bfDefender(BF().b[sb]));
+    bfSimTxt = sr.result===1 ? "Simulated: you take it with about "+fmt(sumT(sr.attacker))+" left." : "Simulated: thrown back, losing about "+fmt(sumT(killedOf(bfDraft||Z12(), sr.attacker)))+".";
+    lastSheet=""; renderSheet(); return; }
+  if (act==="bf-go"){ if (bfSend(0, sheetFor.b, bfDraft||Z12())){ toast("March sent"); closeSheet(); bfDraft=null; lastView=""; refresh(); } return; }
   if (act==="chal-go"){ var pick=document.getElementById("chalpick"), rid=pick?+pick.value:null; if (rid==null || chalWhy(rid)) return;
     if (!chalArmed){ chalArmed=true; lastView=""; renderView(true); var pk=document.getElementById("chalpick"); if (pk) pk.value=String(rid); return; }
     chalArmed=false; challenge(rid); flushFinished(); save(); lastView=""; refresh(); return; }
@@ -4859,6 +5233,7 @@ document.addEventListener("click",function(e){
   }
 });
 document.addEventListener("input",function(e){
+  if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ var bi2=+e.target.dataset.bfn, mx=BF().p[0].reserve[bi2]; if (!bfDraft) bfDraft=Z12(); bfDraft[bi2]=Math.max(0,Math.min(mx, Math.floor(+e.target.value||0))); bfSimTxt=""; }
   if (e.target.id==="m-amt"){ mkt.amt=Math.max(0,Math.floor(+e.target.value||0)); updateMarket(); }
   if (e.target.dataset.unit!=null && e.target.tagName==="INPUT"){ var iu=+e.target.dataset.unit; trainAmt[iu]=Math.max(0,Math.floor(+e.target.value||0)); updateTrainRow(iu); }
   if (e.target.dataset.ptroop!=null){ S.presets[sheetFor.p].t[+e.target.dataset.ptroop]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
@@ -4879,6 +5254,8 @@ document.addEventListener("input",function(e){
   }
 });
 document.addEventListener("change",function(e){
+  if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ lastSheet=""; renderSheet(); }
+  if (e.target.dataset && e.target.dataset.bffavor!=null && bfOn()){ var fp=BF().p[+e.target.dataset.bffavor]; if (fp && fp.kind==="ally"){ fp.favor=e.target.value; toast(fp.name+" will favor "+e.target.options[e.target.selectedIndex].text.toLowerCase()); } }
   if (e.target.id==="m-res"){ mkt.res=e.target.value; updateMarket(); }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
@@ -4909,6 +5286,7 @@ if (finished.length){ toast("Finished while you were away: "+finished.slice(0,4)
 refresh();
 
 setInterval(function(){
+  if (bfOn()) bfTick();
   var changed=advance(Date.now());
   if (finished.length || changed){ flushFinished(); renderQueue(); renderView(tab==="map"); renderSheet(); tickText(); save(); }
   else { tickText(); renderView(false); renderSheet(); }
