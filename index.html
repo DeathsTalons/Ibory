@@ -283,6 +283,14 @@ summary{cursor:pointer;color:var(--muted);font-size:.92rem}
 .invitem{display:flex;gap:8px;align-items:center;background:var(--panel2);border-radius:8px;padding:7px 10px;font-size:.92rem}
 .invitem svg{width:20px;height:20px;color:var(--brass);flex:none}
 .gt td.pri{white-space:nowrap}
+.lvguide{display:grid;gap:4px;margin-top:6px}
+.lvrow{display:grid;grid-template-columns:26px 1fr;gap:8px;padding:6px 10px;border-radius:8px;background:var(--panel2);font-size:.9rem;line-height:1.4}
+.lvrow>b{color:var(--brass)}
+.lvrow.cur{box-shadow:inset 0 0 0 1px var(--brass)}
+.lvdet{margin-top:10px}
+.lvdet>summary{padding:4px 0}
+.reqt tr.ok td:first-child{color:#3f8f5a;font-weight:600}
+.reqt td .why{color:var(--red)}
 body.bfmode #tabs, body.bfmode .tabarrow, body.bfmode .queue, body.bfmode #marchstrip, body.bfmode #threats{display:none!important}
 .achlist{display:grid;gap:8px;margin-top:8px}
 .achrow{display:grid;grid-template-columns:24px 1fr auto;gap:3px 10px;align-items:center;background:var(--panel2);border-radius:10px;padding:9px 12px}
@@ -506,39 +514,39 @@ var ICON = {}; for (var ik in INNER) ICON[ik] = '<svg viewBox="0 0 24 24" '+P+' 
 
 var DEF = {
   townhall:{name:"Town Hall",cost:{food:200,lumber:3000,stone:2500,iron:100},t:900,
-    desc:"The heart of your city. Its level caps every other building and opens more field plots."},
+    desc:"The heart of your city. Every other building is capped at its level (Barracks and Academy may go two higher), and each level opens more field plots outside the walls. From level 3 on, each new level needs your Walls no more than two levels behind."},
   cottage:{name:"Cottage",cost:{food:100,lumber:500,stone:100,iron:50},t:75,
-    desc:"Houses your people. More people means more field workers and more tax."},
+    desc:"Houses your people. Population works your fields, pays your taxes and becomes your soldiers: training draws on people who aren\u2019t working the fields."},
   academy:{name:"Academy",cost:{food:120,lumber:2500,stone:1500,iron:200},t:480,unique:true,
-    desc:"Unlocks research. Its level caps how far each tech can go."},
+    desc:"Where research happens. Research is shared by every city you rule, but each city only benefits from the levels its own Academy can support. Can be built two levels above the Town Hall."},
   market:{name:"Marketplace",cost:{food:300,lumber:1500,stone:1000,iron:300},t:240,unique:true,
-    desc:"Trade resources for gold and gold for resources at daily market prices. Higher levels take a smaller fee."},
+    desc:"Sell surplus for gold or buy what you\u2019re short of, at prices that change daily. Higher levels cut the trading fee from 10% toward 2%."},
   inn:{name:"Inn",cost:{food:400,lumber:1200,stone:800,iron:200},t:120,unique:true,
-    desc:"Wandering heroes stop here looking for work. Higher levels draw more of them, and stronger ones."},
+    desc:"Wandering heroes stop here looking for work. Higher levels draw more of them, and stronger ones. Hired heroes need room in a Feasting Hall."},
   feasting:{name:"Feasting Hall",cost:{food:800,lumber:1600,stone:1200,iron:400},t:180,unique:true,
-    desc:"Your heroes live here: 5 at level 1, and one more for each level after."},
+    desc:"Your heroes live here: 5 at level 1, one more for each level after. Heroes govern the city as mayor and lead your marches."},
   walls:{name:"Walls",cost:{food:3000,lumber:1500,stone:10000,iron:500},t:1800,
-    desc:"Your city wall. Each level adds durability attackers must break and room for fortifications, and extends archer tower reach."},
+    desc:"Your city wall. Attackers must break its durability before they can win, and each level adds room for fortifications (traps, abatis, archer towers, rolling logs and trebuchets) and extends archer tower reach. The Town Hall can\u2019t grow more than two levels past it."},
   barracks:{name:"Barracks",cost:{food:250,lumber:1200,stone:1500,iron:500},t:300,
-    desc:"Trains troops, one batch at a time. Its level decides which units you can train. Build several to train in parallel."},
+    desc:"Trains troops, one batch at a time. Its level decides which units it can train: the table below shows what each needs. Build several to train in parallel; with troop goals and auto-train on, every idle Barracks keeps itself busy. Can be built two levels above the Town Hall."},
   stable:{name:"Stable",cost:{food:1200,lumber:2000,stone:800,iron:1000},t:270,unique:true,
-    desc:"Home of your horses. Its level caps Horseback Riding research."},
+    desc:"Home of your horses. Needed for cavalry, and caps Horseback Riding research, which speeds every army in battle."},
   workshop:{name:"Workshop",cost:{food:150,lumber:1500,stone:500,iron:1500},t:540,unique:true,
-    desc:"Builds engines of war. Needed for siege units, and caps Machinery and Engineering."},
+    desc:"Builds engines of war and crafts hero gear from materials. Needed for siege units and for Walls, and caps Machinery and Engineering research."},
   forge:{name:"Forge",cost:{food:125,lumber:1000,stone:600,iron:1200},t:180,unique:true,
-    desc:"Metalworking for arms and armor. Caps Iron Working and Metal Casting."},
+    desc:"Metalworking for arms and armor. Adds stars to hero gear with gems, is needed for the Workshop, and caps Iron Working and Metal Casting research."},
   rally:{name:"Rally Spot",cost:{food:400,lumber:1200,stone:800,iron:400},t:180,unique:true,
-    desc:"Where armies muster. Each level allows one more march at a time and 10,000 more troops per march."},
+    desc:"Where armies muster. Each level allows one more march out at a time and 10,000 more troops per march, and caps Logistics, Compass and Cartography research."},
   embassy:{name:"Embassy",cost:{food:300,lumber:2000,stone:1500,iron:400},t:300,unique:true,
-    desc:"Seat of your alliance. Each level makes room for one more ally (up to 10) and hosts up to 10,000 allied troops sent to defend this city."},
+    desc:"Seat of your alliance. Each level makes room for one more ally (up to 10) and lets each ally station up to 10,000 more troops here when you ask for help."},
   beacon:{name:"Beacon Tower",cost:{food:600,lumber:2500,stone:3000,iron:600},t:300,unique:true,
-    desc:"Watches the roads. Without one, enemy armies arrive unannounced; each level reveals more about incoming attacks."},
+    desc:"Watches the roads. Without one, enemy armies arrive unannounced. Each level reveals more about incoming attacks: when they land, who\u2019s coming, which troops and how many, and at the top levels their plan. Your best Beacon also reads bully attacks on your allies."},
   warehouse:{name:"Warehouse",cost:{food:400,lumber:1000,stone:1000,iron:200},t:120,
-    desc:"Protects resources from plunder when AI lords raid you, and holds your auto-train reserve. Caps Stockpile."},
-  farm:{name:"Farm",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"food",desc:"Grows food."},
-  sawmill:{name:"Sawmill",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"lumber",desc:"Cuts lumber."},
-  quarry:{name:"Quarry",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"stone",desc:"Cuts stone."},
-  ironmine:{name:"Iron Mine",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"iron",desc:"Digs iron."}
+    desc:"Shields resources from plunder when your city is raided, holds your auto-train reserve so training never starves your build queue, and caps Stockpile research."},
+  farm:{name:"Farm",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"food",desc:"Grows food. Every troop eats food each hour, so your farms decide how large an army you can feed. A level 5 Farm unlocks the Stable."},
+  sawmill:{name:"Sawmill",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"lumber",desc:"Cuts lumber, the main material for buildings and most troops."},
+  quarry:{name:"Quarry",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"stone",desc:"Cuts stone for walls, fortifications and the bigger buildings. Walls need a level 2 Quarry."},
+  ironmine:{name:"Iron Mine",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"iron",desc:"Digs iron for troops, weapons and engines. A level 2 Iron Mine unlocks the Forge."}
 };
 var INSIDE = ["cottage","barracks","academy","feasting","inn","market","stable","forge","workshop","rally","beacon","embassy","warehouse"];
 var FIELD = ["farm","sawmill","quarry","ironmine"];
@@ -1347,6 +1355,7 @@ function resolveMarch(m){
   var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
   finished.push(msg+loyNote);
   var saved=surgeonHeal(m.t, r.attacker), alive = saved.some(function(n){ return n>0; });
+  woundFrom(m.city, m.t, saved, true);
   if (!alive){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel;
   return true;
@@ -1533,7 +1542,7 @@ function resolveDefense(w){
     var shut=S.gate==="closed", before=S.troops.slice(), fBefore=S.forts.slice(), r=SIM.fight(A,def);
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
     if (shut) r.defender=before.slice();
-    else { S.troops=before.map(function(n,i){ var tot=n+helpT[i]; return tot? Math.round(n*r.defender[i]/tot) : 0; }); S.troops=surgeonHeal(before, S.troops);
+    else { S.troops=before.map(function(n,i){ var tot=n+helpT[i]; return tot? Math.round(n*r.defender[i]/tot) : 0; }); S.troops=surgeonHeal(before, S.troops); woundFrom(C().id, before, S.troops, false);
       if (S.alliance) S.alliance.help.forEach(function(hp){ if (hp.city===C().id && hp.arr<=S.gt && S.gt<hp.until) hp.t=hp.t.map(function(n,i){ var tot=before[i]+helpT[i]; return tot?Math.round(n*r.defender[i]/tot):0; }); }); }
     var RR_FORT=[0.55,0.66,0.33,0.77,0.88], mach=Math.pow(2,S.tech.machinery||0)/1024; // traps, abatis, towers, logs, trebuchets
     var lostF=fBefore.map(function(n,i){ return n-r.forts[i]; }), rep=Math.round(0.33*mach*100)/100;
@@ -2330,11 +2339,12 @@ function migrate(s){
   if (s.v===33){ s.items=s.items||{}; s.items.banish=s.items.banish||0; if (s.alliance){ s.alliance.war=null; s.alliance.warReady=0; s.alliance.banishUntil=0; s.alliance.warLast=null; } s.v=34; }
   if (s.v===34){ if (s.alliance){ s.alliance.challenges=[]; s.alliance.chalReady=0; s.alliance.chalWins=0; s.alliance.chalNext=0; } s.v=35; }
   if (s.v===35){ s.bf=null; s.surgeonUntil=0; s.items=s.items||{}; s.items.surgeon=s.items.surgeon||0; if (s.alliance){ s.alliance.bfReady=0; s.alliance.bfLast=null; } s.v=36; }
+  if (s.v===36){ s.cities.forEach(function(cc){ cc.wounded=[]; }); s.v=37; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
-var CITY_KEYS = ["reserve","gate","goals","gorder","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
+var CITY_KEYS = ["reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
 function C(){ return S.cities[S.cur]; }
 var techVer=0, techCache={key:"",o:null};
 // Research is empire-wide: levels live in S.techG. A city only enjoys a level its own Academy can support.
@@ -2356,7 +2366,7 @@ function newCity(id,name,x,y){
   for (i=0;i<CITY_PLOTS;i++) inside.push(null); for (i=0;i<44;i++) fields.push(null);
   Object.keys(TECH).forEach(function(k){ tech[k]=0; });
   return {id:id,name:name,x:x,y:y,res:{food:10000,lumber:10000,stone:10000,iron:10000,gold:10000},pop:100,tax:20,th:1,inside:inside,fields:fields,tech:tech,
-    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],mayor:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],mayor:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
 }
 var NPRESETS=10;
 function newPresets(){ var a=[]; for (var i=0;i<NPRESETS;i++) a.push({name:"Preset "+(i+1), t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0, farm:[], auto:false, idx:0, stopOnLoss:true}); return a; }
@@ -2366,7 +2376,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=36) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=37) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=S.testSpeed||1; // real time unless a testing speed is set
 installProxies(S);
@@ -2722,10 +2732,10 @@ function viewAcademy(){
   var busyCity=null; S.cities.forEach(function(c,i){ if (c.research) busyCity=busyCity||{c:c,i:i}; });
   var h='<p class="note">Academy level '+al+'. Research is shared by every city you rule, but a city only enjoys a level its own Academy can support, so '+esc(S.name)+' uses levels up to '+al+'.</p>', lastG="";
   if (S.rq.length) h+='<div class="section" style="margin:0 0 12px"><h3>Research queue</h3><ol class="qlist">'+S.rq.map(function(k,i){ return '<li><span>'+TECH[k].name+'</span><button class="link" data-act="rq-remove" data-k="'+i+'">Remove</button></li>'; }).join("")+'</ol></div>';
-  h+='<div class="techlist">';
+  var openG=false;
   Object.keys(TECH).forEach(function(k){
     var L=S.tech[k], to=L+1, t=TECH[k], why="", miss=[];
-    if (t.g!==lastG){ h+='<div class="techgroup">'+t.g+'</div>'; lastG=t.g; }
+    if (t.g!==lastG){ if (openG) h+='</div></details>'; var gk="tg_"+t.g.replace(/\W/g,""); h+='<details class="det techdet" data-det="'+gk+'"'+(DET[gk]===false?'':' open')+'><summary class="techgroup">'+t.g+'</summary><div class="techlist">'; openG=true; lastG=t.g; }
     var tmx=techMax();
     if (L<tmx) miss=missing(techReqs(k,to));
     if (L>=tmx) why="Max level";
@@ -2742,7 +2752,7 @@ function viewAcademy(){
     }
     h+='</div>';
   });
-  return h+'</div>';
+  return h+(openG?'</div></details>':'');
 }
 /* fortifications */
 var fortAmt={};
@@ -3007,7 +3017,7 @@ function bullyWave(){
   var r=SIM.fight(A2,{troops:dt, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, hero:{intel:cur.hint||0}});
   var held=r.result!==1, myLost=0, allyLost=[0,0,0,0,0,0,0,0,0,0,0,0];
   for (var i=0;i<12;i++){ var tot=dt[i]; if (!tot) continue; var ratio=r.defender[i]/tot, keepMine=Math.round(mine[i]*ratio); myLost+=mine[i]-keepMine; allyLost[i]=cur.t[i]-Math.round(cur.t[i]*ratio);
-    var left=keepMine; guards.forEach(function(m){ var n=m.t[i]; if (!n) return; var nk=Math.min(n, Math.round(n*ratio)); m.t[i]=nk; }); }
+    var left=keepMine; guards.forEach(function(m){ var n=m.t[i]; if (!n) return; var nk=Math.min(n, Math.round(n*ratio)); woundAdd(m.city, i, n-nk); m.t[i]=nk; }); }
   S.marches=S.marches.filter(function(m){ if (m.mission==="allyguard" && m.phase==="stay" && sumT(m.t)<=0){ if (m.hero){ var hh=heroById(m.hero); if (hh) hh.away=false; } return false; } return true; });
   // the ally's own losses heal over time like any battle
   S.map.hit[q.id]={t:cur.t.map(function(n,i){ return n-allyLost[i]; }), f:r.forts.slice(), res:Object.assign({},cur.res), at:S.gt};
@@ -3152,7 +3162,7 @@ function warAllyHit(j){
   var held=r.result!==1, myLost=[0,0,0,0,0,0,0,0,0,0,0,0], allyLost=[0,0,0,0,0,0,0,0,0,0,0,0];
   for (var i=0;i<12;i++){ var tot=dt[i]; if (!tot) continue; var ratio=r.defender[i]/tot;
     myLost[i]=mine[i]-Math.round(mine[i]*ratio); allyLost[i]=cur.t[i]-Math.round(cur.t[i]*ratio);
-    guards.forEach(function(m){ var n=m.t[i]; if (n) m.t[i]=Math.min(n, Math.round(n*ratio)); }); }
+    guards.forEach(function(m){ var n=m.t[i]; if (n){ var nn=Math.min(n, Math.round(n*ratio)); woundAdd(m.city, i, n-nn); m.t[i]=nn; } }); }
   S.marches=S.marches.filter(function(m){ if (m.mission==="allyguard" && m.phase==="stay" && sumT(m.t)<=0){ if (m.hero){ var hh=heroById(m.hero); if (hh) hh.away=false; } return false; } return true; });
   S.map.hit[q.id]={t:cur.t.map(function(n,i){ return n-allyLost[i]; }), f:r.forts.slice(), res:Object.assign({},cur.res), at:S.gt};
   for (i=0;i<12;i++) E.army[i]+=r.attacker[i]; // survivors go home
@@ -3197,7 +3207,7 @@ function warCityBattle(m){
     miniDirty=true;
   } else finished.push(b.name+"\u2019s war camp held. You lost "+fmt(sumT(lostT))+" troops.");
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
-  var saved=surgeonHeal(m.t, r.attacker);
+  var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
@@ -3374,7 +3384,7 @@ function chalCityBattle(m){
     } else finished.push(nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
   }
   addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
-  var saved=surgeonHeal(m.t, r.attacker);
+  var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
@@ -3450,7 +3460,7 @@ function chalAllyHit(c, j){
   var r=SIM.fight({troops:p.t, research:chalResearch(c), attack_modifier:chalAm(c)},{troops:dt, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, hero:{intel:cur.hint||0}});
   var allyLost=[0,0,0,0,0,0,0,0,0,0,0,0];
   for (var i=0;i<12;i++){ var tot=dt[i]; if (!tot) continue; var ratio=r.defender[i]/tot; allyLost[i]=cur.t[i]-Math.round(cur.t[i]*ratio);
-    guards.forEach(function(m){ var n=m.t[i]; if (n) m.t[i]=Math.min(n, Math.round(n*ratio)); }); }
+    guards.forEach(function(m){ var n=m.t[i]; if (n){ var nn=Math.min(n, Math.round(n*ratio)); woundAdd(m.city, i, n-nn); m.t[i]=nn; } }); }
   S.marches=S.marches.filter(function(m){ if (m.mission==="allyguard" && m.phase==="stay" && sumT(m.t)<=0){ if (m.hero){ var hh=heroById(m.hero); if (hh) hh.away=false; } return false; } return true; });
   S.map.hit[q.id]={t:cur.t.map(function(n,i){ return n-allyLost[i]; }), f:r.forts.slice(), res:Object.assign({},cur.res), at:S.gt};
   for (i=0;i<12;i++) c.army[i]+=r.attacker[i];
@@ -3714,6 +3724,55 @@ function bfEnd(why){
   S.bf=null; document.body.classList.remove("bfmode"); tab="alliance"; lastView="";
 }
 // the Field Surgeon's Kit, used outside the battlefield
+/* ---------- medic camp (in the Rally Spot) ---------- */
+// Age 1 rule: after every battle a share of your fallen are only wounded, set by Medicine. They wait in the
+// Rally Spot's Medic Camp and can be healed for gold, or they die. Numbers below are educated guesses.
+var WOUND_BASE=0.10, WOUND_PER_MED=0.02, WOUND_MAX=0.5, WOUND_LIFE=24*3600000, HEAL_GOLD_F=0.005;
+var HEAL_GOLD=U.map(function(u){ var t=0; for (var k in u.cost) t+=u.cost[k]; return Math.max(1, Math.round(t*HEAL_GOLD_F)); });
+var pendingWound=0;
+function woundRate(cityId){ var ci=cityIndex(cityId), r=WOUND_BASE; if (ci<0) return r;
+  withCity(ci, function(){ r=Math.min(WOUND_MAX, WOUND_BASE+WOUND_PER_MED*(S.tech.medicine||0)); }); return r; }
+function woundBucket(c){ c.wounded=c.wounded||[]; var hr=Math.floor(S.gt/3600000)*3600000, b=c.wounded[c.wounded.length-1];
+  if (!b || b.at!==hr){ b={at:hr, t:[0,0,0,0,0,0,0,0,0,0,0,0]}; c.wounded.push(b); } return b; }
+function woundAdd(cityId, i, lost){ if (!(lost>0)) return 0; var ci=cityIndex(cityId); if (ci<0) return 0;
+  var n=Math.round(lost*woundRate(cityId)); if (!n) return 0; woundBucket(S.cities[ci]).t[i]+=n; pendingWound+=n; return n; }
+// before/after are the troops a city sent (or held) and what's left; attach=true when the report already exists
+function woundFrom(cityId, before, after, attach){
+  var ci=cityIndex(cityId); if (ci<0) return 0; var rate=woundRate(cityId), b=null, tot=0;
+  for (var i=0;i<12;i++){ var n=Math.round(Math.max(0,(before[i]||0)-(after[i]||0))*rate); if (!n) continue; if (!b) b=woundBucket(S.cities[ci]); b.t[i]+=n; tot+=n; }
+  if (!tot) return 0;
+  var r=S.reports[0]; if (attach && r && r.at===S.gt && !r.scout) r.wounded=(r.wounded||0)+tot; else pendingWound+=tot;
+  return tot;
+}
+function woundTotal(c){ var t=[0,0,0,0,0,0,0,0,0,0,0,0]; (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,i){ t[i]+=n; }); }); return t; }
+function woundCost(t){ var g=0; t.forEach(function(n,i){ g+=n*HEAL_GOLD[i]; }); return g; }
+function woundExpire(){ S.cities.forEach(function(c){ if (!c.wounded||!c.wounded.length) return; var died=0;
+  c.wounded=c.wounded.filter(function(b){ if (S.gt-b.at>=WOUND_LIFE){ died+=sumT(b.t); return false; } return true; });
+  if (died) finished.push(fmt(died)+" wounded troops in "+c.name+"\u2019s Medic Camp died untreated."); }); }
+function healWounded(){ // oldest first, as far as this city's gold reaches
+  var c=C(), healed=0, spent=0; woundExpire();
+  (c.wounded||[]).forEach(function(b){ for (var i=0;i<12;i++){ var n=b.t[i]; if (!n) continue;
+    var can=Math.min(n, Math.floor(S.res.gold/HEAL_GOLD[i])); if (can<=0) continue;
+    S.res.gold-=can*HEAL_GOLD[i]; spent+=can*HEAL_GOLD[i]; b.t[i]-=can; S.troops[i]+=can; healed+=can; } });
+  c.wounded=(c.wounded||[]).filter(function(b){ return sumT(b.t)>0; });
+  return {healed:healed, spent:spent};
+}
+function woundLine(r){ return r.wounded ? '<p class="hint">'+fmt(r.wounded)+' of your fallen were only wounded. They wait in the Medic Camp at the Rally Spot for 24 hours.</p>' : ''; }
+function medicSection(){
+  woundExpire();
+  var c=C(), t=woundTotal(c), n=sumT(t), cost=woundCost(t), pct=Math.round(woundRate(c.id)*100);
+  var h='<div class="section"><div class="shead"><h3>Medic Camp</h3><span class="dur">'+(n?fmt(n)+' wounded':'empty')+'</span></div>'+
+    '<p class="hint">After every battle, '+pct+'% of '+esc(S.name)+'\u2019s fallen are only wounded (10% plus 2% per level of Medicine, up to 50%). They wait here for 24 hours: heal them for gold before they die. Healed troops still count as lost in reports and war points.</p>';
+  if (n){
+    var first=Math.min.apply(null, c.wounded.map(function(b){ return b.at; }));
+    h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Unit</th><th>Wounded</th><th>Gold each</th></tr></thead><tbody>'+
+      U.map(function(u,i){ return t[i]?'<tr><td>'+u.name+'</td><td>'+fmt(t[i])+'</td><td>'+fmt(HEAL_GOLD[i])+'</td></tr>':''; }).join("")+'</tbody></table></div>'+
+      '<p class="hint">The first of them die in <b>'+fmtT(realMs(first+WOUND_LIFE-S.gt))+'</b>.</p>'+
+      '<div class="act"><span class="dur">'+(S.res.gold>=cost?'Costs '+fmt(cost)+' gold.':'You have '+fmt(S.res.gold)+' of the '+fmt(cost)+' gold needed; the oldest are healed first.')+'</span>'+
+      '<button class="btn" data-act="heal-wounded"'+(S.res.gold<Math.min.apply(null,HEAL_GOLD)?' disabled':'')+'>'+(S.res.gold>=cost?'Heal all':'Heal what you can')+'</button></div>';
+  }
+  return h+'</div>';
+}
 function surgeonOn(){ return S.surgeonUntil && S.gt<S.surgeonUntil; }
 function surgeonHeal(before, after){
   if (!surgeonOn()) return after;
@@ -3824,7 +3883,7 @@ function bullyCampBattle(m){
     finished.push(b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
   }
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
-  var saved=surgeonHeal(m.t, r.attacker);
+  var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
@@ -3877,12 +3936,12 @@ function viewAlliance(){
     } else h+='<p class="hint">No more waves planned before '+esc(b.name)+' leaves.</p>';
     h+='</div>';
   } else h+='<div class="section"><h3>Bullies</h3><p class="hint">'+(A.allies.length?'All quiet. Each day there\'s a chance a bully moves into North March for 1 to 3 days and goes after your allies.':'Bullies only come after alliances. Invite an AI lord from its map tile to get started.')+'</p></div>';
-  if (A.roster.length) h+='<div class="section"><h3>Known bullies</h3><div class="gearlist">'+A.roster.map(function(x){ var xf=friendOf(x);
-    return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future alliance events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></div>';
-  h+=warSection();
-  h+=bfSection();
-  h+=chalSection();
-  if (A.log.length) h+='<details class="section"><summary>Alliance log</summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
+  if (A.roster.length) h+='<details class="section det" data-det="known"'+(DET.known?' open':'')+'><summary><b>Known bullies</b> <span class="dur">'+A.roster.length+'</span></summary><div class="gearlist">'+A.roster.map(function(x){ var xf=friendOf(x);
+    return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future alliance events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></details>';
+  h+=collapsify("ev_war", warSection(), repPct()>=50);
+  h+=collapsify("ev_bf", bfSection(), repPct()>=75);
+  h+=collapsify("ev_chal", chalSection(), A.rep>=REP_MAX);
+  if (A.log.length) h+='<details class="section det" data-det="alog"'+(DET.alog?' open':'')+'><summary><b>Alliance log</b></summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
   return h;
 }
 
@@ -3988,6 +4047,7 @@ function bumpStats(c){
   st.lostT+=c.l; st.killT+=c.k; if (!c.d) st.loot+=c.lo; if (c.m>=0) st.medals++; st.gear+=c.g.filter(isGearDrop).length;
 }
 function addReport(rep){
+  if (pendingWound && !rep.scout){ rep.wounded=(rep.wounded||0)+pendingWound; } pendingWound=0;
   S.reports.unshift(rep); if (S.reports.length>FULL_CAP) S.reports.length=FULL_CAP;
   var c=compactRep(rep); S.log.unshift(c); if (S.log.length>LOG_CAP) S.log.length=LOG_CAP; bumpStats(c);
 }
@@ -4010,12 +4070,12 @@ function viewReports(){
 }
 function reportDetail(r){
   if (r.scout) return r.intel ? '<p class="hint">Scouts got through'+(r.lost?' ('+fmt(r.lost)+' lost)':'')+'.</p>'+troopRows(r.intel.inf<3?r.intel.t.map(roughN):r.intel.t, r.intel.inf<3?null:r.intel.f, r.intel.wall)+'<div class="us">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(roughN(r.intel.res[k]))+'</b></span>'; }).join("")+'</div>' : '<p class="hint">All '+fmt(r.lost)+' scouts were caught.</p>';
-  if (r.def) return '<p class="hint">'+r.rounds+' rounds.'+(r.repaired?' Machinery repaired '+Math.round(r.repaired*100)+'% of lost archer towers (more of other fortifications).':'')+'</p>'+
+  if (r.def) return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.repaired?' Machinery repaired '+Math.round(r.repaired*100)+'% of lost archer towers (more of other fortifications).':'')+'</p>'+
     '<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Yours</th><th>You lost</th><th>Theirs</th><th>They lost</th></tr></thead><tbody>'+
     U.map(function(u,i){ if (!r.sent[i] && !r.had[i]) return ''; var a1=r.sent[i]-r.left[i], a2=r.had[i]-r.eleft[i]; return '<tr><td>'+u.name+'</td><td>'+fmt(r.sent[i])+'</td><td class="'+(a1?'loss':'')+'">'+fmt(a1)+'</td><td>'+fmt(r.had[i])+'</td><td class="'+(a2?'ok':'')+'">'+fmt(a2)+'</td></tr>'; }).join("")+
     FORTN.map(function(n,k){ if (!r.forts[k]) return ''; var lf=r.forts[k]-r.fleft[k]; return '<tr><td>Your '+n+'</td><td>'+fmt(r.forts[k])+'</td><td class="'+(lf?'loss':'')+'">'+fmt(lf)+'</td><td></td><td></td></tr>'; }).join("")+'</tbody></table></div>';
   var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
-  return '<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
+  return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
     (loot?'<div class="us" style="margin-top:6px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'');
 }
 function fillRepList(){
@@ -4036,10 +4096,49 @@ function fillRepList(){
 
 /* building pages */
 var PAGE_TYPES={townhall:1,academy:1,forge:1,rally:1,market:1,warehouse:1,workshop:1}, pg=null;
+// collapsible box that remembers whether you left it open
+function detBox(key, defOpen, summary, body, cls){ var open = DET[key]===undefined ? defOpen : DET[key];
+  return '<details class="'+(cls||'section det')+'" data-det="'+key+'"'+(open?' open':'')+'><summary>'+summary+'</summary>'+body+'</details>'; }
+// turn a plain section (header row with an h3 and a status) into a collapsible one
+function collapsify(key, html, defOpen){
+  var m=html.match(/^<div class="section"><div class="shead"><h3>([^<]*)<\/h3><span class="dur">([\s\S]*?)<\/span><\/div>/);
+  if (!m || html.slice(-6)!=="</div>") return html;
+  return detBox(key, defOpen, '<b>'+m[1]+'</b> <span class="dur">'+m[2]+'</span>', html.slice(m[0].length,-6));
+}
+// what each level of a building does and unlocks, read straight from the game's own rules
+function levelGuide(type){
+  var top=maxLv(type), rows=[];
+  for (var L=1; L<=top; L++){
+    var bits=[], eff=effectLine(type,L,true); if (eff) bits.push(eff);
+    if (type==="townhall") bits.push("Barracks and Academy up to level "+(L+2));
+    if (type==="walls" && L+2<=maxLv("townhall") && L+2>=3) bits.push("Lets the Town Hall reach level "+(L+2));
+    U.forEach(function(u){ var need=u.req.filter(function(r){ return r[0]===type; })[0];
+      if (need && need[1]===L){ var others=u.req.filter(function(r){ return r!==need; }); bits.push("Unlocks "+u.name+"s"+(others.length?" (also needs "+others.map(reqName).join(", ")+")":"")); } });
+    for (var bt in BREQ){ if (bt===type || bt==="townhall") continue; if (BREQ[bt](1).some(function(r){ return r[0]===type && r[1]===L; })) bits.push("Lets you build "+(/^[AEIOU]/.test(DEF[bt].name)?"an ":"a ")+DEF[bt].name); }
+    if (L===1){ var ts=Object.keys(TECH).filter(function(k){ return TECH[k].b===type; }).map(function(k){ return TECH[k].name; }); if (ts.length) bits.push("Opens research: "+ts.join(", ")); }
+    if (type==="academy") Object.keys(TECH).forEach(function(k){ if (TECH[k].gate===L) bits.push("Unlocks "+TECH[k].name); });
+    var own=BREQ[type]?BREQ[type](L):[]; if (own.length && (type==="townhall" || L===1)) bits.push("Needs "+own.map(reqName).join(" and "));
+    rows.push({L:L, bits:bits});
+  }
+  return rows;
+}
+function levelGuideHtml(type, cur){
+  var rows=levelGuide(type);
+  var body='<div class="lvguide">'+rows.map(function(r){ return '<div class="lvrow'+(r.L===cur?' cur':r.L===cur+1?' next':'')+'"><b>'+r.L+'</b><span>'+r.bits.join('<br>')+(r.L===cur?' <span class="dur">(you are here)</span>':'')+'</span></div>'; }).join("")+'</div>';
+  return detBox("lv_"+type, false, '<b>What each level does</b> <span class="dur">levels 1 to '+rows.length+'</span>', body, "det lvdet");
+}
+function troopReqHtml(){
+  var rows=U.map(function(u,i){ var others=u.req.filter(function(r){ return r[0]!=="barracks"; }), can=!missing(u.req).length;
+    return '<tr class="'+(can?'ok':'')+'"><td>'+u.name+'</td><td>'+barracksReq(i)+'</td><td>'+(others.length?others.map(function(r){ return '<span class="'+(missing([r]).length?'why':'')+'">'+reqName(r)+'</span>'; }).join(', '):'\u2014')+'</td></tr>'; }).join("");
+  return detBox("barracks_troops", true, '<b>Troops and what they need</b>',
+    '<p class="hint">Each unit needs a Barracks of at least this level, plus anything listed. Names in green you can train in '+esc(S.name)+' now; requirements in red are still missing.</p><div class="tscroll"><table class="gt reqt"><thead><tr><th>Unit</th><th>Barracks</th><th>Also needs</th></tr></thead><tbody>'+rows+'</tbody></table></div>', "det lvdet");
+}
 function upgradeBlock(w,i){
   var s=getSlot(w,i), d=DEF[s.type], L=s.level, busy=!!buildOn(w,i), h;
   h='<div class="head"><span class="ico">'+ICON[s.type]+'</span><div><h2>'+d.name+'</h2><div class="sub">'+(L>0?"Level "+L:s.type==="walls"?"Not built yet":"Under construction")+'</div></div></div><p>'+d.desc+'</p>';
   if (L>0) h+='<div class="effect">'+effectLine(s.type,L)+'</div>';
+  if (s.type==="barracks") h+=troopReqHtml();
+  h+=levelGuideHtml(s.type, L);
   if (busy) h+='<p class="sub">Construction in progress. The timer is in the queue at the top.</p><div class="act"><span class="dur">Queue the next level to start as soon as this finishes.</span><button class="btn ghost" data-act="queue-up">Add to queue</button></div>';
   else if (L<maxLv(s.type)){
     var why=upgradeWhy(s.type,L), qn=S.bq.filter(function(x){ return x.w===w && x.i===i; }).length;
@@ -4071,11 +4170,11 @@ function viewBuilding(){
   var s=pg && getSlot(pg.w,pg.i);
   if (!s || !s.level || !PAGE_TYPES[s.type]){ tab="city"; return viewCity(); }
   var h='<div class="pagehead"><button class="btn ghost small" data-act="tab" data-tab="city">\u2039 City</button></div><div class="section bpage">'+upgradeBlock(pg.w,pg.i)+'</div>';
-  if (s.type==="townhall") h+=taxSection()+'<div class="pagelabel">Titles and ranks</div>'+viewTitles();
+  if (s.type==="townhall") h+=taxSection()+detBox("titles", false, '<b>Titles and ranks</b> <span class="dur">medals, prestige and promotions</span>', viewTitles());
   else if (s.type==="academy") h+='<div class="pagelabel">Research</div>'+viewAcademy();
   else if (s.type==="forge") h+=armorySection();
   else if (s.type==="workshop") h+=craftSection();
-  else if (s.type==="rally") h+=presetsSection()+'<p class="hint" style="margin-top:10px">Marches in the field are listed on the Map tab.</p>';
+  else if (s.type==="rally") h+=medicSection()+presetsSection()+'<p class="hint" style="margin-top:10px">Marches in the field are listed on the Map tab.</p>';
   else if (s.type==="market") h+='<div class="pagelabel">Trade</div>'+viewMarket();
   else if (s.type==="warehouse"){
     var rv=S.reserve;
@@ -4413,7 +4512,7 @@ function viewItems(){
   ITEM_GROUPS.forEach(function(g){
     var rows=g[1].filter(function(k){ return itemsAll || (S.items[k]||0)>0; });
     if (!rows.length) return; shown+=rows.length;
-    h+='<div class="section"><h3>'+g[0]+'</h3><div class="ilist">'+rows.map(function(k){
+    h+='<details class="section det" data-det="it_'+g[0].replace(/\W/g,"")+'"'+(DET["it_"+g[0].replace(/\W/g,"")]===false?'':' open')+'><summary><b>'+g[0]+'</b> <span class="dur">'+rows.length+'</span></summary><div class="ilist">'+rows.map(function(k){
       var n=S.items[k]||0, acts="";
       if (MEDAL_BOXES[k] && n) acts='<button class="btn small" data-act="open-box" data-box="'+k+'">Open</button>';
       else if (k==="surgeon" && n) acts='<button class="btn small" data-act="use-surgeon">'+(surgeonOn()?'Add another hour':'Use')+'</button>';
@@ -4421,7 +4520,7 @@ function viewItems(){
       else if (k==="teleport" && n) acts='<button class="btn ghost small" data-act="tab" data-tab="map">Open map</button>';
       else if (ITEMS[k].xp && n) acts='<button class="btn ghost small" data-act="tab" data-tab="heroes">Heroes</button>';
       return '<div class="irow">'+ICON[ITEMS[k].icon]+'<span><b>'+ITEMS[k].name+'</b></span><span class="n">'+fmt(n)+'</span><span class="dur d">'+ITEM_INFO[k]+'</span>'+(acts?'<div class="ia">'+acts+'</div>':'')+'</div>';
-    }).join("")+'</div></div>';
+    }).join("")+'</div></details>';
   });
   if (surgeonOn()) h='<div class="inote">Surgeons on hand for another '+fmtT(realMs(S.surgeonUntil-S.gt))+': half your battle losses are saved.</div>'+h;
   if (!shown) h+='<div class="empty-state"><p>Your satchel is empty. Wheel prizes, quest rewards and battle drops land here.</p></div>';
@@ -4568,8 +4667,8 @@ function closeSheet(){ sheetFor=null; if (sheet.open) sheet.close(); }
 sheet.addEventListener("click",function(e){ if (e.target===sheet) closeSheet(); });
 sheet.addEventListener("close",function(){ sheetFor=null; });
 
-function effectLine(type,L){
-  var d=DEF[type], nx=L+1, top=L>=maxLv(type);
+function effectLine(type,L,only){
+  var d=DEF[type], nx=L+1, top=only||L>=maxLv(type);
   if (type==="townhall") return "Level cap "+L+", "+fieldSlots(L)+" field plots"+(top?"":" → cap "+nx+", "+fieldSlots(nx)+" plots");
   if (type==="cottage") return "Houses "+fmt(tri(L)*100)+" people"+(top?"":" → "+fmt(tri(nx)*100));
   if (type==="academy") return "Research up to level "+L+(top?"":" → "+nx);
@@ -4713,7 +4812,7 @@ function renderSheet(){
     }
   }
   if (h===lastSheet) return;
-  lastSheet=h; sheetBody.innerHTML=h;
+  lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
   if (sheetFor && sheetFor.kind==="march") updateMarchInfo();
   if (sheetFor && sheetFor.kind==="waves") updateWaveInfo();
   var cn=document.getElementById("cn");
@@ -5094,6 +5193,7 @@ document.addEventListener("click",function(e){
   if (act==="war-declare"){ if (warWhy()) return; if (!warArmed){ warArmed=true; lastView=""; renderView(true); return; } warArmed=false; declareWar(); flushFinished(); save(); lastView=""; refresh(); return; }
   if (act==="use-banish"){ useBanish(); return; }
   if (act==="use-surgeon"){ useSurgeon(); return; }
+  if (act==="heal-wounded"){ var hw=healWounded(); toast(hw.healed?"Healed "+fmt(hw.healed)+" troops for "+fmt(hw.spent)+" gold":"Not enough gold to heal anyone"); save(); lastView=""; refresh(); return; }
   if (act==="bf-enter"){ if (bfWhy()) return; var bc=document.getElementById("bfcity"), b0=document.getElementById("bfally0"), b1=document.getElementById("bfally1");
     var ci=bc?+bc.value:S.cur, al=[b0&&b0.value, b1&&b1.value];
     if (!al[0] || !al[1] || al[0]===al[1]){ toast("Pick two different allies"); return; }
@@ -5287,6 +5387,7 @@ refresh();
 
 setInterval(function(){
   if (bfOn()) bfTick();
+  woundExpire();
   var changed=advance(Date.now());
   if (finished.length || changed){ flushFinished(); renderQueue(); renderView(tab==="map"); renderSheet(); tickText(); save(); }
   else { tickText(); renderView(false); renderSheet(); }
