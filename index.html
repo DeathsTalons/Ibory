@@ -1872,9 +1872,10 @@ function renderReports(){
 }
 function mapDynamic(){ renderTileInfo(); renderMarchBox(); drawMap(); }
 function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && h.id!==S.mayor; }); }
+function marchHeroes(){ return freeHeroes().sort(function(a,b){ return hs(b,"atk")-hs(a,"atk") || b.level-a.level; }); }
 function openMarch(tile, mission){
   var friendly = mission==="transport" || mission==="reinforce";
-  marchDraft={tile:tile, mission:mission, t:[0,0,0,0,0,0,0,0,0,0,0,0], hero: friendly ? 0 : ((freeHeroes()[0]||{}).id||0), preview:"", cargo:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+  marchDraft={tile:tile, mission:mission, t:[0,0,0,0,0,0,0,0,0,0,0,0], hero: friendly ? 0 : ((marchHeroes()[0]||{}).id||0), preview:"", cargo:{food:0,lumber:0,stone:0,iron:0,gold:0}};
   openSheet({kind:"march"});
 }
 function marchCap(t){ var cap=0; t.forEach(function(n,i){ cap+=n*LOAD[i]*(1+0.1*(S.tech.logistics||0)); }); return Math.floor(cap); }
@@ -1932,7 +1933,7 @@ function marchSheet(){
     RES.forEach(function(k){ h+='<tr><td>'+RNAME[k]+' <span class="dur">('+fmt(S.res[k])+')</span></td><td><input type="number" min="0" data-cargo="'+k+'" value="'+(d.cargo[k]||"")+'" placeholder="0"></td><td><button class="link" data-act="cargo-fill" data-res="'+k+'">Fill</button></td></tr>'; });
     h+='</tbody></table></div>';
   }
-  var fh=freeHeroes();
+  var fh=marchHeroes();
   if (d.mission!=="transport" && d.mission!=="scout") h+='<div><label class="sub" for="marchhero">'+(d.mission==="reinforce"?"Hero to move there (needs room in its Feasting Hall)":"Leading hero")+'</label><select id="marchhero"><option value="0">No hero</option>'+fh.map(function(x){ return '<option value="'+x.id+'"'+(x.id===d.hero?' selected':'')+'>'+esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+'</option>'; }).join("")+'</select>'+
     (S.mayor?'<p class="hint" style="margin-top:4px">Your mayor stays home to run the city.</p>':'')+'</div>';
   if (d.mission==="transport") h=h.replace('<select id="marchhero">','<select id="marchhero" hidden>');
@@ -2539,6 +2540,12 @@ function dbgToolsHtml(){
     '<div class="h3" style="margin-top:10px">Buildings in '+esc(S.name)+'</div><p class="hint">Instant. Capped at this city\u2019s maximum level.</p>'+
     '<div class="farmadd"><select id="dbg-bld">'+bl.map(function(b){ return '<option value="'+b[0]+'">'+esc(b[1])+'</option>'; }).join("")+'</select>'+
     '<input type="number" id="dbg-bldlv" min="1" max="18" value="10" style="width:4.5em"><button class="btn ghost small" data-act="dbg-bld">Set</button><button class="btn ghost small" data-act="dbg-bldall">Set everything</button></div>'+
+    '<div class="h3" style="margin-top:10px">Resources in '+esc(S.name)+'</div>'+
+    '<div class="farmadd"><select id="dbg-resk"><option value="all">All five</option>'+RES.map(function(k){ return '<option value="'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; }).join("")+'</select>'+
+    '<input type="number" id="dbg-resn" min="0" value="100000" style="width:7em"><button class="btn ghost small" data-act="dbg-give">Give</button></div>'+
+    '<div class="h3" style="margin-top:10px">Resources in '+esc(S.name)+'</div>'+
+    '<div class="farmadd"><select id="dbg-resk"><option value="all">All five</option>'+RES.map(function(k){ return '<option value="'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; }).join("")+'</select>'+
+    '<input type="number" id="dbg-resn" min="0" value="100000" style="width:7em"><button class="btn ghost small" data-act="dbg-give">Give</button></div>'+
     '<div class="h3" style="margin-top:10px">Shortcuts</div><div class="btnrow"><button class="btn ghost small" data-act="dbg-res">+1M of each resource</button><button class="btn ghost small" data-act="dbg-finish">Finish every timer here</button></div>';
 }
 function dbgSetBld(key, L){
@@ -5263,6 +5270,11 @@ document.addEventListener("click",function(e){
     if (act==="dbg-bld") dbgSetBld(document.getElementById("dbg-bld").value, bL);
     else { dbgSetBld("th", bL); dbgSetBld("wall", bL); S.inside.forEach(function(b,i){ if (b) dbgSetBld("in:"+i, bL); }); dbgSetBld("fields", bL); }
     toast("Buildings updated"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
+  if (act==="dbg-give"){ var rk=document.getElementById("dbg-resk").value, rn=Math.max(0,Math.floor(+document.getElementById("dbg-resn").value||0));
+    if (!rn){ toast("Enter an amount"); return; } (rk==="all"?RES:[rk]).forEach(function(k){ S.res[k]+=rn; });
+    toast("+"+fmt(rn)+" "+(rk==="all"?"of each resource":rk)); save(); lastView=""; refresh(); return; }
+  if (act==="dbg-give"){ var gk=document.getElementById("dbg-resk").value, gn=Math.max(0,Math.floor(+document.getElementById("dbg-resn").value||0)); if (!gn) return;
+    (gk==="all"?RES:[gk]).forEach(function(k){ S.res[k]+=gn; }); toast("+"+fmt(gn)+" "+(gk==="all"?"of each resource":gk)); save(); lastView=""; refresh(); return; }
   if (act==="dbg-res"){ RES.forEach(function(k){ S.res[k]+=1000000; }); toast("+1M of each resource"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
     advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
