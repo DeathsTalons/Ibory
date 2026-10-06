@@ -445,13 +445,13 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-act="tab" data-tab="city">City</button>
     <button role="tab" data-act="tab" data-tab="map">Map</button>
+    <button role="tab" data-act="tab" data-tab="reports">Reports</button>
     <button role="tab" data-act="tab" data-tab="army">Army</button>
     <button role="tab" data-act="tab" data-tab="heroes">Heroes</button>
-    <button role="tab" data-act="tab" data-tab="war">War Room</button>
     <button role="tab" data-act="tab" data-tab="alliance">Alliance</button>
-    <button role="tab" data-act="tab" data-tab="reports">Reports</button>
-    <button role="tab" data-act="tab" data-tab="wheel">Wheel</button>
+    <button role="tab" data-act="tab" data-tab="war">War Room</button>
     <button role="tab" data-act="tab" data-tab="items">Items</button>
+    <button role="tab" data-act="tab" data-tab="wheel">Wheel</button>
   </nav><button class="tabarrow right" data-act="tabscroll" data-dir="1" aria-label="Scroll tabs right" hidden>›</button></div>
 
   <details class="queue det" data-det="queue">
@@ -1320,6 +1320,8 @@ function resolveMarch(m){
     if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
       if (Math.random()<(0.12+0.04*q.L)*bMats()){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
+    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
+    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
     if (q.k==="npc" && dl>=10 && Math.random()<0.001*bItems()){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
     if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015*bItems()){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
   }
@@ -2077,13 +2079,16 @@ function achTotal(){ var n=0; ACH.forEach(function(a){ n+=achTier(a); }); return
 // the buffs
 function bScout(){ return 1+ACH_PCT*achLv("scout"); }
 function bMarch(){ return 1+ACH_PCT*achLv("march"); }
-function bDefend(){ return 1+ACH_PCT*achLv("kill"); }
+var BUFF_ITEM=0.20, BUFF_ITEM_MS=24*3600000;
+function hornOn(){ return S.hornUntil && S.gt<S.hornUntil; }
+function corsOn(){ return S.corsUntil && S.gt<S.corsUntil; }
+function bDefend(){ return (1+ACH_PCT*achLv("kill"))*(corsOn()?1+BUFF_ITEM:1); }
 function bTrain(){ return 1+ACH_PCT*achLv("train"); }
 function bHeroXp(){ return 1+ACH_PCT*achLv("hero"); }
 function bItems(){ return 1+ACH_PCT*achLv("medal"); }
 function bResearch(){ return 1+ACH_PCT*achLv("tech"); }
 function bBuild(){ return 1+ACH_PCT*achLv("city"); }
-function bAttack(){ return ACH_PCT*achLv("conq"); }
+function bAttack(){ return ACH_PCT*achLv("conq")+(hornOn()?BUFF_ITEM:0); }
 function bMats(){ return 1+ACH_PCT*achLv("gear"); }
 function bUpkeep(){ return 1-ACH_PCT*achLv("total"); }
 // tracking
@@ -2205,6 +2210,8 @@ var ITEMS = {
   medalbox3:{name:"Senior Medal Box",icon:"warehouse"},
   banish:{name:"Banishment Order",icon:"crest"},
   surgeon:{name:"Field Surgeon\u2019s Kit",icon:"plus"},
+  warhorn:{name:"War Horn",icon:"rally"},
+  corselet:{name:"Corselet",icon:"helm"},
   ore:{name:"Rough Ore",icon:"anvil"},
   ingot:{name:"Fine Ingot",icon:"anvil"},
   mithril:{name:"Mithril",icon:"anvil"},
@@ -2340,6 +2347,7 @@ function migrate(s){
   if (s.v===34){ if (s.alliance){ s.alliance.challenges=[]; s.alliance.chalReady=0; s.alliance.chalWins=0; s.alliance.chalNext=0; } s.v=35; }
   if (s.v===35){ s.bf=null; s.surgeonUntil=0; s.items=s.items||{}; s.items.surgeon=s.items.surgeon||0; if (s.alliance){ s.alliance.bfReady=0; s.alliance.bfLast=null; } s.v=36; }
   if (s.v===36){ s.cities.forEach(function(cc){ cc.wounded=[]; }); s.v=37; }
+  if (s.v===37){ s.items=s.items||{}; s.items.warhorn=s.items.warhorn||0; s.items.corselet=s.items.corselet||0; s.hornUntil=0; s.corsUntil=0; s.v=38; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -2376,7 +2384,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=37) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=38) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=S.testSpeed||1; // real time unless a testing speed is set
 installProxies(S);
@@ -2521,6 +2529,25 @@ function fmt(n){ n=Math.floor(n); if (n>=1e6) return (n/1e6).toFixed(1)+"M"; if 
 function fmtT(ms){ var s=Math.max(0,Math.ceil(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   if (h) return h+"h "+String(m).padStart(2,"0")+"m"; if (m) return m+"m "+String(x).padStart(2,"0")+"s"; return x+"s"; }
 function realMs(gameMs){ return gameMs/S.speed; }
+function dbgToolsHtml(){
+  var tk=Object.keys(TECH), bl=[["th","Town Hall ("+S.th+")"],["wall","Walls ("+(S.wall||0)+")"]];
+  S.inside.forEach(function(b,i){ if (b) bl.push(["in:"+i, DEF[b.type].name+" #"+(i+1)+" ("+b.level+")"]); });
+  if (S.fields.some(function(f){ return f; })) bl.push(["fields","All fields"]);
+  return '<div class="h3" style="margin-top:10px">Research</div><p class="hint">Shared by every city; each city still only uses what its own Academy supports.</p>'+
+    '<div class="farmadd"><select id="dbg-tech">'+tk.map(function(k){ return '<option value="'+k+'">'+TECH[k].name+' ('+(S.techG[k]||0)+')</option>'; }).join("")+'</select>'+
+    '<input type="number" id="dbg-techlv" min="0" max="20" value="10" style="width:4.5em"><button class="btn ghost small" data-act="dbg-tech">Set</button><button class="btn ghost small" data-act="dbg-techall">Set all</button></div>'+
+    '<div class="h3" style="margin-top:10px">Buildings in '+esc(S.name)+'</div><p class="hint">Instant. Capped at this city\u2019s maximum level.</p>'+
+    '<div class="farmadd"><select id="dbg-bld">'+bl.map(function(b){ return '<option value="'+b[0]+'">'+esc(b[1])+'</option>'; }).join("")+'</select>'+
+    '<input type="number" id="dbg-bldlv" min="1" max="18" value="10" style="width:4.5em"><button class="btn ghost small" data-act="dbg-bld">Set</button><button class="btn ghost small" data-act="dbg-bldall">Set everything</button></div>'+
+    '<div class="h3" style="margin-top:10px">Shortcuts</div><div class="btnrow"><button class="btn ghost small" data-act="dbg-res">+1M of each resource</button><button class="btn ghost small" data-act="dbg-finish">Finish every timer here</button></div>';
+}
+function dbgSetBld(key, L){
+  var lv=function(type){ return Math.max(1, Math.min(maxLv(type), L)); };
+  if (key==="th") S.th=lv("townhall");
+  else if (key==="wall") S.wall=lv("walls");
+  else if (key==="fields") S.fields.forEach(function(f){ if (f) f.level=lv(f.type); });
+  else if (key.indexOf("in:")===0){ var b=S.inside[+key.slice(3)]; if (b) b.level=lv(b.type); }
+}
 function saveAge(){ // the game clock is the save's age (real time at 1x)
   var ms=S.gt, mins=Math.floor(ms/60000), d=Math.floor(mins/1440), h=Math.floor(mins%1440/60), m=mins%60;
   return d+" day"+(d===1?"":"s")+", "+h+" hour"+(h===1?"":"s")+" and "+m+" minute"+(m===1?"":"s");
@@ -4440,7 +4467,7 @@ var PACKAGES=[
 ];
 var ITEM_GROUPS=[
   ["Speed-ups",["s15","s60","s150","s480","build50","marchsp"]],
-  ["Boxes and orders",["surgeon","banish","medalbox","medalbox2","medalbox3","teleport","ensign"]],
+  ["Boxes and orders",["warhorn","corselet","surgeon","banish","medalbox","medalbox2","medalbox3","teleport","ensign"]],
   ["Hero books",["primer","tome","codex","annals"]],
   ["Gear materials",["ore","ingot","mithril","starmetal","scale"]],
   ["Gems",["gemD","gemF"]]
@@ -4453,6 +4480,8 @@ var ITEM_INFO={
   build50:"Halves the time left on a building that is under construction. Use it from the build queue.",
   marchsp:"Speeds up a march that is already on the road. Use it from the march timer.",
   medalbox:"Holds 2 to 4 Cross medals and 2 to 4 Rose medals. Level 5 to 9 NPC cities drop it.",
+  warhorn:"Sounds the charge: every troop you command attacks 20% harder for 24 hours, attacking or defending. A rare find in level 5+ NPC cities.",
+  corselet:"Armor for the whole army: every troop you command defends 20% better for 24 hours, attacking or defending. A rare find in level 5+ NPC cities.",
   surgeon:"For the next hour, half of every troop you lose in battle is saved, attacking or defending. Losses still count against you in war points. Won on the battlefield.",
   banish:"Ends any bully event in progress and keeps every bully out of North March for 7 days. Won by finishing an Alliance War ahead on points.",
   medalbox2:"Holds 2 Honor, 2 Courage and 2 Wisdom medals. Level 10 NPC cities drop it.",
@@ -4515,6 +4544,7 @@ function viewItems(){
     h+='<details class="section det" data-det="it_'+g[0].replace(/\W/g,"")+'"'+(DET["it_"+g[0].replace(/\W/g,"")]===false?'':' open')+'><summary><b>'+g[0]+'</b> <span class="dur">'+rows.length+'</span></summary><div class="ilist">'+rows.map(function(k){
       var n=S.items[k]||0, acts="";
       if (MEDAL_BOXES[k] && n) acts='<button class="btn small" data-act="open-box" data-box="'+k+'">Open</button>';
+      else if ((k==="warhorn"||k==="corselet") && n) acts='<button class="btn small" data-act="use-buff" data-k="'+k+'">'+((k==="warhorn"?hornOn():corsOn())?'Add 24 hours':'Use')+'</button>';
       else if (k==="surgeon" && n) acts='<button class="btn small" data-act="use-surgeon">'+(surgeonOn()?'Add another hour':'Use')+'</button>';
       else if (k==="banish" && n) acts='<button class="btn small" data-act="use-banish">'+(AL().bully?'Banish '+esc(bullyOf()?bullyOf().name:"the bully"):'Post the order')+'</button>';
       else if (k==="teleport" && n) acts='<button class="btn ghost small" data-act="tab" data-tab="map">Open map</button>';
@@ -4522,6 +4552,8 @@ function viewItems(){
       return '<div class="irow">'+ICON[ITEMS[k].icon]+'<span><b>'+ITEMS[k].name+'</b></span><span class="n">'+fmt(n)+'</span><span class="dur d">'+ITEM_INFO[k]+'</span>'+(acts?'<div class="ia">'+acts+'</div>':'')+'</div>';
     }).join("")+'</div></details>';
   });
+  if (hornOn()) h='<div class="inote">War Horn sounding for another '+fmtT(realMs(S.hornUntil-S.gt))+': +20% attack.</div>'+h;
+  if (corsOn()) h='<div class="inote">Corselets on for another '+fmtT(realMs(S.corsUntil-S.gt))+': +20% defense.</div>'+h;
   if (surgeonOn()) h='<div class="inote">Surgeons on hand for another '+fmtT(realMs(S.surgeonUntil-S.gt))+': half your battle losses are saved.</div>'+h;
   if (!shown) h+='<div class="empty-state"><p>Your satchel is empty. Wheel prizes, quest rewards and battle drops land here.</p></div>';
   h+='<div class="section"><div class="act"><span class="dur">Medals are kept in the Medal case on your Town Hall page.</span><button class="btn ghost small" data-act="items-all">'+(itemsAll?'Hide empty items':'Show every item')+'</button></div></div>';
@@ -4708,19 +4740,20 @@ function renderSheet(){
 
       '<div><div class="h3" style="margin-bottom:6px">Theme</div><div class="speeds">'+[["auto","Match phone"],["light","Light"],["dark","Dark"]].map(function(t){ return '<button data-act="theme" data-v="'+t[0]+'" aria-pressed="'+(getTheme()===t[0])+'">'+t[1]+'</button>'; }).join("")+'</div></div>'+
       '<div class="sub" id="offlinestat">'+offlineStatus()+'</div>'+
-      '<div class="sub">This realm has stood <b id="saveage">'+saveAge()+'</b>.</div>'+
+      '<div class="sub">This realm has stood <b id="saveage"></b>.</div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
       '<div><div class="h3" style="margin-bottom:6px">Move your save</div><p class="hint">Save a backup file to your phone, or copy a save code and paste it into the game on another device. The code holds everything: every city, hero, gear piece and the whole map.</p>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="save-file">Save to file</button><button class="btn ghost small" data-act="load-file">Load from file</button><button class="btn ghost small" data-act="save-export">Show save code</button><button class="btn ghost small" data-act="save-import-open">Load a save code</button></div>'+
       (saveUi==="export"?'<textarea id="savecode" readonly rows="4">'+esc(exportCode())+'</textarea><div class="btnrow"><button class="btn small" data-act="save-copy">Copy code</button><span class="dur" id="copymsg"></span></div>':'')+
       (saveUi==="import"?'<textarea id="saveinput" rows="4" placeholder="Paste a save code"></textarea><div class="btnrow"><button class="btn small danger" data-act="save-import">'+(armed==="import"?"Tap again to replace this game":"Load this save")+'</button><span class="why" id="importmsg"></span></div>':'')+'</div>'+
-      '<details class="det"><summary><b>Testing tools</b> <span class="dur">for trying late-game features early</span></summary><p class="hint">These change your save directly.</p>'+
+      '<details class="det" data-det="testing"'+(DET.testing?' open':'')+'><summary><b>Testing tools</b> <span class="dur">for trying late-game features early</span></summary><p class="hint">These change your save directly.</p>'+
         '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="dbg-rep" data-v="50">Rep to 50%</button><button class="btn ghost small" data-act="dbg-rep" data-v="100">Rep to 100%</button><button class="btn ghost small" data-act="dbg-warcd">Clear war cooldown</button><button class="btn ghost small" data-act="dbg-warend">End war now</button></div>'+
         '<div class="h3" style="margin-top:10px">Game speed</div><p class="hint">Everything runs this many times faster: builds, research, training, marches, AI and events. Timers show real time left. Stays on until you set it back to 1\u00d7.</p>'+
         '<div class="farmadd">'+[1,10,100,1000].map(function(x){ return '<button class="chipbtn'+(S.speed===x?' on':'')+'" data-act="dbg-speed" data-v="'+x+'">'+x+'\u00d7</button>'; }).join("")+'</div>'+
         '<div class="h3" style="margin-top:10px">Troops in '+esc(S.name)+'</div><p class="hint">Instant and free. Doesn\u2019t count toward prestige, quests or achievements. Remember they still eat food.</p>'+
-        '<div class="btnrow"><button class="btn ghost small" data-act="dbg-goals">Fill troop goals now</button><button class="btn ghost small" data-act="dbg-troops" data-v="10000">+10k of every unlocked troop</button><button class="btn ghost small" data-act="dbg-troops" data-v="100000">+100k</button></div></details>'+
+        '<div class="btnrow"><button class="btn ghost small" data-act="dbg-goals">Fill troop goals now</button><button class="btn ghost small" data-act="dbg-troops" data-v="10000">+10k of every unlocked troop</button><button class="btn ghost small" data-act="dbg-troops" data-v="100000">+100k</button></div>'+
+        dbgToolsHtml()+'</details>'+
       '<div class="act"><button class="btn ghost danger" data-act="reset">'+(armed==="reset"?"Tap again to erase your city":"Start a new city")+'</button><button class="closebtn" data-act="close">Done</button></div>';
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
@@ -4813,6 +4846,7 @@ function renderSheet(){
   }
   if (h===lastSheet) return;
   lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
+  var sa0=document.getElementById("saveage"); if (sa0) sa0.textContent=saveAge();
   if (sheetFor && sheetFor.kind==="march") updateMarchInfo();
   if (sheetFor && sheetFor.kind==="waves") updateWaveInfo();
   var cn=document.getElementById("cn");
@@ -5193,6 +5227,8 @@ document.addEventListener("click",function(e){
   if (act==="war-declare"){ if (warWhy()) return; if (!warArmed){ warArmed=true; lastView=""; renderView(true); return; } warArmed=false; declareWar(); flushFinished(); save(); lastView=""; refresh(); return; }
   if (act==="use-banish"){ useBanish(); return; }
   if (act==="use-surgeon"){ useSurgeon(); return; }
+  if (act==="use-buff"){ var bk=a.dataset.k; if (!(S.items[bk]>0)) return; S.items[bk]--; var fld=bk==="warhorn"?"hornUntil":"corsUntil"; S[fld]=Math.max(S[fld]||0, S.gt)+BUFF_ITEM_MS;
+    toast(bk==="warhorn"?"War Horn: +20% attack for 24 hours":"Corselets: +20% defense for 24 hours"); save(); lastView=""; refresh(); return; }
   if (act==="heal-wounded"){ var hw=healWounded(); toast(hw.healed?"Healed "+fmt(hw.healed)+" troops for "+fmt(hw.spent)+" gold":"Not enough gold to heal anyone"); save(); lastView=""; refresh(); return; }
   if (act==="bf-enter"){ if (bfWhy()) return; var bc=document.getElementById("bfcity"), b0=document.getElementById("bfally0"), b1=document.getElementById("bfally1");
     var ci=bc?+bc.value:S.cur, al=[b0&&b0.value, b1&&b1.value];
@@ -5219,6 +5255,17 @@ document.addEventListener("click",function(e){
   if (act==="dbg-speed"){ var nsp=+a.dataset.v; if ([1,10,100,1000].indexOf(nsp)<0) return; advance(Date.now()); S.speed=nsp; S.testSpeed=nsp>1?nsp:0; toast(nsp>1?"Game speed "+nsp+"\u00d7":"Back to real time"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (act==="dbg-goals"){ var hv=armyCount(), added=0; for (var gi=0;gi<12;gi++){ var need=Math.max(0,(S.goals[gi]||0)-hv[gi]); if (need){ S.troops[gi]+=need; added+=need; } } toast(added?"Added "+fmt(added)+" troops":"Already at every goal"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-troops"){ var per=+a.dataset.v, tot=0; U.forEach(function(u,ui){ if (!missing(u.req).length && ui!==0 && ui!==6){ S.troops[ui]+=per; tot+=per; } }); toast(tot?"Added "+fmt(tot)+" troops":"No troop types unlocked here yet"); save(); lastView=""; refresh(); return; }
+  if (act==="dbg-tech"||act==="dbg-techall"){ var tl=Math.max(0,Math.min(20,Math.floor(+document.getElementById("dbg-techlv").value||0)));
+    if (act==="dbg-tech"){ var tkk=document.getElementById("dbg-tech").value; S.techG[tkk]=tl; toast(TECH[tkk].name+" set to "+tl); }
+    else { Object.keys(TECH).forEach(function(k){ S.techG[k]=tl; }); toast("All research set to "+tl); }
+    techVer++; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
+  if (act==="dbg-bld"||act==="dbg-bldall"){ var bL=Math.max(1,Math.floor(+document.getElementById("dbg-bldlv").value||1));
+    if (act==="dbg-bld") dbgSetBld(document.getElementById("dbg-bld").value, bL);
+    else { dbgSetBld("th", bL); dbgSetBld("wall", bL); S.inside.forEach(function(b,i){ if (b) dbgSetBld("in:"+i, bL); }); dbgSetBld("fields", bL); }
+    toast("Buildings updated"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
+  if (act==="dbg-res"){ RES.forEach(function(k){ S.res[k]+=1000000; }); toast("+1M of each resource"); save(); lastView=""; refresh(); return; }
+  if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
+    advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (act==="dbg-warend"){ if (warOn()){ warEnd(); flushFinished(); save(); refresh(); } return; }
   if (act==="rep-filter"){ repFilter=a.dataset.f; repPage=0; lastView=""; renderView(true); return; }
   if (act==="rep-page"){ repPage=Math.max(0,repPage+(+a.dataset.d)); fillRepList(); window.scrollTo({top:0}); return; }

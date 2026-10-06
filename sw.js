@@ -1,7 +1,7 @@
 // Ibory offline support.
 // Navigations: try the network briefly, fall back to the saved game page no matter which URL opened the app.
 // Everything else: serve from the cache first and refresh it quietly in the background.
-const CACHE = "ibory-v51";
+const CACHE = "ibory-v53";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {
