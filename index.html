@@ -1234,7 +1234,9 @@ function friendlyArrive(m){
   finished.push(msg);
   return false;
 }
-function loyOf(q){ var l=S.map.loy[q.id]; if (!l) return 100; return Math.min(100, l.v + (S.gt-l.at)/3.6e6*10); }
+// loyalty: each victorious attack knocks off 10; it holds for an hour after the last one, then recovers 10 per hour
+var LOY_HOLD=3.6e6;
+function loyOf(q){ var l=S.map.loy[q.id]; if (!l) return 100; var idle=S.gt-l.at-LOY_HOLD; return idle<=0 ? l.v : Math.min(100, l.v + idle/3.6e6*10); }
 function historicHero(q){
   var name=HISTORIC[q.hero], u=function(k){ return hash3(q.hero,k,77); };
   var lv=q.L===12?30+Math.floor(u(1)*15):q.L===14?45+Math.floor(u(1)*15):q.L===16?60+Math.floor(u(1)*15):80;
@@ -1365,7 +1367,7 @@ function resolveMarch(m){
     histHero=historicHero(q); S.map.heroTaken[q.id]=true;
     if (S.heroes.length < hallCap()) S.heroes.push(histHero); else S.waiting.push(histHero);
   }
-  if (won && m.mission==="conquer" && (q.k==="npc"||q.k==="hc"||q.k==="ai")){
+  if (won && (m.mission==="attack"||m.mission==="conquer") && (q.k==="npc"||q.k==="hc"||q.k==="ai")){
     var nl=loyOf(q)-10; S.map.loy[q.id]={v:Math.max(0,nl), at:S.gt};
     if (nl<=0){
       if (S.cities.length < cityCap()){ var cc=captureCity(q, r.attacker); founded=cc.name;
@@ -1385,7 +1387,7 @@ function resolveMarch(m){
     had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
   addReport(rep);
   if (histHero){ rep.historic=histHero.name; finished.push(histHero.name+" was captured and joins you!"); }
-  if (founded){ rep.founded=founded; finished.push((m.mission==="conquer"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
+  if (founded){ rep.founded=founded; finished.push((m.mission!=="found"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
   if (m.mission==="found" && won){ RES.forEach(function(k){ loot[k]=(loot[k]||0)+10000; }); m.foundFail=true; }
   var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
   finished.push(msg+loyNote);
@@ -1465,7 +1467,7 @@ function wavesSheet(){
     h+='<tr><td>'+esc(pr.name)+'<div class="dur">'+presetSummary(pr)+(tm?', travel '+fmtT(realMs(tm)):'')+'</div></td><td><input type="number" min="0" max="10" data-wave="'+pi+'" value="'+(d.n[pi]||"")+'" placeholder="0" aria-label="Waves from '+esc(pr.name)+'"></td></tr>'; });
   h+='</tbody></table></div>';
   h+='<div class="mrow"><label for="wgap">Seconds between landings</label><input type="number" id="wgap" min="0" value="'+d.gap+'">'+
-    '<label for="wmis">Mission</label><select id="wmis"><option value="attack"'+(d.mission==="attack"?' selected':'')+'>Attack</option>'+((q.k==="npc"||q.k==="ai"||q.k==="hc")?'<option value="conquer"'+(d.mission==="conquer"?' selected':'')+'>Conquer</option>':'')+'</select></div>';
+    '<label for="wmis">Mission</label><select id="wmis"><option value="attack"'+(d.mission==="attack"?' selected':'')+'>Attack</option>'+'</select></div>';
   h+='<p class="sub" id="waveinfo"></p><div class="act"><span></span><button class="btn" data-act="waves-go" id="wavego">Launch waves</button></div><button class="closebtn" data-act="close">Cancel</button>';
   return h;
 }
@@ -1829,7 +1831,7 @@ function renderTileInfo(){
   if (q.k==="ai"){ var iq=aiIQ(q), angry=S.aiWar.some(function(w){ return w.ai===q.id; });
     h+='<div class="taunt"><span>IQ <b>'+iq+'</b> ('+({low:"dim",mid:"sharp enough",high:"dangerous"})[iqBand(iq)]+')</span>'+(angry?'<span class="badc">Already coming for you</span>':'<span class="btnrow"><button class="btn ghost small" data-act="ally-invite" data-tile="'+q.id+'">Invite to alliance</button><button class="btn ghost small danger" data-act="taunt" data-tile="'+q.id+'"'+(tauntsLeft()?'':' disabled')+'>Talk trash ('+tauntsLeft()+' left today)</button></span>')+'</div>'; }
   if (q.k==="ai") h+='<p class="hint">A '+q.ai.pers.n.toLowerCase()+' with Town Hall '+q.ai.th+' and research around level '+q.ai.tech+'. Growing '+(q.ai.rate<0.7?'slowly':q.ai.rate<1.1?'steadily':'quickly')+'. AI lords never attack unless you provoke them; they slowly grow, train and hoard. Troops you kill return over a game day, and their stockpile refills over two.</p>';
-  if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. Each victorious Conquer wave knocks off 10, and it recovers 10 per game hour. At zero, the city is yours if your title has room.'+
+  if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. Every attack you win knocks off 10. It holds for an hour after your last win, then recovers 10 per hour, so 10 wins in quick succession takes the city, if your title has room for another.'+
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with its buildings and fields at level '+q.L+'.')+'</p>';
   if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
@@ -1848,7 +1850,6 @@ function renderTileInfo(){
   h+='<div class="btnrow" style="margin-top:10px"><button class="btn" data-act="march-open" data-tile="'+q.id+'" data-mission="attack">Attack</button><button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="scout">Scout</button>'+
     (VTYPES[q.k] ? '<button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="occupy">Occupy</button>' : '')+
     (q.k==="flat" ? '<button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="found">Found city</button>' : '')+
-    ((q.k==="npc"||q.k==="hc"||q.k==="ai") ? '<button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="conquer">Conquer</button>' : '')+
     ((q.k==="npc"||q.k==="ai") ? '<button class="btn ghost danger" data-act="npc-demolish" data-tile="'+q.id+'">'+(armedTile===q.id?"Tap again to demolish":"Demolish")+'</button>' : '')+
     '<button class="btn ghost" data-act="map-sim" data-tile="'+q.id+'">Simulate</button><button class="btn ghost" data-act="waves-open" data-tile="'+q.id+'">Timed waves</button></div>'+
     '<div class="farmadd"><span class="dur">Add to farm list:</span><span class="farmgrid">'+S.presets.map(function(pr,pi){ var on=pr.farm.indexOf(q.id)>=0; return '<button class="chipbtn'+(on?' on':'')+'" data-act="farm-toggle" data-p="'+pi+'" data-tile="'+q.id+'" title="'+esc(pr.name)+'" aria-pressed="'+on+'">'+(pi+1)+'</button>'; }).join("")+'</span></div></div>';
