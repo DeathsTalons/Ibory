@@ -262,6 +262,8 @@ select,input[type=number],input[type=text]{font:inherit;color:var(--ink);backgro
 .statgrid{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
 .statgrid .sv{font:700 1.1rem var(--display);min-width:2.2em;text-align:right}
 .plus{width:32px;height:32px;border-radius:8px;border:1px solid var(--brass);background:none;color:var(--brass);font-weight:700;cursor:pointer}
+.ptbtns{display:flex;gap:4px;align-items:center} .plus.all{width:auto;padding:0 8px;font-size:.78rem}
+.plus:disabled{opacity:.35;cursor:default}
 .plus:disabled{border-color:var(--line);color:var(--muted);cursor:not-allowed}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
@@ -381,6 +383,10 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .okc{color:var(--grass)} .badc{color:var(--red)}
 details.rep{border-top:1px solid var(--line);padding:6px 0}
+.reprow{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 2px;color:var(--ink);font:inherit;font-size:.93rem;line-height:1.35;cursor:pointer}
+.reprow:hover{background:var(--panel2)} .reprow .chev{float:right;color:var(--muted)}
+.kills{margin-top:8px;display:grid;gap:4px;font-size:.88rem} .killrow{line-height:1.4}
+.killdet summary{cursor:pointer;color:var(--brass);font-size:.88rem}
 details.rep summary{color:var(--ink);font-size:.93rem}
 dialog{border:0;padding:0;background:transparent;color:var(--ink);max-width:560px;width:calc(100% - 20px);margin:auto auto 10px;max-height:85vh}
 dialog::backdrop{background:rgba(10,12,10,.5)}
@@ -700,7 +706,11 @@ function fight(atk, def, opts){
     }
     return k;
   }
-  function hit(tgt,k){ if (k>tgt.eff) tgt.eff=0; else tgt.eff-=k; }
+  // kill credit: KA[attacker unit][target 0-11, 12 = archer tower], KD[defender source 0-11 units, 12+ fortifications][target]
+  var KA=[], KD=[]; for (i=0;i<12;i++){ KA.push([0,0,0,0,0,0,0,0,0,0,0,0,0]); } for (i=0;i<17;i++){ KD.push([0,0,0,0,0,0,0,0,0,0,0,0]); }
+  function hit(tgt,k){ var got = k>tgt.eff ? tgt.eff : k; tgt.eff-=got; return got; }
+  function credA(src,tgt,n){ if (n>0) KA[src][tgt.type===14?12:tgt.type]+=n; }
+  function credD(src,tgt,n){ if (n>0) KD[src][tgt.type]+=n; }
 
   for (round=0; round<100; ++round){
     // movement
@@ -742,7 +752,7 @@ function fight(atk, def, opts){
           RANGED.forEach(function(j){ var lp=A[j]; if (lp.eff>0 && lp.loc>=maxR3){ var v=F(lp.stat.attack*lp.eff); if (v>av){ av=v; tgt=lp; } } });
           if (!tgt){ var bs=-1; NON_RANGED.forEach(function(j){ var lp=A[j]; if (lp.eff>0 && lp.loc>=maxR3 && lp.stat.speed>bs){ tgt=lp; bs=lp.stat.speed; } }); }
         }
-        if (tgt){ var k=kills(p,tgt,p.loc-tgt.loc); if (log) log.push([round,'D',i,tgt.type,k]); hit(tgt,k); }
+        if (tgt){ var k=kills(p,tgt,p.loc-tgt.loc); if (log) log.push([round,'D',i,tgt.type,k]); credD(i,tgt,hit(tgt,k)); }
       }
       // attacker
       p=A[i];
@@ -760,7 +770,7 @@ function fight(atk, def, opts){
           if (tower.eff>0 && fs<=maxR4){ if (F(tower.stat.attack*tower.eff) > av2) tg=tower; }
           if (!tg){ var bs2=-1; NON_RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4 && lq.stat.speed>bs2){ tg=lq; bs2=lq.stat.speed; } }); }
         }
-        if (tg){ var k2=kills(p,tg,tg.loc-p.loc); if (log) log.push([round,'A',i,tg.type,k2]); hit(tg,k2); }
+        if (tg){ var k2=kills(p,tg,tg.loc-p.loc); if (log) log.push([round,'A',i,tg.type,k2]); credA(i,tg,hit(tg,k2)); }
         else if (wallhp>0 && maxR4>=fs){ wallhp=Math.max(wallhp - Math.floor(F(p.count*p.stat.attack)),0); if (log) log.push([round,'A',i,'wall']); }
       }
     }
@@ -771,7 +781,7 @@ function fight(atk, def, opts){
       A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs) tot++; });
       if (tot>0){
         var mt=Math.min(trap,trapDie), kk=trunc(F(mt*trapKP)/tot);
-        A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs){ lp.eff-=kk; if (lp.eff<0) lp.eff=0; } });
+        A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs){ var b0=lp.eff; lp.eff-=kk; if (lp.eff<0) lp.eff=0; credD(12,lp,b0-lp.eff); } });
         trap-=mt;
       }
     }
@@ -779,22 +789,23 @@ function fight(atk, def, opts){
     if (abatis>0 && wallUp){
       var pos2=fs-5000, c=A[7];
       if (!(c.eff>0 && c.loc>=pos2 && c.loc<=fs)) c=A[8];
-      if (c.eff>0 && c.loc>=pos2 && c.loc<=fs){ var ma=Math.min(abatis,abatisDie), need=Math.ceil(c.eff/0.535); if (ma>need) ma=need; c.eff=Math.max(c.eff - trunc(ma*0.535),0); abatis-=ma; }
+      if (c.eff>0 && c.loc>=pos2 && c.loc<=fs){ var ma=Math.min(abatis,abatisDie), need=Math.ceil(c.eff/0.535); if (ma>need) ma=need; var b1=c.eff; c.eff=Math.max(c.eff - trunc(ma*0.535),0); credD(13,c,b1-c.eff); abatis-=ma; }
     }
     // rolling logs
     if (logs>0 && wallUp){
       var pos3=fs-FS[3].range, best=0, t3=null;
       [0,1,2,3,4,5].forEach(function(k){ var lp=A[k]; var v=F(lp.eff*lp.stat.attack); if (lp.eff>0 && lp.loc>=pos3 && lp.loc<=fs && v>best){ t3=lp; best=v; } });
-      if (t3){ var ml=Math.min(logs,logDie); t3.eff=Math.max(t3.eff - Math.floor(F(F(F(ml*logKP)*FS[3].attack)*t3.stat.defense)),0); logs-=ml; }
+      if (t3){ var ml=Math.min(logs,logDie), b3=t3.eff; t3.eff=Math.max(t3.eff - Math.floor(F(F(F(ml*logKP)*FS[3].attack)*t3.stat.defense)),0); credD(15,t3,b3-t3.eff); logs-=ml; }
     }
     // trebuchets
     if (rocks>0 && wallUp){
       var pos4=fs-FS[4].range, best4=0, t4=null;
       for (j=0;j<12;j++){ var lp4=A[j]; var v4=F(lp4.eff*lp4.stat.attack); if (lp4.eff>0 && lp4.loc>=pos4 && lp4.loc<=fs && v4>best4){ t4=lp4; best4=v4; } }
-      if (t4){
+      if (t4){ var b4=t4.eff;
         var tdv=t4.eff*t4.stat.life*t4.stat.defense, tav=rockDie*rockKP*FS[4].attack;
         if (tdv>tav){ var rd=Math.min(rocks,rockDie); rocks-=rd; t4.eff=Math.max(t4.eff - Math.floor(F(rd*FS[4].attack*rockKP)/F(t4.stat.defense*t4.stat.life)),0); }
         else { rocks-=Math.ceil(F(t4.stat.defense*t4.stat.life*t4.eff)/F(rockKP*FS[4].attack)); if (rocks<0) rocks=0; }
+        credD(16,t4,b4-t4.eff);
       }
     }
     // archer towers
@@ -808,7 +819,7 @@ function fight(atk, def, opts){
         // reference formula: attack*count*mod / (defense*life)
         var k5 = trunc(F(F(F(tower.stat.attack*tower.count)*m5*TOWER_DMG) / F(tt.stat.defense*tt.stat.life)));
         if (log) log.push([round,'T',tt.type,k5]);
-        hit(tt,k5);
+        credD(14,tt,hit(tt,k5));
       }
     }
     attackerAlive=false; defenderAlive=false;
@@ -820,9 +831,13 @@ function fight(atk, def, opts){
   return {
     attacker: A.map(function(x){return x.count;}), defender: D.map(function(x){return x.count;}),
     forts:[trap,abatis,tower.count,logs,rocks], wallhp:wallhp,
-    result: (attackerAlive?1:0) | (defenderAlive?2:0), rounds: Math.min(round+1,100), fieldSize:fs, log:log
+    result: (attackerAlive?1:0) | (defenderAlive?2:0), rounds: Math.min(round+1,100), fieldSize:fs, log:log, kb:packKills(KA,KD)
   };
 }
+function packKills(KA,KD){ var a=[], d=[], s, t; // sparse [source, target, count] triples
+  for (s=0;s<KA.length;s++) for (t=0;t<KA[s].length;t++) if (KA[s][t]) a.push([s,t,KA[s][t]]);
+  for (s=0;s<KD.length;s++) for (t=0;t<KD[s].length;t++) if (KD[s][t]) d.push([s,t,KD[s][t]]);
+  return {a:a, d:d}; }
 function setOpt(k,v){ if(k==='stop') STOP_AT_WALL=v; }
 
 
@@ -1366,7 +1381,7 @@ function resolveMarch(m){
   }
   var lost=0; for (i=0;i<12;i++) lost += m.t[i]-r.attacker[i];
   if (m.preset!=null){ var pr=C().presets[m.preset]; if (pr && pr.auto && pr.stopOnLoss && (lost>0 || !won)){ pr.auto=false; finished.push(pr.name+" auto-farm paused: "+(won?"lost "+fmt(lost)+" troops":"the attack failed")+" at "+tileName(q)); } }
-  var rep={id:S.nextMarchId++, at:S.gt, tile:q.id, name:tileName(q), result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(),
+  var rep={id:S.nextMarchId++, at:S.gt, tile:q.id, name:tileName(q), result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(),
     had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
   addReport(rep);
   if (histHero){ rep.historic=histHero.name; finished.push(histHero.name+" was captured and joins you!"); }
@@ -1581,7 +1596,7 @@ function resolveDefense(w){
     if (r.result!==1 && !w.war && !w.chal){ var atkN=0; for (var u=0;u<12;u++) atkN+=w.t[u]; var sp=tauntSpoils(atkN);
       S.items.gemF=(S.items.gemF||0)+sp.gems; spoils.push(sp.gems+" Flawless Gem"+(sp.gems>1?"s":""));
       if (sp.scales){ S.items.scale=(S.items.scale||0)+sp.scales; spoils.push(sp.scales+" Dragon Scale"+(sp.scales>1?"s":"")); } }
-    addReport({id:S.nextMarchId++, at:S.gt, def:true, tile:C().x+","+C().y, name:w.name+"\u2019s "+w.label.toLowerCase()+" on "+S.name+(shut?" (gate closed)":""), result:r.result, rounds:r.rounds,
+    addReport({id:S.nextMarchId++, at:S.gt, def:true, tile:C().x+","+C().y, name:w.name+"\u2019s "+w.label.toLowerCase()+" on "+S.name+(shut?" (gate closed)":""), result:r.result, rounds:r.rounds, kb:r.kb,
       sent:before, left:r.defender.slice(), had:w.t.slice(), eleft:r.attacker.slice(), forts:fBefore, fleft:r.forts.slice(), loot:loot, medal:-1, drops:spoils, lost:myLost, repaired:rep});
     finished.push((r.result===1?"\u2694 "+S.name+" was broken by ":"\u26e8 "+S.name+" held against ")+w.name+"\u2019s "+w.label.toLowerCase()+". You lost "+fmt(myLost)+", they lost "+fmt(theirLost)+(tot2?". Plundered: "+fmt(tot2):"")+(spoils.length?". Spoils: "+spoils.join(" and "):"")+".");
   });
@@ -3092,7 +3107,7 @@ function bullyWave(){
   var share=sumT(mine)/Math.max(1,sumT(dt)), gain=0;
   if (sumT(mine)>0 && held) qbump("allyDef");
   if (sumT(mine)>0){ gain=(150+650*Math.min(1,share*2)+(held?400:0))*(0.6+b.iq/200); addRep(gain, (held?"helped "+q.ai.name+" hold against ":"stood with "+q.ai.name+" against ")+b.name); }
-  addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+" vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds,
+  addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+" vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds, kb:r.kb,
     sent:mine, left:mine.map(function(n,k){ return dt[k]?Math.round(n*r.defender[k]/dt[k]):0; }), had:w.t.slice(), eleft:r.attacker.slice(), forts:[0,0,0,0,0], fleft:[0,0,0,0,0], loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, lost:myLost, medal:-1, drops:[]});
   finished.push(q.ai.name+(held?" held off ":" was overrun by ")+b.name+(gain?". +"+fmt(Math.round(gain))+" alliance rep":"")+(myLost?". You lost "+fmt(myLost)+" troops":""));
   if (held && !sumT(r.attacker)) b.losses++; else if (!held) b.wins++;
@@ -3236,7 +3251,7 @@ function warAllyHit(j){
   var killed=killedOf(p.t, r.attacker), share=sumT(mine)/Math.max(1,sumT(dt)), earn=0;
   if (sumT(mine)>0){ achKills(p.t, r.attacker); earn=ptsOf(killed)*Math.min(WAR_ALLY_MUL, share*3); }
   warScore(earn, ptsOf(myLost), (held?"helped "+q.ai.name+" hold against ":"stood with "+q.ai.name+" against ")+b.name);
-  addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+"\u2019s war party vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds,
+  addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+"\u2019s war party vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds, kb:r.kb,
     sent:mine, left:mine.map(function(n,k){ return n-myLost[k]; }), had:p.t.slice(), eleft:r.attacker.slice(), forts:[0,0,0,0,0], fleft:[0,0,0,0,0], loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, lost:sumT(myLost), medal:-1, drops:[]});
   if (sumT(mine)) finished.push(q.ai.name+(held?" held off ":" was overrun by ")+b.name+" with your help. +"+fmt(Math.round(earn))+" war points"+(sumT(myLost)?", you lost "+fmt(sumT(myLost)):"")+".");
 }
@@ -3273,7 +3288,7 @@ function warCityBattle(m){
     finished.push("You took "+b.name+"\u2019s war camp! They are out of the war.");
     miniDirty=true;
   } else finished.push(b.name+"\u2019s war camp held. You lost "+fmt(sumT(lostT))+" troops.");
-  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
+  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
@@ -3450,7 +3465,7 @@ function chalCityBattle(m){
       if (!c.cities.length) chalDefeated(c, "lost every city before the siege");
     } else finished.push(nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
   }
-  addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
+  addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
@@ -3949,7 +3964,7 @@ function bullyCampBattle(m){
     gain=Math.min(600, 1500*dmg); if (gain>=10) addRep(gain, "battered "+b.name+"'s stronghold");
     finished.push(b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
   }
-  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
+  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
@@ -4135,7 +4150,29 @@ function viewReports(){
     '<input type="text" id="repq" placeholder="Search by target or city" value="'+esc(repQuery)+'" style="margin-top:8px"><div id="replist"></div></div>';
   return h;
 }
-function reportDetail(r){
+// who did the killing: kb.a = the attacking side's units, kb.d = the defending side's units and fortifications
+function killName(side, idx, isSrc, n){
+  if (side==="d" && isSrc && idx>=12) return FORTN[idx-12];
+  if (side==="a" && !isSrc && idx===12) return FORTN[2];
+  return uname(idx, n);
+}
+function killsHtml(r){
+  if (!r.kb || r.scout) return '';
+  var sides = r.def ? [["d", r.ally?"Defenders’ kills":"Your kills"],["a", r.ally?"Attackers’ kills":"Enemy kills"]] : [["a","Your kills"],["d","Enemy kills"]];
+  var lines='', detail='';
+  sides.forEach(function(sd){
+    var list=r.kb[sd[0]]||[], by={}, order=[];
+    list.forEach(function(x){ if (!by[x[0]]){ by[x[0]]={n:0, t:[]}; order.push(x[0]); } by[x[0]].n+=x[2]; by[x[0]].t.push(x); });
+    order.sort(function(a,b){ return by[b].n-by[a].n; });
+    lines+='<div class="killrow"><b>'+sd[1]+':</b> '+(order.length ? order.map(function(k){ return esc(killName(sd[0],+k,true,2))+' <b>'+fmt(by[k].n)+'</b>'; }).join(' · ') : '<span class="dur">none</span>')+'</div>';
+    if (order.length) detail+='<div class="h3" style="margin-top:6px">'+sd[1]+'</div>'+order.map(function(k){
+      var ts=by[k].t.slice().sort(function(a,b){ return b[2]-a[2]; });
+      return '<div class="killrow"><b>'+esc(killName(sd[0],+k,true,2))+'</b> killed '+ts.map(function(x){ return fmt(x[2])+' '+esc(killName(sd[0],x[1],false,x[2])); }).join(', ')+'</div>'; }).join('');
+  });
+  return '<div class="kills">'+lines+(detail?'<details class="det killdet"><summary>Who killed what</summary>'+detail+'</details>':'')+'</div>';
+}
+function reportDetail(r){ return reportDetailBase(r)+killsHtml(r); }
+function reportDetailBase(r){
   if (r.scout) return r.intel ? '<p class="hint">Scouts got through'+(r.lost?' ('+fmt(r.lost)+' lost)':'')+'.</p>'+troopRows(r.intel.inf<3?r.intel.t.map(roughN):r.intel.t, r.intel.inf<3?null:r.intel.f, r.intel.wall)+'<div class="us">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(roughN(r.intel.res[k]))+'</b></span>'; }).join("")+'</div>' : '<p class="hint">All '+fmt(r.lost)+' scouts were caught.</p>';
   if (r.def) return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.repaired?' Machinery repaired '+Math.round(r.repaired*100)+'% of lost archer towers (more of other fortifications).':'')+'</p>'+
     '<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Yours</th><th>You lost</th><th>Theirs</th><th>They lost</th></tr></thead><tbody>'+
@@ -4153,9 +4190,7 @@ function fillRepList(){
   h+=list.slice(repPage*per,(repPage+1)*per).map(function(c){
     var v = c.sc ? (c.r===1?"Scouted":"Caught") : c.d ? (c.r===1?"Broken":"Held") : (c.r===1?(c.l?"Victory":"Flawless"):c.r===3?"Stalemate":"Defeat"), good = c.d ? c.r!==1 : c.r===1;
     var extra=[]; if (c.l) extra.push("lost "+fmt(c.l)); if (c.k) extra.push("killed "+fmt(c.k)); if (c.lo) extra.push((c.d?"lost ":"")+fmt(c.lo)+" loot"); if (c.m>=0) extra.push(MEDALS[c.m][1]+" medal"); if (c.g.length) extra.push(c.g.join(", ")); if (c.h) extra.push(c.h+" captured"); if (c.f) extra.push(c.f+" taken"); if (c.o) extra.push("valley taken");
-    var fr=full[c.id];
-    return '<details class="rep"><summary><span class="dur">'+gameClock(c.at)+'</span> <b class="'+(good?'okc':'badc')+'">'+v+'</b> '+esc(c.n)+(S.cities.length>1&&!c.d?' <span class="dur">from '+esc(c.c)+'</span>':'')+'<div class="dur">'+extra.join(", ")+'</div></summary>'+
-      (fr?reportDetail(fr):'<p class="hint">Only the summary of this older battle was kept.</p>')+'</details>';
+    return '<button class="reprow" data-act="rep-open" data-id="'+c.id+'"><span class="chev">›</span><span class="dur">'+gameClock(c.at)+'</span> <b class="'+(good?'okc':'badc')+'">'+v+'</b> '+esc(c.n)+(S.cities.length>1&&!c.d?' <span class="dur">from '+esc(c.c)+'</span>':'')+'<div class="dur">'+extra.join(", ")+'</div></button>';
   }).join("");
   if (pages>1) h+='<div class="act" style="margin-top:10px"><button class="btn ghost small" data-act="rep-page" data-d="-1"'+(repPage?'':' disabled')+'>\u2039 Newer</button><span class="dur">Page '+(repPage+1)+' of '+pages+'</span><button class="btn ghost small" data-act="rep-page" data-d="1"'+(repPage<pages-1?'':' disabled')+'>Older \u203a</button></div>';
   if (el._sig!==h){ el.innerHTML=h; el._sig=h; }
@@ -4429,7 +4464,7 @@ function renderSimResult(){
     for (var k=0;k<5;k++){ var fh=D.fortifications[k]; if (!fh) continue; fsum++;
       if (!fsum) {} h+='<tr><td>'+FORTN[k]+'</td><td></td><td></td><td>'+fmt(fh)+'</td><td class="'+(fh-r.forts[k]?'ok':'')+'">'+fmt(fh-r.forts[k])+'</td></tr>'; }
     if (D.wallLevel){ var wmax=Math.round(16500*D.wallLevel*D.wallLevel*D.wallLevel*(D.fortBonus||1)); h+='<tr><td>Wall durability</td><td></td><td></td><td>'+fmt(wmax)+'</td><td class="'+(wmax-r.wallhp?'ok':'')+'">'+fmt(wmax-r.wallhp)+'</td></tr>'; }
-    h+='</tbody></table></div>';
+    h+='</tbody></table></div>'+killsHtml({kb:r.kb});
     var lines=[];
     r.log.forEach(function(e){
       var rd='<b>R'+(e[0]+1)+'</b>';
@@ -4826,6 +4861,13 @@ function renderSheet(){
   } else if (sheetFor.kind==="waves"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=wavesSheet();
+  } else if (sheetFor.kind==="report"){
+    var rc=sheetFor.c, rr=sheetFor.rep, rv = rc.sc ? (rc.r===1?"Scouted":"Caught") : rc.d ? (rc.r===1?"Broken":"Held") : (rc.r===1?(rc.l?"Victory":"Flawless"):rc.r===3?"Stalemate":"Defeat"), rg = rc.d ? rc.r!==1 : rc.r===1;
+    var rex=[]; if (rc.l) rex.push("lost "+fmt(rc.l)); if (rc.k) rex.push("killed "+fmt(rc.k)); if (rc.lo) rex.push((rc.d?"lost ":"")+fmt(rc.lo)+" loot"); if (rc.m>=0) rex.push(MEDALS[rc.m][1]+" medal"); if (rc.g.length) rex.push(rc.g.join(", ")); if (rc.h) rex.push(rc.h+" captured"); if (rc.f) rex.push(rc.f+" taken");
+    h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2><span class="'+(rg?'okc':'badc')+'">'+rv+'</span> '+esc(rc.n)+'</h2><div class="sub">'+gameClock(rc.at)+(rc.c&&!rc.d&&S.cities.length>1?', from '+esc(rc.c):'')+(rex.length?'. '+rex.join(", ")+'.':'')+'</div></div></div>'+
+      (rr?reportDetail(rr):'<p class="hint">Only the summary of this older battle was kept.</p>')+
+      (rc.tile&&!rc.d?'<div class="btnrow" style="margin-top:10px"><button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button></div>':'')+
+      '<button class="closebtn" data-act="close">Close</button>';
   } else if (sheetFor.kind==="legend"){
     if (!S.pendingLegend){ closeSheet(); return; }
     h='<div class="head"><span class="ico" style="color:var(--t-legendary)">'+ICON.crest+'</span><div><h2>A legend answers your call</h2><div class="sub">Choose where their greatness lies.'+(S.pendingLegend>1?' '+S.pendingLegend+' legends waiting.':'')+'</div></div></div><div class="choices">'+
@@ -4853,7 +4895,7 @@ function renderSheet(){
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
     h+='<div class="statgrid">';
     [["pol","Politics","Production and building speed as mayor"],["atk","Attack","Training speed as trainer, +1% troop attack per point in battle"],["int","Intelligence","Research speed as researcher; in battle every troop's defense +1% per point (damage taken can drop by half at most), and marches 1% faster per point"]].forEach(function(s){
-      h+='<div><b>'+s[1]+'</b><div class="sub">'+s[2]+'</div></div><span class="sv">'+hs(hr,s[0])+(gearBonus(hr,s[0])?'<div class="dur" style="font:400 .78rem var(--body)">'+hr[s[0]]+' + '+gearBonus(hr,s[0])+' gear</div>':'')+'</span><button class="plus" data-act="pt" data-stat="'+s[0]+'" aria-label="Add a point to '+s[1]+'"'+(hr.pts?'':' disabled')+'>+</button>';
+      h+='<div><b>'+s[1]+'</b><div class="sub">'+s[2]+'</div></div><span class="sv">'+hs(hr,s[0])+(gearBonus(hr,s[0])?'<div class="dur" style="font:400 .78rem var(--body)">'+hr[s[0]]+' + '+gearBonus(hr,s[0])+' gear</div>':'')+'</span><span class="ptbtns"><button class="plus" data-act="pt" data-stat="'+s[0]+'" aria-label="Add a point to '+s[1]+'"'+(hr.pts?'':' disabled')+'>+</button><button class="plus all" data-act="ptall" data-stat="'+s[0]+'" aria-label="Add all points to '+s[1]+'"'+(hr.pts?'':' disabled')+'>All</button></span>';
     });
     h+='</div>'+(hr.pts?'<p class="sub" style="color:var(--brass)">'+hr.pts+' point'+(hr.pts>1?'s':'')+' to assign.</p>':'');
     h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster. As trainer: training '+pct(1-Math.pow(0.995,hs(hr,"atk")))+' faster. As researcher: research '+pct(1-1/(1+hs(hr,"int")/200))+' faster.</p>';
@@ -4918,7 +4960,7 @@ function bqState(it){ // "go", "wait" or "drop"
   if (!afford(costFor(it.type,L+1))) return "wait";
   return "go";
 }
-function uname(i,n){ var nm=U[i].name; return n===1?nm:/man$/.test(nm)?nm.replace(/man$/,"men"):nm+"s"; }
+function uname(i,n){ var nm=U[i].name; return n===1?nm:/man$/.test(nm)?nm.replace(/man$/,"men"):nm==="Cavalry"?nm:nm==="Ballista"?"Ballistae":nm+"s"; }
 function startTrain(tu,tn,slot){
   if (trainWhy(tu,tn)) return false;
   if (slot==null) slot=pickBarracks(tu);
@@ -5315,6 +5357,7 @@ document.addEventListener("click",function(e){
   if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
     advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (act==="dbg-warend"){ if (warOn()){ warEnd(); flushFinished(); save(); refresh(); } return; }
+  if (act==="rep-open"){ var rid=+a.dataset.id, rc2=S.log.filter(function(x){ return x.id===rid; })[0], rr2=S.reports.filter(function(x){ return x.id===rid; })[0]; if (!rc2) return; openSheet({kind:"report", c:rc2, rep:rr2||null}); return; }
   if (act==="rep-filter"){ repFilter=a.dataset.f; repPage=0; lastView=""; renderView(true); return; }
   if (act==="rep-page"){ repPage=Math.max(0,repPage+(+a.dataset.d)); fillRepList(); window.scrollTo({top:0}); return; }
   if (act==="arrange"){ arrange = (arrange && arrange.w===a.dataset.aw) ? null : {w:a.dataset.aw, sel:null}; lastView=""; renderView(true); return; }
@@ -5384,6 +5427,7 @@ document.addEventListener("click",function(e){
   }
   if (act==="spin10"){ doSpin10(); return; }
   if (act==="hero"){ openSheet({kind:"hero",id:+a.dataset.id}); return; }
+  if (act==="ptall"){ var ha=heroById(sheetFor.id); if (ha && ha.pts>0){ var np=ha.pts; ha[a.dataset.stat]+=np; ha.pts=0; toast("+"+np+" "+STATN[a.dataset.stat]+" for "+ha.name); save(); } refresh(); return; }
   if (act==="pt"){ var hh=heroById(sheetFor.id); if (hh && hh.pts>0){ hh[a.dataset.stat]++; hh.pts--; } refresh(); return; }
   if (act==="office"||act==="mayor"){ var role=a.dataset.role||"mayor", oh=heroById(sheetFor.id); if (!oh) return; if (oh.away){ toast("That hero is away on a march"); return; }
     OFFICES.forEach(function(o){ if (S[o[0]]===oh.id) S[o[0]]=null; }); S[role]=oh.id;
