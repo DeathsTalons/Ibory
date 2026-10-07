@@ -1328,6 +1328,9 @@ function resolveMarch(m){
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
+    if (q.k==="npc" && dl>=5){ var sr=Math.random()/bItems(), sk=null; // timed speed-ups: rare, bigger ones only from tougher NPCs (0.9% total at most)
+      if (dl>=10 && sr<0.001) sk="s480"; else if (dl>=7 && sr<0.003) sk="s150"; else if (sr<0.005) sk="s60"; else if (sr<0.009) sk="s15";
+      if (sk){ S.items[sk]=(S.items[sk]||0)+1; drops.push("a "+ITEMS[sk].name); } }
     if (q.k==="npc" && dl>=10 && Math.random()<0.001*bItems()){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
     if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015*bItems()){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
   }
@@ -2191,23 +2194,23 @@ function hireCost(h){ return h.tier==="common" ? 500*h.level : 0; }
 /* ---------- wheel ---------- */
 var WHEEL = [
   {k:"food",label:"Food",w:14,icon:"food"},
-  {k:"s15",label:"15m",w:12,icon:"hourglass"},
+  {k:"s15",label:"15m",w:2.1,icon:"hourglass"},
   {k:"lumber",label:"Lumber",w:14,icon:"lumber"},
   {k:"rare",label:"Rare",w:2.5,icon:"crest",tier:"rare"},
   {k:"stone",label:"Stone",w:14,icon:"stone"},
   {k:"tome",label:"Tome",w:6,icon:"book"},
   {k:"iron",label:"Iron",w:14,icon:"iron"},
-  {k:"s60",label:"1h",w:7,icon:"hourglass"},
+  {k:"s60",label:"1h",w:1.2,icon:"hourglass"},
   {k:"epic",label:"Epic",w:0.8,icon:"crest",tier:"epic"},
   {k:"gold",label:"Gold",w:12,icon:"gold"},
-  {k:"s480",label:"8h",w:2.5,icon:"hourglass"},
+  {k:"s480",label:"8h",w:0.45,icon:"hourglass"},
   {k:"legendary",label:"Legend",w:0.2,icon:"crest",tier:"legendary"},
   {k:"medal",label:"Medal",w:0.5,icon:"medalseg"},
   {k:"stones",label:"Gems",w:6,icon:"anvil"},
   {k:"gear",label:"Material",w:1,icon:"anvil"},
   {k:"teleport",label:"Teleport",w:1.5,icon:"portal"},
   {k:"ensign",label:"Ensign",w:0.15,icon:"rally"},
-  {k:"s150",label:"2.5h",w:4.5,icon:"hourglass"}
+  {k:"s150",label:"2.5h",w:0.8,icon:"hourglass"}
 ];
 var AMULET_RATE = 0.25, AMULET_PER_HOUR = 20*AMULET_RATE, PITY = 100, LEGEND_IDX = 11;
 var WSUM = WHEEL.reduce(function(a,s){ return a+s.w; },0);
