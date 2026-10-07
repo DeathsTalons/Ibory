@@ -1284,6 +1284,15 @@ function resolveMarch(m){
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="war") return warCityBattle(m);
   if (TILE_BY[m.tile] && TILE_BY[m.tile].k==="chal") return chalCityBattle(m);
   if (m.mission==="transport" || m.mission==="reinforce") return friendlyArrive(m);
+  var hq=TILE_BY[m.tile];
+  if (hq && hq.k==="home"){ // it became one of your cities while this wave was on the road (taken or founded): the wave joins its garrison
+    var hc=S.cities[cityIndex(hq.city)];
+    if (hc){ RES.forEach(function(k){ hc.res[k]+=((m.cargo&&m.cargo[k])||0)+(m.mission==="found"?10000:0); }); m.cargo={}; m.loot={};
+      finished.push(hc.name+" was already yours when your "+(m.mission==="conquer"?"conquering ":"")+"wave arrived; it joined the garrison instead");
+      m.mission="reinforce"; return friendlyArrive(m); }
+  }
+  if (!hq || !(hq.k in VTYPES || hq.k==="npc" || hq.k==="ai" || hq.k==="hc" || hq.k==="monster" || hq.k==="flat")){ // nothing left to fight there: turn round
+    m.phase="back"; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; finished.push("Your army found nothing to fight and is heading home"); return true; }
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
   var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
