@@ -524,7 +524,7 @@ var DEF = {
   inn:{name:"Inn",cost:{food:400,lumber:1200,stone:800,iron:200},t:120,unique:true,
     desc:"Wandering heroes stop here looking for work. Higher levels draw more of them, and stronger ones. Hired heroes need room in a Feasting Hall."},
   feasting:{name:"Feasting Hall",cost:{food:800,lumber:1600,stone:1200,iron:400},t:180,unique:true,
-    desc:"Your heroes live here: 5 at level 1, one more for each level after. Heroes govern the city as mayor and lead your marches."},
+    desc:"Your heroes live here: 5 at level 1, one more for each level after. Heroes fill the city\u2019s offices (mayor, trainer, researcher) and lead your marches."},
   walls:{name:"Walls",cost:{food:3000,lumber:1500,stone:10000,iron:500},t:1800,
     desc:"Your city wall. Attackers must break its durability before they can win, and each level adds room for fortifications (traps, abatis, archer towers, rolling logs and trebuchets) and extends archer tower reach. The Town Hall can\u2019t grow more than two levels past it."},
   barracks:{name:"Barracks",cost:{food:250,lumber:1200,stone:1500,iron:500},t:300,
@@ -882,8 +882,14 @@ function reqName(r){ return (r[0].indexOf("t:")===0 ? TECH[r[0].slice(2)].name :
 function rationMult(){ var m=0; S.cities.forEach(function(c){ m=Math.max(m, (c.tech&&c.tech.grandtreasury)||0); }); return Math.max(0.1, 1-0.05*m); }
 function upkeep(){ var u=0; for (var i=0;i<12;i++) u += (S.troops[i]||0)*U[i].up; return u*rationMult()*bUpkeep(); }
 function idlePop(){ return Math.max(0, Math.floor(S.pop - workersNeeded())); }
+var OFFICES=[["mayor","Mayor","pol","Production and building speed"],["trainer","Trainer","atk","Training speed"],["researcher","Researcher","int","Research speed"]];
+var OFFICE_OF={pol:"mayor", atk:"trainer", int:"researcher"};
+function isOfficer(h){ return !!h && (h.id===S.mayor || h.id===S.trainer || h.id===S.researcher); }
+function officeOf(h){ for (var i=0;i<OFFICES.length;i++) if (h && S[OFFICES[i][0]]===h.id) return OFFICES[i]; return null; }
+function officer(role){ var id=S[role]; return id ? heroById(id) : null; }
+function officerActive(role){ var o=officer(role); return o && !(S.res.gold<=0 && salary()>0) ? o : null; }
 function bestFor(stat){
-  if (!S.autoMayor) return mayorActive();
+  if (!S.autoMayor) return officerActive(OFFICE_OF[stat]);
   if (S.res.gold<=0 && salary()>0) return null;
   var best=null; S.heroes.forEach(function(h){ if (!h.away && (!best || hs(h,stat)>hs(best,stat))) best=h; }); return best;
 }
@@ -1159,7 +1165,7 @@ function rallyLv(){ return bLevel("rally"); }
 function marchSpeed(t){ var r=simResearch(), s=Infinity; t.forEach(function(n,i){ if (n>0) s=Math.min(s, effStats(i,r).speed); }); return s===Infinity?0:s; }
 function travelMs(t,q,heroId,mission){ var sp=marchSpeed(t), h=heroId?heroById(heroId):null;
   var ab=bMarch()*(mission==="scout"?bScout():1);
-  return sp ? Math.max(1, tdist(q))*36000/sp*1000/(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))/(1+hs(h,"int")/100)/ab : 0; }
+  return sp ? Math.max(1, tdist(q))*36000/sp*1000/(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))/(1+hs(h,"int")/100)/(1+mountSpd(h))/ab : 0; }
 // Age 1 medal sources: Cross L1-2 valleys (grasslands), Rose L1-4 (hills, lakes), Lion L2-5 valleys & L2-3 NPCs,
 // Honor L5-6 valleys & L2-4 NPCs, Courage L6-7 valleys & L3-5 NPCs, Wisdom L6-8 valleys (swamps) & L5+ NPCs,
 // Freedom L7-8 valleys (L9-10 deserts, grasslands) & L5+ NPCs, Justice & Nation L10 NPCs (Nation from L9-10 hills and grasslands, Justice barely ever from L10 valleys).
@@ -1392,7 +1398,7 @@ function processAuto(){
     if (cityMarches().length>=rl || !presetReady(pr)) return;
     var nid=pr.farm[pr.idx % pr.farm.length], nq=nid&&TILE_BY[nid]; if (nq && S.res.food < marchFood(pr.t,"attack",travelMs(pr.t,nq,presetHero(pr)?pr.hero:0))) return; // wait for rations
     var h=pr.hero?heroById(pr.hero):null;
-    if (h && C().heroes.indexOf(h)>=0 && (h.away || h.id===S.mayor)) return; // wait for the hero
+    if (h && C().heroes.indexOf(h)>=0 && (h.away || isOfficer(h))) return; // wait for the hero
     var tries=0; while (tries<pr.farm.length && !farmTarget(pr.farm[pr.idx % pr.farm.length])){ pr.farm.splice(pr.idx % pr.farm.length,1); tries++; if (!pr.farm.length) return; }
     var id=pr.farm[pr.idx % pr.farm.length]; pr.idx=(pr.idx+1) % pr.farm.length;
     launchMarch(id,"attack",pr.t,presetHero(pr)?pr.hero:0,{preset:pi});
@@ -1412,7 +1418,7 @@ function presetsSection(){
   return h+'</div></div>';
 }
 function presetSheet(pi){
-  var pr=S.presets[pi], fh=S.heroes.filter(function(x){ return x.id!==S.mayor; });
+  var pr=S.presets[pi], fh=S.heroes.filter(function(x){ return !isOfficer(x); });
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Edit '+esc(pr.name)+'</h2><div class="sub">'+esc(S.name)+'</div></div></div>';
   h+='<div><label class="sub" for="pname">Name</label><input type="text" id="pname" data-pfield="name" value="'+esc(pr.name)+'" maxlength="24"></div>';
   h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
@@ -1439,7 +1445,7 @@ function wavesSheet(){
 var waveDraft=null;
 function wavePlan(){
   var d=waveDraft, q=TILE_BY[d.tile], list=[], need=[0,0,0,0,0,0,0,0,0,0,0,0], heroUsed={};
-  S.presets.forEach(function(pr,pi){ for (var k=0;k<(d.n[pi]||0);k++){ var hero=presetHero(pr); var hid = hero && !hero.away && hero.id!==S.mayor && !heroUsed[hero.id] ? hero.id : 0; if (hid) heroUsed[hid]=1;
+  S.presets.forEach(function(pr,pi){ for (var k=0;k<(d.n[pi]||0);k++){ var hero=presetHero(pr); var hid = hero && !hero.away && !isOfficer(hero) && !heroUsed[hero.id] ? hero.id : 0; if (hid) heroUsed[hid]=1;
     list.push({pi:pi, t:pr.t.slice(), hero:hid, travel:travelMs(pr.t,q,hid)}); pr.t.forEach(function(n,i){ need[i]+=n; }); } });
   var why="";
   if (!rallyLv()) why="Build a Rally Spot first";
@@ -1871,7 +1877,7 @@ function renderReports(){
   el.innerHTML=h+'</div>';
 }
 function mapDynamic(){ renderTileInfo(); renderMarchBox(); drawMap(); }
-function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && h.id!==S.mayor; }); }
+function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && !isOfficer(h); }); }
 function marchHeroes(){ return freeHeroes().sort(function(a,b){ return hs(b,"atk")-hs(a,"atk") || b.level-a.level; }); }
 function openMarch(tile, mission){
   var friendly = mission==="transport" || mission==="reinforce";
@@ -1935,7 +1941,7 @@ function marchSheet(){
   }
   var fh=marchHeroes();
   if (d.mission!=="transport" && d.mission!=="scout") h+='<div><label class="sub" for="marchhero">'+(d.mission==="reinforce"?"Hero to move there (needs room in its Feasting Hall)":"Leading hero")+'</label><select id="marchhero"><option value="0">No hero</option>'+fh.map(function(x){ return '<option value="'+x.id+'"'+(x.id===d.hero?' selected':'')+'>'+esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+'</option>'; }).join("")+'</select>'+
-    (S.mayor?'<p class="hint" style="margin-top:4px">Your mayor stays home to run the city.</p>':'')+'</div>';
+    (S.mayor||S.trainer||S.researcher?'<p class="hint" style="margin-top:4px">Your mayor, trainer and researcher stay home to do their jobs.</p>':'')+'</div>';
   if (d.mission==="transport") h=h.replace('<select id="marchhero">','<select id="marchhero" hidden>');
   if ((S.items.ensign||0)>0 || d.ensign) h+='<label class="chk"><input type="checkbox" id="mensign"'+(d.ensign?' checked':'')+'> Raise a War Ensign: +25% army size for this march ('+(S.items.ensign||0)+' left)</label>';
   h+='<p class="sub" id="marchinfo"></p><div id="marchprev"></div>';
@@ -1981,14 +1987,26 @@ function sendMarch(){
 }
 
 /* ---------- hero gear ---------- */
-var GEAR_SLOTS=[{k:"weapon",name:"Longsword",stat:"atk"},{k:"helm",name:"Great Helm",stat:"int"},{k:"armor",name:"Hauberk",stat:"atk"},{k:"shield",name:"Kite Shield",stat:"int"},
-  {k:"gauntlets",name:"Gauntlets",stat:"atk"},{k:"boots",name:"Riding Boots",stat:"pol"},{k:"ring",name:"Signet Ring",stat:"pol"},{k:"amulet",name:"Amulet",stat:"int"}];
+// gear types (what a piece is); a hero wears them in GEAR_POS (16 places, rings and talismans fit either of their two)
+var GEAR_SLOTS=[{k:"helm",name:"Great Helm",stat:"int"},{k:"amulet",name:"Amulet",stat:"int"},{k:"armor",name:"Hauberk",stat:"atk"},{k:"pauldrons",name:"Pauldrons",stat:"int"},
+  {k:"weapon",name:"Longsword",stat:"atk"},{k:"cloak",name:"Cloak",stat:"pol"},{k:"shield",name:"Kite Shield",stat:"int"},{k:"gauntlets",name:"Gauntlets",stat:"atk"},
+  {k:"greaves",name:"Greaves",stat:"int"},{k:"belt",name:"War Belt",stat:"atk"},{k:"talisman",name:"Talisman",stat:"pol"},{k:"ring",name:"Signet Ring",stat:"pol"},
+  {k:"mount",name:"Warhorse",stat:"atk"},{k:"boots",name:"Riding Boots",stat:"pol"}];
+var GEAR_POS=[{k:"helm",name:"Head",type:"helm"},{k:"amulet",name:"Neck",type:"amulet"},{k:"armor",name:"Chest",type:"armor"},{k:"pauldrons",name:"Shoulder",type:"pauldrons"},
+  {k:"weapon",name:"Weapon",type:"weapon"},{k:"cloak",name:"Back",type:"cloak"},{k:"shield",name:"Shield",type:"shield"},{k:"gauntlets",name:"Wrist",type:"gauntlets"},
+  {k:"greaves",name:"Legs",type:"greaves"},{k:"belt",name:"Waist",type:"belt"},{k:"talisman",name:"Accessory",type:"talisman"},{k:"talisman2",name:"Accessory",type:"talisman"},
+  {k:"ring",name:"Ring",type:"ring"},{k:"ring2",name:"Ring",type:"ring"},{k:"mount",name:"Mount",type:"mount"},{k:"boots",name:"Feet",type:"boots"}];
+var MOUNT_SPD=[0.03,0.06,0.09,0.12,0.15]; // march speed from a Warhorse, by tier
+function posOf(g){ if (g.at) return g.at; for (var i=0;i<GEAR_POS.length;i++) if (GEAR_POS[i].type===g.slot) return GEAR_POS[i].k; return g.slot; }
+function posInfo(k){ for (var i=0;i<GEAR_POS.length;i++) if (GEAR_POS[i].k===k) return GEAR_POS[i]; return GEAR_POS[0]; }
+function wornAt(h,k){ return S.gear.filter(function(x){ return x.on===h.id && posOf(x)===k; })[0]; }
+function mountSpd(h){ if (!h || !S.gear) return 0; var g=wornAt(h,"mount"); return g ? MOUNT_SPD[g.tier] : 0; }
 var GEAR_TIERS=["common","rare","epic","legendary","mythic"], GEAR_BASE=[3,6,10,16,24], GEAR_MAX=[9,12,14,15,15], GEAR_SCRAP=[2,5,10,20,40];
 // success % with ONE gem, indexed by the current star count; each extra gem (up to 4) adds a step
 var GEM_P={D:[70,65,60,55,50,45,40,35,30,25,22,18,14,10,7], F:[95,93,90,88,85,85,85,82,80,70,60,50,40,30,22]}, GEM_STEP={D:5,F:3};
 var FAIL_TO=[0,0,1,1,2,3,4,4,5,0,0,0,0,0,0]; // star count after a failed attempt from each level
 var SET_TIERS=[[15,3.0],[14,2.75],[12,2.5],[9,2.0],[5,1.5]];
-function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return g.on===h.id; }), low=99; if (on.length<GEAR_SLOTS.length) return -1; on.forEach(function(g){ low=Math.min(low,g.stars); }); return low; }
+function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return g.on===h.id; }), low=99; if (on.length<GEAR_POS.length) return -1; on.forEach(function(g){ low=Math.min(low,g.stars); }); return low; }
 function setLife(h){ var st=starSet(h); for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]) return SET_TIERS[i][1]; return 1; }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
 function gemChance(g,type,n){ var stat=slotOf(g).stat, m=bestFor(stat), mb=m?Math.min(10,hs(m,stat)/40):0;
@@ -2001,7 +2019,7 @@ function gearName(g){ return TIERS[GEAR_TIERS[g.tier]].name+" "+slotOf(g).name; 
 function starStr(g){ var s=""; for (var i=0;i<GEAR_MAX[g.tier];i++) s+= i<g.stars?"\u2605":"\u2606"; return s; }
 function gearBonus(h,k){ var b=0; if (!S.gear) return 0; S.gear.forEach(function(g){ if (g.on===h.id && slotOf(g).stat===k) b+=gearVal(g); }); return b; }
 function hs(h,k){ return h ? h[k]+gearBonus(h,k) : 0; }
-function makeGear(tier,slot){ var g={id:S.nextGearId++, slot:slot||GEAR_SLOTS[Math.floor(Math.random()*GEAR_SLOTS.length)].k, tier:tier, stars:0, on:0}; S.gear.push(g); return g; }
+function makeGear(tier,slot){ var g={id:S.nextGearId++, slot:slot||GEAR_POS[Math.floor(Math.random()*GEAR_POS.length)].type, tier:tier, stars:0, on:0}; S.gear.push(g); return g; }
 // gear is crafted in the Workshop from materials, not looted
 var MAT=["ore","ingot","mithril","starmetal","scale"], MAT_NEED=[3,3,3,3,3], MAT_WS=[1,3,6,9,10], craftTier=0;
 function craftWhy(t){ if (bLevel("workshop")<MAT_WS[t]) return "Needs Workshop "+MAT_WS[t]; if ((S.items[MAT[t]]||0)<MAT_NEED[t]) return "Needs "+MAT_NEED[t]+" "+ITEMS[MAT[t]].name; return ""; }
@@ -2153,7 +2171,7 @@ function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].h
 function mayor(){ return S.mayor ? heroById(S.mayor) : null; }
 function salary(){ var s=0; S.heroes.forEach(function(h){ s += h.level*20; }); return s; }
 function mayorActive(){ var m=mayor(); return m && !(S.res.gold<=0 && salary()>0) ? m : null; }
-function mayorBonus(){ var m=mayorActive(); return {prod: m? hs(m,"pol")*0.003 : 0, build: m? hs(m,"pol")/200 : 0, research: m? hs(m,"int")/200 : 0}; }
+function mayorBonus(){ var m=mayorActive(), t=officerActive("trainer"), r=officerActive("researcher"); return {prod: m? hs(m,"pol")*0.003 : 0, build: m? hs(m,"pol")/200 : 0, research: r? hs(r,"int")/200 : 0, train: t? 1-Math.pow(0.995,hs(t,"atk")) : 0}; }
 function hallCap(){ var f=findUnique("feasting"); return f&&f.level>0 ? 4+f.level : 0; }
 function innLv(){ var n=findUnique("inn"); return n?n.level:0; }
 function initials(n){ var p=n.split(" "); return (p[0][0]+(p[p.length-1][0]||"")).toUpperCase(); }
@@ -2349,11 +2367,12 @@ function migrate(s){
   if (s.v===35){ s.bf=null; s.surgeonUntil=0; s.items=s.items||{}; s.items.surgeon=s.items.surgeon||0; if (s.alliance){ s.alliance.bfReady=0; s.alliance.bfLast=null; } s.v=36; }
   if (s.v===36){ s.cities.forEach(function(cc){ cc.wounded=[]; }); s.v=37; }
   if (s.v===37){ s.items=s.items||{}; s.items.warhorn=s.items.warhorn||0; s.items.corselet=s.items.corselet||0; s.hornUntil=0; s.corsUntil=0; s.v=38; }
+  if (s.v===38){ s.cities.forEach(function(cc){ cc.trainer=null; cc.researcher=null; }); s.v=39; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
-var CITY_KEYS = ["reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
+var CITY_KEYS = ["trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
 function C(){ return S.cities[S.cur]; }
 var techVer=0, techCache={key:"",o:null};
 // Research is empire-wide: levels live in S.techG. A city only enjoys a level its own Academy can support.
@@ -2375,7 +2394,7 @@ function newCity(id,name,x,y){
   for (i=0;i<CITY_PLOTS;i++) inside.push(null); for (i=0;i<44;i++) fields.push(null);
   Object.keys(TECH).forEach(function(k){ tech[k]=0; });
   return {id:id,name:name,x:x,y:y,res:{food:10000,lumber:10000,stone:10000,iron:10000,gold:10000},pop:100,tax:20,th:1,inside:inside,fields:fields,tech:tech,
-    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],mayor:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],mayor:null,trainer:null,researcher:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
 }
 var NPRESETS=10;
 function newPresets(){ var a=[]; for (var i=0;i<NPRESETS;i++) a.push({name:"Preset "+(i+1), t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0, farm:[], auto:false, idx:0, stopOnLoss:true}); return a; }
@@ -2385,7 +2404,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=38) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=39) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=S.testSpeed||1; // real time unless a testing speed is set
 installProxies(S);
@@ -2452,8 +2471,8 @@ function accrue(ms){
   var cap=popCap();
   if (S.pop < cap){ var k2 = 0.5*(1 - S.tax/125); S.pop = cap - (cap-S.pop)*Math.exp(-k2*h); }
   else S.pop = cap;
-  var m=mayorActive();
-  if (m){ var up=giveXp(m, 200*h); if (up) finished.push(m.name+" reached level "+m.level); }
+  OFFICES.forEach(function(o){ var m=officerActive(o[0]); // every office holder earns experience while serving
+    if (m){ var up=giveXp(m, 200*h); if (up) finished.push(m.name+" reached level "+m.level); } });
 }
 function completeBuild(bi){
   var b=S.builds[bi];
@@ -2543,9 +2562,6 @@ function dbgToolsHtml(){
     '<div class="h3" style="margin-top:10px">Resources in '+esc(S.name)+'</div>'+
     '<div class="farmadd"><select id="dbg-resk"><option value="all">All five</option>'+RES.map(function(k){ return '<option value="'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; }).join("")+'</select>'+
     '<input type="number" id="dbg-resn" min="0" value="100000" style="width:7em"><button class="btn ghost small" data-act="dbg-give">Give</button></div>'+
-    '<div class="h3" style="margin-top:10px">Resources in '+esc(S.name)+'</div>'+
-    '<div class="farmadd"><select id="dbg-resk"><option value="all">All five</option>'+RES.map(function(k){ return '<option value="'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; }).join("")+'</select>'+
-    '<input type="number" id="dbg-resn" min="0" value="100000" style="width:7em"><button class="btn ghost small" data-act="dbg-give">Give</button></div>'+
     '<div class="h3" style="margin-top:10px">Shortcuts</div><div class="btnrow"><button class="btn ghost small" data-act="dbg-res">+1M of each resource</button><button class="btn ghost small" data-act="dbg-finish">Finish every timer here</button></div>';
 }
 function dbgSetBld(key, L){
@@ -2583,7 +2599,7 @@ function marchBtns(m){
 function renderMarchStrip(){
   var el=document.getElementById("marchstrip"); if (!el) return;
   var me=C().id, ms=S.marches.filter(function(m){ return m.city===me; }).sort(function(a,b){ return marchT(a)-marchT(b); });
-  if (!ms.length){ if (el.innerHTML) el.innerHTML=""; return; }
+  if (!ms.length){ if (el.innerHTML) el.innerHTML=""; el.dataset.sig=""; return; }
   var h='<details class="mstrip"'+(stripOpen?' open':'')+'><summary><b>'+ms.length+' march'+(ms.length>1?'es':'')+'</b> <span class="dur">next event in <span id="ms-next"></span></span></summary><div class="mlist">'+
     ms.map(function(m){ var l=marchLine(m); return '<div class="mrowl '+l.cls+'"><span>'+esc(l.txt)+'</span><span class="qtime" id="ms-'+m.id+'"></span></div>'+marchBtns(m); }).join("")+'</div></details>';
   if (el.dataset.sig!==h){ el.innerHTML=h; el.dataset.sig=h; var d=el.querySelector("details"); d.addEventListener("toggle",function(){ stripOpen=d.open; }); }
@@ -2719,20 +2735,21 @@ function heroCard(h){
   return '<button class="hero" data-act="hero" data-id="'+h.id+'">'+shield(h)+
     '<span class="hn">'+esc(h.name)+'</span>'+
     '<span class="hs"><span>Pol <b>'+hs(h,"pol")+'</b></span><span>Atk <b>'+hs(h,"atk")+'</b></span><span>Int <b>'+hs(h,"int")+'</b></span>'+(h.pts?'<span style="color:var(--brass)">+'+h.pts+' to assign</span>':'')+'</span>'+
-    '<span class="hr">'+(isM?'<span class="badge">Mayor</span>':h.away?'<span class="badge" style="background:var(--red)">Marching</span>':'<span class="tier" style="color:'+TIERS[h.tier].color+'">'+TIERS[h.tier].name+'</span>')+'<span class="tier">Lv '+h.level+'</span><span class="xpbar"><i style="width:'+xp+'%"></i></span></span></button>';
+    '<span class="hr">'+(officeOf(h)?'<span class="badge">'+officeOf(h)[1]+'</span>':h.away?'<span class="badge" style="background:var(--red)">Marching</span>':'<span class="tier" style="color:'+TIERS[h.tier].color+'">'+TIERS[h.tier].name+'</span>')+'<span class="tier">Lv '+h.level+'</span><span class="xpbar"><i style="width:'+xp+'%"></i></span></span></button>';
 }
 function viewHeroes(){
   var cap=hallCap(), il=innLv(), h="";
   if (!cap && !il && !S.heroes.length && !S.waiting.length)
     return '<div class="empty-state"><p>Build a Feasting Hall to house heroes and an Inn to hire them. Legendary heroes won on the wheel wait at the gate until you have room; lesser ones move on.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
-  var m=mayor(), mb=mayorBonus();
-  h+='<div class="section"><div class="shead"><h3>Mayor</h3>'+(m?'<span class="dur">'+esc(m.name)+'</span>':'')+'</div>';
-  if (m && mayorActive()) h+='<p class="hint">Production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster, research '+pct(1-1/(1+mb.research))+' faster. The mayor earns experience while in office.</p>';
-  else if (m) h+='<p class="warn">Your treasury is empty, so the mayor has stopped working. Raise taxes or trade for gold.</p>';
-  else h+='<p class="hint">No mayor appointed. Politics boosts production and building speed, Intelligence speeds up research.</p>';
+  var mb=mayorBonus(), anyOff=OFFICES.some(function(o){ return officer(o[0]); });
+  h+='<div class="section"><div class="shead"><h3>Offices</h3><span class="dur">'+OFFICES.filter(function(o){ return officer(o[0]); }).length+' of 3 filled</span></div>'+
+    '<p class="hint">Three jobs, three heroes. Office holders stay home (they never appear in march lists) and earn experience while they serve. Appoint from a hero\u2019s page.</p><div class="gearlist">'+
+    OFFICES.map(function(o){ var oh=officer(o[0]), eff = o[0]==="mayor" ? 'production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster' : o[0]==="trainer" ? 'training '+pct(mb.train)+' faster' : 'research '+pct(1-1/(1+mb.research))+' faster';
+      return '<div class="gearrow"><span class="gn">'+o[1]+'</span><span class="gb">'+(oh?esc(oh.name)+' ('+STATN[o[2]].slice(0,3)+' '+hs(oh,o[2])+')':'vacant')+'</span><span class="dur" style="grid-column:1/-1">'+o[3]+' ('+STATN[o[2]]+').'+(oh?' Now: '+eff+'.':'')+'</span></div>'; }).join("")+'</div>';
+  if (anyOff && S.res.gold<=0 && salary()>0) h+='<p class="warn">Your treasury is empty, so your office holders have stopped working. Raise taxes or trade for gold.</p>';
   var bp=bestFor("pol"), bi=bestFor("int"), ba=bestFor("atk");
-  h+='<label class="chk" style="margin-top:8px"><input type="checkbox" id="automayor"'+(S.autoMayor?' checked':'')+'> Auto-swap mayor for each job</label>'+
-    (S.autoMayor?'<p class="hint">Each time something starts, the best hero at home briefly takes office for it, then hands it back. Your appointed mayor still sets production.</p>'+
+  h+='<label class="chk" style="margin-top:8px"><input type="checkbox" id="automayor"'+(S.autoMayor?' checked':'')+'> Auto-swap the best hero into each job</label>'+
+    (S.autoMayor?'<p class="hint">Each time something starts, the best hero at home briefly takes that office, then hands it back. Your appointed mayor still sets production.</p>'+
       '<div class="us" style="margin-top:4px"><span>Building <b>'+(bp?esc(bp.name)+' ('+hs(bp,"pol")+')':'nobody')+'</b></span><span>Research <b>'+(bi?esc(bi.name)+' ('+hs(bi,"int")+')':'nobody')+'</b></span><span>Training <b>'+(ba?esc(ba.name)+' ('+hs(ba,"atk")+')':'nobody')+'</b></span></div>':'');
   h+='</div>';
   h+='<div class="section"><div class="shead"><h3>Feasting Hall</h3><span class="dur">'+S.heroes.length+' / '+cap+' heroes'+(salary()?', salaries '+fmt(salary())+' gold/h':'')+'</span></div>';
@@ -2763,24 +2780,24 @@ function viewHeroes(){
 function viewAcademy(){
   var al=academyLv();
   if (!al) return '<div class="empty-state"><p>Build an Academy on an empty city plot to start researching.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
-  var busyCity=null; S.cities.forEach(function(c,i){ if (c.research) busyCity=busyCity||{c:c,i:i}; });
-  var h='<p class="note">Academy level '+al+'. Research is shared by every city you rule, but a city only enjoys a level its own Academy can support, so '+esc(S.name)+' uses levels up to '+al+'.</p>', lastG="";
+  var elseRes={}; S.cities.forEach(function(c){ if (c!==C() && c.research) elseRes[c.research.tech]=c.name; });
+  var h='<p class="note">Academy level '+al+'. Research is shared by every city you rule, but a city only enjoys a level its own Academy can support, so '+esc(S.name)+' uses levels up to '+al+'. Every city with an Academy can research at once, as long as they work on different techs.</p>', lastG="";
   if (S.rq.length) h+='<div class="section" style="margin:0 0 12px"><h3>Research queue</h3><ol class="qlist">'+S.rq.map(function(k,i){ return '<li><span>'+TECH[k].name+'</span><button class="link" data-act="rq-remove" data-k="'+i+'">Remove</button></li>'; }).join("")+'</ol></div>';
   var openG=false;
   Object.keys(TECH).forEach(function(k){
-    var L=S.tech[k], to=L+1, t=TECH[k], why="", miss=[];
+    var L=S.tech[k], G=S.techG[k]||0, to=G+1, t=TECH[k], why="", miss=[]; // research raises the realm's level; this city enjoys up to its Academy
     if (t.g!==lastG){ if (openG) h+='</div></details>'; var gk="tg_"+t.g.replace(/\W/g,""); h+='<details class="det techdet" data-det="'+gk+'"'+(DET[gk]===false?'':' open')+'><summary class="techgroup">'+t.g+'</summary><div class="techlist">'; openG=true; lastG=t.g; }
     var tmx=techMax();
-    if (L<tmx) miss=missing(techReqs(k,to));
-    if (L>=tmx) why="Max level";
+    if (G<tmx) miss=missing(techReqs(k,to));
+    if (G>=tmx) why="Max level";
     else if (S.research && S.research.tech===k) why="Researching now";
     else if (miss.length) why="";
     else if (S.research) why="Academy is busy";
-    else if (busyCity) why=esc(busyCity.c.name)+" is researching";
+    else if (elseRes[k]) why=esc(elseRes[k])+" is researching this";
     else if (!afford(techCost(k,to))) why="Not enough resources";
     var blocked = why || miss.length;
-    h+='<div class="tech"><div class="top"><h3>'+t.name+'</h3><span class="tl">Lv '+L+'</span></div><span class="dur">'+t.desc+'</span>';
-    if (L<tmx){
+    h+='<div class="tech"><div class="top"><h3>'+t.name+'</h3><span class="tl">Lv '+L+(G>L?' <span class="dur">(realm '+G+')</span>':'')+'</span></div><span class="dur">'+t.desc+'</span>';
+    if (G<tmx){
       if (miss.length) h+='<span class="req">Needs '+miss.map(reqName).join(" and ")+'</span>';
       h+=chips(techCost(k,to))+'<div class="act"><span class="dur">'+fmtT(realMs(techTime(k,to)))+'</span>'+(why?'<span class="why">'+why+'</span>':'')+'<button class="btn" data-act="research" data-tech="'+k+'"'+(blocked?' disabled':'')+'>Research level '+to+'</button><button class="btn ghost small" data-act="rq-add" data-tech="'+k+'">Queue</button></div>';
     }
@@ -2832,7 +2849,7 @@ function armorySection(){
   var list=S.gear.slice().sort(function(a,b){ return b.tier-a.tier || b.stars-a.stars; });
   if (armoryFilter!=="all") list=list.filter(function(g){ return g.slot===armoryFilter; });
   var h='<div class="section"><div class="shead"><h3>Armory</h3><span class="dur">'+S.gear.length+' pieces, '+fmt(S.items.gemD||0)+' Delicate, '+fmt(S.items.gemF||0)+' Flawless gems</span></div>'+
-    '<p class="hint">Gear is crafted in the Workshop from materials. Stars raise a piece\u2019s stat, and a hero wearing all 8 pieces gets a star set bonus to troop life based on their lowest-starred piece: 5 stars \u00d71.5, 9 \u00d72, 12 \u00d72.5, 14 \u00d72.75, 15 \u00d73.</p>'+
+    '<p class="hint">Gear is crafted in the Workshop from materials. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 5 stars \u00d71.5, 9 \u00d72, 12 \u00d72.5, 14 \u00d72.75, 15 \u00d73.</p>'+
     '<div class="farmadd"><button class="chipbtn'+(armoryFilter==="all"?' on':'')+'" data-act="armory-filter" data-slot="all">All</button>'+GEAR_SLOTS.map(function(sl){ return '<button class="chipbtn'+(armoryFilter===sl.k?' on':'')+'" data-act="armory-filter" data-slot="'+sl.k+'">'+sl.name+'</button>'; }).join("")+'</div>';
   if (!list.length) h+='<p class="hint" style="margin-top:8px">Nothing here yet.</p>';
   h+='<div class="gearlist">'+list.slice(0,60).map(gearRow).join("")+'</div>'+(list.length>60?'<p class="hint">Showing the best 60.</p>':'');
@@ -2840,7 +2857,7 @@ function armorySection(){
 }
 function gearRow(g){
   var sl=slotOf(g), who=g.on?heroById(g.on):null;
-  return '<button class="gearrow t'+g.tier+'" data-act="forge-open" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+' '+STATN[sl.stat]+'</span><span class="dur">'+(who?'Worn by '+esc(who.name):'Unequipped')+'</span></button>';
+  return '<button class="gearrow t'+g.tier+'" data-act="forge-open" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+' '+STATN[sl.stat]+(g.slot==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march speed':'')+'</span><span class="dur">'+(who?'Worn by '+esc(who.name):'Unequipped')+'</span></button>';
 }
 function forgeSheet(g){
   var sl=slotOf(g), max=GEAR_MAX[g.tier], who=g.on?heroById(g.on):null;
@@ -2866,12 +2883,12 @@ function forgeSheet(g){
 }
 var forgeLog=[], forgeGem="D", forgeN=1;
 function gearPickSheet(hr, slot){
-  var sl=GEAR_SLOTS.filter(function(x){ return x.k===slot; })[0], cur=S.gear.filter(function(x){ return x.on===hr.id && x.slot===slot; })[0];
-  var opts=S.gear.filter(function(x){ return x.slot===slot && x!==cur; }).sort(function(a,b){ return gearVal(b)-gearVal(a); });
-  var h='<div class="head"><span class="ico">'+ICON.helm+'</span><div><h2>'+sl.name+' for '+esc(hr.name)+'</h2><div class="sub">Adds '+STATN[sl.stat]+'</div></div></div>';
+  var ps=posInfo(slot), sl=GEAR_SLOTS.filter(function(x){ return x.k===ps.type; })[0], cur=wornAt(hr,ps.k);
+  var opts=S.gear.filter(function(x){ return x.slot===ps.type && x!==cur; }).sort(function(a,b){ return gearVal(b)-gearVal(a); });
+  var h='<div class="head"><span class="ico">'+ICON.helm+'</span><div><h2>'+ps.name+' for '+esc(hr.name)+'</h2><div class="sub">Takes a '+sl.name+'. Adds '+STATN[sl.stat]+(ps.type==="mount"?', and marches go faster: 3% (Common) up to 15% (Mythic)':'')+'.</div></div></div>';
   if (cur) h+='<div class="effect">Wearing '+gearName(cur)+' '+starStr(cur)+' (+'+gearVal(cur)+')</div><div class="btnrow"><button class="btn ghost small" data-act="gear-off" data-g="'+cur.id+'">Take it off</button></div>';
-  if (!opts.length) h+='<p class="hint">No other '+sl.name.toLowerCase()+' in the armory.</p>';
-  else h+='<div class="gearlist">'+opts.map(function(g){ var who=g.on?heroById(g.on):null; return '<button class="gearrow t'+g.tier+'" data-act="gear-on" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+'</span><span class="dur">'+(who?'Take from '+esc(who.name):'Equip')+'</span></button>'; }).join("")+'</div>';
+  if (!opts.length) h+='<p class="hint">No other '+sl.name.toLowerCase()+' in the armory. Gear never drops; craft one in the Workshop.</p>';
+  else h+='<div class="gearlist">'+opts.map(function(g){ var who=g.on?heroById(g.on):null; if (who===hr) who=null; return '<button class="gearrow t'+g.tier+'" data-act="gear-on" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+'</span><span class="dur">'+(who?'Take from '+esc(who.name):'Equip')+'</span></button>'; }).join("")+'</div>';
   return h+'<button class="closebtn" data-act="close">Close</button>';
 }
 
@@ -3761,7 +3778,7 @@ function bfEnd(why){
 /* ---------- medic camp (in the Rally Spot) ---------- */
 // Age 1 rule: after every battle a share of your fallen are only wounded, set by Medicine. They wait in the
 // Rally Spot's Medic Camp and can be healed for gold, or they die. Numbers below are educated guesses.
-var WOUND_BASE=0.10, WOUND_PER_MED=0.02, WOUND_MAX=0.5, WOUND_LIFE=24*3600000, HEAL_GOLD_F=0.005;
+var WOUND_BASE=0.20, WOUND_PER_MED=0.02, WOUND_MAX=0.5, WOUND_LIFE=24*3600000, HEAL_GOLD_F=0.005;
 var HEAL_GOLD=U.map(function(u){ var t=0; for (var k in u.cost) t+=u.cost[k]; return Math.max(1, Math.round(t*HEAL_GOLD_F)); });
 var pendingWound=0;
 function woundRate(cityId){ var ci=cityIndex(cityId), r=WOUND_BASE; if (ci<0) return r;
@@ -3796,7 +3813,7 @@ function medicSection(){
   woundExpire();
   var c=C(), t=woundTotal(c), n=sumT(t), cost=woundCost(t), pct=Math.round(woundRate(c.id)*100);
   var h='<div class="section"><div class="shead"><h3>Medic Camp</h3><span class="dur">'+(n?fmt(n)+' wounded':'empty')+'</span></div>'+
-    '<p class="hint">After every battle, '+pct+'% of '+esc(S.name)+'\u2019s fallen are only wounded (10% plus 2% per level of Medicine, up to 50%). They wait here for 24 hours: heal them for gold before they die. Healed troops still count as lost in reports and war points.</p>';
+    '<p class="hint">After every battle, '+pct+'% of '+esc(S.name)+'\u2019s fallen are only wounded (20% plus 2% per level of Medicine, up to 50%). They wait here for 24 hours: heal them for gold before they die. Healed troops still count as lost in reports and war points.</p>';
   if (n){
     var first=Math.min.apply(null, c.wounded.map(function(b){ return b.at; }));
     h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Unit</th><th>Wounded</th><th>Gold each</th></tr></thead><tbody>'+
@@ -4069,7 +4086,7 @@ function claimQuest(id){
 
 /* reports */
 var LOG_CAP=5000, FULL_CAP=300, repFilter="all", repPage=0, repQuery="";
-function isGearDrop(t){ return GEAR_SLOTS.some(function(g){ return t.slice(-g.name.length)===g.name; }); }
+function isGearDrop(t){ return MAT.some(function(k){ return ITEMS[k] && t.indexOf(ITEMS[k].name)>=0; }); } // crafting materials (gear itself never drops)
 function compactRep(r){
   var killed=0, lootT=RES.reduce(function(a,k){ return a+((r.loot&&r.loot[k])||0); },0); for (var i=0;i<12;i++) killed+=(r.had[i]||0)-(r.eleft[i]||0);
   return {id:r.id, at:r.at, sc:r.scout?1:0, n:(r.scout?"Scouted ":"")+r.name+(r.gate?" (gates shut)":""), tile:r.tile, r:r.result, d:r.def?1:0, l:r.lost||0, k:killed, lo:lootT, m:r.medal==null?-1:r.medal, g:(r.drops||[]).slice(), h:r.historic||null, f:r.founded||null, o:r.occupied?1:0, c:C().name};
@@ -4094,9 +4111,9 @@ function repMatch(c){
   return true;
 }
 function viewReports(){
-  var st=S.stats, f=[["all","All"],["atk","Attacks"],["def","Defenses"],["win","Victories"],["loss","Defeats"],["medal","Medals"],["gear","Gear"]];
+  var st=S.stats, f=[["all","All"],["atk","Attacks"],["def","Defenses"],["win","Victories"],["loss","Defeats"],["medal","Medals"],["gear","Materials"]];
   var h='<div class="section"><h3>Lifetime record</h3><div class="statcards">'+
-    [["Attacks",fmt(st.atk)],["Victories",fmt(st.win)],["Flawless",fmt(st.flaw)],["Defenses held",fmt(st.held)+" / "+fmt(st.defs)],["Enemies killed",fmt(st.killT)],["Troops lost",fmt(st.lostT)],["Loot taken",fmt(st.loot)],["Medals",fmt(st.medals)],["Gear found",fmt(st.gear)]]
+    [["Attacks",fmt(st.atk)],["Victories",fmt(st.win)],["Flawless",fmt(st.flaw)],["Defenses held",fmt(st.held)+" / "+fmt(st.defs)],["Enemies killed",fmt(st.killT)],["Troops lost",fmt(st.lostT)],["Loot taken",fmt(st.loot)],["Medals",fmt(st.medals)],["Materials found",fmt(st.gear)]]
       .map(function(x){ return '<div><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'; }).join("")+'</div></div>';
   h+='<div class="section"><div class="farmadd" style="margin-top:0">'+f.map(function(x){ return '<button class="chipbtn'+(repFilter===x[0]?' on':'')+'" data-act="rep-filter" data-f="'+x[0]+'">'+x[1]+'</button>'; }).join("")+'</div>'+
     '<input type="text" id="repq" placeholder="Search by target or city" value="'+esc(repQuery)+'" style="margin-top:8px"><div id="replist"></div></div>';
@@ -4796,7 +4813,7 @@ function renderSheet(){
   } else if (sheetFor.kind==="legend"){
     if (!S.pendingLegend){ closeSheet(); return; }
     h='<div class="head"><span class="ico" style="color:var(--t-legendary)">'+ICON.crest+'</span><div><h2>A legend answers your call</h2><div class="sub">Choose where their greatness lies.'+(S.pendingLegend>1?' '+S.pendingLegend+' legends waiting.':'')+'</div></div></div><div class="choices">'+
-      [["pol","Politics","The ideal mayor: production and building speed."],["atk","Attack","A born general, ready for when troops arrive."],["int","Intelligence","A scholar: research speed as mayor."]].map(function(c){
+      [["pol","Politics","The ideal mayor: production and building speed."],["atk","Attack","A born general: training speed as trainer, and ready for when troops arrive."],["int","Intelligence","A scholar: research speed as researcher."]].map(function(c){
         return '<button class="choice" data-act="legend" data-stat="'+c[0]+'"><span class="ico">'+ICON.crest+'</span><b>'+c[1]+'</b><span class="d">'+c[2]+'</span></button>'; }).join("")+
       '</div><button class="closebtn" data-act="close">Decide later</button>';
   } else if (sheetFor.kind==="speedup"){
@@ -4815,19 +4832,20 @@ function renderSheet(){
     if (!hr){ closeSheet(); return; }
     var isM = S.mayor===hr.id, need=xpNeed(hr.level);
     var renameRow = hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
-    h='<div class="head">'+shield(hr,48)+'<div><h2 id="hname-h">'+esc(hr.name)+'</h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(isM?', mayor':'')+'</div></div></div>';
+    h='<div class="head">'+shield(hr,48)+'<div><h2 id="hname-h">'+esc(hr.name)+'</h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase():'')+'</div></div></div>';
     h+=renameRow;
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
     h+='<div class="statgrid">';
-    [["pol","Politics","Production and building speed as mayor"],["atk","Attack","Training speed as mayor, +1% troop attack per point in battle"],["int","Intelligence","Research speed as mayor; in battle every troop's defense +1% per point (damage taken can drop by half at most), and marches 1% faster per point"]].forEach(function(s){
+    [["pol","Politics","Production and building speed as mayor"],["atk","Attack","Training speed as trainer, +1% troop attack per point in battle"],["int","Intelligence","Research speed as researcher; in battle every troop's defense +1% per point (damage taken can drop by half at most), and marches 1% faster per point"]].forEach(function(s){
       h+='<div><b>'+s[1]+'</b><div class="sub">'+s[2]+'</div></div><span class="sv">'+hs(hr,s[0])+(gearBonus(hr,s[0])?'<div class="dur" style="font:400 .78rem var(--body)">'+hr[s[0]]+' + '+gearBonus(hr,s[0])+' gear</div>':'')+'</span><button class="plus" data-act="pt" data-stat="'+s[0]+'" aria-label="Add a point to '+s[1]+'"'+(hr.pts?'':' disabled')+'>+</button>';
     });
     h+='</div>'+(hr.pts?'<p class="sub" style="color:var(--brass)">'+hr.pts+' point'+(hr.pts>1?'s':'')+' to assign.</p>':'');
-    h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster, research '+pct(1-1/(1+hs(hr,"int")/200))+' faster, training '+pct(1-Math.pow(0.995,hs(hr,"atk")))+' faster.</p>';
+    h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster. As trainer: training '+pct(1-Math.pow(0.995,hs(hr,"atk")))+' faster. As researcher: research '+pct(1-1/(1+hs(hr,"int")/200))+' faster.</p>';
     var hset=starSet(hr), nxt=nextSetTier(Math.max(0,hset));
-    h+='<div class="h3">Gear</div><p class="sub">'+(hset<0?'Wear all 8 pieces to earn a star set bonus.':'Star set '+hset+': troops led by this hero have \u00d7'+setLife(hr)+' life.'+(nxt?' Next bonus (\u00d7'+nxt[1]+') at a '+nxt[0]+'-star set.':' Maximum bonus.'))+'</p><div class="gearslots">'+GEAR_SLOTS.map(function(sl){ var g=S.gear.filter(function(x){ return x.on===hr.id && x.slot===sl.k; })[0];
-      return '<button class="gslot'+(g?' t'+g.tier:'')+'" data-act="gear-pick" data-slot="'+sl.k+'"><span class="gs-n">'+sl.name+'</span>'+(g?'<span class="gs-s">'+starStr(g)+'</span><span class="gs-b">+'+gearVal(g)+' '+STATN[sl.stat].slice(0,3)+'</span>':'<span class="gs-e">Empty</span>')+'</button>'; }).join("")+'</div>';
-    h+='<div class="btnrow">'+(isM?'<button class="btn ghost" data-act="unmayor">Step down as mayor</button>':'<button class="btn" data-act="mayor">Appoint as mayor</button>')+
+    h+='<div class="h3">Gear</div><p class="sub">'+(hset<0?'Wear all 16 pieces to earn a star set bonus.':'Star set '+hset+': troops led by this hero have \u00d7'+setLife(hr)+' life.'+(nxt?' Next bonus (\u00d7'+nxt[1]+') at a '+nxt[0]+'-star set.':' Maximum bonus.'))+'</p><div class="gearslots">'+GEAR_POS.map(function(ps){ var g=wornAt(hr,ps.k), sl=g?slotOf(g):null;
+      return '<button class="gslot'+(g?' t'+g.tier:'')+'" data-act="gear-pick" data-slot="'+ps.k+'"><span class="gs-n">'+ps.name+'</span>'+(g?'<span class="gs-s">'+starStr(g)+'</span><span class="gs-b">+'+gearVal(g)+' '+STATN[sl.stat].slice(0,3)+(ps.k==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march':'')+'</span>':'<span class="gs-e">Empty</span>')+'</button>'; }).join("")+'</div>';
+    var hoff=officeOf(hr);
+    h+='<div class="btnrow">'+(hoff?'<button class="btn ghost" data-act="unoffice">Step down as '+hoff[1].toLowerCase()+'</button>':OFFICES.map(function(o){ return '<button class="btn'+(o[0]==="mayor"?'':' ghost')+'" data-act="office" data-role="'+o[0]+'">'+o[1]+'</button>'; }).join(""))+
       ["primer","tome","codex","annals"].map(function(bk){ return '<button class="btn ghost small" data-act="tome" data-book="'+bk+'"'+((S.items[bk]||0)&&hr.level<HERO_MAX?'':' disabled')+'>'+ITEMS[bk].name+' +'+fmt(ITEMS[bk].xp)+' ('+(S.items[bk]||0)+')</button>'; }).join("")+'</div>';
     h+='<div class="act"><button class="btn ghost danger small" data-act="dismiss">'+(armed==="dismiss"?"Tap again to dismiss":"Dismiss hero")+'</button><button class="closebtn" data-act="close">Close</button></div>';
   } else {
@@ -4879,7 +4897,7 @@ function bqState(it){ // "go", "wait" or "drop"
   var L=s?s.level:0;
   if (L>=maxLv(it.type)) return "drop";
   if (buildOn(it.w,it.i)) return "wait";
-  if (it.type!=="townhall" && L+1>S.th) return "wait";
+  if (it.type!=="townhall" && L+1>thAllows(it.type)) return "wait";
   if (buildReqWhy(it.type,L+1)) return "wait";
   if (!afford(costFor(it.type,L+1))) return "wait";
   return "go";
@@ -4940,8 +4958,8 @@ function processQueues(){
   }
   if (!S.research){
     for (var j=0;j<S.rq.length;j++){
-      if (S.cities.some(function(c){ return !!c.research; })) break;
-      var tk=S.rq[j], to=(S.tech[tk]||0)+1;
+      var tk=S.rq[j], to=(S.techG[tk]||0)+1;
+      if (S.cities.some(function(c){ return c.research && c.research.tech===tk; })) continue;
       if (to>techMax()){ S.rq.splice(j,1); j--; continue; }
       if (missing(techReqs(tk,to)).length || !afford(techCost(tk,to))) continue;
       pay(techCost(tk,to),1); S.research={tech:tk,to:to,start:S.gt,end:S.gt+techTime(tk,to)}; S.rq.splice(j,1); break;
@@ -5075,8 +5093,8 @@ document.addEventListener("click",function(e){
     S.builds.splice(bs,1); toast("Construction cancelled. Resources returned."); refresh(); return;
   }
   if (act==="research"){
-    var k=a.dataset.tech, to=S.tech[k]+1, c=techCost(k,to);
-    if (S.research || S.cities.some(function(c){ return !!c.research; }) || missing(techReqs(k,to)).length || !afford(c)) return;
+    var k=a.dataset.tech, to=(S.techG[k]||0)+1, c=techCost(k,to);
+    if (S.research || S.cities.some(function(c){ return c.research && c.research.tech===k; }) || to>techMax() || missing(techReqs(k,to)).length || !afford(c)) return;
     pay(c,1); S.research={tech:k,to:to,start:S.gt,end:S.gt+techTime(k,to)};
     toast("Researching "+TECH[k].name+" level "+to); refresh(); return;
   }
@@ -5154,8 +5172,8 @@ document.addEventListener("click",function(e){
   if (act==="forge-open"){ forgeLog=[]; openSheet({kind:"forge",g:+a.dataset.g}); return; }
   if (act==="gear-pick"){ openSheet({kind:"gearpick",hero:sheetFor.id,slot:a.dataset.slot,back:sheetFor.id}); return; }
   if (act==="gear-on"){ var eg=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0];
-    S.gear.forEach(function(x){ if (x.on===sheetFor.hero && x.slot===eg.slot) x.on=0; }); eg.on=sheetFor.hero; var bh=sheetFor.back; openSheet({kind:"hero",id:bh}); refresh(); return; }
-  if (act==="gear-off"){ var og=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0]; if (og) og.on=0; openSheet({kind:"hero",id:sheetFor.back}); refresh(); return; }
+    var ep=sheetFor.slot; S.gear.forEach(function(x){ if (x!==eg && x.on===sheetFor.hero && posOf(x)===ep){ x.on=0; delete x.at; } }); eg.on=sheetFor.hero; eg.at=ep; var bh=sheetFor.back; openSheet({kind:"hero",id:bh}); refresh(); return; }
+  if (act==="gear-off"){ var og=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0]; if (og){ og.on=0; delete og.at; } openSheet({kind:"hero",id:sheetFor.back}); refresh(); return; }
   if (act==="forge-gem"){ forgeGem=a.dataset.v; lastSheet=""; renderSheet(); return; }
   if (act==="forge-n"){ forgeN=+a.dataset.v; lastSheet=""; renderSheet(); return; }
   if (act==="forge-strike"){
@@ -5273,8 +5291,6 @@ document.addEventListener("click",function(e){
   if (act==="dbg-give"){ var rk=document.getElementById("dbg-resk").value, rn=Math.max(0,Math.floor(+document.getElementById("dbg-resn").value||0));
     if (!rn){ toast("Enter an amount"); return; } (rk==="all"?RES:[rk]).forEach(function(k){ S.res[k]+=rn; });
     toast("+"+fmt(rn)+" "+(rk==="all"?"of each resource":rk)); save(); lastView=""; refresh(); return; }
-  if (act==="dbg-give"){ var gk=document.getElementById("dbg-resk").value, gn=Math.max(0,Math.floor(+document.getElementById("dbg-resn").value||0)); if (!gn) return;
-    (gk==="all"?RES:[gk]).forEach(function(k){ S.res[k]+=gn; }); toast("+"+fmt(gn)+" "+(gk==="all"?"of each resource":gk)); save(); lastView=""; refresh(); return; }
   if (act==="dbg-res"){ RES.forEach(function(k){ S.res[k]+=1000000; }); toast("+1M of each resource"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
     advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
@@ -5290,7 +5306,7 @@ document.addEventListener("click",function(e){
   if (act==="farm-remove"){ var fr=S.presets[+a.dataset.p]; fr.farm.splice(+a.dataset.k,1); if (fr.idx>=fr.farm.length) fr.idx=0; lastSheet=""; renderSheet(); save(); return; }
   if (act==="farm-clear"){ var fc2=S.presets[+a.dataset.p]; fc2.farm=[]; fc2.idx=0; fc2.auto=false; lastSheet=""; renderSheet(); save(); return; }
   if (act==="march-preset"){ var mp=S.presets[+a.dataset.p]; marchDraft.t=mp.t.map(function(n,i){ return Math.min(n,S.troops[i]); });
-    var mh=presetHero(mp); marchDraft.hero = mh && !mh.away && mh.id!==S.mayor ? mh.id : 0; marchDraft.preview=""; lastSheet=""; renderSheet(); return; }
+    var mh=presetHero(mp); marchDraft.hero = mh && !mh.away && !isOfficer(mh) ? mh.id : 0; marchDraft.preview=""; lastSheet=""; renderSheet(); return; }
   if (act==="waves-open"){ waveDraft={tile:a.dataset.tile, n:[0,0,0,0,0,0,0,0,0,0], gap:1, mission:"attack"}; openSheet({kind:"waves"}); return; }
   if (act==="waves-go"){ var pl=wavePlan(); if (pl.why) return; var wq=TILE_BY[waveDraft.tile];
     pl.list.forEach(function(w){ launchMarch(waveDraft.tile, waveDraft.mission, w.t, w.hero, {dep:w.dep, label:w.pi}); var lm=S.marches[S.marches.length-1]; lm.arr=w.arr; });
@@ -5349,8 +5365,10 @@ document.addEventListener("click",function(e){
   if (act==="spin10"){ doSpin10(); return; }
   if (act==="hero"){ openSheet({kind:"hero",id:+a.dataset.id}); return; }
   if (act==="pt"){ var hh=heroById(sheetFor.id); if (hh && hh.pts>0){ hh[a.dataset.stat]++; hh.pts--; } refresh(); return; }
-  if (act==="mayor"){ if (heroById(sheetFor.id).away){ toast("That hero is away on a march"); return; } S.mayor=sheetFor.id; toast(heroById(S.mayor).name+" is now mayor"); refresh(); return; }
-  if (act==="unmayor"){ S.mayor=null; refresh(); return; }
+  if (act==="office"||act==="mayor"){ var role=a.dataset.role||"mayor", oh=heroById(sheetFor.id); if (!oh) return; if (oh.away){ toast("That hero is away on a march"); return; }
+    OFFICES.forEach(function(o){ if (S[o[0]]===oh.id) S[o[0]]=null; }); S[role]=oh.id;
+    toast(oh.name+" is now "+role); save(); lastSheet=""; refresh(); return; }
+  if (act==="unoffice"||act==="unmayor"){ OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; }); save(); lastSheet=""; refresh(); return; }
   if (act==="tome"){
     var bkk=a.dataset.book||"tome", th=heroById(sheetFor.id); if (!th || !(S.items[bkk]>0)) return;
     S.items[bkk]--; var up=giveXp(th, ITEMS[bkk].xp);
@@ -5361,7 +5379,7 @@ document.addEventListener("click",function(e){
     var dh=heroById(sheetFor.id); if (dh.away){ toast("That hero is away on a march"); return; }
     S.heroes=S.heroes.filter(function(x){ return x.id!==sheetFor.id; });
     S.gear.forEach(function(g){ if (g.on===sheetFor.id) g.on=0; });
-    if (S.mayor===sheetFor.id) S.mayor=null;
+    OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; });
     closeSheet(); toast(dh.name+" has left the city"); refresh(); return;
   }
   if (act==="hire"){
