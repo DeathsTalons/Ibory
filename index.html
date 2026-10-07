@@ -2565,6 +2565,10 @@ function dbgToolsHtml(){
     '<div class="h3" style="margin-top:10px">Resources in '+esc(S.name)+'</div>'+
     '<div class="farmadd"><select id="dbg-resk"><option value="all">All five</option>'+RES.map(function(k){ return '<option value="'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>'; }).join("")+'</select>'+
     '<input type="number" id="dbg-resn" min="0" value="100000" style="width:7em"><button class="btn ghost small" data-act="dbg-give">Give</button></div>'+
+    '<div class="h3" style="margin-top:10px">Items</div>'+
+    '<div class="farmadd"><select id="dbg-item"><optgroup label="Items">'+Object.keys(ITEMS).sort(function(x,y){ return ITEMS[x].name.localeCompare(ITEMS[y].name); }).map(function(k){ return '<option value="'+k+'">'+esc(ITEMS[k].name)+' ('+fmt(S.items[k]||0)+')</option>'; }).join("")+'</optgroup>'+
+    '<optgroup label="Medals">'+MEDALS.map(function(m){ return '<option value="medal:'+m[0]+'">'+m[1]+' medal ('+fmt(S.medals[m[0]]||0)+')</option>'; }).join("")+'</optgroup></select>'+
+    '<input type="number" id="dbg-itemn" min="1" value="1" style="width:5em"><button class="btn ghost small" data-act="dbg-item">Give</button></div>'+
     '<div class="h3" style="margin-top:10px">Shortcuts</div><div class="btnrow"><button class="btn ghost small" data-act="dbg-res">+1M of each resource</button><button class="btn ghost small" data-act="dbg-finish">Finish every timer here</button></div>';
 }
 function dbgSetBld(key, L){
@@ -5294,6 +5298,10 @@ document.addEventListener("click",function(e){
   if (act==="dbg-give"){ var rk=document.getElementById("dbg-resk").value, rn=Math.max(0,Math.floor(+document.getElementById("dbg-resn").value||0));
     if (!rn){ toast("Enter an amount"); return; } (rk==="all"?RES:[rk]).forEach(function(k){ S.res[k]+=rn; });
     toast("+"+fmt(rn)+" "+(rk==="all"?"of each resource":rk)); save(); lastView=""; refresh(); return; }
+  if (act==="dbg-item"){ var ik=document.getElementById("dbg-item").value, inn=Math.max(0,Math.floor(+document.getElementById("dbg-itemn").value||0)); if (!inn){ toast("Enter an amount"); return; }
+    if (ik.indexOf("medal:")===0){ var mk2=ik.slice(6); S.medals[mk2]=(S.medals[mk2]||0)+inn; achMedal(mk2,inn); toast("+"+fmt(inn)+" "+mk2+" medal"+(inn>1?"s":"")); }
+    else { S.items[ik]=(S.items[ik]||0)+inn; toast("+"+fmt(inn)+" "+ITEMS[ik].name); }
+    save(); lastSheet=""; renderSheet(); lastView=""; refresh(); var ri=document.getElementById("dbg-item"), rn=document.getElementById("dbg-itemn"); if (ri) ri.value=ik; if (rn) rn.value=inn; return; }
   if (act==="dbg-res"){ RES.forEach(function(k){ S.res[k]+=1000000; }); toast("+1M of each resource"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
     advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
