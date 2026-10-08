@@ -647,8 +647,8 @@ function stats(side){
   var atkM=F(side.attack_modifier||1), defM=F(side.defence_modifier||1), lifeM=F(side.life_modifier||1), intel=F(h.intel||0);
   for (var i=0;i<12;i++){
     var b=BASE[i], s={life:F(b[0]),attack:F(b[1]),defense:F(b[2]),speed:F(b[3]),range:F(b[4])};
-    // C++ used integer division for iron working here (so it never applied below lvl 20); we apply it as 5%/level.
-    var d = F(F(1000 - F(F(F(F(iw*5+100)/100) * F(F(100+intel)/100)) * s.defense) * defM) / 1000);
+    // Iron Working and hero Intelligence ADD inside the bracket (matches dxcalc to 0.01%); Iron Working applies as 5%/level.
+    var d = F(F(1000 - F(F(F(F(iw*5+100)/100) + F(intel/100)) * s.defense) * defM) / 1000);
     s.defense = F(Math.max(d, 0.5));
     out.push(s);
   }
@@ -659,7 +659,7 @@ function stats(side){
   return out;
 }
 var STOP_AT_WALL=true;
-var FORT_TOUGH=0.6, TOWER_DMG=0.5, WALL_HP=16500; // archer tower toughness and damage, and wall durability (x level cubed): fitted to dxcalc
+var FORT_TOUGH=1, TOWER_DMG=1, WALL_HP=50000; // tower and wall follow the Age One spec: wall HP = 50000 x L x (L+1) x Engineering, ranged units hit walls at half damage (both match dxcalc round counts)
 var TRAP_OK=function(lp){ return typeof TRAP_ALL!=='undefined' || lp.type<=5; };
 function trunc(x){ return x<0 ? Math.ceil(x) : Math.floor(x); }
 function fight(atk, def, opts){
@@ -670,11 +670,11 @@ function fight(atk, def, opts){
   var wall = def.wallLevel||0;
   var FS = FORT.map(function(f){ return {life:F(f[0]),attack:F(f[1]),defense:F(f[2]),speed:F(f[3]),range:F(f[4])}; });
   var tw = FS[2];
-  tw.life = F(F(F(F((( dr.medicine||0)*5+100)*tw.life)/100)*F(def.fortBonus||1))*F(FORT_TOUGH));
-  tw.attack = F(tw.attack*F(def.attack_modifier||1));
-  tw.defense = F(Math.max(1 - (((dr.iron_working||0)*5+100)*(100+(dh.intel||0))*tw.defense*(def.defence_modifier||1))/10000000, 0.5));
-  tw.range = F(F(tw.range*((dr.archery||0)*5 + wall*4.5 + 100))/100);
-  var wallhp = Math.round(WALL_HP*wall*wall*wall*(def.fortBonus||1));
+  tw.life = F(F(tw.life*F(def.fortBonus||1))*F(FORT_TOUGH)); // life 2000 x Engineering only (no Medicine)
+  tw.attack = F(300); // fixed: no Military Tradition, hero or items on the tower
+  tw.defense = F(0.64); // fixed damage-taken coefficient: no Iron Working, Intel or Corselet
+  tw.range = F(F(F(F(1300*((dr.archery||0)*5+100))/100)*(wall*3+100))/100); // Archery and wall compound, 3% per wall level
+  var wallhp = Math.round(WALL_HP*wall*(wall+1)*(def.fortBonus||1));
   var fortIn = def.fortifications||[0,0,0,0,0];
   var fs=0, i, j;
   [0,1,3,4,6,5,7,8,9,10,11].forEach(function(i){ if ((atk.troops[i]||0)>0 || (def.troops[i]||0)>0) fs=Math.max(fs, 200+BASE[i][4]); });
@@ -688,7 +688,7 @@ function fight(atk, def, opts){
   var trap=fortIn[0]||0, abatis=fortIn[1]||0, logs=fortIn[3]||0, rocks=fortIn[4]||0;
   var trapDie = trap>0 ? trunc(trap*(5+Math.floor(rand()*5))/100) : 0;
   var abatisDie = trunc(abatis/10), logDie=trunc(logs/10), rockDie=trunc(rocks/10);
-  var trapKP=def.trapKillPower||(0.5+rand()), logKP=def.logKillPower||(0.5+rand()), rockKP=def.rockKillPower||(0.5+rand());
+  var trapKP=def.trapKillPower||(0.9+Math.floor(rand()*7)*0.1), logKP=def.logKillPower||1.25, rockKP=def.rockKillPower||0.775; // spec NPC powers; player-defended cities pass 1.25 for all three
   var log = opts.log ? [] : null;
   var round, attackerAlive=false, defenderAlive=false;
 
@@ -771,7 +771,7 @@ function fight(atk, def, opts){
           if (!tg){ var bs2=-1; NON_RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4 && lq.stat.speed>bs2){ tg=lq; bs2=lq.stat.speed; } }); }
         }
         if (tg){ var k2=kills(p,tg,tg.loc-p.loc); if (log) log.push([round,'A',i,tg.type,k2]); credA(i,tg,hit(tg,k2)); }
-        else if (wallhp>0 && maxR4>=fs){ wallhp=Math.max(wallhp - Math.floor(F(p.count*p.stat.attack)),0); if (log) log.push([round,'A',i,'wall']); }
+        else if (wallhp>0 && maxR4>=fs){ wallhp=Math.max(wallhp - Math.floor(F(p.count*p.stat.attack*(MELEE[i]?1:0.5))),0); if (log) log.push([round,'A',i,'wall']); }
       }
     }
     var wallUp = !(wall>0) || wallhp>0; // fortifications sit on the wall: once it falls they stop
@@ -780,7 +780,7 @@ function fight(atk, def, opts){
       var pos=fs-5000, tot=0;
       A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs) tot++; });
       if (tot>0){
-        var mt=Math.min(trap,trapDie), kk=trunc(F(mt*trapKP)/tot);
+        var mt=Math.min(trap,trapDie), kk=trunc(F(mt*0.5*trapKP)/tot);
         A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs){ var b0=lp.eff; lp.eff-=kk; if (lp.eff<0) lp.eff=0; credD(12,lp,b0-lp.eff); } });
         trap-=mt;
       }
@@ -793,9 +793,9 @@ function fight(atk, def, opts){
     }
     // rolling logs
     if (logs>0 && wallUp){
-      var pos3=fs-FS[3].range, best=0, t3=null;
+      var pos3=fs-(fs>=5000?5000:FS[3].range), best=0, t3=null; // logs reach 5000 on the 5K field (any trap, abatis or trebuchet), like traps
       [0,1,2,3,4,5].forEach(function(k){ var lp=A[k]; var v=F(lp.eff*lp.stat.attack); if (lp.eff>0 && lp.loc>=pos3 && lp.loc<=fs && v>best){ t3=lp; best=v; } });
-      if (t3){ var ml=Math.min(logs,logDie), b3=t3.eff; t3.eff=Math.max(t3.eff - Math.floor(F(F(F(ml*logKP)*FS[3].attack)*t3.stat.defense)),0); credD(15,t3,b3-t3.eff); logs-=ml; }
+      if (t3){ var ml=Math.min(logs,logDie), b3=t3.eff; t3.eff=Math.max(t3.eff - Math.floor(F(F(F(ml*logKP)*FS[3].attack)/F((2-t3.stat.defense)*t3.stat.life))),0); credD(15,t3,b3-t3.eff); logs-=ml; }
     }
     // trebuchets
     if (rocks>0 && wallUp){
@@ -935,7 +935,7 @@ var FORTS = [
 function fortCap(){ return 1000*tri(S.wall||0); }
 function fortUsed(){ var u=0; S.forts.forEach(function(n,i){ u+=n*FORTS[i].space; }); if (S.fortQ) u+=S.fortQ.n*FORTS[S.fortQ.f].space; return u; }
 function fortTime(i){ return FORTS[i].t*1000/(1+0.1*(S.tech.construction||0)); }
-function wallDurability(L){ return Math.round(16500*L*L*L*(1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0))); }
+function wallDurability(L){ return Math.round(50000*L*(L+1)*(1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0))); }
 
 /* ---------- prestige, ranks and titles ---------- */
 var PREST_B = {walls:30,farm:5,sawmill:7,quarry:9,ironmine:11,cottage:4,warehouse:21,inn:26,feasting:35,market:32,rally:25,
@@ -1515,7 +1515,7 @@ function cityDefense(c){
   return withCity(cityIndex(c.id), function(){ var m=mayorActive();
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
     return {troops:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.map(function(n,i){ return n+helpT[i]; }), fortifications:S.forts.slice(), wallLevel:S.wall||0, research:simResearch(), hero:{intel:hs(m,"int")}, life_modifier:setLife(m),
-      defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(m,"atk")/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}; });
+      defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(m,"atk")/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0), trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25}; });
 }
 function wavePick(pool, frac, types){ return pool.map(function(n,i){ return (!types || types.indexOf(i)>=0) ? Math.floor(n*frac) : 0; }); }
 function oneEach(pool, arr){ pool.forEach(function(n,i){ if (n>0 && !arr[i] && i!==2 && i!==6) arr[i]=1; }); return arr; }
@@ -1533,7 +1533,7 @@ function aiPlans(pool, pers, def){
   return {all:P, fav:fav};
 }
 function scorePlan(waves, aiSide, def){
-  var d={troops:def.troops.slice(), fortifications:def.fortifications.slice(), wallLevel:def.wallLevel, research:def.research, hero:def.hero, life_modifier:def.life_modifier, attack_modifier:def.attack_modifier, fortBonus:def.fortBonus};
+  var d={troops:def.troops.slice(), fortifications:def.fortifications.slice(), wallLevel:def.wallLevel, research:def.research, hero:def.hero, life_modifier:def.life_modifier, attack_modifier:def.attack_modifier, fortBonus:def.fortBonus, trapKillPower:def.trapKillPower, logKillPower:def.logKillPower, rockKillPower:def.rockKillPower};
   var dLoss=0, aLoss=0, won=false;
   waves.forEach(function(w){
     var A={troops:w.t, research:aiSide.r, attack_modifier:aiSide.am};
@@ -2855,7 +2855,7 @@ function fortSection(){
   if (!L){ return h+'<p class="hint">No walls yet. Tap the stone ring around your city to build them. Walls hold fortifications and must be broken before an attacker wins.</p><button class="btn small" data-w="wall" data-i="0">Build walls</button></details>'; }
   var shut=S.gate==="closed";
   h+='<div class="gaterow'+(shut?' shut':'')+'"><div><b>Gate '+(shut?'closed':'open')+'</b><div class="dur">'+(shut?'Your troops stay hidden when attacked. Only the walls and fortifications fight, so a broken wall still gets you plundered, but no troops die.':'Your troops march out and fight alongside the walls when attacked.')+'</div></div><button class="btn small'+(shut?'':' ghost')+'" data-act="gate">'+(shut?'Open gate':'Close gate')+'</button></div>';
-  h+='<p class="hint">Durability '+fmt(wallDurability(L))+'. Space '+fmt(fortUsed())+' of '+fmt(fortCap())+'. Archer tower reach +'+(L*4.5).toFixed(1)+'%. These fight exactly like the fortifications on NPC cities and AI lords.</p>';
+  h+='<p class="hint">Durability '+fmt(wallDurability(L))+'. Space '+fmt(fortUsed())+' of '+fmt(fortCap())+'. Archer tower reach +'+(L*3).toFixed(1)+'%. These fight exactly like the fortifications on NPC cities and AI lords.</p>';
   if (S.fortQ) h+='<div class="bq"><span>Building '+fmt(S.fortQ.n)+' '+FORTS[S.fortQ.f].name+'</span><span class="qtime" id="fq-t"></span><div class="bar"><i id="fq-bar"></i></div><div class="qacts">'+(hasSpeedups()?'<button class="link strong" data-act="speedup" data-target="fort">Speed up</button>':'')+'<button class="link" data-act="cancel-fort">Cancel</button></div></div>';
   h+='<div class="unitlist">';
   FORTS.forEach(function(f,i){
@@ -4464,7 +4464,7 @@ function renderSimResult(){
     var fsum=0;
     for (var k=0;k<5;k++){ var fh=D.fortifications[k]; if (!fh) continue; fsum++;
       if (!fsum) {} h+='<tr><td>'+FORTN[k]+'</td><td></td><td></td><td>'+fmt(fh)+'</td><td class="'+(fh-r.forts[k]?'ok':'')+'">'+fmt(fh-r.forts[k])+'</td></tr>'; }
-    if (D.wallLevel){ var wmax=Math.round(16500*D.wallLevel*D.wallLevel*D.wallLevel*(D.fortBonus||1)); h+='<tr><td>Wall durability</td><td></td><td></td><td>'+fmt(wmax)+'</td><td class="'+(wmax-r.wallhp?'ok':'')+'">'+fmt(wmax-r.wallhp)+'</td></tr>'; }
+    if (D.wallLevel){ var wmax=Math.round(50000*D.wallLevel*(D.wallLevel+1)*(D.fortBonus||1)); h+='<tr><td>Wall durability</td><td></td><td></td><td>'+fmt(wmax)+'</td><td class="'+(wmax-r.wallhp?'ok':'')+'">'+fmt(wmax-r.wallhp)+'</td></tr>'; }
     h+='</tbody></table></div>'+killsHtml({kb:r.kb});
     var lines=[];
     r.log.forEach(function(e){
