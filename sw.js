@@ -1,5 +1,5 @@
 // Ibory offline worker. Bump CACHE on every release so phones pick up the new game.
-const CACHE = "ibory-v20261008";
+const CACHE = "ibory-v20261009";
 const CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

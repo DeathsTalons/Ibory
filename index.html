@@ -1242,7 +1242,7 @@ function historicHero(q){
   var lv=q.L===12?30+Math.floor(u(1)*15):q.L===14?45+Math.floor(u(1)*15):q.L===16?60+Math.floor(u(1)*15):80;
   var st={pol:70+Math.floor(u(2)*40), atk:70+Math.floor(u(3)*40), int:70+Math.floor(u(4)*40)};
   st[["pol","atk","int"][Math.floor(u(5)*3)]] += 40+Math.floor(u(6)*30);
-  return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0};
+  return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:{pol:st.pol, atk:st.atk, int:st.int}};
 }
 function captureCity(q, troops){
   achCapture(q);
@@ -2183,9 +2183,10 @@ function genHero(tier, level, spikeStat){
   if (!level) level = rnd(t.lv[0], t.lv[1]);
   var st = {pol:rnd(t.lo,t.hi), atk:rnd(t.lo,t.hi), int:rnd(t.lo,t.hi)};
   if (t.spike){ st[spikeStat || pick(["pol","atk","int"])] += t.spike; }
+  var base={pol:st.pol, atk:st.atk, int:st.int}; // the hero's stats before any level-up points, so points can be handed back
   for (var i=1;i<level;i++) st[pick(["pol","atk","int"])]++;
   var name = pick(FIRST)+" "+((tier==="epic"||tier==="legendary") && Math.random()<.6 ? pick(EPITHET) : pick(LAST));
-  return {id:S.nextHeroId++, name:name, tier:tier, level:level, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0};
+  return {id:S.nextHeroId++, name:name, tier:tier, level:level, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:base};
 }
 function xpNeed(L){ return 100*L*L; }
 function giveXp(h, xp){
@@ -2194,6 +2195,29 @@ function giveXp(h, xp){
   while (h.level<HERO_MAX && h.xp >= xpNeed(h.level)){ h.xp -= xpNeed(h.level); h.level++; h.pts++; up++; }
   if (h.level>=HERO_MAX) h.xp=0;
   return up;
+}
+// Respec: every point a hero has been given above its starting stats goes back into the pool to be spent again.
+// Heroes made before this feature have no recorded start: estimate it by taking the points they must have spent
+// (level - 1 - unspent) off their stats in proportion to how far each sits above the tier's floor.
+function heroBaseOf(h){
+  if (h.base) return h.base;
+  var t=TIERS[h.tier], keys=["pol","atk","int"], b={pol:h.pol, atk:h.atk, int:h.int};
+  if (!t || t.lo==null) return b; // historic heroes arrive fully formed; we can't tell what was added later
+  var owed=Math.max(0, h.level-1-(h.pts||0)), room={}, tot=0;
+  keys.forEach(function(k){ room[k]=Math.max(0,h[k]-t.lo); tot+=room[k]; });
+  owed=Math.min(owed, tot);
+  var take={}, used=0;
+  keys.forEach(function(k){ take[k]=tot?Math.min(room[k], Math.floor(owed*room[k]/tot)):0; used+=take[k]; });
+  keys.slice().sort(function(a,c){ return (room[c]-take[c])-(room[a]-take[a]); }).forEach(function(k){ if (used<owed && take[k]<room[k]){ take[k]++; used++; } });
+  keys.forEach(function(k){ b[k]=h[k]-take[k]; });
+  return b;
+}
+function heroSpent(h){ var b=heroBaseOf(h); return Math.max(0,(h.pol-b.pol)+(h.atk-b.atk)+(h.int-b.int)); }
+function respecHero(h){
+  var b=heroBaseOf(h), n=heroSpent(h); if (!n) return 0;
+  h.base={pol:b.pol, atk:b.atk, int:b.int};
+  h.pol=b.pol; h.atk=b.atk; h.int=b.int; h.pts=(h.pts||0)+n;
+  return n;
 }
 function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].heroes; for (var i=0;i<hs.length;i++) if (hs[i].id===id) return hs[i]; } return null; }
 function mayor(){ return S.mayor ? heroById(S.mayor) : null; }
@@ -4906,7 +4930,9 @@ function renderSheet(){
     var hoff=officeOf(hr);
     h+='<div class="btnrow">'+(hoff?'<button class="btn ghost" data-act="unoffice">Step down as '+hoff[1].toLowerCase()+'</button>':OFFICES.map(function(o){ return '<button class="btn'+(o[0]==="mayor"?'':' ghost')+'" data-act="office" data-role="'+o[0]+'">'+o[1]+'</button>'; }).join(""))+
       ["primer","tome","codex","annals"].map(function(bk){ return '<button class="btn ghost small" data-act="tome" data-book="'+bk+'"'+((S.items[bk]||0)&&hr.level<HERO_MAX?'':' disabled')+'>'+ITEMS[bk].name+' +'+fmt(ITEMS[bk].xp)+' ('+(S.items[bk]||0)+')</button>'; }).join("")+'</div>';
-    h+='<div class="act"><button class="btn ghost danger small" data-act="dismiss">'+(armed==="dismiss"?"Tap again to dismiss":"Dismiss hero")+'</button><button class="closebtn" data-act="close">Close</button></div>';
+    var spentPts=heroSpent(hr);
+    h+='<div class="act"><button class="btn ghost small" data-act="respec"'+(spentPts?'':' disabled')+'>'+(armed==="respec"?"Tap again: take back "+spentPts+" point"+(spentPts>1?"s":""):"Reset points"+(spentPts?" ("+spentPts+")":""))+'</button></div>'+
+      '<div class="act"><button class="btn ghost danger small" data-act="dismiss">'+(armed==="dismiss"?"Tap again to dismiss":"Dismiss hero")+'</button><button class="closebtn" data-act="close">Close</button></div>';
   } else {
     var w=sheetFor.w, i=sheetFor.i, s=getSlot(w,i);
     if (!s){
@@ -5438,6 +5464,11 @@ document.addEventListener("click",function(e){
     var bkk=a.dataset.book||"tome", th=heroById(sheetFor.id); if (!th || !(S.items[bkk]>0)) return;
     S.items[bkk]--; var up=giveXp(th, ITEMS[bkk].xp);
     toast(up ? th.name+" reached level "+th.level : th.name+" gained "+fmt(ITEMS[bkk].xp)+" experience"); refresh(); return;
+  }
+  if (act==="respec"){
+    var rh=heroById(sheetFor.id); if (!rh || !heroSpent(rh)) return;
+    if (armed!=="respec"){ armed="respec"; lastSheet=""; renderSheet(); return; }
+    armed=null; var back=respecHero(rh); toast(rh.name+": "+back+" point"+(back>1?"s":"")+" back to spend"); save(); lastSheet=""; refresh(); return;
   }
   if (act==="dismiss"){
     if (armed!=="dismiss"){ armed="dismiss"; lastSheet=""; renderSheet(); return; }
