@@ -1354,6 +1354,7 @@ function resolveMarch(m){
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
+    if (q.k==="npc" && dl>=5 && Math.random()<(0.005+0.001*(Math.min(dl,10)-5))*bItems()){ S.items.script=(S.items.script||0)+1; drops.push("a Michelangelo\u2019s Script"); } // 0.5% at level 5 up to 1% at level 10
     if (q.k==="npc" && dl>=5){ var sr=Math.random()/bItems(), sk=null; // timed speed-ups: rare, bigger ones only from tougher NPCs (0.9% total at most)
       if (dl>=10 && sr<0.001) sk="s480"; else if (dl>=7 && sr<0.003) sk="s150"; else if (sr<0.005) sk="s60"; else if (sr<0.009) sk="s15";
       if (sk){ S.items[sk]=(S.items[sk]||0)+1; drops.push("a "+ITEMS[sk].name); } }
@@ -2288,6 +2289,7 @@ var ITEMS = {
   mithril:{name:"Mithril",icon:"anvil"},
   starmetal:{name:"Star Metal",icon:"anvil"},
   scale:{name:"Dragon Scale",icon:"anvil"},
+  script:{name:"Michelangelo\u2019s Script",icon:"crest"},
   gemD:{name:"Delicate Gems",icon:"anvil"},
   gemF:{name:"Flawless Gems",icon:"anvil"}
 };
@@ -2420,6 +2422,7 @@ function migrate(s){
   if (s.v===36){ s.cities.forEach(function(cc){ cc.wounded=[]; }); s.v=37; }
   if (s.v===37){ s.items=s.items||{}; s.items.warhorn=s.items.warhorn||0; s.items.corselet=s.items.corselet||0; s.hornUntil=0; s.corsUntil=0; s.v=38; }
   if (s.v===38){ s.cities.forEach(function(cc){ cc.trainer=null; cc.researcher=null; }); s.v=39; }
+  if (s.v===39){ s.items=s.items||{}; s.items.script=s.items.script||0; s.v=40; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -2456,7 +2459,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=39) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=40) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=S.testSpeed||1; // real time unless a testing speed is set
 installProxies(S);
@@ -2487,12 +2490,12 @@ function exportCode(){ return btoa(unescape(encodeURIComponent(JSON.stringify(S)
 function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
 
 function getSlot(w,i){ return w==="wall" ? {type:"walls",level:S.wall||0} : w==="th" ? {type:"townhall",level:S.th} : (w==="in" ? S.inside[i] : S.fields[i]); }
-function costFor(type,L){ var b=DEF[type].cost,o={}; for (var k in b) o[k]=Math.round(b[k]*Math.pow(2,L-1)); return o; }
+function costFor(type,L){ var b=DEF[type].cost,o={}; for (var k in b) o[k]=Math.round(b[k]*Math.pow(2,L-1)); if (L===10) o.script=1; return o; } // the climb to level 10 also takes one Michelangelo’s Script
 function timeFor(type,L){ return DEF[type].t*Math.pow(2,L-1)*1000/(1+0.1*S.tech.construction)/(1+hs(bestFor("pol"),"pol")/200)/bBuild(); }
 function techCost(key,L){ var o={}, base=TECH[key].g==="Economy"?TECH_COST_ECO:TECH_COST; for (var k in base) o[k]=Math.round(base[k]*Math.pow(2,L-1)); return o; }
 function techTime(key,L){ return (TECH[key].t||TECH_T)*Math.pow(2,L-1)*1000/(1+0.1*(S.tech.scholarship||0))/(1+hs(bestFor("int"),"int")/200)/bResearch(); }
-function afford(c){ for (var k in c) if (S.res[k] < c[k]) return false; return true; }
-function pay(c,sign){ for (var k in c) S.res[k] -= sign*c[k]; }
+function afford(c){ for (var k in c){ var have = k==="script" ? ((S.items&&S.items.script)||0) : S.res[k]; if (have < c[k]) return false; } return true; }
+function pay(c,sign){ for (var k in c){ if (k==="script"){ S.items.script=(S.items.script||0)-sign*c[k]; } else S.res[k] -= sign*c[k]; } }
 function findUnique(type){ for (var i=0;i<S.inside.length;i++){ var s=S.inside[i]; if (s && s.type===type) return s; } return null; }
 function academyLv(){ var a=findUnique("academy"); return a?a.level:0; }
 function marketLv(){ var m=findUnique("market"); return m?m.level:0; }
@@ -2632,7 +2635,7 @@ function saveAge(){ // the game clock is the save's age (real time at 1x)
   return d+" day"+(d===1?"":"s")+", "+h+" hour"+(h===1?"":"s")+" and "+m+" minute"+(m===1?"":"s");
 }
 function pct(x){ return Math.round(x*100)+"%"; }
-function chips(c){ var h=""; RES.forEach(function(k){ if (c[k]) h += '<span class="chip'+(S.res[k]<c[k]?' short':'')+'" title="'+RNAME[k]+'">'+ICON[k]+fmt(c[k])+'</span>'; }); return '<div class="chips">'+h+'</div>'; }
+function chips(c){ var h=""; RES.forEach(function(k){ if (c[k]) h += '<span class="chip'+(S.res[k]<c[k]?' short':'')+'" title="'+RNAME[k]+'">'+ICON[k]+fmt(c[k])+'</span>'; }); if (c.script) h += '<span class="chip'+(((S.items&&S.items.script)||0)<c.script?' short':'')+'" title="Michelangelo\u2019s Script">'+ICON.crest+c.script+'\u00d7 Michelangelo\u2019s Script</span>'; return '<div class="chips">'+h+'</div>'; }
 function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 function jobFor(sf){ return sf.target==="build" ? S.builds[sf.slot] : sf.target==="research" ? S.research : sf.target==="fort" ? S.fortQ : trainingAt(sf.slot); }
 function hasSpeedups(forBuild){ return (S.items.s15||0)+(S.items.s60||0)+(S.items.s150||0)+(S.items.s480||0)+(forBuild?(S.items.build50||0):0) > 0; }
@@ -4570,6 +4573,7 @@ var ITEM_GROUPS=[
   ["Boxes and orders",["warhorn","corselet","surgeon","banish","medalbox","medalbox2","medalbox3","teleport","ensign"]],
   ["Hero books",["primer","tome","codex","annals"]],
   ["Gear materials",["ore","ingot","mithril","starmetal","scale"]],
+  ["Building",["script"]],
   ["Gems",["gemD","gemF"]]
 ];
 var ITEM_INFO={
@@ -4597,6 +4601,7 @@ var ITEM_INFO={
   mithril:"Crafts high-tier gear at the Workshop.",
   starmetal:"Crafts the rarest gear at the Workshop.",
   scale:"Dragon Scale: the material for Mythic gear.",
+  script:"The plans every great building needs. Each upgrade to level 10 uses up one, whatever the building. Level 5 to 10 NPC cities drop it, a little more often the tougher they are.",
   gemD:"Added to gear in the Forge to try for a star.",
   gemF:"Added to gear in the Forge for a much better chance at a star."
 };
@@ -4828,6 +4833,7 @@ function upgradeWhy(type,L){
   var rq=buildReqWhy(type,L+1); if (rq) return rq;
   if (type!=="townhall" && L+1>thAllows(type)) return "Needs Town Hall level "+(L+1-(TH_OVER[type]||0));
   if (!builderFree()) return "Both builders are busy";
+  if (L+1===10 && !((S.items&&S.items.script)||0)) return "Needs a Michelangelo\u2019s Script";
   if (!afford(costFor(type,L+1))) return "Not enough resources";
   return "";
 }
@@ -5574,5 +5580,8 @@ document.addEventListener("visibilitychange",function(){ if (document.hidden){ a
 window.addEventListener("pagehide",function(){ advance(Date.now()); save(); });
 })();
 </script>
+<!-- Ibory save v40: Michelangelo's Script -->
 </body>
 </html>
+
+</body></html>

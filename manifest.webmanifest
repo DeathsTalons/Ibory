@@ -1,7 +1,7 @@
 {
   "name": "Ibory",
   "short_name": "Ibory",
-  "description": "A single-player, real-time remake of Evony Age 1.",
+  "description": "A single-player, real-time remake of Evony Age 1 set in North March.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
