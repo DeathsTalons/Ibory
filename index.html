@@ -3063,8 +3063,11 @@ function gearPickSheet(hr, slot){
   var opts=S.gear.filter(function(x){ return x.slot===ps.type && x!==cur; }).sort(function(a,b){ return gearVal(b)-gearVal(a); });
   var h='<div class="head"><span class="ico">'+ICON.helm+'</span><div><h2>'+ps.name+' for '+esc(hr.name)+'</h2><div class="sub">Takes a '+sl.name+'. Adds '+STATN[sl.stat]+(ps.type==="mount"?', and marches go faster: 3% (Common) up to 15% (Mythic)':'')+'.</div></div></div>';
   if (cur) h+='<div class="effect">Wearing '+gearName(cur)+' '+starStr(cur)+' (+'+gearVal(cur)+')</div>'+'<div class="h3">Upgrade '+esc(hr.name)+'\u2019s '+gearName(cur)+'</div>'+forgeControls(cur)+'<div class="btnrow"><button class="btn ghost small" data-act="gear-off" data-g="'+cur.id+'">Take it off</button></div>';
+  var cw=craftWhy(0);
+  h+='<div class="h3">Craft a new one</div><div class="effect">Common '+sl.name+': +'+GEAR_BASE[0]+' '+STATN[sl.stat]+', made from '+MAT_NEED[0]+' '+ITEMS[MAT[0]].name+' (you have '+fmt(S.items[MAT[0]]||0)+'). Upgrade its tier and stars right here afterwards.</div>'+
+    '<div class="act"><span class="why">'+cw+'</span><span class="btnrow"><button class="btn ghost small" data-act="gear-craft"'+(cw?' disabled':'')+'>Craft</button><button class="btn small" data-act="gear-craft" data-wear="1"'+(cw?' disabled':'')+'>Craft and wear</button></span></div>';
   if (opts.length) h+='<div class="h3">'+(cur?'Swap it for':'Equip')+'</div>';
-  if (!opts.length) h+='<p class="hint">No other '+sl.name.toLowerCase()+' in the armory. Gear never drops; craft one in the Workshop.</p>';
+  if (!opts.length) h+='<p class="hint">No other '+sl.name.toLowerCase()+' in the armory. Craft one above.</p>';
   else h+='<div class="gearlist">'+opts.map(function(g){ var who=g.on?heroById(g.on):null; if (who===hr) who=null; return '<button class="gearrow t'+g.tier+'" data-act="gear-on" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+'</span><span class="dur">'+(who?'Take from '+esc(who.name):'Equip')+'</span></button>'; }).join("")+'</div>';
   return h+'<button class="closebtn" data-act="close">Back to '+esc(hr.name)+'\u2019s gear</button>';
 }
@@ -5413,6 +5416,13 @@ document.addEventListener("click",function(e){
   if (act==="gear-pick"){ forgeLog=[]; openSheet({kind:"gearpick",hero:sheetFor.id,slot:a.dataset.slot,back:sheetFor.id}); return; }
   if (act==="gear-on"){ var eg=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0];
     var ep=sheetFor.slot; S.gear.forEach(function(x){ if (x!==eg && x.on===sheetFor.hero && posOf(x)===ep){ x.on=0; delete x.at; } }); eg.on=sheetFor.hero; eg.at=ep; var bh=sheetFor.back; openSheet({kind:"hero",id:bh,focus:"gear"}); refresh(); return; }
+  if (act==="gear-craft"){
+    if (!sheetFor || sheetFor.kind!=="gearpick" || craftWhy(0)) return;
+    var chr=heroById(sheetFor.hero), cps=posInfo(sheetFor.slot); if (!chr) return;
+    S.items[MAT[0]]-=MAT_NEED[0]; var ng=makeGear(0,cps.type); save();
+    if (a.dataset.wear){ S.gear.forEach(function(x){ if (x!==ng && x.on===sheetFor.hero && posOf(x)===sheetFor.slot){ x.on=0; delete x.at; } }); ng.on=sheetFor.hero; ng.at=sheetFor.slot; toast("Crafted and equipped a "+gearName(ng)); }
+    else toast("Crafted a "+gearName(ng));
+    lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="gear-off"){ var og=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0]; if (og){ og.on=0; delete og.at; } openSheet({kind:"hero",id:sheetFor.back,focus:"gear"}); refresh(); return; }
   if (act==="forge-gem"){ forgeGem=a.dataset.v; lastSheet=""; renderSheet(); return; }
   if (act==="forge-n"){ forgeN=+a.dataset.v; lastSheet=""; renderSheet(); return; }
