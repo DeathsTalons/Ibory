@@ -134,6 +134,9 @@ details.rep summary{list-style-position:outside;line-height:1.35}
 .chipbtn{min-width:34px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font:700 .9rem var(--display)}
 .chipbtn.on{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
 .chipbtn:disabled{opacity:.4;cursor:not-allowed}
+.chipbtn.wide{padding:0 12px}
+.fnote{grid-column:1/-1;font-size:.88rem;color:var(--muted)}
+.fnote.bad{color:var(--red)}
 .chk{display:flex;gap:8px;align-items:center;font-size:.93rem}
 .qlist{margin:6px 0 0;padding-left:22px;display:grid;gap:4px}
 .qlist li span.dur{margin-left:6px}
@@ -453,6 +456,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button role="tab" data-act="tab" data-tab="map">Map</button>
     <button role="tab" data-act="tab" data-tab="reports">Reports</button>
     <button role="tab" data-act="tab" data-tab="army">Army</button>
+    <button role="tab" data-act="tab" data-tab="farms">Farms</button>
     <button role="tab" data-act="tab" data-tab="heroes">Heroes</button>
     <button role="tab" data-act="tab" data-tab="alliance">Alliance</button>
     <button role="tab" data-act="tab" data-tab="war">War Room</button>
@@ -1441,7 +1445,7 @@ function presetsSection(){
     var hh=presetHero(pr), running=S.marches.some(function(m){ return m.city===C().id && m.preset===pi; });
     var rot=0; if (presetTotal(pr)) pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq) rot+=2*travelMs(pr.t,fq,hh?hh.id:0); });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
-      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(hh?esc(hh.name):"none")+'</b></span><span>Farm list <b>'+pr.farm.length+'</b></span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
+      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(hh?esc(hh.name):"none")+'</b></span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
       '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit</button>'+(pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+
       (presetTotal(pr)>armyCap()?'<span class="why">Over the '+fmt(armyCap())+'-troop march limit</span>':pr.auto && !presetReady(pr) && !running?'<span class="why">Waiting for troops</span>':'')+'</div></div>';
   });
@@ -1459,6 +1463,107 @@ function presetSheet(pi){
   else h+='<ol class="qlist">'+pr.farm.map(function(id,k){ var q=TILE_BY[id]; return '<li><span>'+(q?esc(tileName(q)):"Gone")+' <span class="dur">('+id.replace(",",", ")+(q?', '+tdist(q).toFixed(1)+' tiles':'')+')</span>'+(k===pr.idx%pr.farm.length?' <span class="dur">next</span>':'')+'</span><button class="link" data-act="farm-remove" data-p="'+pi+'" data-k="'+k+'">Remove</button></li>'; }).join("")+'</ol>';
   h+='<div class="act"><button class="btn ghost danger small" data-act="farm-clear" data-p="'+pi+'"'+(pr.farm.length?'':' disabled')+'>Clear farm list</button><button class="closebtn" data-act="close">Done</button></div>';
   return h;
+}
+/* ---------- farm planner: builds each preset's farm list for you ---------- */
+// Troops in an NPC city grow back in REGEN_T (1 hour) and its loot in REGEN_R (4 hours). A Training list is a little over one hour of
+// round trips, so every garrison is back at full strength when you return; a Resources list is a little over four, so the loot has regrown too.
+var FARM_MODES={
+  training:{name:"Training", ms:REGEN_T, hours:1, blurb:"experience from the biggest garrisons"},
+  resources:{name:"Resources", ms:REGEN_R, hours:4, blurb:"the most plunder"}
+};
+var farmArmed=false, farmMsg={};
+function farmClaimed(ignore){ // every NPC already sitting on any preset's list, in any city, except the presets about to be rebuilt
+  var s={}; S.cities.forEach(function(c){ (c.presets||[]).forEach(function(pr){ if (ignore.indexOf(pr)>=0) return; pr.farm.forEach(function(id){ s[id]=1; }); }); });
+  return s;
+}
+function farmAttacker(pr){ var hero=presetHero(pr);
+  return {troops:pr.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
+}
+// what a fresh level-L NPC is worth to this preset: experience and plunder per visit, or ok:false if it can't win (cleanly, when the preset pauses on losses)
+function farmLevelStats(pr, L){
+  var A=farmAttacker(pr), b=baseOf({k:"npc",L:L,id:"0,0",x:0,y:0}), TR=5, xp=0, loot=0, tot=0, i, k;
+  var load=(1+0.1*(S.tech.logistics||0))*(1+0.05*(S.tech.privateering||0));
+  RES.forEach(function(r){ tot+=b.res[r]; });
+  for (k=0;k<TR;k++){
+    var r=SIM.fight(A,{troops:b.t,fortifications:b.f,wallLevel:b.wall,research:b.r,attack_modifier:b.am||1,fortBonus:b.fb||1,hero:{intel:b.hint||0}});
+    if (r.result!==1) return {ok:false};
+    var lost=0, cap=0, x=0;
+    for (i=0;i<12;i++){ lost+=A.troops[i]-r.attacker[i]; cap+=r.attacker[i]*LOAD[i]*load; x+=(b.t[i]-r.defender[i])*KILLXP[i]; }
+    for (i=0;i<5;i++) x+=(b.f[i]-r.forts[i])*FORTXP[i];
+    if (lost>0 && pr.stopOnLoss) return {ok:false, lossy:true};
+    xp+=x; loot+=Math.min(cap,tot);
+  }
+  return {ok:true, xp:xp/TR, loot:loot/TR};
+}
+function farmRadius(pr, mode){ var hid=presetHero(pr)?presetHero(pr).id:0, hx=S.map.home[0], hy=S.map.home[1], per=travelMs(pr.t,{x:hx+1,y:hy},hid);
+  return per ? Math.min(Math.max(MAPW,MAPH), Math.floor(FARM_MODES[mode].ms/(2*per))+1) : 0; }
+function farmPool(R){ // every NPC city within R tiles of this city
+  var hx=S.map.home[0], hy=S.map.home[1], out=[], x, y;
+  for (x=Math.max(0,hx-R); x<=Math.min(MAPW-1,hx+R); x++) for (y=Math.max(0,hy-R); y<=Math.min(MAPH-1,hy+R); y++){
+    var dx=x-hx, dy=y-hy; if (dx*dx+dy*dy>R*R) continue;
+    var q=tileAt(x,y); if (q.k==="npc") out.push(q);
+  }
+  return out;
+}
+function farmPlan(pr, mode, pool, taken){
+  var m=FARM_MODES[mode], hero=presetHero(pr), hid=hero?hero.id:0, out={ids:[], rot:0, levels:{}, short:false, why:"", mode:mode};
+  if (!rallyLv()){ out.why="Build a Rally Spot first"; return out; }
+  if (!presetTotal(pr)){ out.why="Set this preset’s troops first"; return out; }
+  if (presetTotal(pr)>armyCap()){ out.why="Over the "+fmt(armyCap())+"-troop march limit"; return out; }
+  var cache={}, cands=[];
+  pool.forEach(function(q){
+    if (taken[q.id] || (S.alliance && S.alliance.farms && S.alliance.farms[q.id])) return;
+    if (pr.farmLevel && q.L!==pr.farmLevel) return;
+    var trip=2*travelMs(pr.t,q,hid); if (!trip || trip>m.ms) return;
+    var st=cache[q.L]; if (!st) st=cache[q.L]=farmLevelStats(pr,q.L); if (!st.ok) return;
+    cands.push({id:q.id, L:q.L, trip:trip, score:(mode==="training"?st.xp:st.loot)/trip});
+  });
+  if (!cands.length){ out.why="No unclaimed "+(pr.farmLevel?"level "+pr.farmLevel+" ":"")+"NPC in range that this army beats"+(pr.stopOnLoss?" without losses":""); return out; }
+  cands.sort(function(a,b){ return b.score-a.score; });
+  var total=0;
+  while (cands.length && total<m.ms){
+    var gap=m.ms-total, c=cands[0];
+    if (c.trip>=gap){ var best=null; for (var i=0;i<cands.length;i++) if (cands[i].trip>=gap && (!best || cands[i].trip<best.trip)) best=cands[i]; c=best; } // the last stop: whichever goes over by the least
+    cands.splice(cands.indexOf(c),1); out.ids.push(c.id); out.levels[c.L]=(out.levels[c.L]||0)+1; total+=c.trip;
+  }
+  out.rot=total; out.short=total<m.ms; return out;
+}
+function farmRebuild(pis){ // rebuild these presets' lists in order; an NPC never lands on two lists
+  var list=pis.map(function(i){ return S.presets[i]; }), taken=farmClaimed(list), res={}, R=0;
+  pis.forEach(function(pi){ var pr=S.presets[pi]; R=Math.max(R, farmRadius(pr,pr.farmMode)); });
+  var pool=R?farmPool(R):[];
+  pis.forEach(function(pi){
+    var pr=S.presets[pi], plan=farmPlan(pr,pr.farmMode,pool,taken); res[pi]=plan;
+    if (plan.why){ farmMsg[C().id+":"+pi]={bad:true, t:plan.why}; return; }
+    pr.farm=plan.ids.slice(); pr.idx=0; plan.ids.forEach(function(id){ taken[id]=1; });
+    farmMsg[C().id+":"+pi]={bad:false, t:"Added "+plan.ids.length+" NPC"+(plan.ids.length===1?"":"s")+" ("+farmLevelsText(plan.levels)+"), "+fmtT(realMs(plan.rot))+" round trip."+(plan.short?" That is short of "+FARM_MODES[pr.farmMode].hours+" hour"+(FARM_MODES[pr.farmMode].hours>1?"s":"")+": no more unclaimed NPCs in range that this army beats"+(pr.stopOnLoss?" without losses":"")+".":"")};
+  });
+  return res;
+}
+function farmLevelsText(lv){ return Object.keys(lv).map(Number).sort(function(a,b){ return b-a; }).map(function(L){ return "L"+L+" ×"+lv[L]; }).join(", ")||"none"; }
+function viewFarms(){
+  var claimed=0, seen={}; S.cities.forEach(function(c){ (c.presets||[]).forEach(function(pr){ pr.farm.forEach(function(id){ if (!seen[id]){ seen[id]=1; claimed++; } }); }); });
+  var withMode=S.presets.filter(function(pr){ return !!pr.farmMode; }).length;
+  var h='<div class="section"><div class="shead"><h3>Farm planner</h3><span class="dur">'+esc(S.name)+'</span></div>'+
+    '<p class="hint">Pick a goal (and, if you like, one NPC level) for each preset and it fills its own farm list with NPC cities no other preset is using, nearest and richest first, only ones that preset’s army beats'+'. <b>Training</b> lists run just over 1 hour of round trips, so every garrison has regrown to full strength when you come back. <b>Resources</b> lists run just over 4 hours, so the plunder has regrown too.</p>'+
+    '<div class="btnrow" style="margin-top:10px"><button class="btn small"'+(withMode?'':' disabled')+' data-act="farm-refill-all">Refill all lists</button>'+
+    '<button class="btn ghost danger small" data-act="farm-clear-all">'+(farmArmed?'Tap again to clear every list':'Clear all farm lists')+'</button></div>'+
+    '<p class="hint" style="margin-top:8px">'+fmt(claimed)+' NPC'+(claimed===1?'':'s')+' on farm lists across your cities. Clearing keeps each preset’s goal, so Refill all rebuilds them from scratch.</p></div><div class="unitlist" style="margin-top:12px">';
+  S.presets.forEach(function(pr,pi){
+    var hh=presetHero(pr), hid=hh?hh.id:0, rot=0, lv={}, msg=farmMsg[C().id+":"+pi], m=pr.farmMode?FARM_MODES[pr.farmMode]:null;
+    pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq){ if (presetTotal(pr)) rot+=2*travelMs(pr.t,fq,hid); if (fq.L) lv[fq.L]=(lv[fq.L]||0)+1; } });
+    h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
+      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(hh?esc(hh.name):"none")+'</b></span></div>'+
+      '<div class="us"><span>Farm list <b>'+pr.farm.length+'</b></span>'+(rot?'<span>Round trip <b>'+fmtT(realMs(rot))+'</b>'+(m?' of '+m.hours+' h':'')+'</span>':'')+(pr.farm.length?'<span>'+farmLevelsText(lv)+'</span>':'')+'</div>'+
+      '<div class="trainrow"><label class="dur" for="fl'+pi+'">NPC level</label><select id="fl'+pi+'" data-farmlvl="'+pi+'" style="width:auto">'+['<option value="0">Any</option>'].concat([1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(pr.farmLevel===n?' selected':'')+'>Level '+n+'</option>'; })).join("")+'</select></div>'+
+      '<div class="trainrow">'+[["off","Off"],["training","Training"],["resources","Resources"]].map(function(x){ var on=(x[0]==="off")?!pr.farmMode:pr.farmMode===x[0];
+        return '<button class="chipbtn wide'+(on?' on':'')+'" data-act="farm-mode" data-p="'+pi+'" data-m="'+x[0]+'" aria-pressed="'+on+'">'+x[1]+'</button>'; }).join("")+'</div>'+
+      '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit army</button>'+
+      (pr.farmMode?'<button class="btn ghost small" data-act="farm-refill" data-p="'+pi+'">Refill list</button>':'')+
+      (pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+'</div>'+
+      (msg?'<div class="fnote'+(msg.bad?' bad':'')+'">'+esc(msg.t)+'</div>':(!presetTotal(pr)?'<div class="fnote">No troops set yet. Use Edit army first.</div>':''))+'</div>';
+  });
+  return h+'</div>';
 }
 function wavesSheet(){
   var d=waveDraft, q=TILE_BY[d.tile], h='<div class="head"><span class="ico">'+ICON.hourglass+'</span><div><h2>Timed waves on '+esc(tileName(q))+'</h2><div class="sub">('+q.x+', '+q.y+'), '+tdist(q).toFixed(1)+' tiles away</div></div></div>';
@@ -4777,7 +4882,7 @@ function renderView(force){
   if (v.contains(document.activeElement) && document.activeElement.tagName!=="BUTTON") return;
   if (tab==="fields") tab="city"; // fields now live under the city, not in the tab bar
   document.body.classList.toggle("bfmode", bfOn());
-  var h = bfOn()?viewBattlefield():tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():viewCity();
+  var h = bfOn()?viewBattlefield():tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="farms"?viewFarms():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():viewCity();
   if (h===lastView && !force) return;
   lastView=h; v.innerHTML=h; setTabs(); wireDetails(v);
   if (document.getElementById("m-have")) updateMarket();
@@ -5078,10 +5183,10 @@ document.addEventListener("click",function(e){
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
   if (advance(Date.now())) flushFinished();
-  if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
+  if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     var tb=document.querySelector('nav.tabs [data-tab="'+tab+'"]'); if (tb && tb.scrollIntoView) tb.scrollIntoView({block:"nearest",inline:"center"}); setTimeout(updateTabArrows,350); return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
-  if (act==="city-go"){ closeSheet(); S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
+  if (act==="city-go"){ closeSheet(); farmArmed=false; S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
   if (act==="close"){ closeSheet(); return; }
   if (act==="settings"){ openSheet({kind:"settings"}); return; }
   if (act==="gate"){ S.gate = S.gate==="closed" ? "open" : "closed"; toast(S.name+"\u2019s gate is "+S.gate); save(); lastView=""; refresh(); return; }
@@ -5400,6 +5505,16 @@ document.addEventListener("click",function(e){
     if (fi>=0){ fp.farm.splice(fi,1); toast("Removed from "+fp.name); } else { fp.farm.push(ft); toast("Added to "+fp.name+"\u2019s farm list ("+fp.farm.length+")"); }
     renderTileInfo(); save(); return; }
   if (act==="farm-remove"){ var fr=S.presets[+a.dataset.p]; fr.farm.splice(+a.dataset.k,1); if (fr.idx>=fr.farm.length) fr.idx=0; lastSheet=""; renderSheet(); save(); return; }
+  if (act==="farm-mode"){ var fmp=+a.dataset.p, fpr=S.presets[fmp], fmm=a.dataset.m; farmArmed=false;
+    if (fmm==="off"){ fpr.farmMode=null; delete farmMsg[C().id+":"+fmp]; }
+    else { fpr.farmMode=fmm; farmRebuild([fmp]); var fmsg=farmMsg[C().id+":"+fmp]; if (fmsg) toast(fpr.name+": "+fmsg.t); }
+    lastView=""; refresh(); return; }
+  if (act==="farm-refill"){ var frp=+a.dataset.p, frr=S.presets[frp]; if (!frr.farmMode) return; farmArmed=false; farmRebuild([frp]); var frm=farmMsg[C().id+":"+frp]; if (frm) toast(frr.name+": "+frm.t); lastView=""; refresh(); return; }
+  if (act==="farm-refill-all"){ var fpis=[]; S.presets.forEach(function(pr,pi){ if (pr.farmMode) fpis.push(pi); }); if (!fpis.length) return; farmArmed=false;
+    var fres=farmRebuild(fpis), fn=0, fok=0; fpis.forEach(function(pi){ if (!fres[pi].why){ fok++; fn+=fres[pi].ids.length; } });
+    toast("Rebuilt "+fok+" of "+fpis.length+" lists, "+fmt(fn)+" NPCs in all"); lastView=""; refresh(); return; }
+  if (act==="farm-clear-all"){ if (!farmArmed){ farmArmed=true; lastView=""; renderView(true); return; }
+    farmArmed=false; S.presets.forEach(function(pr,pi){ pr.farm=[]; pr.idx=0; pr.auto=false; delete farmMsg[C().id+":"+pi]; }); toast("Every farm list in "+S.name+" is cleared"); lastView=""; refresh(); return; }
   if (act==="farm-clear"){ var fc2=S.presets[+a.dataset.p]; fc2.farm=[]; fc2.idx=0; fc2.auto=false; lastSheet=""; renderSheet(); save(); return; }
   if (act==="march-preset"){ var mp=S.presets[+a.dataset.p]; marchDraft.t=mp.t.map(function(n,i){ return Math.min(n,S.troops[i]); });
     var mh=presetHero(mp); marchDraft.hero = mh && !mh.away && !isOfficer(mh) ? mh.id : 0; marchDraft.preview=""; lastSheet=""; renderSheet(); return; }
@@ -5538,6 +5653,7 @@ document.addEventListener("change",function(e){
   if (e.target.id==="m-res"){ mkt.res=e.target.value; updateMarket(); }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
+  if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
   if (e.target.id==="phero"){ S.presets[sheetFor.p].hero=+e.target.value; save(); }
   if (e.target.id==="pstop"){ S.presets[sheetFor.p].stopOnLoss=e.target.checked; save(); }
   if (e.target.id==="wmis"){ waveDraft.mission=e.target.value; updateWaveInfo(); }
@@ -5580,7 +5696,7 @@ document.addEventListener("visibilitychange",function(){ if (document.hidden){ a
 window.addEventListener("pagehide",function(){ advance(Date.now()); save(); });
 })();
 </script>
-<!-- Ibory save v40: Michelangelo's Script -->
+<!-- Ibory save v40: Michelangelo's Script, Farm planner -->
 </body>
 </html>
 
