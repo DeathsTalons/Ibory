@@ -36,3 +36,6 @@ Each hero slot menu has Craft and Craft and wear (3 Rough Ore, Workshop 1).
 
 ## Developer lock
 Testing tools are hidden behind a dev password in Settings. Locking resets game speed to 1x.
+
+## Farm planner: closest first
+Lists now fill with the nearest NPCs first (by round-trip time) so each rotation holds as many stops as possible.

@@ -1520,7 +1520,7 @@ function farmPlan(pr, mode, pool, taken){
     cands.push({id:q.id, L:q.L, trip:trip, score:(mode==="training"?st.xp:st.loot)/trip});
   });
   if (!cands.length){ out.why="No unclaimed "+(pr.farmLevel?"level "+pr.farmLevel+" ":"")+"NPC in range that this army beats"+(pr.stopOnLoss?" without losses":""); return out; }
-  cands.sort(function(a,b){ return b.score-a.score; });
+  cands.sort(function(a,b){ return a.trip-b.trip || b.score-a.score; }); // nearest first, so each rotation holds as many stops as it can
   var total=0;
   while (cands.length && total<m.ms){
     var gap=m.ms-total, c=cands[0];
@@ -1546,7 +1546,7 @@ function viewFarms(){
   var claimed=0, seen={}; S.cities.forEach(function(c){ (c.presets||[]).forEach(function(pr){ pr.farm.forEach(function(id){ if (!seen[id]){ seen[id]=1; claimed++; } }); }); });
   var withMode=S.presets.filter(function(pr){ return !!pr.farmMode; }).length;
   var h='<div class="section"><div class="shead"><h3>Farm planner</h3><span class="dur">'+esc(S.name)+'</span></div>'+
-    '<p class="hint">Pick a goal (and, if you like, one NPC level) for each preset and it fills its own farm list with NPC cities no other preset is using, nearest and richest first, only ones that preset’s army beats'+'. <b>Training</b> lists run just over 1 hour of round trips, so every garrison has regrown to full strength when you come back. <b>Resources</b> lists run just over 4 hours, so the plunder has regrown too.</p>'+
+    '<p class="hint">Pick a goal (and, if you like, one NPC level) for each preset and it fills its own farm list with NPC cities no other preset is using, nearest first, only ones that preset’s army beats'+'. <b>Training</b> lists run just over 1 hour of round trips, so every garrison has regrown to full strength when you come back. <b>Resources</b> lists run just over 4 hours, so the plunder has regrown too.</p>'+
     '<div class="btnrow" style="margin-top:10px"><button class="btn small"'+(withMode?'':' disabled')+' data-act="farm-refill-all">Refill all lists</button>'+
     '<button class="btn ghost danger small" data-act="farm-clear-all">'+(farmArmed?'Tap again to clear every list':'Clear all farm lists')+'</button></div>'+
     '<p class="hint" style="margin-top:8px">'+fmt(claimed)+' NPC'+(claimed===1?'':'s')+' on farm lists across your cities. Clearing keeps each preset’s goal, so Refill all rebuilds them from scratch.</p></div><div class="unitlist" style="margin-top:12px">';
