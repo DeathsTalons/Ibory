@@ -33,3 +33,6 @@ Level 2 to 5 NPC cities can now drop Lion medals (was 2 to 3).
 
 ## Craft from the hero gear menu
 Each hero slot menu has Craft and Craft and wear (3 Rough Ore, Workshop 1).
+
+## Developer lock
+Testing tools are hidden behind a dev password in Settings. Locking resets game speed to 1x.

@@ -2567,7 +2567,7 @@ function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id==
 var S;
 try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=40) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
-S.speed=S.testSpeed||1; // real time unless a testing speed is set
+S.speed=devOn()?(S.testSpeed||1):1; // real time unless a testing speed is set
 installProxies(S);
 if (S.bf && S.bf.active) S.bf.last=Date.now(); // time with the app closed never counts
 S.cities.forEach(function(cc,ci){ withCity(ci,function(){
@@ -3157,6 +3157,10 @@ function scoutHide(q, troops){
   return troops.map(function(n){ return Math.round(n*(1-f.hide)); });
 }
 function AL(){ return S.alliance; }
+var DEV_KEY="ibory-dev-v1", devMem=false;
+function devHash(t){ var h=5381; for (var i=0;i<t.length;i++) h=(((h<<5)+h)+t.charCodeAt(i))>>>0; return h; }
+function devOn(){ try { return localStorage.getItem(DEV_KEY)==="1"; } catch(e){ return devMem; } }
+function devSet(on){ devMem=on; try { if (on) localStorage.setItem(DEV_KEY,"1"); else localStorage.removeItem(DEV_KEY); } catch(e){} }
 function realmName(){ return (S&&typeof S.realm==="string"&&S.realm)||"North March"; }
 function allyName(){ var a=S&&S.alliance; return (a&&a.name)||(realmName()+" Pact"); }
 function allyIdx(id){ var a=AL().allies; for (var i=0;i<a.length;i++) if (a[i].id===id) return i; return -1; }
@@ -4984,13 +4988,14 @@ function renderSheet(){
       '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="save-file">Save to file</button><button class="btn ghost small" data-act="load-file">Load from file</button><button class="btn ghost small" data-act="save-export">Show save code</button><button class="btn ghost small" data-act="save-import-open">Load a save code</button></div>'+
       (saveUi==="export"?'<textarea id="savecode" readonly rows="4">'+esc(exportCode())+'</textarea><div class="btnrow"><button class="btn small" data-act="save-copy">Copy code</button><span class="dur" id="copymsg"></span></div>':'')+
       (saveUi==="import"?'<textarea id="saveinput" rows="4" placeholder="Paste a save code"></textarea><div class="btnrow"><button class="btn small danger" data-act="save-import">'+(armed==="import"?"Tap again to replace this game":"Load this save")+'</button><span class="why" id="importmsg"></span></div>':'')+'</div>'+
+      (!devOn()?'<details class="det" data-det="dev"'+(DET.dev?' open':'')+'><summary><b>Developer</b> <span class="dur">password needed</span></summary><div class="farmadd"><input id="devpw" type="password" autocomplete="off" placeholder="Dev password" style="width:auto;flex:1"><button class="btn ghost small" data-act="dev-unlock">Unlock</button></div><span class="why" id="devmsg"></span></details>':
       '<details class="det" data-det="testing"'+(DET.testing?' open':'')+'><summary><b>Testing tools</b> <span class="dur">for trying late-game features early</span></summary><p class="hint">These change your save directly.</p>'+
         '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="dbg-rep" data-v="50">Rep to 50%</button><button class="btn ghost small" data-act="dbg-rep" data-v="100">Rep to 100%</button><button class="btn ghost small" data-act="dbg-warcd">Clear war cooldown</button><button class="btn ghost small" data-act="dbg-warend">End war now</button></div>'+
         '<div class="h3" style="margin-top:10px">Game speed</div><p class="hint">Everything runs this many times faster: builds, research, training, marches, AI and events. Timers show real time left. Stays on until you set it back to 1\u00d7.</p>'+
         '<div class="farmadd">'+[1,10,100,1000].map(function(x){ return '<button class="chipbtn'+(S.speed===x?' on':'')+'" data-act="dbg-speed" data-v="'+x+'">'+x+'\u00d7</button>'; }).join("")+'</div>'+
         '<div class="h3" style="margin-top:10px">Troops in '+esc(S.name)+'</div><p class="hint">Instant and free. Doesn\u2019t count toward prestige, quests or achievements. Remember they still eat food.</p>'+
         '<div class="btnrow"><button class="btn ghost small" data-act="dbg-goals">Fill troop goals now</button><button class="btn ghost small" data-act="dbg-troops" data-v="10000">+10k of every unlocked troop</button><button class="btn ghost small" data-act="dbg-troops" data-v="100000">+100k</button></div>'+
-        dbgToolsHtml()+'</details>'+
+        dbgToolsHtml()+'<div class="btnrow" style="margin-top:10px"><button class="btn ghost small" data-act="dev-lock">Lock developer tools</button></div></details>')+
       '<div class="act"><button class="btn ghost danger" data-act="reset">'+(armed==="reset"?"Tap again to erase your city":"Start a new city")+'</button><button class="closebtn" data-act="close">Done</button></div>';
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
@@ -5229,6 +5234,9 @@ document.addEventListener("click",function(e){
     openSheet({kind:"plot",w:p.dataset.w,i:+p.dataset.i}); return; }
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
+  if (act.indexOf("dbg-")===0 && !devOn()) return;
+  if (act==="dev-unlock"){ var dpw=document.getElementById("devpw"), dv=dpw?dpw.value.trim():""; if (devHash(dv)===2422952517){ devSet(true); toast("Developer tools unlocked"); armed=null; lastSheet=""; renderSheet(); } else { var dm=document.getElementById("devmsg"); if (dm) dm.textContent="Wrong password"; } return; }
+  if (act==="dev-lock"){ advance(Date.now()); devSet(false); S.speed=1; S.testSpeed=1; save(); toast("Developer tools locked"); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (advance(Date.now())) flushFinished();
   if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     var tb=document.querySelector('nav.tabs [data-tab="'+tab+'"]'); if (tb && tb.scrollIntoView) tb.scrollIntoView({block:"nearest",inline:"center"}); setTimeout(updateTabArrows,350); return; }
