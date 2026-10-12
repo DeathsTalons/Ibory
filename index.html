@@ -479,6 +479,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
+var APP_VERSION = "0.1.1";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1110,7 +1111,20 @@ function monsterBase(q){
   return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:10,medicine:10,iron_working:10,horseback_riding:10,compass:10}, res:{food:0,lumber:0,stone:0,iron:0,gold:200000*m}, am:1.5+0.5*q.L};
 }
 function genMap(){ initHC(); LEGACY=legacyGen(); TILES=true; applyDailyLevels(true); miniDirty=true; }
-function gameDay(){ return Math.floor(S.gt/86400000); }
+// Days roll over at local midnight on the phone. S.dayOff shifts game time so (S.gt+S.dayOff) mod 24h = the phone's wall-clock time.
+var DAY_MS=86400000;
+function gameDay(){ return Math.floor((S.gt+(S.dayOff||0))/DAY_MS); }
+function msToNewDay(){ return (gameDay()+1)*DAY_MS-(S.gt+(S.dayOff||0)); }
+function wallPhase(now){ var d=new Date(now); return ((d.getHours()*60+d.getMinutes())*60+d.getSeconds())*1000+d.getMilliseconds(); }
+function syncDayClock(now){
+  if (S.speed!==1) return; // testing speeds run their own fast days
+  var ph=wallPhase(now);
+  if (S.dayOff==null){ S.dayOff=((ph-S.gt)%DAY_MS+DAY_MS)%DAY_MS; return; } // first sync for older saves: at most one early rollover
+  var cur=gameDay(), old=((S.gt+S.dayOff)%DAY_MS+DAY_MS)%DAY_MS;
+  // clock jumped past midnight (time zone east, DST, back from a testing speed): start the new day now; never step a day backwards
+  var day = ph < old-DAY_MS/2 ? cur+1 : cur;
+  S.dayOff = day*DAY_MS + ph - S.gt;
+}
 function dayLevel(q){ return lvlFrom(hash3(q.x,q.y,(S.map.seed^0x5bd1e995)+gameDay()*7919)); }
 function applyDailyLevels(initial){
   var day=gameDay();
@@ -1155,7 +1169,7 @@ var HC_SET={12:{w:1120000,ps:162666,a:42807,cp:108444,m:14640,combos:[[3,7,10],[
   14:{w:2800000,ps:406666,a:171228,cp:271111,m:36600,combos:[[3,7,10],[3,8,10],[4,8,10]],hero:[735,435]},
   16:{w:7000000,ps:1016665,a:428070,cp:677777,m:91500,combos:[[3,8,11],[4,8,11]],hero:[935,635]},
   18:{w:14000000,ps:2033330,a:856140,cp:1355555,m:183000,combos:[[4,8,11],[3,8,11]],hero:[1335,1035]}};
-function hcCombo(q){ var day=Math.floor(S.gt/86400000), set=HC_SET[q.L]; return set.combos[Math.floor(hash3(q.x,q.y,day*3+1)*set.combos.length)]; }
+function hcCombo(q){ var day=gameDay(), set=HC_SET[q.L]; return set.combos[Math.floor(hash3(q.x,q.y,day*3+1)*set.combos.length)]; }
 function hcTroops(q){
   var set=HC_SET[q.L], c=hcCombo(q), t=[0,set.w,0,0,0,set.a,0,0,0,0,0,0];
   t[c[0]]=set.ps; t[c[1]]=set.cp; t[c[2]]=set.m; return t;
@@ -1944,7 +1958,7 @@ function renderTileInfo(){
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
   if (q.k==="flat" && (S.items.teleport||0)>0 && (!C().fieldCap || hasHC(16))) h+='<div class="btnrow" style="margin:6px 0"><button class="btn" data-act="teleport" data-tile="'+q.id+'">'+(armedTile==="tp"+q.id?"Tap again to move "+esc(S.name)+" here":"Teleport "+esc(S.name)+" here ("+S.items.teleport+" left)")+'</button></div><p class="hint">The whole city moves: buildings, troops, heroes and held valleys. Its old tile becomes a flat.</p>';
-  if (VTYPES[q.k]) h+='<p class="hint">Levels of unheld valleys and flats reshuffle every game day (next in '+fmtT(realMs((gameDay()+1)*86400000-S.gt))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
+  if (VTYPES[q.k]) h+='<p class="hint">Levels of unheld valleys and flats reshuffle every game day (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
   var regen=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<REGEN_T;
   if (regen) h+='<p class="hint">Still recovering from your last attack.</p>';
   if (!needScout(q) || intel) h+='<div class="h3" style="margin-top:8px">Resources</div><div class="us">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(intel?roughN(intel.res[k]):cur.res[k])+'</b></span>'; }).join("")+'</div>';
@@ -2697,6 +2711,7 @@ function advance(now){
     changed=true;
   }
   accrueAll(target - S.gt); S.gt = target;
+  syncDayClock(now);
   processAll();
   for (var cj=0; cj<S.cities.length; cj++){ S.cur=cj; if (innLv() && S.gt >= S.innRefreshAt){ rollInn(); if (cj===viewing) changed=true; } }
   S.cur=viewing;
@@ -4289,7 +4304,7 @@ function addReport(rep){
   S.reports.unshift(rep); if (S.reports.length>FULL_CAP) S.reports.length=FULL_CAP;
   var c=compactRep(rep); S.log.unshift(c); if (S.log.length>LOG_CAP) S.log.length=LOG_CAP; bumpStats(c);
 }
-function gameClock(t){ var d=Math.floor(t/86400000)+1, m=Math.floor(t%86400000/60000); return "Day "+d+", "+String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
+function gameClock(t){ t+=(S.dayOff||0); var d=Math.floor(t/86400000)+1, m=Math.floor(t%86400000/60000); return "Day "+d+", "+String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
 function repMatch(c){
   if (repFilter==="atk" && c.d) return false; if (repFilter==="def" && !c.d) return false;
   if (repFilter==="win" && (c.d ? c.r===1 : c.r!==1)) return false; if (repFilter==="loss" && (c.d ? c.r!==1 : c.r===1)) return false;
@@ -4640,7 +4655,7 @@ function viewMarket(){
   if (!ml) return '<div class="empty-state"><p>Build a Marketplace on an empty city plot to trade.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
   var day=gameDay(), rows=["food","lumber","stone","iron"].map(function(k){ var p=mktPrice(k,day), y=mktPrice(k,day-1), vs=p/MKT_BASE[k];
     return '<tr><td>'+RNAME[k]+'</td><td>'+p.toFixed(3)+'</td><td class="'+(p>y?'ok':p<y?'loss':'')+'">'+(p>y?'\u25b2':p<y?'\u25bc':'\u2013')+' '+Math.abs(Math.round((p/y-1)*100))+'%</td><td class="dur">'+(vs>1.25?'pricey':vs<0.8?'cheap':'normal')+'</td></tr>'; }).join("");
-  return '<div class="section market"><div class="shead"><h3>Today\u2019s prices</h3><span class="dur">New prices in '+fmtT(realMs((day+1)*86400000-S.gt))+'</span></div>'+
+  return '<div class="section market"><div class="shead"><h3>Today\u2019s prices</h3><span class="dur">New prices in '+fmtT(realMs(msToNewDay()))+'</span></div>'+
     '<p class="hint">Gold per unit. Prices move every day; buy when a resource is cheap and sell when it\u2019s pricey. Your Marketplace takes a '+Math.round(mktFee()*1000)/10+'% fee on every trade, dropping as it levels up.</p>'+
     '<table class="simtab"><thead><tr><th>Resource</th><th>Price</th><th>vs yesterday</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
     '<div class="farmadd"><button class="chipbtn'+(mkt.side==="sell"?' on':'')+'" data-act="mkt-side" data-v="sell">Sell for gold</button><button class="chipbtn'+(mkt.side==="buy"?' on':'')+'" data-act="mkt-side" data-v="buy">Buy with gold</button></div>'+
@@ -4761,13 +4776,15 @@ function openMedalBox(key){
   toast(b.name+": "+parts.join(", ")); save(); lastView=""; refresh();
 }
 function viewItems(){
-  var h='<div class="section"><div class="shead"><h3>Packages</h3><span class="dur">Resources go to '+esc(S.name)+'</span></div><div class="ilist">';
-  PACKAGES.forEach(function(pk){
+  var openPk=PACKAGES.filter(function(pk){ return pkgState(pk)!=="claimed"; }), h='';
+  if (openPk.length) h+='<div class="section"><div class="shead"><h3>Packages</h3><span class="dur">Resources go to '+esc(S.name)+'</span></div><div class="ilist">';
+  openPk.forEach(function(pk){
     var st=pkgState(pk);
     var right = st==="claimed" ? '<span class="dur">Claimed</span>' : st==="ready" ? '<button class="btn small" data-act="claim-pkg" data-pkg="'+pk.id+'">Claim</button>' : '<span class="dur">Town Hall '+pk.th+'</span>';
     h+='<div class="pkgcard'+(st==="claimed"?' done':'')+'"><div class="top"><b>'+pk.name+'</b>'+right+'</div><span class="dur">'+esc(pkgText(pk))+'</span></div>';
   });
-  h+='</div>'+(itemsNote?'<div class="inote">'+esc(itemsNote)+'</div>':'')+'</div>';
+  if (openPk.length) h+='</div>'+(itemsNote?'<div class="inote">'+esc(itemsNote)+'</div>':'')+'</div>';
+  else if (itemsNote) h+='<div class="section"><div class="inote">'+esc(itemsNote)+'</div></div>';
   var shown=0;
   ITEM_GROUPS.forEach(function(g){
     var rows=g[1].filter(function(k){ return itemsAll || (S.items[k]||0)>0; });
@@ -4978,6 +4995,7 @@ function renderSheet(){
       '<div><div class="h3" style="margin-bottom:6px">Theme</div><div class="speeds">'+[["auto","Match phone"],["light","Light"],["dark","Dark"]].map(function(t){ return '<button data-act="theme" data-v="'+t[0]+'" aria-pressed="'+(getTheme()===t[0])+'">'+t[1]+'</button>'; }).join("")+'</div></div>'+
       '<div class="sub" id="offlinestat">'+offlineStatus()+'</div>'+
       '<div class="sub">This realm has stood <b id="saveage"></b>.</div>'+
+      '<div class="sub">Ibory version <b>'+APP_VERSION+'</b></div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="allyname" class="sub">Alliance name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
       '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+

@@ -1,10 +1,12 @@
 # Ibory (phone app)
 
+Version 0.1.1
+
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
 ## Files
 - `index.html`: the whole game
-- `sw.js`: offline worker. **Bump `CACHE` (ibory-vNN) on every release.**
+- `sw.js`: offline worker. **Bump `CACHE` (ibory-vX.Y.Z) and `APP_VERSION` in index.html on every release.**
 - `manifest.webmanifest` and three icons (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`)
 
 ## Hosting (GitHub Pages)
