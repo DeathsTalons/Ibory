@@ -39,3 +39,9 @@ Testing tools are hidden behind a dev password in Settings. Locking resets game 
 
 ## Farm planner: closest first
 Lists now fill with the nearest NPCs first (by round-trip time) so each rotation holds as many stops as possible.
+
+## War Room starts blank
+The battle simulator opens with zero troops, research and hero bonuses on both sides. Use My army, My research, My city defends, or pick an NPC level to load things.
+
+## New app icon
+The gold castle on dark green is now the home-screen icon. If your phone still shows the old one, remove the app and add it again.
