@@ -251,17 +251,18 @@ select,input[type=number],input[type=text]{font:inherit;color:var(--ink);backgro
 .offer{display:grid;grid-template-columns:42px 1fr auto;gap:2px 12px;align-items:center;background:var(--panel2);border-radius:10px;padding:9px 12px}
 .offer .shield{grid-row:1/3}
 .offer .btn{grid-row:1/3;grid-column:3}
-.gearslots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gearslots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .gslot{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 4px;cursor:pointer;display:grid;gap:1px;justify-items:center;min-height:62px;font-size:.78rem}
 .gslot .gs-n{color:var(--muted)} .gslot .gs-e{color:var(--muted);font-style:italic}
 .gslot .gs-s,.gearrow .gst{color:var(--brass);letter-spacing:1px}
 .gslot .gs-b{font-weight:700}
+.gslot{min-width:0} .gslot .gs-s{max-width:100%;overflow-wrap:anywhere;text-align:center;line-height:1.15}
 .gslot.t4,.gearrow.t4{border-color:var(--t-mythic);box-shadow:inset 0 0 0 1px var(--t-mythic),0 0 8px rgba(44,192,209,.35)}
 .gslot.t1,.gearrow.t1{border-color:var(--t-rare)} .gslot.t2,.gearrow.t2{border-color:var(--t-epic)} .gslot.t3,.gearrow.t3{border-color:var(--t-legendary);box-shadow:inset 0 0 0 1px var(--t-legendary)}
 .gearlist{display:grid;gap:6px;margin-top:8px}
 .gearrow{display:grid;grid-template-columns:1fr auto;gap:0 10px;text-align:left;border:1px solid var(--line);border-left-width:4px;background:var(--panel2);border-radius:8px;padding:7px 10px;cursor:pointer}
 .gearrow .gn{font:700 .95rem var(--display)} .gearrow .gb{font-weight:700;text-align:right}
-@media (max-width:420px){ .gearslots{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:420px){ .gearslots{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .statgrid{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
 .statgrid .sv{font:700 1.1rem var(--display);min-width:2.2em;text-align:right}
 .plus{width:32px;height:32px;border-radius:8px;border:1px solid var(--brass);background:none;color:var(--brass);font-weight:700;cursor:pointer}
@@ -392,6 +393,8 @@ details.rep{border-top:1px solid var(--line);padding:6px 0}
 .killdet summary{cursor:pointer;color:var(--brass);font-size:.88rem}
 details.rep summary{color:var(--ink);font-size:.93rem}
 dialog{border:0;padding:0;background:transparent;color:var(--ink);max-width:560px;width:calc(100% - 20px);margin:auto auto 10px;max-height:85vh}
+dialog.fit{max-height:98vh;margin:auto} dialog.fit .sheet{max-height:98vh}
+#repwrap.fit .tscroll{overflow:visible}
 dialog::backdrop{background:rgba(10,12,10,.5)}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;overflow:auto;max-height:85vh}
 .sheet .head{display:flex;gap:12px;align-items:center}
@@ -479,7 +482,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.1";
+var APP_VERSION = "0.1.2";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1125,7 +1128,8 @@ function syncDayClock(now){
   var day = ph < old-DAY_MS/2 ? cur+1 : cur;
   S.dayOff = day*DAY_MS + ph - S.gt;
 }
-function dayLevel(q){ return lvlFrom(hash3(q.x,q.y,(S.map.seed^0x5bd1e995)+gameDay()*7919)); }
+// unheld valleys and flats climb one level each day at midnight; after level 10 they fall back to 1 and climb again
+function dayLevel(q){ var L0=lvlFrom(hash3(q.x,q.y,S.map.seed^0x5bd1e995)); return ((L0-1+gameDay())%10+10)%10+1; }
 function applyDailyLevels(initial){
   var day=gameDay();
   if (!initial && S.map.day!==day){ for (var id in S.map.hit){ var hq=TILE_BY[id]; if (hq && VTYPES[hq.k]) delete S.map.hit[id]; } }
@@ -1958,7 +1962,7 @@ function renderTileInfo(){
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
   if (q.k==="flat" && (S.items.teleport||0)>0 && (!C().fieldCap || hasHC(16))) h+='<div class="btnrow" style="margin:6px 0"><button class="btn" data-act="teleport" data-tile="'+q.id+'">'+(armedTile==="tp"+q.id?"Tap again to move "+esc(S.name)+" here":"Teleport "+esc(S.name)+" here ("+S.items.teleport+" left)")+'</button></div><p class="hint">The whole city moves: buildings, troops, heroes and held valleys. Its old tile becomes a flat.</p>';
-  if (VTYPES[q.k]) h+='<p class="hint">Levels of unheld valleys and flats reshuffle every game day (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
+  if (VTYPES[q.k]) h+='<p class="hint">Unheld valleys and flats gain a level every day at midnight, and drop back to level 1 after level 10 (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
   var regen=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<REGEN_T;
   if (regen) h+='<p class="hint">Still recovering from your last attack.</p>';
   if (!needScout(q) || intel) h+='<div class="h3" style="margin-top:8px">Resources</div><div class="us">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(intel?roughN(intel.res[k]):cur.res[k])+'</b></span>'; }).join("")+'</div>';
@@ -2168,6 +2172,34 @@ function gearName(g){ return TIERS[GEAR_TIERS[g.tier]].name+" "+slotOf(g).name; 
 function starStr(g){ var s=""; for (var i=0;i<GEAR_MAX[g.tier];i++) s+= i<g.stars?"\u2605":"\u2606"; return s; }
 function gearBonus(h,k){ var b=0; if (!S.gear) return 0; S.gear.forEach(function(g){ if (g.on===h.id && slotOf(g).stat===k) b+=gearVal(g); }); return b; }
 function hs(h,k){ return h ? h[k]+gearBonus(h,k) : 0; }
+function gearById(id){ for (var i=0;i<S.gear.length;i++) if (S.gear[i].id===id) return S.gear[i]; return null; }
+function wearPiece(g,hid,pos){ S.gear.forEach(function(x){ if (x!==g && x.on===hid && posOf(x)===pos){ x.on=0; delete x.at; } }); g.on=hid; g.at=pos; }
+function gearRank(a,b){ return gearVal(b)-gearVal(a) || b.tier-a.tier || b.stars-a.stars; }
+// put the best piece for every slot on this hero, using only its own gear and spare pieces nobody wears
+function equipBest(hr){
+  var byType={}, changed=0; GEAR_POS.forEach(function(ps){ (byType[ps.type]=byType[ps.type]||[]).push(ps.k); });
+  Object.keys(byType).forEach(function(type){
+    var poss=byType[type], before=poss.map(function(p){ var g=wornAt(hr,p); return g?g.id:0; });
+    var pool=S.gear.filter(function(g){ return g.slot===type && (!g.on || g.on===hr.id); }).sort(gearRank).slice(0,poss.length);
+    pool.forEach(function(g,i){ if (g.on===hr.id && poss.indexOf(posOf(g))>=0){ poss=poss.filter(function(p){ return p!==posOf(g); }); pool[i]=null; } }); // already worn: keep it where it is
+    S.gear.forEach(function(g){ if (g.on===hr.id && g.slot===type && pool.indexOf(g)<0 && poss.indexOf(posOf(g))>=0){ g.on=0; delete g.at; } });
+    pool.filter(Boolean).forEach(function(g,i){ wearPiece(g,hr.id,poss[i]); });
+    var after=byType[type].map(function(p){ var g=wornAt(hr,p); return g?g.id:0; });
+    after.forEach(function(id){ if (id && before.indexOf(id)<0) changed++; });
+  });
+  return changed;
+}
+var GEAR_SETS=3;
+function gearSetOf(hr,i){ return (hr.gearSets||[])[i]||null; }
+function saveGearSet(hr,i){ var set={}, n=0; GEAR_POS.forEach(function(ps){ var g=wornAt(hr,ps.k); if (g){ set[ps.k]=g.id; n++; } }); hr.gearSets=hr.gearSets||[]; hr.gearSets[i]={g:set}; return n; }
+function gearSetInfo(hr,i){ var st=gearSetOf(hr,i); if (!st) return null; var have=0, gone=0, others={};
+  for (var k in st.g){ var g=gearById(st.g[k]); if (!g) gone++; else { have++; if (g.on && g.on!==hr.id){ var o=heroById(g.on); if (o) others[o.name]=1; } } }
+  return {have:have, gone:gone, others:Object.keys(others)}; }
+function loadGearSet(hr,i){ var st=gearSetOf(hr,i); if (!st) return null; var moved=0, took={}, gone=0;
+  for (var k in st.g){ var g=gearById(st.g[k]); if (!g){ gone++; continue; } if (g.on===hr.id && posOf(g)===k) continue;
+    if (g.on && g.on!==hr.id){ var o=heroById(g.on); if (o) took[o.name]=(took[o.name]||0)+1; }
+    wearPiece(g,hr.id,k); moved++; }
+  return {moved:moved, took:took, gone:gone}; }
 function makeGear(tier,slot){ var g={id:S.nextGearId++, slot:slot||GEAR_POS[Math.floor(Math.random()*GEAR_POS.length)].type, tier:tier, stars:0, on:0}; S.gear.push(g); return g; }
 // gear is crafted in the Workshop from materials, not looted
 var MAT=["ore","ingot","mithril","starmetal","scale"], MAT_NEED=[3,3,3,3,3], MAT_WS=[1,3,6,9,10], craftTier=0;
@@ -2716,7 +2748,7 @@ function advance(now){
   for (var cj=0; cj<S.cities.length; cj++){ S.cur=cj; if (innLv() && S.gt >= S.innRefreshAt){ rollInn(); if (cj===viewing) changed=true; } }
   S.cur=viewing;
   if (TILES && S.map.monsters && S.map.monsters.day!==gameDay() && gameDay()===S.map.day) ensureMonsters();
-  if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); finished.push("A new day dawns: valley and flat levels have shifted, and historic garrisons have changed."); changed=true; }
+  if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); finished.push("A new day dawns: unheld valleys and flats have gained a level, and historic garrisons have changed."); changed=true; }
   return changed;
 }
 
@@ -4943,7 +4975,16 @@ function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
 function openSheet(kind){ sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal(); if (kind && !kind.focus && sheetBody.scrollTop) sheetBody.scrollTop=0; } // a new menu starts at its top
-function closeSheet(){ sheetFor=null; if (sheet.open) sheet.close(); }
+function closeSheet(){ sheetFor=null; sheet.classList.remove("fit"); if (sheet.open) sheet.close(); }
+var repFit=false; // battle reports shrunk to fit one screen, for screenshots; stays on until turned off
+function fitReport(){
+  var w=document.getElementById("repwrap"); if (!w) return;
+  w.style.zoom=""; sheetBody.scrollTop=0;
+  var cs=getComputedStyle(sheetBody), padW=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
+  var other=sheetBody.scrollHeight-w.offsetHeight, availH=window.innerHeight*0.98-other, availW=sheetBody.clientWidth-padW;
+  var z=Math.min(1, availH/Math.max(1,w.offsetHeight), availW/Math.max(1,w.scrollWidth));
+  w.style.zoom=Math.max(0.25,z);
+}
 function sheetBack(){ // a menu opened from a hero's gear returns to that hero's gear; anything else just closes
   if (sheetFor && sheetFor.kind==="gearpick" && sheetFor.back!=null){ openSheet({kind:"hero",id:sheetFor.back,focus:"gear"}); return; }
   closeSheet();
@@ -5047,9 +5088,9 @@ function renderSheet(){
   } else if (sheetFor.kind==="report"){
     var rc=sheetFor.c, rr=sheetFor.rep, rv = rc.sc ? (rc.r===1?"Scouted":"Caught") : rc.d ? (rc.r===1?"Broken":"Held") : (rc.r===1?(rc.l?"Victory":"Flawless"):rc.r===3?"Stalemate":"Defeat"), rg = rc.d ? rc.r!==1 : rc.r===1;
     var rex=[]; if (rc.l) rex.push("lost "+fmt(rc.l)); if (rc.k) rex.push("killed "+fmt(rc.k)); if (rc.lo) rex.push((rc.d?"lost ":"")+fmt(rc.lo)+" loot"); if (rc.m>=0) rex.push(MEDALS[rc.m][1]+" medal"); if (rc.g.length) rex.push(rc.g.join(", ")); if (rc.h) rex.push(rc.h+" captured"); if (rc.f) rex.push(rc.f+" taken");
-    h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2><span class="'+(rg?'okc':'badc')+'">'+rv+'</span> '+esc(rc.n)+'</h2><div class="sub">'+gameClock(rc.at)+(rc.c&&!rc.d&&S.cities.length>1?', from '+esc(rc.c):'')+(rex.length?'. '+rex.join(", ")+'.':'')+'</div></div></div>'+
-      (rr?reportDetail(rr):'<p class="hint">Only the summary of this older battle was kept.</p>')+
-      (rc.tile&&!rc.d?'<div class="btnrow" style="margin-top:10px"><button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button></div>':'')+
+    h='<div id="repwrap"'+(repFit?' class="fit"':'')+'><div class="head"><span class="ico">'+ICON.rally+'</span><div><h2><span class="'+(rg?'okc':'badc')+'">'+rv+'</span> '+esc(rc.n)+'</h2><div class="sub">'+gameClock(rc.at)+(rc.c&&!rc.d&&S.cities.length>1?', from '+esc(rc.c):'')+(rex.length?'. '+rex.join(", ")+'.':'')+'</div></div></div>'+
+      (rr?reportDetail(rr):'<p class="hint">Only the summary of this older battle was kept.</p>')+'</div>'+
+      '<div class="btnrow" style="margin-top:10px"><button class="btn ghost small" data-act="rep-fit">'+(repFit?'Normal size':'Fit on one screen')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+'</div>'+
       '<button class="closebtn" data-act="close">Close</button>';
   } else if (sheetFor.kind==="legend"){
     if (!S.pendingLegend){ closeSheet(); return; }
@@ -5085,6 +5126,14 @@ function renderSheet(){
     var hset=starSet(hr), nxt=nextSetTier(Math.max(0,hset));
     h+='<div class="h3" id="herogear">Gear</div><p class="sub">'+(hset<0?'Wear all 16 pieces to earn a star set bonus.':'Star set '+hset+': troops led by this hero have \u00d7'+setLife(hr)+' life.'+(nxt?' Next bonus (\u00d7'+nxt[1]+') at a '+nxt[0]+'-star set.':' Maximum bonus.'))+'</p><div class="gearslots">'+GEAR_POS.map(function(ps){ var g=wornAt(hr,ps.k), sl=g?slotOf(g):null;
       return '<button class="gslot'+(g?' t'+g.tier:'')+'" data-act="gear-pick" data-slot="'+ps.k+'"><span class="gs-n">'+ps.name+'</span>'+(g?'<span class="gs-s">'+starStr(g)+'</span><span class="gs-b">+'+gearVal(g)+' '+STATN[sl.stat].slice(0,3)+(ps.k==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march':'')+'</span>':'<span class="gs-e">Empty</span>')+'</button>'; }).join("")+'</div>';
+    h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="gear-best"'+(S.gear.length?'':' disabled')+'>Equip best gear</button><span class="dur">Uses this hero\u2019s pieces and spare ones nobody is wearing.</span></div>';
+    h+='<div class="h3" style="margin-top:8px">Gear presets</div><p class="hint">Save what '+esc(hr.name)+' wears now, then equip it again in one tap. Pieces another hero is wearing get taken from them.</p><div class="gearlist">';
+    for (var gsi=0; gsi<GEAR_SETS; gsi++){ var gin=gearSetInfo(hr,gsi);
+      h+='<div class="gearrow"><span class="gn">Preset '+(gsi+1)+'</span><span class="gb">'+(gin?gin.have+' piece'+(gin.have===1?'':'s'):'Empty')+'</span>'+
+        (gin&&(gin.gone||gin.others.length)?'<span class="dur" style="grid-column:1/-1">'+(gin.others.length?'Worn now by '+esc(gin.others.join(", ")):'')+(gin.others.length&&gin.gone?'. ':'')+(gin.gone?gin.gone+' scrapped piece'+(gin.gone===1?'':'s')+' will be skipped':'')+'</span>':'')+
+        '<span class="btnrow" style="grid-column:1/-1;margin-top:4px"><button class="btn small" data-act="gset-load" data-i="'+gsi+'"'+(gin&&gin.have?'':' disabled')+'>Equip</button><button class="btn ghost small" data-act="gset-save" data-i="'+gsi+'">'+(armed==="gsave"+gsi?'Tap again to overwrite':'Save current gear')+'</button></span></div>';
+    }
+    h+='</div>';
     var hoff=officeOf(hr);
     h+='<div class="btnrow">'+(hoff?'<button class="btn ghost" data-act="unoffice">Step down as '+hoff[1].toLowerCase()+'</button>':OFFICES.map(function(o){ return '<button class="btn'+(o[0]==="mayor"?'':' ghost')+'" data-act="office" data-role="'+o[0]+'">'+o[1]+'</button>'; }).join(""))+
       ["primer","tome","codex","annals"].map(function(bk){ return '<button class="btn ghost small" data-act="tome" data-book="'+bk+'"'+((S.items[bk]||0)&&hr.level<HERO_MAX?'':' disabled')+'>'+ITEMS[bk].name+' +'+fmt(ITEMS[bk].xp)+' ('+(S.items[bk]||0)+')</button>'; }).join("")+'</div>';
@@ -5114,6 +5163,7 @@ function renderSheet(){
   }
   if (h===lastSheet) return;
   lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
+  var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn) fitReport();
   if (sheetFor && sheetFor.focus){ var fe=document.getElementById(sheetFor.focus==="gear"?"herogear":sheetFor.focus); sheetFor.focus=null; if (fe && fe.scrollIntoView) fe.scrollIntoView({block:"start"}); }
   var sa0=document.getElementById("saveage"); if (sa0) sa0.textContent=saveAge();
   if (sheetFor && sheetFor.kind==="march") updateMarchInfo();
@@ -5437,6 +5487,14 @@ document.addEventListener("click",function(e){
     if (!fq){ toast("None found"); return; } selectTile(fq.id,true); return; }
   if (act==="armory-filter"){ armoryFilter=a.dataset.slot; lastView=""; renderView(true); return; }
   if (act==="forge-open"){ forgeLog=[]; openSheet({kind:"forge",g:+a.dataset.g}); return; }
+  if (act==="gear-best"){ var bh=heroById(sheetFor.id); if (!bh) return; var bn=equipBest(bh); toast(bn?bh.name+": "+bn+" piece"+(bn===1?"":"s")+" swapped in":bh.name+" already wears the best spare gear"); save(); lastSheet=""; renderSheet(); refresh(); return; }
+  if (act==="gset-save"){ var sh=heroById(sheetFor.id), si=+a.dataset.i; if (!sh) return;
+    if (gearSetOf(sh,si) && armed!=="gsave"+si){ armed="gsave"+si; lastSheet=""; renderSheet(); return; }
+    armed=null; var sn=saveGearSet(sh,si); toast("Preset "+(si+1)+" saved ("+sn+" piece"+(sn===1?"":"s")+")"); save(); lastSheet=""; renderSheet(); return; }
+  if (act==="gset-load"){ var lh=heroById(sheetFor.id); if (!lh) return; var lr=loadGearSet(lh,+a.dataset.i); if (!lr) return;
+    var tk=Object.keys(lr.took).map(function(n){ return lr.took[n]+" from "+n; });
+    toast(lr.moved?"Preset "+(+a.dataset.i+1)+" equipped"+(tk.length?", took "+tk.join(", "):"")+(lr.gone?" ("+lr.gone+" scrapped piece"+(lr.gone===1?"":"s")+" skipped)":""):"Already wearing preset "+(+a.dataset.i+1));
+    save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="gear-pick"){ forgeLog=[]; openSheet({kind:"gearpick",hero:sheetFor.id,slot:a.dataset.slot,back:sheetFor.id}); return; }
   if (act==="gear-on"){ var eg=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0];
     var ep=sheetFor.slot; S.gear.forEach(function(x){ if (x!==eg && x.on===sheetFor.hero && posOf(x)===ep){ x.on=0; delete x.at; } }); eg.on=sheetFor.hero; eg.at=ep; var bh=sheetFor.back; openSheet({kind:"hero",id:bh,focus:"gear"}); refresh(); return; }
@@ -5636,6 +5694,7 @@ document.addEventListener("click",function(e){
     refresh(); return;
   }
   if (act==="claim-pkg"){ claimPkg(a.dataset.pkg); return; }
+  if (act==="rep-fit"){ repFit=!repFit; lastSheet=""; renderSheet(); return; }
   if (act==="open-box"){ openMedalBox(a.dataset.box||"medalbox"); return; }
   if (act==="items-all"){ itemsAll=!itemsAll; lastView=""; renderView(true); return; }
   if (act==="spin"){ doSpin(); return; }
