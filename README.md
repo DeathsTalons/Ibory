@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.3
+Version 0.1.4
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 

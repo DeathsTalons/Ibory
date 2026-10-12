@@ -482,7 +482,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.3";
+var APP_VERSION = "0.1.4";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2358,6 +2358,12 @@ var TIERS = {
   mythic:{name:"Mythic",color:"var(--t-mythic)",txt:"#fff"},
   queen:{name:"Queen",color:"var(--t-legendary)",txt:"#2a2210"}
 };
+// Beta: a legendary hero from the Beta Tester Chest; base 115 in every stat, and the name is fixed
+function grantBeta(){
+  var b=genHero("legendary",1); b.name="Beta"; b.pol=b.atk=b.int=115; b.base={pol:115,atk:115,int:115}; b.pts=0; b.fixedName=1; b.unique="beta";
+  if (S.heroes.length<hallCap()){ S.heroes.push(b); return "Beta joined your hall."; }
+  S.waiting.push(b); return "Beta is waiting at the gate: free a place in your Feasting Hall.";
+}
 var QUEEN_NAMES=["Isolde","Eleanor","Matilda","Adela","Sibylla","Ermengarde","Theodora","Aveline"];
 // once any city reaches Town Hall 10, a Queen (base 150 in every stat) joins that city, or waits at the gate if its hall is full
 function checkQueen(){
@@ -3070,12 +3076,24 @@ function fortWhy(i,n){
   return "";
 }
 function fortMax(i){ var f=FORTS[i], m=Math.floor((fortCap()-fortUsed())/f.space); for (var k in f.cost) m=Math.min(m,Math.floor(S.res[k]/f.cost[k])); return Math.max(0,m); }
+function wallUpRow(L){
+  var job=buildOn("wall",0), queued=(S.bq||[]).some(function(q){ return q.w==="wall"; });
+  if (job) return '<div class="effect">Walls upgrading to level '+job.to+'. See the build queue for time left.</div>';
+  if (L>=maxLv("walls")) return '<div class="effect">Walls are at their maximum level.</div>';
+  var why=upgradeWhy("walls",L), c=costFor("walls",L+1), onlyBusy=why==="Both builders are busy";
+  return '<div class="unit"><h4>Upgrade walls to level '+(L+1)+'</h4><span class="own">'+fmtT(realMs(timeFor("walls",L+1)))+'</span>'+
+    '<div style="grid-column:1/-1">'+chips(c)+'</div><div class="trainrow">'+
+    (onlyBusy ? (queued?'<span class="dur">Upgrade queued: it starts when a builder is free.</span>':'<button class="btn small" data-act="wall-queue">Queue upgrade</button><span class="dur">Both builders are busy</span>')
+              : '<button class="btn small" data-act="wall-up"'+(why?' disabled':'')+'>Upgrade</button>'+(why?'<span class="why">'+esc(why)+'</span>':''))+
+    '</div></div>';
+}
 function fortSection(){
   var L=S.wall||0, busy=S.fortQ?', building '+FORTS[S.fortQ.f].name:'';
   var h='<details class="section det" data-det="fort"'+(DET.fort?' open':'')+'><summary><b>Walls and fortifications</b> <span class="dur">Walls level '+L+', '+fmt(fortUsed())+' of '+fmt(fortCap())+' space'+busy+'</span></summary>';
   if (!L){ return h+'<p class="hint">No walls yet. Tap the stone ring around your city to build them. Walls hold fortifications and must be broken before an attacker wins.</p><button class="btn small" data-w="wall" data-i="0">Build walls</button></details>'; }
   var shut=S.gate==="closed";
   h+='<div class="gaterow'+(shut?' shut':'')+'"><div><b>Gate '+(shut?'closed':'open')+'</b><div class="dur">'+(shut?'Your troops stay hidden when attacked. Only the walls and fortifications fight, so a broken wall still gets you plundered, but no troops die.':'Your troops march out and fight alongside the walls when attacked.')+'</div></div><button class="btn small'+(shut?'':' ghost')+'" data-act="gate">'+(shut?'Open gate':'Close gate')+'</button></div>';
+  h+=wallUpRow(L);
   h+='<p class="hint">Durability '+fmt(wallDurability(L))+'. Space '+fmt(fortUsed())+' of '+fmt(fortCap())+'. Archer tower reach +'+(L*3).toFixed(1)+'%. These fight exactly like the fortifications on NPC cities and AI lords.</p>';
   if (S.fortQ) h+='<div class="bq"><span>Building '+fmt(S.fortQ.n)+' '+FORTS[S.fortQ.f].name+'</span><span class="qtime" id="fq-t"></span><div class="bar"><i id="fq-bar"></i></div><div class="qacts">'+(hasSpeedups()?'<button class="link strong" data-act="speedup" data-target="fort">Speed up</button>':'')+'<button class="link" data-act="cancel-fort">Cancel</button></div></div>';
   h+='<div class="unitlist">';
@@ -4791,6 +4809,7 @@ function rollMedalBox(q){
   return null;
 }
 var PACKAGES=[
+  {id:"beta",name:"Beta Tester Chest",th:1,res:200000,items:{},hero:"beta"},
   {id:"beginner",name:"Beginner Package",th:1,res:25000,items:{s15:1,s60:1,s150:1,s480:1,teleport:1}},
   {id:"lords",name:"Lords Package",th:3,res:100000,items:{s15:2,s60:2,s150:2,teleport:1,gemF:20}},
   {id:"king",name:"King Package",th:5,res:250000,items:{s15:2,s60:2,s150:2,s480:2,medalbox:1,gemF:20}}
@@ -4836,6 +4855,7 @@ function maxTH(){ return Math.max.apply(null, S.cities.map(function(c){ return c
 function pkgText(pk){
   var p=[pk.res.toLocaleString("en-US")+" of each resource"];
   Object.keys(pk.items).forEach(function(k){ p.push(pk.items[k]+"\u00d7 "+ITEMS[k].name); });
+  if (pk.hero==="beta") p.push("the legendary hero Beta (115 in every stat)");
   return p.join(", ");
 }
 function pkgState(pk){ if ((S.pkgs||{})[pk.id]!=null) return "claimed"; return maxTH()>=pk.th ? "ready" : "locked"; }
@@ -4846,6 +4866,7 @@ function claimPkg(id){
   RES.forEach(function(k){ S.res[k]+=pk.res; });
   for (var k in pk.items) S.items[k]=(S.items[k]||0)+pk.items[k];
   itemsNote="Claimed the "+pk.name+" in "+S.name+": "+pkgText(pk)+".";
+  if (pk.hero==="beta") itemsNote+=" "+grantBeta();
   toast(pk.name+" claimed"); save(); lastView=""; refresh();
 }
 function openMedalBox(key){
@@ -5167,7 +5188,7 @@ function renderSheet(){
     var hr=heroById(sheetFor.id);
     if (!hr){ closeSheet(); return; }
     var isM = S.mayor===hr.id, need=xpNeed(hr.level);
-    var renameRow = hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
+    var renameRow = hr.fixedName ? '<p class="hint">'+esc(hr.name)+' keeps this name.</p>' : hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
     h='<div class="head">'+shield(hr,48)+'<div><h2 id="hname-h">'+esc(hr.name)+'</h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase():'')+'</div></div></div>';
     h+=renameRow;
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
@@ -5756,6 +5777,8 @@ document.addEventListener("click",function(e){
     if (!jobFor(sheetFor) || !hasSpeedups(sheetFor.target==="build")) closeSheet();
     refresh(); return;
   }
+  if (act==="wall-up"){ if (upgradeWhy("walls",S.wall||0)) return; startBuild("wall",0,"walls"); save(); lastView=""; refresh(); return; }
+  if (act==="wall-queue"){ if ((S.bq||[]).some(function(q){ return q.w==="wall"; })) return; S.bq.push({w:"wall",i:0,type:"walls"}); toast("Walls upgrade queued"); processQueues(); save(); lastView=""; refresh(); return; }
   if (act==="claim-pkg"){ claimPkg(a.dataset.pkg); return; }
   if (act==="rep-fit"){ repFit=!repFit; lastSheet=""; renderSheet(); return; }
   if (act==="open-box"){ openMedalBox(a.dataset.box||"medalbox"); return; }
@@ -5795,6 +5818,7 @@ document.addEventListener("click",function(e){
     if (armed!=="dismiss"){ armed="dismiss"; lastSheet=""; renderSheet(); return; }
     var dh=heroById(sheetFor.id); if (dh.away){ toast("That hero is away on a march"); return; }
     if (dh.tier==="queen"){ armed=null; toast("The Queen will not leave your court"); lastSheet=""; renderSheet(); return; }
+    if (dh.unique==="beta"){ armed=null; toast("Beta will not leave your court"); lastSheet=""; renderSheet(); return; }
     S.heroes=S.heroes.filter(function(x){ return x.id!==sheetFor.id; });
     S.gear.forEach(function(g){ if (g.on===sheetFor.id) g.on=0; });
     OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; });
@@ -5836,7 +5860,7 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.pfield==="name"){ S.presets[sheetFor.p].name=e.target.value.trim()||("Preset "+(sheetFor.p+1)); save(); }
   if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); updateWaveInfo(); }
   if (e.target.id==="wgap"){ waveDraft.gap=Math.max(0,+e.target.value||0); updateWaveInfo(); }
-  if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic"){ rh.name=e.target.value.replace(/\s+/g," ").trim()||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
+  if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic" && !rh.fixedName){ rh.name=e.target.value.replace(/\s+/g," ").trim()||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
   if (e.target.id==="gname"){ var ng=forgeGear(); if (ng){ ng.nm=e.target.value.replace(/\s+/g," ").trim().slice(0,28)||undefined; if (!ng.nm) delete ng.nm; save(); } }
   if (e.target.dataset.gsn!=null && sheetFor && sheetFor.kind==="hero"){ var nh=heroById(sheetFor.id); if (nh){ nh.gearSetNames=nh.gearSetNames||[]; nh.gearSetNames[+e.target.dataset.gsn]=e.target.value.replace(/\s+/g," ").trim().slice(0,24); save(); } }
   if (e.target.id==="repq"){ repQuery=e.target.value; repPage=0; fillRepList(); }
