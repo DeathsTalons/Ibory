@@ -482,7 +482,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.2";
+var APP_VERSION = "0.1.3";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -923,6 +923,33 @@ function trainingAt(slot){ for (var i=0;i<S.train.length;i++) if (S.train[i].slo
 function barracksReq(i){ var r=U[i].req.filter(function(x){ return x[0]==="barracks"; })[0]; return r?r[1]:1; }
 function pickBarracks(i){ // lowest-level idle barracks that can train this unit, keeping the big ones free for siege
   var req=barracksReq(i), best=-1; barracksList().forEach(function(sl){ if (!trainingAt(sl) && S.inside[sl].level>=req && (best<0 || S.inside[sl].level<S.inside[best].level)) best=sl; }); return best;
+}
+// one batch trains at a time per Barracks; extra batches wait in that Barracks' queue (q:true, dur) and start when it frees up
+function slotFree(sl){ var f=null; S.train.forEach(function(t){ if (t.slot!==sl) return; f = t.q ? f+t.dur : t.end; }); return f==null ? S.gt : f; }
+function promoteQueue(sl){ if (trainingAt(sl) && !trainingAt(sl).q) return; var nx=trainingAt(sl); if (!nx) return; nx.start=S.gt; nx.end=S.gt+nx.dur; delete nx.q; delete nx.dur; }
+// split tn troops over barracks so they all finish as close together as possible ("idle": idle barracks only, "all": queue onto busy ones too)
+function splitPlan(tu,tn,mode){
+  var req=barracksReq(tu), T=trainTime(tu);
+  var bs=barracksList().filter(function(sl){ return S.inside[sl].level>=req && (mode!=="idle" || !trainingAt(sl)); }).map(function(sl){ return {slot:sl, free:slotFree(sl), n:0}; });
+  if (!bs.length || !(tn>0)) return null;
+  bs.sort(function(a,b){ return a.free-b.free; });
+  var k=1, sum=bs[0].free, L=sum+tn*T;
+  for (k=1;k<=bs.length;k++){ sum=0; for (var i=0;i<k;i++) sum+=bs[i].free; L=(tn*T+sum)/k; if (k===bs.length || L<=bs[k].free) break; }
+  var used=0; for (var j=0;j<k;j++){ bs[j].n=Math.max(0,Math.floor((L-bs[j].free)/T)); used+=bs[j].n; }
+  while (used<tn){ var best=null; for (var m=0;m<bs.length;m++){ var e=bs[m].free+bs[m].n*T; if (!best || e<best.e) best={b:bs[m],e:e}; } best.b.n++; used++; }
+  var out=bs.filter(function(b){ return b.n>0; }), done=0; out.forEach(function(b){ done=Math.max(done, b.free+b.n*T); });
+  return {parts:out, done:done};
+}
+function startTrainSplit(tu,tn,mode){
+  if (trainWhy(tu,tn,mode)) return false;
+  var pl=splitPlan(tu,tn,mode); if (!pl) return false; var T=trainTime(tu);
+  pl.parts.forEach(function(b){
+    var disc=1-0.01*Math.max(0,S.inside[b.slot].level-10), tc={}; for (var ck in U[tu].cost) tc[ck]=Math.ceil(U[tu].cost[ck]*b.n*disc);
+    pay(tc,1); S.pop -= U[tu].pop*b.n;
+    if (trainingAt(b.slot)) S.train.push({slot:b.slot,u:tu,n:b.n,paid:tc,q:true,dur:T*b.n,start:Infinity,end:Infinity});
+    else S.train.push({slot:b.slot,u:tu,n:b.n,paid:tc,start:S.gt,end:S.gt+T*b.n});
+  });
+  return pl.parts.length;
 }
 function idleBarracks(){ var b=barracksList(); for (var i=0;i<b.length;i++) if (!trainingAt(b[i])) return b[i]; return -1; }
 function simResearch(){ return {military_tradition:S.tech.militarytradition||0, iron_working:S.tech.ironworking||0, medicine:S.tech.medicine||0, compass:S.tech.compass||0, horseback_riding:S.tech.horsebackriding||0, archery:S.tech.archery||0}; }
@@ -2168,7 +2195,8 @@ var STAR_P=[0.95,0.85,0.70,0.55,0.42,0.32,0.24,0.17,0.12,0.08];
 var STATN={pol:"Politics",atk:"Attack",int:"Intelligence"};
 function slotOf(g){ for (var i=0;i<GEAR_SLOTS.length;i++) if (GEAR_SLOTS[i].k===g.slot) return GEAR_SLOTS[i]; return GEAR_SLOTS[0]; }
 function gearVal(g){ return Math.round(GEAR_BASE[g.tier]*(1+0.2*g.stars)); }
-function gearName(g){ return TIERS[GEAR_TIERS[g.tier]].name+" "+slotOf(g).name; }
+function gearTypeName(g){ return TIERS[GEAR_TIERS[g.tier]].name+" "+slotOf(g).name; }
+function gearName(g){ return g.nm ? g.nm : gearTypeName(g); }
 function starStr(g){ var s=""; for (var i=0;i<GEAR_MAX[g.tier];i++) s+= i<g.stars?"\u2605":"\u2606"; return s; }
 function gearBonus(h,k){ var b=0; if (!S.gear) return 0; S.gear.forEach(function(g){ if (g.on===h.id && slotOf(g).stat===k) b+=gearVal(g); }); return b; }
 function hs(h,k){ return h ? h[k]+gearBonus(h,k) : 0; }
@@ -2190,6 +2218,7 @@ function equipBest(hr){
   return changed;
 }
 var GEAR_SETS=3;
+function gearSetName(hr,i){ return ((hr.gearSetNames||[])[i])||("Preset "+(i+1)); }
 function gearSetOf(hr,i){ return (hr.gearSets||[])[i]||null; }
 function saveGearSet(hr,i){ var set={}, n=0; GEAR_POS.forEach(function(ps){ var g=wornAt(hr,ps.k); if (g){ set[ps.k]=g.id; n++; } }); hr.gearSets=hr.gearSets||[]; hr.gearSets[i]={g:set}; return n; }
 function gearSetInfo(hr,i){ var st=gearSetOf(hr,i); if (!st) return null; var have=0, gone=0, others={};
@@ -2326,8 +2355,20 @@ var TIERS = {
   epic:{name:"Epic",lo:50,hi:76,lv:[10,20],color:"var(--t-epic)",txt:"#fff"},
   legendary:{name:"Legendary",lo:66,hi:90,lv:[20,35],spike:22,color:"var(--t-legendary)",txt:"#2a2210"},
   historic:{name:"Historic",color:"var(--t-historic)",txt:"#fff"},
-  mythic:{name:"Mythic",color:"var(--t-mythic)",txt:"#fff"}
+  mythic:{name:"Mythic",color:"var(--t-mythic)",txt:"#fff"},
+  queen:{name:"Queen",color:"var(--t-legendary)",txt:"#2a2210"}
 };
+var QUEEN_NAMES=["Isolde","Eleanor","Matilda","Adela","Sibylla","Ermengarde","Theodora","Aveline"];
+// once any city reaches Town Hall 10, a Queen (base 150 in every stat) joins that city, or waits at the gate if its hall is full
+function checkQueen(){
+  if (S.queen) return; var ci=-1; S.cities.forEach(function(c,i){ if (ci<0 && (c.th||0)>=10) ci=i; }); if (ci<0) return;
+  S.queen=1;
+  withCity(ci,function(){
+    var q=genHero("legendary",1); q.tier="queen"; q.name="Queen "+pick(QUEEN_NAMES); q.pol=q.atk=q.int=150; q.base={pol:150,atk:150,int:150}; q.pts=0;
+    var msg; if (S.heroes.length<hallCap()){ S.heroes.push(q); msg=q.name+" has come to "+S.name+" and joined your hall"; } else { S.waiting.push(q); msg=q.name+" has come to "+S.name+" and waits at the gate: free a place in your Feasting Hall"; }
+    finished.push(msg); S.wheelLog.unshift(q.name+", for reaching Town Hall 10"); S.wheelLog=S.wheelLog.slice(0,8);
+  });
+}
 var FIRST = ["Aldric","Brenna","Cedric","Doria","Edmund","Fiora","Garrick","Helena","Ivo","Jorun","Kasimir","Lysa","Marek","Nadia","Osric","Petra","Quentin","Rowena","Soren","Talia","Ulric","Vesna","Wendel","Yara","Zoltan","Anselm","Beatrix","Corvin","Elowen","Friedrich","Isolde","Leofric","Mireille","Theodric"];
 var LAST = ["Vane","Ashford","Marrow","Stroud","Holloway","Krane","Dunmore","Varga","Blackwood","Thorne","Aubert","Kessler","Radev","Morrow","Fenwick","Castell","Redmayne","Orlov","Harrow","Lindqvist"];
 var EPITHET = ["the Bold","the Unbroken","Ironhand","the Wise","the Lionheart","Stormborn","the Just","of the Long Road","the Red","Oathkeeper","the Silver-Tongued","the Undaunted"];
@@ -2619,7 +2660,7 @@ if (S.bf && S.bf.active) S.bf.last=Date.now(); // time with the app closed never
 S.cities.forEach(function(cc,ci){ withCity(ci,function(){
   S.train.slice().forEach(function(t){ var b=S.inside[t.slot];
     if (b && b.type==="barracks" && b.level>=barracksReq(t.u)) return;
-    var ns=-1; barracksList().forEach(function(sl){ if (ns<0 && !trainingAt(sl) && S.inside[sl].level>=barracksReq(t.u)) ns=sl; });
+    var ns=-1; if (!t.q) barracksList().forEach(function(sl){ if (ns<0 && !trainingAt(sl) && S.inside[sl].level>=barracksReq(t.u)) ns=sl; });
     if (ns>=0){ var dur=t.end-t.start; t.slot=ns; t.start=S.gt; t.end=S.gt+dur; }
     else { var rc=t.paid||{}; if (!t.paid) for (var rk in U[t.u].cost) rc[rk]=U[t.u].cost[rk]*t.n; pay(rc,-1); S.pop+=U[t.u].pop*t.n; S.train=S.train.filter(function(x){ return x!==t; }); }
   }); }); });
@@ -2703,7 +2744,7 @@ function completeFort(){
 function completeTrain(ti){
   var t=S.train[ti]; S.troops[t.u]+=t.n; achStore().trained[t.u]+=t.n; S.amulets+=AMULET_RATE; addPrestige(Math.round(t.n*PREST_U[t.u]));
   finished.push(fmt(t.n)+" "+uname(t.u,t.n)+" trained");
-  S.train.splice(ti,1);
+  S.train.splice(ti,1); promoteQueue(t.slot);
 }
 function accrueAll(ms){
   if (ms<=0) return;
@@ -2743,7 +2784,7 @@ function advance(now){
     changed=true;
   }
   accrueAll(target - S.gt); S.gt = target;
-  syncDayClock(now);
+  syncDayClock(now); checkQueen();
   processAll();
   for (var cj=0; cj<S.cities.length; cj++){ S.cur=cj; if (innLv() && S.gt >= S.innRefreshAt){ rollInn(); if (cj===viewing) changed=true; } }
   S.cur=viewing;
@@ -2885,7 +2926,7 @@ function tickText(){
   if (S.fortQ){ var fe=document.getElementById("fq-t"), fb=document.getElementById("fq-bar"); if (fe){ fe.textContent=fmtT(realMs(S.fortQ.end-S.gt)); fb.style.width=Math.min(100,(S.gt-S.fortQ.start)/Math.max(1,S.fortQ.end-S.fortQ.start)*100)+"%"; } }
   renderThreats(); renderMarchStrip(); [].forEach.call(document.querySelectorAll("#threats .tt"), function(e){ e.textContent=fmtT(realMs(+e.dataset.t-S.gt)); });
   S.marches.forEach(function(m){ var el=document.getElementById("mt-"+m.id); if (el) el.textContent=(m.phase==="wait"?"launches in ":"")+fmtT(realMs(marchT(m)-S.gt))+(m.phase==="wait"?", lands in "+fmtT(realMs(m.arr-S.gt)):""); });
-  S.train.forEach(function(t){ var el=document.getElementById("tq-t-"+t.slot), br=document.getElementById("tq-bar-"+t.slot);
+  S.train.forEach(function(t){ if (t.q) return; var el=document.getElementById("tq-t-"+t.slot), br=document.getElementById("tq-bar-"+t.slot);
     if (el){ el.textContent=fmtT(realMs(t.end-S.gt)); br.style.width=Math.min(100,(S.gt-t.start)/Math.max(1,t.end-t.start)*100)+"%"; } });
   if (tab==="wheel") updateWheelSide();
 }
@@ -3073,6 +3114,7 @@ function gearRow(g){
 }
 function forgeControls(g){ // star and tier upgrades for one piece: shared by the Forge's piece menu and a hero's gear slot menu
   var sl=slotOf(g), max=GEAR_MAX[g.tier], h="";
+  h+='<div><label for="gname" class="sub">Name this piece'+(g.nm?' ('+gearTypeName(g)+')':'')+'</label><input id="gname" type="text" maxlength="28" value="'+esc(g.nm||"")+'" placeholder="'+esc(gearTypeName(g))+'"></div>';
   if (g.stars>=max) h+='<p class="effect">This piece is at its maximum of '+max+' stars.</p>';
   else {
     var have=S.items["gem"+forgeGem]||0, n=Math.max(1,Math.min(4,forgeN)), p=gemChance(g,forgeGem,n), m=bestFor(sl.stat);
@@ -4540,12 +4582,15 @@ function maxTrain(i){
   for (var k in u.cost) m=Math.min(m, Math.floor(S.res[k]/u.cost[k]));
   return Math.max(0,m);
 }
-function trainWhy(i,n){
+function trainWhy(i,n,mode){
   var u=U[i];
   if (missing(u.req).length) return "Locked";
   if (!barracksList().length) return "Build a Barracks";
-  if (idleBarracks()<0) return "All barracks busy";
-  if (pickBarracks(i)<0) return "Needs an idle level "+barracksReq(i)+" Barracks";
+  if (mode==="all"){ if (!barracksList().some(function(sl){ return S.inside[sl].level>=barracksReq(i); })) return "Needs a level "+barracksReq(i)+" Barracks"; }
+  else {
+    if (idleBarracks()<0) return "All barracks busy";
+    if (pickBarracks(i)<0) return "Needs an idle level "+barracksReq(i)+" Barracks";
+  }
   if (!n || n<1) return "Enter an amount";
   var c={}; for (var k in u.cost) c[k]=u.cost[k]*n;
   if (!afford(c)) return "Not enough resources";
@@ -4554,10 +4599,17 @@ function trainWhy(i,n){
 }
 function updateTrainRow(i){
   var b=document.getElementById("tr-btn-"+i), inf=document.getElementById("tr-info-"+i); if (!b) return;
-  var n=trainAmt[i]||0, why=trainWhy(i,n);
+  var n=trainAmt[i]||0, why=trainWhy(i,n,"one");
   b.disabled=!!why; setText(b, "Train"+(n>0?" "+fmt(n):""));
   setText(inf, why ? why : fmtT(realMs(trainTime(i)*n)));
   inf.className = why ? "why" : "dur";
+  // split buttons: share the order across every idle Barracks, or across all of them (busy ones queue their share)
+  var notes=[]; [["idle","All idle"],["all","All"]].forEach(function(o){
+    var sb=document.getElementById("tr-"+o[0]+"-"+i); if (!sb) return;
+    var w=trainWhy(i,n,o[0]), pl=w?null:splitPlan(i,n,o[0]); if (!pl) w=w||"No barracks";
+    sb.disabled=!!w; if (!w) notes.push(o[1]+": "+pl.parts.length+" barracks, done in "+fmtT(realMs(pl.done-S.gt)));
+  });
+  var si=document.getElementById("tr-sinfo-"+i); if (si) setText(si, notes.join(" \u00b7 "));
   var mx=document.getElementById("tr-max-"+i); if (mx) setText(mx, "Max "+fmt(maxTrain(i)));
 }
 function viewArmy(){
@@ -4570,9 +4622,11 @@ function viewArmy(){
     var t=trainingAt(slot);
     h+='<div class="bq"><span>Barracks '+(n+1)+', level '+S.inside[slot].level+(t?': '+fmt(t.n)+' '+uname(t.u,t.n):'<span class="dur"> '+idleWhy(slot)+'</span>')+'</span>';
     if (t) h+='<span class="qtime" id="tq-t-'+slot+'"></span><div class="bar"><i id="tq-bar-'+slot+'"></i></div><div class="qacts">'+(sp?'<button class="link strong" data-act="speedup" data-target="train" data-slot="'+slot+'">Speed up</button>':'')+'<button class="link" data-act="cancel-train" data-slot="'+slot+'">Cancel</button></div>';
+    S.train.forEach(function(qt,qi){ if (qt.slot===slot && qt.q) h+='<div class="dur" style="grid-column:1/-1">Then '+fmt(qt.n)+' '+uname(qt.u,qt.n)+' ('+fmtT(realMs(qt.dur))+') <button class="link" data-act="cancel-q" data-ti="'+qi+'">Cancel</button></div>'; });
     h+='</div>';
   });
-  h+='</div>'+goalsSection()+'<div class="unitlist">';
+  h+='</div>'+goalsSection();
+  h+='<p class="hint" style="margin:0 2px 8px">Train sends an order to one idle Barracks. <b>All idle</b> shares it evenly across every idle Barracks that can train it. <b>All</b> shares it across every Barracks: busy ones queue their part behind what they are training, balanced so everything finishes together.</p><div class="unitlist">';
   U.forEach(function(u,i){
     var miss=missing(u.req), st=effStats(i,r);
     h+='<div class="unit'+(miss.length?' locked':'')+'"><h4>'+u.name+'</h4><span class="own" title="Owned">'+fmt(S.troops[i])+'</span>'+
@@ -4580,7 +4634,7 @@ function viewArmy(){
     if (miss.length) h+='<div class="reqs">Needs '+miss.map(reqName).join(", ")+'</div>';
     else {
       h+='<div style="grid-column:1/-1">'+chips(u.cost)+'</div><div class="trainrow"><input type="number" min="0" step="1" id="tr-amt-'+i+'" data-unit="'+i+'" value="'+(trainAmt[i]||"")+'" placeholder="Amount" aria-label="How many '+u.name+'s">'+
-        '<button class="btn ghost small" data-act="train-max" data-unit="'+i+'" id="tr-max-'+i+'">Max</button><button class="btn small" data-act="train" data-unit="'+i+'" id="tr-btn-'+i+'">Train</button><span id="tr-info-'+i+'" class="dur"></span></div>';
+        '<button class="btn ghost small" data-act="train-max" data-unit="'+i+'" id="tr-max-'+i+'">Max</button><button class="btn small" data-act="train" data-unit="'+i+'" id="tr-btn-'+i+'">Train</button><button class="btn ghost small" data-act="train-split" data-mode="idle" data-unit="'+i+'" id="tr-idle-'+i+'">All idle</button><button class="btn ghost small" data-act="train-split" data-mode="all" data-unit="'+i+'" id="tr-all-'+i+'">All</button><span id="tr-info-'+i+'" class="dur"></span><span id="tr-sinfo-'+i+'" class="dur" style="flex-basis:100%"></span></div>';
     }
     h+='</div>';
   });
@@ -5129,7 +5183,7 @@ function renderSheet(){
     h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="gear-best"'+(S.gear.length?'':' disabled')+'>Equip best gear</button><span class="dur">Uses this hero\u2019s pieces and spare ones nobody is wearing.</span></div>';
     h+='<div class="h3" style="margin-top:8px">Gear presets</div><p class="hint">Save what '+esc(hr.name)+' wears now, then equip it again in one tap. Pieces another hero is wearing get taken from them.</p><div class="gearlist">';
     for (var gsi=0; gsi<GEAR_SETS; gsi++){ var gin=gearSetInfo(hr,gsi);
-      h+='<div class="gearrow"><span class="gn">Preset '+(gsi+1)+'</span><span class="gb">'+(gin?gin.have+' piece'+(gin.have===1?'':'s'):'Empty')+'</span>'+
+      h+='<div class="gearrow"><span class="gn"><input data-gsn="'+gsi+'" type="text" maxlength="24" value="'+esc(((hr.gearSetNames||[])[gsi])||"")+'" placeholder="Preset '+(gsi+1)+'" aria-label="Preset name" style="width:100%;font:inherit;padding:2px 6px"></span><span class="gb">'+(gin?gin.have+' piece'+(gin.have===1?'':'s'):'Empty')+'</span>'+
         (gin&&(gin.gone||gin.others.length)?'<span class="dur" style="grid-column:1/-1">'+(gin.others.length?'Worn now by '+esc(gin.others.join(", ")):'')+(gin.others.length&&gin.gone?'. ':'')+(gin.gone?gin.gone+' scrapped piece'+(gin.gone===1?'':'s')+' will be skipped':'')+'</span>':'')+
         '<span class="btnrow" style="grid-column:1/-1;margin-top:4px"><button class="btn small" data-act="gset-load" data-i="'+gsi+'"'+(gin&&gin.have?'':' disabled')+'>Equip</button><button class="btn ghost small" data-act="gset-save" data-i="'+gsi+'">'+(armed==="gsave"+gsi?'Tap again to overwrite':'Save current gear')+'</button></span></div>';
     }
@@ -5425,12 +5479,21 @@ document.addEventListener("click",function(e){
   if (act==="train"){
     var tu=+a.dataset.unit, tn=Math.floor(trainAmt[tu]||0);
     if (!startTrain(tu,tn)) return;
-    trainAmt[tu]=0; toast("Training "+fmt(tn)+" "+uname(tu,tn)); lastView=""; refresh(); return;
+    trainAmt[tu]=0; toast("Training "+fmt(tn)+" "+uname(tu,tn)); save(); lastView=""; refresh(); return;
+  }
+  if (act==="train-split"){
+    var su=+a.dataset.unit, sn=Math.floor(trainAmt[su]||0), sm=a.dataset.mode==="all"?"all":"idle", nb=startTrainSplit(su,sn,sm); if (!nb) return;
+    trainAmt[su]=0; toast("Training "+fmt(sn)+" "+uname(su,sn)+" across "+nb+" barracks"); save(); lastView=""; refresh(); return;
+  }
+  if (act==="cancel-q"){
+    var qt=S.train[+a.dataset.ti]; if (!qt || !qt.q) return;
+    pay(qt.paid,-1); S.pop += U[qt.u].pop*qt.n; S.train=S.train.filter(function(x){return x!==qt;});
+    toast("Queued training cancelled. Resources returned."); save(); lastView=""; refresh(); return;
   }
   if (act==="cancel-train"){
     var cs=+a.dataset.slot, ct=trainingAt(cs); if (!ct) return;
     var rc=ct.paid||{}; if (!ct.paid) for (var rk in U[ct.u].cost) rc[rk]=U[ct.u].cost[rk]*ct.n;
-    pay(rc,-1); S.pop += U[ct.u].pop*ct.n; S.train=S.train.filter(function(x){return x!==ct;});
+    pay(rc,-1); S.pop += U[ct.u].pop*ct.n; S.train=S.train.filter(function(x){return x!==ct;}); promoteQueue(cs);
     toast("Training cancelled. Resources returned."); refresh(); return;
   }
   if (act==="rankup"){ var nr=RANKS[S.rank+1]; if (!nr || !allMet(reqChecks(nr,false))) return; payQuest(nr); S.rank++; addPrestigeFlat(nr.prest); toast("Promoted to "+nr.name); refresh(); return; }
@@ -5490,10 +5553,10 @@ document.addEventListener("click",function(e){
   if (act==="gear-best"){ var bh=heroById(sheetFor.id); if (!bh) return; var bn=equipBest(bh); toast(bn?bh.name+": "+bn+" piece"+(bn===1?"":"s")+" swapped in":bh.name+" already wears the best spare gear"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="gset-save"){ var sh=heroById(sheetFor.id), si=+a.dataset.i; if (!sh) return;
     if (gearSetOf(sh,si) && armed!=="gsave"+si){ armed="gsave"+si; lastSheet=""; renderSheet(); return; }
-    armed=null; var sn=saveGearSet(sh,si); toast("Preset "+(si+1)+" saved ("+sn+" piece"+(sn===1?"":"s")+")"); save(); lastSheet=""; renderSheet(); return; }
+    armed=null; var sn=saveGearSet(sh,si); toast(gearSetName(sh,si)+" saved ("+sn+" piece"+(sn===1?"":"s")+")"); save(); lastSheet=""; renderSheet(); return; }
   if (act==="gset-load"){ var lh=heroById(sheetFor.id); if (!lh) return; var lr=loadGearSet(lh,+a.dataset.i); if (!lr) return;
     var tk=Object.keys(lr.took).map(function(n){ return lr.took[n]+" from "+n; });
-    toast(lr.moved?"Preset "+(+a.dataset.i+1)+" equipped"+(tk.length?", took "+tk.join(", "):"")+(lr.gone?" ("+lr.gone+" scrapped piece"+(lr.gone===1?"":"s")+" skipped)":""):"Already wearing preset "+(+a.dataset.i+1));
+    toast(lr.moved?gearSetName(lh,+a.dataset.i)+" equipped"+(tk.length?", took "+tk.join(", "):"")+(lr.gone?" ("+lr.gone+" scrapped piece"+(lr.gone===1?"":"s")+" skipped)":""):"Already wearing "+gearSetName(lh,+a.dataset.i));
     save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="gear-pick"){ forgeLog=[]; openSheet({kind:"gearpick",hero:sheetFor.id,slot:a.dataset.slot,back:sheetFor.id}); return; }
   if (act==="gear-on"){ var eg=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0];
@@ -5628,7 +5691,7 @@ document.addEventListener("click",function(e){
     else { S.items[ik]=(S.items[ik]||0)+inn; toast("+"+fmt(inn)+" "+ITEMS[ik].name); }
     save(); lastSheet=""; renderSheet(); lastView=""; refresh(); var ri=document.getElementById("dbg-item"), rn=document.getElementById("dbg-itemn"); if (ri) ri.value=ik; if (rn) rn.value=inn; return; }
   if (act==="dbg-res"){ RES.forEach(function(k){ S.res[k]+=1000000; }); toast("+1M of each resource"); save(); lastView=""; refresh(); return; }
-  if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
+  if (act==="dbg-finish"){ S.builds.forEach(function(b){ b.end=S.gt; }); if (S.research) S.research.end=S.gt; (S.train||[]).forEach(function(t){ if (t && !t.q) t.end=S.gt; }); if (S.fortQ) S.fortQ.end=S.gt;
     advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (act==="dbg-warend"){ if (warOn()){ warEnd(); flushFinished(); save(); refresh(); } return; }
   if (act==="rep-open"){ var rid=+a.dataset.id, rc2=S.log.filter(function(x){ return x.id===rid; })[0], rr2=S.reports.filter(function(x){ return x.id===rid; })[0]; if (!rc2) return; openSheet({kind:"report", c:rc2, rep:rr2||null}); return; }
@@ -5731,6 +5794,7 @@ document.addEventListener("click",function(e){
   if (act==="dismiss"){
     if (armed!=="dismiss"){ armed="dismiss"; lastSheet=""; renderSheet(); return; }
     var dh=heroById(sheetFor.id); if (dh.away){ toast("That hero is away on a march"); return; }
+    if (dh.tier==="queen"){ armed=null; toast("The Queen will not leave your court"); lastSheet=""; renderSheet(); return; }
     S.heroes=S.heroes.filter(function(x){ return x.id!==sheetFor.id; });
     S.gear.forEach(function(g){ if (g.on===sheetFor.id) g.on=0; });
     OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; });
@@ -5773,6 +5837,8 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); updateWaveInfo(); }
   if (e.target.id==="wgap"){ waveDraft.gap=Math.max(0,+e.target.value||0); updateWaveInfo(); }
   if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic"){ rh.name=e.target.value.replace(/\s+/g," ").trim()||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
+  if (e.target.id==="gname"){ var ng=forgeGear(); if (ng){ ng.nm=e.target.value.replace(/\s+/g," ").trim().slice(0,28)||undefined; if (!ng.nm) delete ng.nm; save(); } }
+  if (e.target.dataset.gsn!=null && sheetFor && sheetFor.kind==="hero"){ var nh=heroById(sheetFor.id); if (nh){ nh.gearSetNames=nh.gearSetNames||[]; nh.gearSetNames[+e.target.dataset.gsn]=e.target.value.replace(/\s+/g," ").trim().slice(0,24); save(); } }
   if (e.target.id==="repq"){ repQuery=e.target.value; repPage=0; fillRepList(); }
   if (e.target.dataset.reserve!=null){ S.reserve[e.target.dataset.reserve]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.goal!=null){ S.goals[+e.target.dataset.goal]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
