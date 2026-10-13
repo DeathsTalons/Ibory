@@ -1,5 +1,5 @@
 // Ibory offline worker. Bump CACHE on every release so phones pick up the new index.html.
-const CACHE = "ibory-v0.1.4";
+const CACHE = "ibory-v0.1.5";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -29,4 +29,10 @@ self.addEventListener("fetch", (e) => {
       }).catch(() => caches.match("index.html"));
     })
   );
+});
+
+// tapping a game notification brings Ibory back to the front
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => cs.length ? cs[0].focus() : self.clients.openWindow("./")));
 });

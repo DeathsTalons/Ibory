@@ -329,6 +329,13 @@ body.bfmode #tabs, body.bfmode .tabarrow, body.bfmode .queue, body.bfmode #march
 
 /* Army + war room */
 .tscroll{overflow-x:auto;margin-top:8px}
+.sheet{grid-template-columns:minmax(0,1fr)} /* nothing inside a menu can push it wider than the screen; wide tables scroll inside themselves */
+table.gt.reqt{min-width:0;table-layout:fixed} table.gt.reqt th,table.gt.reqt td{white-space:normal;padding:5px 4px;vertical-align:top}
+table.gt.reqt th:nth-child(1),table.gt.reqt td:nth-child(1){width:34%} table.gt.reqt th:nth-child(2),table.gt.reqt td:nth-child(2){width:14%;text-align:center}
+table.gt.reqt td:nth-child(3){font-size:.85em;line-height:1.3}
+.ntrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)} .ntrow input{width:20px;height:20px;flex:none}
+.upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
+.upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
 table.gt th,table.gt td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 table.gt th:first-child,table.gt td:first-child{text-align:left}
@@ -482,7 +489,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.4";
+var APP_VERSION = "0.1.5";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -855,18 +862,18 @@ return {fight:fight, stats:stats};
 
 /* ---------- troops ---------- */
 var U = [
-  {k:"worker",name:"Worker",cost:{food:50,lumber:150,iron:10},t:50,up:1,pop:1,req:[["barracks",1]]},
-  {k:"warrior",name:"Warrior",cost:{food:80,lumber:100,iron:50},t:25,up:1,pop:1,req:[["barracks",1]]},
-  {k:"scout",name:"Scout",cost:{food:120,lumber:200,iron:150},t:60,up:2,pop:1,req:[["barracks",2],["t:informatics",1]]},
-  {k:"pikeman",name:"Pikeman",cost:{food:150,lumber:500,iron:400},t:100,up:3,pop:1,req:[["barracks",2],["t:militarytradition",1]]},
-  {k:"swordsman",name:"Swordsman",cost:{food:200,lumber:400,iron:600},t:150,up:3,pop:1,req:[["barracks",3],["t:ironworking",1]]},
-  {k:"archer",name:"Archer",cost:{food:300,lumber:350,iron:300},t:200,up:4,pop:2,req:[["barracks",4],["t:archery",1]]},
-  {k:"transporter",name:"Transporter",cost:{food:600,lumber:1500,stone:500,iron:350},t:500,up:5,pop:4,mech:true,req:[["barracks",5],["t:metalcasting",1]]},
-  {k:"cavalry",name:"Cavalry",cost:{food:1000,lumber:100,iron:500},t:300,up:9,pop:3,req:[["barracks",5],["t:horsebackriding",1]]},
-  {k:"cataphract",name:"Cataphract",cost:{food:2000,lumber:600,iron:2500},t:600,up:17,pop:6,req:[["barracks",7],["t:horsebackriding",5]]},
-  {k:"ballista",name:"Ballista",cost:{food:2500,lumber:3000,stone:1800,iron:1600},t:1200,up:25,pop:5,mech:true,req:[["barracks",9],["workshop",5],["t:metalcasting",5],["t:archery",6]]},
-  {k:"ram",name:"Battering Ram",cost:{food:4000,lumber:6000,stone:3000,iron:1000},t:1800,up:50,pop:10,mech:true,req:[["barracks",9],["workshop",7],["t:metalcasting",7]]},
-  {k:"catapult",name:"Catapult",cost:{food:5000,lumber:8000,stone:5000,iron:1200},t:2400,up:125,pop:8,mech:true,req:[["barracks",10],["workshop",9],["t:metalcasting",8],["t:archery",8]]}
+  {k:"worker",name:"Worker",cost:{food:50,lumber:150,iron:10},t:75,up:1,pop:1,req:[["barracks",1]]},
+  {k:"warrior",name:"Warrior",cost:{food:80,lumber:100,iron:50},t:37.5,up:1,pop:1,req:[["barracks",1]]},
+  {k:"scout",name:"Scout",cost:{food:120,lumber:200,iron:150},t:90,up:2,pop:1,req:[["barracks",2],["t:informatics",1]]},
+  {k:"pikeman",name:"Pikeman",cost:{food:150,lumber:500,iron:400},t:150,up:3,pop:1,req:[["barracks",2],["t:militarytradition",1]]},
+  {k:"swordsman",name:"Swordsman",cost:{food:200,lumber:400,iron:600},t:225,up:3,pop:1,req:[["barracks",3],["t:ironworking",1]]},
+  {k:"archer",name:"Archer",cost:{food:300,lumber:350,iron:300},t:300,up:4,pop:2,req:[["barracks",4],["t:archery",1]]},
+  {k:"transporter",name:"Transporter",cost:{food:600,lumber:1500,stone:500,iron:350},t:750,up:5,pop:4,mech:true,req:[["barracks",5],["t:metalcasting",1]]},
+  {k:"cavalry",name:"Cavalry",cost:{food:1000,lumber:100,iron:500},t:450,up:9,pop:3,req:[["barracks",5],["t:horsebackriding",1]]},
+  {k:"cataphract",name:"Cataphract",cost:{food:2000,lumber:600,iron:2500},t:900,up:17,pop:6,req:[["barracks",7],["t:horsebackriding",5]]},
+  {k:"ballista",name:"Ballista",cost:{food:2500,lumber:3000,stone:1800,iron:1600},t:1800,up:25,pop:5,mech:true,req:[["barracks",9],["workshop",5],["t:metalcasting",5],["t:archery",6]]},
+  {k:"ram",name:"Battering Ram",cost:{food:4000,lumber:6000,stone:3000,iron:1000},t:2700,up:50,pop:10,mech:true,req:[["barracks",9],["workshop",7],["t:metalcasting",7]]},
+  {k:"catapult",name:"Catapult",cost:{food:5000,lumber:8000,stone:5000,iron:1200},t:3600,up:125,pop:8,mech:true,req:[["barracks",10],["workshop",9],["t:metalcasting",8],["t:archery",8]]}
 ];
 var FORTN = ["Traps","Abatis","Archer\u2019s Towers","Rolling Logs","Defensive Trebuchets"];
 var SIMTECH = [["militarytradition","Military Tradition"],["ironworking","Iron Working"],["medicine","Medicine"],["compass","Compass"],["horsebackriding","Horseback Riding"],["archery","Archery"]];
@@ -1267,7 +1274,7 @@ function friendlyArrive(m){
   if (m.mission==="transport"){
     RES.forEach(function(k){ dest.res[k]+=m.cargo[k]||0; });
     var tot=RES.reduce(function(a,k){ return a+(m.cargo[k]||0); },0);
-    finished.push("Delivered "+fmt(tot)+" resources to "+dest.name);
+    note("march","Delivered "+fmt(tot)+" resources to "+dest.name);
     m.cargo={}; m.loot={}; m.phase="back"; m.ret=S.gt+m.travel;
     return true;
   }
@@ -1281,17 +1288,26 @@ function friendlyArrive(m){
     else msg+=". "+dest.name+"\u2019s Feasting Hall is full, so "+hero.name+" rode home";
   }
   RES.forEach(function(k){ dest.res[k]+=(m.cargo&&m.cargo[k])||0; });
-  finished.push(msg);
+  note("march",msg);
   return false;
 }
 // loyalty: each victorious attack knocks off 10; it holds for an hour after the last one, then recovers 10 per hour
 var LOY_HOLD=3.6e6;
 function loyOf(q){ var l=S.map.loy[q.id]; if (!l) return 100; var idle=S.gt-l.at-LOY_HOLD; return idle<=0 ? l.v : Math.min(100, l.v + idle/3.6e6*10); }
+// each historic hero's specialty fits who they were
+var HIST_SPEC={
+  // Attack: warriors and conquerors
+  "Alexander the Great":"atk","Hannibal Barca":"atk","Leonidas":"atk","Joan of Arc":"atk","Richard the Lionheart":"atk","Genghis Khan":"atk","Attila":"atk","El Cid":"atk","William Wallace":"atk","Boudica":"atk","Frederick Barbarossa":"atk","Robert the Bruce":"atk","Vercingetorix":"atk","Spartacus":"atk","Trajan":"atk","Tomyris":"atk","Harald Hardrada":"atk","William the Conqueror":"atk","Alaric":"atk","Charles Martel":"atk",
+  // Intelligence: strategists and thinkers
+  "Julius Caesar":"int","Saladin":"int","Sun Tzu":"int","Scipio Africanus":"int","Themistocles":"int","Belisarius":"int","Marcus Aurelius":"int",
+  // Politics: rulers, builders and lawgivers
+  "Charlemagne":"pol","Cleopatra":"pol","Xerxes":"pol","Cyrus the Great":"pol","Ramesses II":"pol","Pericles":"pol","Constantine":"pol","Justinian":"pol","Octavian":"pol","Hadrian":"pol","Zenobia":"pol","Otto the Great":"pol","Theodoric":"pol"
+};
 function historicHero(q){
   var name=HISTORIC[q.hero], u=function(k){ return hash3(q.hero,k,77); };
-  var lv=q.L===12?30+Math.floor(u(1)*15):q.L===14?45+Math.floor(u(1)*15):q.L===16?60+Math.floor(u(1)*15):80;
-  var st={pol:70+Math.floor(u(2)*40), atk:70+Math.floor(u(3)*40), int:70+Math.floor(u(4)*40)};
-  st[["pol","atk","int"][Math.floor(u(5)*3)]] += 40+Math.floor(u(6)*30);
+  var lv=1; // captured historic heroes start at level 1 and grow from there
+  var st={pol:120+Math.floor(u(2)*11), atk:120+Math.floor(u(3)*11), int:120+Math.floor(u(4)*11)}; // 120-130 each; the specialty below lands at 160-199, above the Queen's 150
+  st[HIST_SPEC[name]||["pol","atk","int"][Math.floor(u(5)*3)]] += 40+Math.floor(u(6)*30);
   return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:{pol:st.pol, atk:st.atk, int:st.int}};
 }
 function captureCity(q, troops){
@@ -1328,19 +1344,19 @@ function scoutArrive(m){
   var sent=m.t.slice(), left=m.t.slice(); left[2]=as-aLost;
   addReport({id:S.nextMarchId++, at:S.gt, scout:true, name:tileName(q), tile:q.id, result:ok?1:2, rounds:0, sent:sent, left:left, had:cur.t.slice(), eleft:cur.t.slice(), forts:[0,0,0,0,0], fleft:[0,0,0,0,0],
     loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, medal:-1, drops:[], lost:aLost, hero:null, xp:0, intel:snap});
-  finished.push(ok ? "Scouts report back from "+tileName(q)+(aLost?" ("+fmt(aLost)+" lost)":"")+"." : "Your scouts were caught at "+tileName(q)+". Send more, or research Informatics.");
+  note("march",ok ? "Scouts report back from "+tileName(q)+(aLost?" ("+fmt(aLost)+" lost)":"")+"." : "Your scouts were caught at "+tileName(q)+". Send more, or research Informatics.");
   if (left[2]<=0) return false;
   m.t=left; m.loot={}; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
 function allyGuardArrive(m){
   var q=TILE_BY[m.tile]; if (!q || !isAlly(m.tile)){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
   m.phase="stay"; var d=dailyRec(); if (!d.guard){ d.guard=true; addRep(60, "stationed troops with "+q.ai.name); }
-  finished.push(fmt(sumT(m.t))+" troops are now guarding "+q.ai.name+". Recall them from the march bar when you want them back."); return true;
+  note("march",fmt(sumT(m.t))+" troops are now guarding "+q.ai.name+". Recall them from the march bar when you want them back."); return true;
 }
 function allyTransportArrive(m){
   var q=TILE_BY[m.tile], tot=RES.reduce(function(a,k){ return a+(m.cargo[k]||0); },0), d=dailyRec();
   if (tot>=10000 && !d.res){ d.res=true; addRep(50, "sent supplies to "+q.ai.name); }
-  finished.push("Delivered "+fmt(tot)+" resources to your ally "+q.ai.name);
+  note("march","Delivered "+fmt(tot)+" resources to your ally "+q.ai.name);
   m.cargo={}; m.loot={}; m.phase="back"; m.ret=S.gt+m.travel; return true;
 }
 function resolveMarch(m){
@@ -1355,11 +1371,11 @@ function resolveMarch(m){
   if (hq && hq.k==="home"){ // it became one of your cities while this wave was on the road (taken or founded): the wave joins its garrison
     var hc=S.cities[cityIndex(hq.city)];
     if (hc){ RES.forEach(function(k){ hc.res[k]+=((m.cargo&&m.cargo[k])||0)+(m.mission==="found"?10000:0); }); m.cargo={}; m.loot={};
-      finished.push(hc.name+" was already yours when your "+(m.mission==="conquer"?"conquering ":"")+"wave arrived; it joined the garrison instead");
+      note("march",hc.name+" was already yours when your "+(m.mission==="conquer"?"conquering ":"")+"wave arrived; it joined the garrison instead");
       m.mission="reinforce"; return friendlyArrive(m); }
   }
   if (!hq || !(hq.k in VTYPES || hq.k==="npc" || hq.k==="ai" || hq.k==="hc" || hq.k==="monster" || hq.k==="flat")){ // nothing left to fight there: turn round
-    m.phase="back"; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; finished.push("Your army found nothing to fight and is heading home"); return true; }
+    m.phase="back"; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; note("march","Your army found nothing to fight and is heading home"); return true; }
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
   var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
@@ -1433,15 +1449,15 @@ function resolveMarch(m){
     if (hero){ var hi=C().heroes.indexOf(hero); if (hi>=0){ C().heroes.splice(hi,1); hero.away=false; nc.heroes.push(hero); } }
   }
   var lost=0; for (i=0;i<12;i++) lost += m.t[i]-r.attacker[i];
-  if (m.preset!=null){ var pr=C().presets[m.preset]; if (pr && pr.auto && pr.stopOnLoss && (lost>0 || !won)){ pr.auto=false; finished.push(pr.name+" auto-farm paused: "+(won?"lost "+fmt(lost)+" troops":"the attack failed")+" at "+tileName(q)); } }
+  if (m.preset!=null){ var pr=C().presets[m.preset]; if (pr && pr.auto && pr.stopOnLoss && (lost>0 || !won)){ pr.auto=false; note("march",pr.name+" auto-farm paused: "+(won?"lost "+fmt(lost)+" troops":"the attack failed")+" at "+tileName(q)); } }
   var rep={id:S.nextMarchId++, at:S.gt, tile:q.id, name:tileName(q), result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(),
     had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
   addReport(rep);
-  if (histHero){ rep.historic=histHero.name; finished.push(histHero.name+" was captured and joins you!"); }
-  if (founded){ rep.founded=founded; finished.push((m.mission!=="found"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
+  if (histHero){ rep.historic=histHero.name; note("heroes",histHero.name+" was captured and joins you!"); }
+  if (founded){ rep.founded=founded; note("march",(m.mission!=="found"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
   if (m.mission==="found" && won){ RES.forEach(function(k){ loot[k]=(loot[k]||0)+10000; }); m.foundFail=true; }
   var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
-  finished.push(msg+loyNote);
+  note("march",msg+loyNote);
   var saved=surgeonHeal(m.t, r.attacker), alive = saved.some(function(n){ return n>0; });
   woundFrom(m.city, m.t, saved, true);
   if (!alive){ if (hero) hero.away=false; return false; }
@@ -1453,7 +1469,7 @@ function marchHome(m){
   RES.forEach(function(k){ S.res[k]+=m.loot[k]||0; });
   var h=m.hero?heroById(m.hero):null; if (h) h.away=false;
   var tot=RES.reduce(function(a,k){ return a+(m.loot[k]||0); },0);
-  finished.push("Army home from "+tileName(TILE_BY[m.tile])+(tot?" with "+fmt(tot)+" loot":""));
+  note("march","Army home from "+tileName(TILE_BY[m.tile])+(tot?" with "+fmt(tot)+" loot":""));
 }
 function marchT(m){ return m.phase==="wait"?m.dep:m.phase==="out"?m.arr:m.phase==="stay"?Infinity:m.ret; }
 function nextMarchEvent(){ var best=null; S.marches.forEach(function(m){ var t=marchT(m); if (!best || t<best.t) best={m:m,t:t}; }); return best; }
@@ -1752,7 +1768,7 @@ function resolveDefense(w){
       if (sp.scales){ S.items.scale=(S.items.scale||0)+sp.scales; spoils.push(sp.scales+" Dragon Scale"+(sp.scales>1?"s":"")); } }
     addReport({id:S.nextMarchId++, at:S.gt, def:true, tile:C().x+","+C().y, name:w.name+"\u2019s "+w.label.toLowerCase()+" on "+S.name+(shut?" (gate closed)":""), result:r.result, rounds:r.rounds, kb:r.kb,
       sent:before, left:r.defender.slice(), had:w.t.slice(), eleft:r.attacker.slice(), forts:fBefore, fleft:r.forts.slice(), loot:loot, medal:-1, drops:spoils, lost:myLost, repaired:rep});
-    finished.push((r.result===1?"\u2694 "+S.name+" was broken by ":"\u26e8 "+S.name+" held against ")+w.name+"\u2019s "+w.label.toLowerCase()+". You lost "+fmt(myLost)+", they lost "+fmt(theirLost)+(tot2?". Plundered: "+fmt(tot2):"")+(spoils.length?". Spoils: "+spoils.join(" and "):"")+".");
+    note("attack",(r.result===1?"\u2694 "+S.name+" was broken by ":"\u26e8 "+S.name+" held against ")+w.name+"\u2019s "+w.label.toLowerCase()+". You lost "+fmt(myLost)+", they lost "+fmt(theirLost)+(tot2?". Plundered: "+fmt(tot2):"")+(spoils.length?". Spoils: "+spoils.join(" and "):"")+".");
   });
 }
 function nextAiEvent(){ var best=null; S.aiWar.forEach(function(w){ var t=w.phase==="wait"?w.dep:w.arr; if (!best || t<best.t) best={w:w,t:t}; }); return best; }
@@ -2189,34 +2205,38 @@ var SET_TIERS=[[15,3.0],[14,2.75],[12,2.5],[9,2.0],[5,1.5]];
 function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return g.on===h.id; }), low=99; if (on.length<GEAR_POS.length) return -1; on.forEach(function(g){ low=Math.min(low,g.stars); }); return low; }
 function setLife(h){ var st=starSet(h); for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]) return SET_TIERS[i][1]; return 1; }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
-function gemChance(g,type,n){ var stat=slotOf(g).stat, m=bestFor(stat), mb=m?Math.min(10,hs(m,stat)/40):0;
+function gemChance(g,type,n){ var stat=gearStat(g), m=bestFor(stat), mb=m?Math.min(10,hs(m,stat)/40):0;
   return Math.min(99, GEM_P[type][g.stars]+GEM_STEP[type]*(n-1)+mb); }
 var STAR_P=[0.95,0.85,0.70,0.55,0.42,0.32,0.24,0.17,0.12,0.08];
 var STATN={pol:"Politics",atk:"Attack",int:"Intelligence"};
 function slotOf(g){ for (var i=0;i<GEAR_SLOTS.length;i++) if (GEAR_SLOTS[i].k===g.slot) return GEAR_SLOTS[i]; return GEAR_SLOTS[0]; }
+// every piece adds one stat. Pieces crafted from 0.1.5 on carry their own (g.stat, chosen at the Workshop); older pieces keep their slot's stat
+function gearStat(g){ return g.stat||slotOf(g).stat; }
+var STAT_WORD={atk:"Might",pol:"Rule",int:"Wisdom"}, craftStat="atk";
 function gearVal(g){ return Math.round(GEAR_BASE[g.tier]*(1+0.2*g.stars)); }
-function gearTypeName(g){ return TIERS[GEAR_TIERS[g.tier]].name+" "+slotOf(g).name; }
+function gearTypeName(g){ return TIERS[GEAR_TIERS[g.tier]].name+" "+slotOf(g).name+(g.stat?" of "+STAT_WORD[g.stat]:""); }
 function gearName(g){ return g.nm ? g.nm : gearTypeName(g); }
 function starStr(g){ var s=""; for (var i=0;i<GEAR_MAX[g.tier];i++) s+= i<g.stars?"\u2605":"\u2606"; return s; }
-function gearBonus(h,k){ var b=0; if (!S.gear) return 0; S.gear.forEach(function(g){ if (g.on===h.id && slotOf(g).stat===k) b+=gearVal(g); }); return b; }
+function gearBonus(h,k){ var b=0; if (!S.gear) return 0; S.gear.forEach(function(g){ if (g.on===h.id && gearStat(g)===k) b+=gearVal(g); }); return b; }
 function hs(h,k){ return h ? h[k]+gearBonus(h,k) : 0; }
 function gearById(id){ for (var i=0;i<S.gear.length;i++) if (S.gear[i].id===id) return S.gear[i]; return null; }
 function wearPiece(g,hid,pos){ S.gear.forEach(function(x){ if (x!==g && x.on===hid && posOf(x)===pos){ x.on=0; delete x.at; } }); g.on=hid; g.at=pos; }
 function gearRank(a,b){ return gearVal(b)-gearVal(a) || b.tier-a.tier || b.stars-a.stars; }
-// put the best piece for every slot on this hero, using only its own gear and spare pieces nobody wears
-function equipBest(hr){
-  var byType={}, changed=0; GEAR_POS.forEach(function(ps){ (byType[ps.type]=byType[ps.type]||[]).push(ps.k); });
+// best gear for one stat: pieces of that stat come first and are taken from any hero; empty slots are then filled with this hero's own or spare pieces
+function equipBest(hr,stat){
+  var byType={}, changed=0, took={}; GEAR_POS.forEach(function(ps){ (byType[ps.type]=byType[ps.type]||[]).push(ps.k); });
+  var rank=function(a,b){ var va=gearStat(a)===stat?gearVal(a):0, vb=gearStat(b)===stat?gearVal(b):0; return vb-va || gearRank(a,b); };
   Object.keys(byType).forEach(function(type){
-    var poss=byType[type], before=poss.map(function(p){ var g=wornAt(hr,p); return g?g.id:0; });
-    var pool=S.gear.filter(function(g){ return g.slot===type && (!g.on || g.on===hr.id); }).sort(gearRank).slice(0,poss.length);
-    pool.forEach(function(g,i){ if (g.on===hr.id && poss.indexOf(posOf(g))>=0){ poss=poss.filter(function(p){ return p!==posOf(g); }); pool[i]=null; } }); // already worn: keep it where it is
+    var poss=byType[type].slice(), before=poss.map(function(p){ var g=wornAt(hr,p); return g?g.id:0; });
+    var pool=S.gear.filter(function(g){ return g.slot===type && (gearStat(g)===stat || !g.on || g.on===hr.id); }).sort(rank).slice(0,poss.length);
+    pool.forEach(function(g,i){ if (g.on===hr.id && poss.indexOf(posOf(g))>=0){ poss=poss.filter(function(p){ return p!==posOf(g); }); pool[i]=null; } });
     S.gear.forEach(function(g){ if (g.on===hr.id && g.slot===type && pool.indexOf(g)<0 && poss.indexOf(posOf(g))>=0){ g.on=0; delete g.at; } });
-    pool.filter(Boolean).forEach(function(g,i){ wearPiece(g,hr.id,poss[i]); });
-    var after=byType[type].map(function(p){ var g=wornAt(hr,p); return g?g.id:0; });
-    after.forEach(function(id){ if (id && before.indexOf(id)<0) changed++; });
+    pool.filter(Boolean).forEach(function(g,i){ if (g.on && g.on!==hr.id){ var o=heroById(g.on); if (o) took[o.name]=(took[o.name]||0)+1; } wearPiece(g,hr.id,poss[i]); });
+    byType[type].forEach(function(p){ var g=wornAt(hr,p); if (g && before.indexOf(g.id)<0) changed++; });
   });
-  return changed;
+  return {changed:changed, took:took};
 }
+function unequipAll(hr){ var n=0; S.gear.forEach(function(g){ if (g.on===hr.id){ g.on=0; delete g.at; n++; } }); return n; }
 var GEAR_SETS=3;
 function gearSetName(hr,i){ return ((hr.gearSetNames||[])[i])||("Preset "+(i+1)); }
 function gearSetOf(hr,i){ return (hr.gearSets||[])[i]||null; }
@@ -2229,16 +2249,18 @@ function loadGearSet(hr,i){ var st=gearSetOf(hr,i); if (!st) return null; var mo
     if (g.on && g.on!==hr.id){ var o=heroById(g.on); if (o) took[o.name]=(took[o.name]||0)+1; }
     wearPiece(g,hr.id,k); moved++; }
   return {moved:moved, took:took, gone:gone}; }
-function makeGear(tier,slot){ var g={id:S.nextGearId++, slot:slot||GEAR_POS[Math.floor(Math.random()*GEAR_POS.length)].type, tier:tier, stars:0, on:0}; S.gear.push(g); return g; }
+function makeGear(tier,slot,stat){ var g={id:S.nextGearId++, slot:slot||GEAR_POS[Math.floor(Math.random()*GEAR_POS.length)].type, tier:tier, stars:0, on:0, stat:STATN[stat]?stat:pick(["atk","pol","int"])}; S.gear.push(g); return g; }
 // gear is crafted in the Workshop from materials, not looted
 var MAT=["ore","ingot","mithril","starmetal","scale"], MAT_NEED=[3,3,3,3,3], MAT_WS=[1,3,6,9,10], craftTier=0;
 function craftWhy(t){ if (bLevel("workshop")<MAT_WS[t]) return "Needs Workshop "+MAT_WS[t]; if ((S.items[MAT[t]]||0)<MAT_NEED[t]) return "Needs "+MAT_NEED[t]+" "+ITEMS[MAT[t]].name; return ""; }
+function craftStatChips(){ return '<div class="farmadd"><span class="dur">Craft for:</span>'+["atk","pol","int"].map(function(k){ return '<button class="chipbtn'+(craftStat===k?' on':'')+'" data-act="craft-stat" data-v="'+k+'">'+STATN[k]+'</button>'; }).join("")+'</div>'; }
 function craftSection(){
   var h='<div class="section"><div class="shead"><h3>Hero Enhancement</h3><span class="dur">'+MAT.map(function(m){ return fmt(S.items[m]||0)+' '+ITEMS[m].name; }).join(", ")+'</span></div>'+
     '<p class="hint">Every piece starts as Common, forged from 3 Rough Ore with a Workshop. Higher tiers are never made from scratch: take a Common piece to the Forge and reforge it up a tier with that tier\u2019s materials (Fine Ingots for Rare at Workshop 3, Mithril for Epic at 6, Star Metal for Legendary at 9, and Dragon Scales, carried only by monsters, for Mythic at 10). Each reforge costs the piece one star, so stars are worth adding after the climb, not before.</p>';
   craftTier=0;
   var why=craftWhy(0);
-  h+='<div class="gearlist" style="margin-top:8px">'+GEAR_SLOTS.map(function(sl){ return '<div class="gearrow t'+craftTier+'"><span class="gn">'+TIERS[GEAR_TIERS[craftTier]].name+' '+sl.name+'</span><span class="gb">+'+GEAR_BASE[craftTier]+' '+STATN[sl.stat]+'</span><span></span><span class="btnrow" style="justify-content:flex-end"><button class="btn small" data-act="craft" data-slot="'+sl.k+'"'+(why?' disabled':'')+'>Craft</button></span></div>'; }).join("")+'</div>'+
+  h+='<p class="hint">Each piece adds Attack, Politics or Intelligence: pick one before crafting. A hero wearing a full set of one stat gets far more of it than a mixed set.</p>'+craftStatChips();
+  h+='<div class="gearlist" style="margin-top:8px">'+GEAR_SLOTS.map(function(sl){ return '<div class="gearrow t'+craftTier+'"><span class="gn">'+TIERS[GEAR_TIERS[craftTier]].name+' '+sl.name+' of '+STAT_WORD[craftStat]+'</span><span class="gb">+'+GEAR_BASE[craftTier]+' '+STATN[craftStat]+'</span><span></span><span class="btnrow" style="justify-content:flex-end"><button class="btn small" data-act="craft" data-slot="'+sl.k+'"'+(why?' disabled':'')+'>Craft</button></span></div>'; }).join("")+'</div>'+
     (why?'<p class="why" style="margin-top:6px">'+why+'</p>':'');
   return h+'</div>';
 }
@@ -2372,7 +2394,7 @@ function checkQueen(){
   withCity(ci,function(){
     var q=genHero("legendary",1); q.tier="queen"; q.name="Queen "+pick(QUEEN_NAMES); q.pol=q.atk=q.int=150; q.base={pol:150,atk:150,int:150}; q.pts=0;
     var msg; if (S.heroes.length<hallCap()){ S.heroes.push(q); msg=q.name+" has come to "+S.name+" and joined your hall"; } else { S.waiting.push(q); msg=q.name+" has come to "+S.name+" and waits at the gate: free a place in your Feasting Hall"; }
-    finished.push(msg); S.wheelLog.unshift(q.name+", for reaching Town Hall 10"); S.wheelLog=S.wheelLog.slice(0,8);
+    note("heroes",msg); S.wheelLog.unshift(q.name+", for reaching Town Hall 10"); S.wheelLog=S.wheelLog.slice(0,8);
   });
 }
 var FIRST = ["Aldric","Brenna","Cedric","Doria","Edmund","Fiora","Garrick","Helena","Ivo","Jorun","Kasimir","Lysa","Marek","Nadia","Osric","Petra","Quentin","Rowena","Soren","Talia","Ulric","Vesna","Wendel","Yara","Zoltan","Anselm","Beatrix","Corvin","Elowen","Friedrich","Isolde","Leofric","Mireille","Theodric"];
@@ -2715,7 +2737,18 @@ function rates(){
 }
 
 /* ---------- time ---------- */
-var finished = [];
+var finished = [], finCats = []; // messages from the game loop, and each one's notification type
+var NOTE_TYPES=[["build","Buildings and fortifications finished"],["research","Research finished"],["train","Troops trained"],["heroes","Heroes (level ups, captures, arrivals)"],
+  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Alliance, wars and events"],["day","New day"]];
+function note(cat,msg){ finished.push(msg); finCats[finished.length-1]=cat; }
+function noteOn(cat){ return !(S.notifOff&&S.notifOff[cat||"other"]); }
+function shownFinished(){ var out=[]; finished.forEach(function(m,i){ if (noteOn(finCats[i])) out.push(m); }); finished=[]; finCats=[]; return out; }
+// phone notifications: shown only while the app is still running in the background (the phone freezes it after a few minutes)
+function phoneNotify(list){
+  if (!list.length || !S.phoneNotif || !document.hidden || !("Notification" in window) || Notification.permission!=="granted") return;
+  var body=list[list.length-1]+(list.length>1?" (and "+(list.length-1)+" more)":"");
+  try { if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(function(reg){ reg.showNotification("Ibory",{body:body, icon:"icon-192.png", badge:"icon-192.png", tag:"ibory"}); }); else new Notification("Ibory",{body:body, icon:"icon-192.png", tag:"ibory"}); } catch(e){}
+}
 function accrue(ms){
   if (ms<=0) return;
   var h=ms/3.6e6, r=rates();
@@ -2726,12 +2759,12 @@ function accrue(ms){
   if (S.pop < cap){ var k2 = 0.5*(1 - S.tax/125); S.pop = cap - (cap-S.pop)*Math.exp(-k2*h); }
   else S.pop = cap;
   OFFICES.forEach(function(o){ var m=officerActive(o[0]); // every office holder earns experience while serving
-    if (m){ var up=giveXp(m, 200*h); if (up) finished.push(m.name+" reached level "+m.level); } });
+    if (m){ var up=giveXp(m, 200*h); if (up) note("heroes",m.name+" reached level "+m.level); } });
 }
 function completeBuild(bi){
   var b=S.builds[bi];
   if (b.where==="th") S.th=b.to; else if (b.where==="wall") S.wall=b.to; else { var s=getSlot(b.where,b.idx); if (s) s.level=b.to; }
-  finished.push(DEF[b.type].name+" level "+b.to);
+  note("build",DEF[b.type].name+" level "+b.to);
   addPrestige(prestBuild(b.type,b.to));
   S.amulets += (b.type==="townhall" ? 10 : 1)*AMULET_RATE;
   S.builds.splice(bi,1);
@@ -2739,17 +2772,17 @@ function completeBuild(bi){
 }
 function completeResearch(){
   var r=S.research; setTech(r.tech, r.to); addPrestige(prestTech(r.to));
-  finished.push(TECH[r.tech].name+" level "+r.to);
+  note("research",TECH[r.tech].name+" level "+r.to);
   S.amulets += AMULET_RATE;
   S.research=null;
 }
 function completeFort(){
   var q=S.fortQ; S.forts[q.f]+=q.n; addPrestige(Math.round(q.n*FORTS[q.f].prest)); S.amulets+=AMULET_RATE;
-  finished.push(fmt(q.n)+" "+FORTS[q.f].name+" built"); S.fortQ=null;
+  note("build",fmt(q.n)+" "+FORTS[q.f].name+" built"); S.fortQ=null;
 }
 function completeTrain(ti){
   var t=S.train[ti]; S.troops[t.u]+=t.n; achStore().trained[t.u]+=t.n; S.amulets+=AMULET_RATE; addPrestige(Math.round(t.n*PREST_U[t.u]));
-  finished.push(fmt(t.n)+" "+uname(t.u,t.n)+" trained");
+  note("train",fmt(t.n)+" "+uname(t.u,t.n)+" trained");
   S.train.splice(ti,1); promoteQueue(t.slot);
 }
 function accrueAll(ms){
@@ -2795,7 +2828,7 @@ function advance(now){
   for (var cj=0; cj<S.cities.length; cj++){ S.cur=cj; if (innLv() && S.gt >= S.innRefreshAt){ rollInn(); if (cj===viewing) changed=true; } }
   S.cur=viewing;
   if (TILES && S.map.monsters && S.map.monsters.day!==gameDay() && gameDay()===S.map.day) ensureMonsters();
-  if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); finished.push("A new day dawns: unheld valleys and flats have gained a level, and historic garrisons have changed."); changed=true; }
+  if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); note("day","A new day dawns: unheld valleys and flats have gained a level, and historic garrisons have changed."); changed=true; }
   return changed;
 }
 
@@ -3078,14 +3111,12 @@ function fortWhy(i,n){
 function fortMax(i){ var f=FORTS[i], m=Math.floor((fortCap()-fortUsed())/f.space); for (var k in f.cost) m=Math.min(m,Math.floor(S.res[k]/f.cost[k])); return Math.max(0,m); }
 function wallUpRow(L){
   var job=buildOn("wall",0), queued=(S.bq||[]).some(function(q){ return q.w==="wall"; });
-  if (job) return '<div class="effect">Walls upgrading to level '+job.to+'. See the build queue for time left.</div>';
-  if (L>=maxLv("walls")) return '<div class="effect">Walls are at their maximum level.</div>';
-  var why=upgradeWhy("walls",L), c=costFor("walls",L+1), onlyBusy=why==="Both builders are busy";
-  return '<div class="unit"><h4>Upgrade walls to level '+(L+1)+'</h4><span class="own">'+fmtT(realMs(timeFor("walls",L+1)))+'</span>'+
-    '<div style="grid-column:1/-1">'+chips(c)+'</div><div class="trainrow">'+
-    (onlyBusy ? (queued?'<span class="dur">Upgrade queued: it starts when a builder is free.</span>':'<button class="btn small" data-act="wall-queue">Queue upgrade</button><span class="dur">Both builders are busy</span>')
-              : '<button class="btn small" data-act="wall-up"'+(why?' disabled':'')+'>Upgrade</button>'+(why?'<span class="why">'+esc(why)+'</span>':''))+
-    '</div></div>';
+  if (L>=maxLv("walls") && !job) return '<div class="effect">Walls are at their maximum level.</div>';
+  var nextL=L+1+(job?1:0), why=job?"Upgrading now":upgradeWhy("walls",L), canQ=!queued && nextL<=maxLv("walls");
+  if (nextL>maxLv("walls")) return '<div class="effect">Walls upgrading to level '+job.to+', their last level.</div>';
+  return '<div class="unit"><h4>Upgrade walls to level '+nextL+'</h4><span class="own">'+fmtT(realMs(timeFor("walls",nextL)))+'</span>'+
+    '<div style="grid-column:1/-1">'+chips(costFor("walls",nextL))+'</div><div class="upact" style="grid-column:1/-1"><div class="upinfo"><span class="dur">'+(job?'Walls upgrading to level '+job.to+'.':queued?'Upgrade queued.':'')+'</span><span class="why">'+esc(why||'')+'</span></div>'+
+    '<div class="upbtns">'+(!why?'<button class="btn" data-act="wall-up">Upgrade</button>':'<button class="btn ghost" data-act="wall-queue"'+(canQ?'':' disabled')+'>'+(queued?'Queued':'Add to queue')+'</button>')+'</div></div></div>';
 }
 function fortSection(){
   var L=S.wall||0, busy=S.fortQ?', building '+FORTS[S.fortQ.f].name:'';
@@ -3128,24 +3159,24 @@ function armorySection(){
 }
 function gearRow(g){
   var sl=slotOf(g), who=g.on?heroById(g.on):null;
-  return '<button class="gearrow t'+g.tier+'" data-act="forge-open" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+' '+STATN[sl.stat]+(g.slot==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march speed':'')+'</span><span class="dur">'+(who?'Worn by '+esc(who.name):'Unequipped')+'</span></button>';
+  return '<button class="gearrow t'+g.tier+'" data-act="forge-open" data-g="'+g.id+'"><span class="gn">'+gearName(g)+'</span><span class="gst">'+starStr(g)+'</span><span class="gb">+'+gearVal(g)+' '+STATN[gearStat(g)]+(g.slot==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march speed':'')+'</span><span class="dur">'+(who?'Worn by '+esc(who.name):'Unequipped')+'</span></button>';
 }
 function forgeControls(g){ // star and tier upgrades for one piece: shared by the Forge's piece menu and a hero's gear slot menu
   var sl=slotOf(g), max=GEAR_MAX[g.tier], h="";
   h+='<div><label for="gname" class="sub">Name this piece'+(g.nm?' ('+gearTypeName(g)+')':'')+'</label><input id="gname" type="text" maxlength="28" value="'+esc(g.nm||"")+'" placeholder="'+esc(gearTypeName(g))+'"></div>';
   if (g.stars>=max) h+='<p class="effect">This piece is at its maximum of '+max+' stars.</p>';
   else {
-    var have=S.items["gem"+forgeGem]||0, n=Math.max(1,Math.min(4,forgeN)), p=gemChance(g,forgeGem,n), m=bestFor(sl.stat);
+    var have=S.items["gem"+forgeGem]||0, n=Math.max(1,Math.min(4,forgeN)), p=gemChance(g,forgeGem,n), m=bestFor(gearStat(g));
     h+='<div class="farmadd"><span class="dur">Gem:</span><button class="chipbtn'+(forgeGem==="D"?' on':'')+'" data-act="forge-gem" data-v="D">Delicate ('+fmt(S.items.gemD||0)+')</button><button class="chipbtn'+(forgeGem==="F"?' on':'')+'" data-act="forge-gem" data-v="F">Flawless ('+fmt(S.items.gemF||0)+')</button></div>';
     h+='<div class="farmadd"><span class="dur">Gems per try:</span>'+[1,2,3,4].map(function(k){ return '<button class="chipbtn'+(n===k?' on':'')+'" data-act="forge-n" data-v="'+k+'">'+k+'</button>'; }).join("")+'</div>';
-    h+='<div class="effect">'+g.stars+' \u2192 '+(g.stars+1)+' stars: <b>'+Math.round(p)+'%</b> chance'+(m?' (includes +'+Math.min(10,hs(m,sl.stat)/40).toFixed(1)+'% from '+esc(m.name)+'\u2019s '+STATN[sl.stat]+')':'')+'. Success makes it +'+Math.round(GEAR_BASE[g.tier]*(1+0.2*(g.stars+1)))+'. A failure drops it to <b>'+FAIL_TO[g.stars]+' star'+(FAIL_TO[g.stars]===1?'':'s')+'</b>.</div>';
+    h+='<div class="effect">'+g.stars+' \u2192 '+(g.stars+1)+' stars: <b>'+Math.round(p)+'%</b> chance'+(m?' (includes +'+Math.min(10,hs(m,gearStat(g))/40).toFixed(1)+'% from '+esc(m.name)+'\u2019s '+STATN[gearStat(g)]+')':'')+'. Success makes it +'+Math.round(GEAR_BASE[g.tier]*(1+0.2*(g.stars+1)))+'. A failure drops it to <b>'+FAIL_TO[g.stars]+' star'+(FAIL_TO[g.stars]===1?'':'s')+'</b>.</div>';
     var why = have<n ? "Not enough "+(forgeGem==="D"?"Delicate":"Flawless")+" gems" : "";
     h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="forge-strike"'+(why?' disabled':'')+'>Upgrade star</button></div>';
   }
   var ut=g.tier+1;
   if (ut<GEAR_TIERS.length){
     var uw=upgWhy(g), ns=Math.max(0,g.stars-1);
-    h+='<div class="effect">Upgrade to <b>'+TIERS[GEAR_TIERS[ut]].name+' '+sl.name+'</b> with '+MAT_NEED[ut]+' '+ITEMS[MAT[ut]].name+' (Workshop '+MAT_WS[ut]+'): +'+Math.round(GEAR_BASE[ut]*(1+0.2*ns))+' '+STATN[sl.stat]+' at '+ns+' star'+(ns===1?'':'s')+'. The work costs it one star.</div>'+
+    h+='<div class="effect">Upgrade to <b>'+TIERS[GEAR_TIERS[ut]].name+' '+sl.name+'</b> with '+MAT_NEED[ut]+' '+ITEMS[MAT[ut]].name+' (Workshop '+MAT_WS[ut]+'): +'+Math.round(GEAR_BASE[ut]*(1+0.2*ns))+' '+STATN[gearStat(g)]+' at '+ns+' star'+(ns===1?'':'s')+'. The work costs it one star.</div>'+
       '<div class="act"><span class="why">'+uw+'</span><button class="btn" data-act="gear-upgrade"'+(uw?' disabled':'')+'>'+(armed==="upg"?'Tap again to upgrade':'Upgrade tier')+'</button></div>';
   }
   if (forgeLog.length) h+='<ul class="log">'+forgeLog.slice(0,6).map(function(x){ return '<li>'+x+'</li>'; }).join("")+'</ul>';
@@ -3153,7 +3184,7 @@ function forgeControls(g){ // star and tier upgrades for one piece: shared by th
 }
 function forgeSheet(g){
   var sl=slotOf(g), max=GEAR_MAX[g.tier], who=g.on?heroById(g.on):null;
-  var h='<div class="head"><span class="ico">'+ICON.anvil+'</span><div><h2>'+gearName(g)+'</h2><div class="sub">'+starStr(g)+'  +'+gearVal(g)+' '+STATN[sl.stat]+(who?', worn by '+esc(who.name):'')+'</div></div></div>';
+  var h='<div class="head"><span class="ico">'+ICON.anvil+'</span><div><h2>'+gearName(g)+'</h2><div class="sub">'+starStr(g)+'  +'+gearVal(g)+' '+STATN[gearStat(g)]+(who?', worn by '+esc(who.name):'')+'</div></div></div>';
   h+=forgeControls(g);
   h+='<div class="act"><button class="btn ghost danger small" data-act="gear-scrap">'+(armed==="scrap"?'Tap again to scrap for '+(GEAR_SCRAP[g.tier]+g.stars)+' Delicate Gems':'Scrap for gems')+'</button><button class="closebtn" data-act="close">Close</button></div>';
   return h;
@@ -3168,10 +3199,10 @@ function forgeGear(){ // the piece the open menu is upgrading: the one in the Fo
 function gearPickSheet(hr, slot){
   var ps=posInfo(slot), sl=GEAR_SLOTS.filter(function(x){ return x.k===ps.type; })[0], cur=wornAt(hr,ps.k);
   var opts=S.gear.filter(function(x){ return x.slot===ps.type && x!==cur; }).sort(function(a,b){ return gearVal(b)-gearVal(a); });
-  var h='<div class="head"><span class="ico">'+ICON.helm+'</span><div><h2>'+ps.name+' for '+esc(hr.name)+'</h2><div class="sub">Takes a '+sl.name+'. Adds '+STATN[sl.stat]+(ps.type==="mount"?', and marches go faster: 3% (Common) up to 15% (Mythic)':'')+'.</div></div></div>';
+  var h='<div class="head"><span class="ico">'+ICON.helm+'</span><div><h2>'+ps.name+' for '+esc(hr.name)+'</h2><div class="sub">Takes a '+sl.name+'. Each piece adds Attack, Politics or Intelligence'+(ps.type==="mount"?', and marches go faster: 3% (Common) up to 15% (Mythic)':'')+'.</div></div></div>';
   if (cur) h+='<div class="effect">Wearing '+gearName(cur)+' '+starStr(cur)+' (+'+gearVal(cur)+')</div>'+'<div class="h3">Upgrade '+esc(hr.name)+'\u2019s '+gearName(cur)+'</div>'+forgeControls(cur)+'<div class="btnrow"><button class="btn ghost small" data-act="gear-off" data-g="'+cur.id+'">Take it off</button></div>';
   var cw=craftWhy(0);
-  h+='<div class="h3">Craft a new one</div><div class="effect">Common '+sl.name+': +'+GEAR_BASE[0]+' '+STATN[sl.stat]+', made from '+MAT_NEED[0]+' '+ITEMS[MAT[0]].name+' (you have '+fmt(S.items[MAT[0]]||0)+'). Upgrade its tier and stars right here afterwards.</div>'+
+  h+='<div class="h3">Craft a new one</div>'+craftStatChips()+'<div class="effect">Common '+sl.name+' of '+STAT_WORD[craftStat]+': +'+GEAR_BASE[0]+' '+STATN[craftStat]+', made from '+MAT_NEED[0]+' '+ITEMS[MAT[0]].name+' (you have '+fmt(S.items[MAT[0]]||0)+'). Upgrade its tier and stars right here afterwards.</div>'+
     '<div class="act"><span class="why">'+cw+'</span><span class="btnrow"><button class="btn ghost small" data-act="gear-craft"'+(cw?' disabled':'')+'>Craft</button><button class="btn small" data-act="gear-craft" data-wear="1"'+(cw?' disabled':'')+'>Craft and wear</button></span></div>';
   if (opts.length) h+='<div class="h3">'+(cur?'Swap it for':'Equip')+'</div>';
   if (!opts.length) h+='<p class="hint">No other '+sl.name.toLowerCase()+' in the armory. Craft one above.</p>';
@@ -3314,7 +3345,7 @@ function spawnBully(){
   buildCamp(A.bully, b, tt);
   planWave();
   var fr=friendOf(b);
-  finished.push((fr?"An old name is back: "+b.name+". "+fr.tag+". ":b.name+" has come to "+realmName()+" and ")+"is threatening your ally "+target.ai.name+". See the Alliance tab.");
+  note("alliance",(fr?"An old name is back: "+b.name+". "+fr.tag+". ":b.name+" has come to "+realmName()+" and ")+"is threatening your ally "+target.ai.name+". See the Alliance tab.");
   miniDirty=true;
 }
 // a bully's camp is a real fortified city: big defensive garrison, full fortifications, high walls and a strong hero
@@ -3343,7 +3374,7 @@ function planWave(){
   if (S.gt+lead > B.until){ B.next=null; return; }
   B.target=tgt.id; B.next={target:tgt.id, t:t, arr:S.gt+lead};
   A.log.unshift({at:S.gt, t:b.name+" is sending "+fmt(sumT(t))+" troops at "+tgt.ai.name+", landing in "+fmtT(realMs(lead))});
-  finished.push(b.name+" will hit "+tgt.ai.name+" in "+fmtT(realMs(lead))+". Reinforce them from the Alliance tab.");
+  note("alliance",b.name+" will hit "+tgt.ai.name+" in "+fmtT(realMs(lead))+". Reinforce them from the Alliance tab.");
 }
 function endBully(why){
   var A=AL(), b=bullyOf(); if (!A.bully) return;
@@ -3371,7 +3402,7 @@ function bullyWave(){
   if (sumT(mine)>0){ gain=(150+650*Math.min(1,share*2)+(held?400:0))*(0.6+b.iq/200); addRep(gain, (held?"helped "+q.ai.name+" hold against ":"stood with "+q.ai.name+" against ")+b.name); }
   addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+" vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds, kb:r.kb,
     sent:mine, left:mine.map(function(n,k){ return dt[k]?Math.round(n*r.defender[k]/dt[k]):0; }), had:w.t.slice(), eleft:r.attacker.slice(), forts:[0,0,0,0,0], fleft:[0,0,0,0,0], loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, lost:myLost, medal:-1, drops:[]});
-  finished.push(q.ai.name+(held?" held off ":" was overrun by ")+b.name+(gain?". +"+fmt(Math.round(gain))+" alliance rep":"")+(myLost?". You lost "+fmt(myLost)+" troops":""));
+  note("alliance",q.ai.name+(held?" held off ":" was overrun by ")+b.name+(gain?". +"+fmt(Math.round(gain))+" alliance rep":"")+(myLost?". You lost "+fmt(myLost)+" troops":""));
   if (held && !sumT(r.attacker)) b.losses++; else if (!held) b.wins++;
   if (sumT(B.army)<200){ b.losses++; addRep(300*(0.6+b.iq/200), "drove off "+b.name); endBully("was broken and fled"); return; }
   planWave();
@@ -3451,7 +3482,7 @@ function declareWar(){
   A.warReady=S.gt+WAR_COOLDOWN_DAYS*86400000;
   var names=en.map(function(E){ return rosterById(E.rid).name; });
   A.log.unshift({at:S.gt, t:"War declared on "+names.join(", ")+"."});
-  finished.push("War! "+names.join(", ")+" have pitched camps in "+realmName()+". Seven days.");
+  note("alliance","War! "+names.join(", ")+" have pitched camps in "+realmName()+". Seven days.");
   miniDirty=true;
   return true;
 }
@@ -3465,7 +3496,7 @@ function warScore(earn, lose, why){
   while (w.tier<WAR_LADDER.length && warPct()>=WAR_LADDER[w.tier].p){
     var t=WAR_LADDER[w.tier];
     for (var k in t.r) S.items[k]=(S.items[k]||0)+t.r[k];
-    finished.push("War spoils at "+t.p+"%: "+rewardText({items:t.r})+".");
+    note("alliance","War spoils at "+t.p+"%: "+rewardText({items:t.r})+".");
     A_log("Reached "+t.p+"% in the war: "+rewardText({items:t.r}));
     w.tier++;
   }
@@ -3490,7 +3521,7 @@ function warLaunch(i){
     var q=allies[Math.floor(Math.random()*allies.length)];
     w.pending.push({eid:i, target:q.id, t:t, arr:S.gt+lead});
     A_log(b.name+" sent "+fmt(sumT(t))+" troops at "+q.ai.name+", landing in "+fmtT(realMs(lead))+".");
-    finished.push(b.name+" is marching on your ally "+q.ai.name+". Reinforce them from the Alliance tab.");
+    note("alliance",b.name+" is marching on your ally "+q.ai.name+". Reinforce them from the Alliance tab.");
   }
 }
 // a war party reaches one of your allies; only your guards make it count
@@ -3515,7 +3546,7 @@ function warAllyHit(j){
   warScore(earn, ptsOf(myLost), (held?"helped "+q.ai.name+" hold against ":"stood with "+q.ai.name+" against ")+b.name);
   addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+"\u2019s war party vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds, kb:r.kb,
     sent:mine, left:mine.map(function(n,k){ return n-myLost[k]; }), had:p.t.slice(), eleft:r.attacker.slice(), forts:[0,0,0,0,0], fleft:[0,0,0,0,0], loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, lost:sumT(myLost), medal:-1, drops:[]});
-  if (sumT(mine)) finished.push(q.ai.name+(held?" held off ":" was overrun by ")+b.name+" with your help. +"+fmt(Math.round(earn))+" war points"+(sumT(myLost)?", you lost "+fmt(sumT(myLost)):"")+".");
+  if (sumT(mine)) note("alliance",q.ai.name+(held?" held off ":" was overrun by ")+b.name+" with your help. +"+fmt(Math.round(earn))+" war points"+(sumT(myLost)?", you lost "+fmt(sumT(myLost)):"")+".");
 }
 // one of their war parties hit your city (called from resolveDefense)
 function warDefended(w, before, r){
@@ -3547,9 +3578,9 @@ function warCityBattle(m){
     E.out=true; b.losses++;
     w.pending=w.pending.filter(function(p){ return p.eid!==i; });
     A_log("You broke "+b.name+"\u2019s war camp. They are out of the war.");
-    finished.push("You took "+b.name+"\u2019s war camp! They are out of the war.");
+    note("alliance","You took "+b.name+"\u2019s war camp! They are out of the war.");
     miniDirty=true;
-  } else finished.push(b.name+"\u2019s war camp held. You lost "+fmt(sumT(lostT))+" troops.");
+  } else note("alliance",b.name+"\u2019s war camp held. You lost "+fmt(sumT(lostT))+" troops.");
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
@@ -3579,7 +3610,7 @@ function warEnd(){
   if (win) S.items.banish=(S.items.banish||0)+1;
   A.warLast={win:win, earned:Math.round(w.earned), lost:Math.round(w.lost), pct:warPct(), tiers:w.tier, at:S.gt};
   A_log("The war is over: "+(win?"won":"lost")+", "+fmt(Math.round(w.earned))+" points earned to "+fmt(Math.round(w.lost))+" lost.");
-  finished.push("The war is over. "+(win?"You won, and earned a Banishment Order.":"You lost more than you took, but kept every bit of reputation you earned."));
+  note("alliance","The war is over. "+(win?"You won, and earned a Banishment Order.":"You lost more than you took, but kept every bit of reputation you earned."));
   miniDirty=true;
 }
 function useBanish(){
@@ -3689,7 +3720,7 @@ function challenge(rid){
   A.challenges=A.challenges||[]; A.challenges.push(c);
   A.chalReady=S.gt+CHAL_COOLDOWN_DAYS*86400000;
   A_log("You challenged "+b.name+". They are massing "+c.cities.length+" cities around the historic city at ("+tq.x+", "+tq.y+").");
-  finished.push(b.name+" accepts. "+c.cities.length+" cities appear around ("+tq.x+", "+tq.y+"). They march on it in "+CHAL_PREP_DAYS+" days.");
+  note("alliance",b.name+" accepts. "+c.cities.length+" cities appear around ("+tq.x+", "+tq.y+"). They march on it in "+CHAL_PREP_DAYS+" days.");
   miniDirty=true; return true;
 }
 function chalAt(id){ var a=CH();
@@ -3717,15 +3748,15 @@ function chalCityBattle(m){
   var lost=sumT(killedOf(m.t, r.attacker)), loot={food:0,lumber:0,stone:0,iron:0,gold:0}, nm;
   if (q.seat){
     c.garrison=r.defender.slice(); c.forts=r.forts.map(function(n){ return Math.max(0,n); }); nm=b.name+"\u2019s seat";
-    if (won){ chalDefeated(c, "lost the historic city they took"); finished.push("You broke "+b.name+"\u2019s hold on the historic city! It stands empty: conquer it before it recovers."); }
-    else finished.push(b.name+"\u2019s seat held. You lost "+fmt(lost)+" troops.");
+    if (won){ chalDefeated(c, "lost the historic city they took"); note("alliance","You broke "+b.name+"\u2019s hold on the historic city! It stands empty: conquer it before it recovers."); }
+    else note("alliance",b.name+"\u2019s seat held. You lost "+fmt(lost)+" troops.");
   } else {
     var x=c.cities[q.j]; x.garrison=r.defender.slice(); x.forts=r.forts.map(function(n){ return Math.max(0,n); }); nm=b.name+"\u2019s "+(x.capital?"capital":"city");
     if (won){ var cap=0; for (k=0;k<12;k++) cap+=r.attacker[k]*LOAD[k]*(1+0.1*(S.tech.logistics||0)); var tr=Math.round(x.treasury/5); RES.forEach(function(rr){ loot[rr]=Math.min(tr, Math.floor(cap/5)); });
       c.cities.splice(q.j,1); miniDirty=true;
-      finished.push("You razed "+nm+". Their host shrinks to about "+fmt(roughN(sumT(chalArmy(c))))+".");
+      note("alliance","You razed "+nm+". Their host shrinks to about "+fmt(roughN(sumT(chalArmy(c))))+".");
       if (!c.cities.length) chalDefeated(c, "lost every city before the siege");
-    } else finished.push(nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
+    } else note("alliance",nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
   }
   addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
@@ -3740,7 +3771,7 @@ function chalDefeated(c, why){
   S.aiWar=S.aiWar.filter(function(x){ return x.chal!==c.id; });
   A.challenges=CH().filter(function(x){ return x!==c; });
   A_log((b?b.name:"The challenger")+" "+why+". Challengers defeated: "+A.chalWins+".");
-  if (A.chalWins===CHAL_UNLOCK_WINS) finished.push("Five challengers defeated. Something stirs in "+realmName()+"\u2026");
+  if (A.chalWins===CHAL_UNLOCK_WINS) note("alliance","Five challengers defeated. Something stirs in "+realmName()+"\u2026");
   miniDirty=true;
 }
 // the three days are up: everything they have left marches on the city
@@ -3768,11 +3799,11 @@ function chalSiege(c){
     c.nextAt=S.gt+(4+Math.random()*8)*3600000;
     if (b) b.wins++;
     A_log(b.name+" took the historic city at ("+tq.x+", "+tq.y+") and settled in for good.");
-    finished.push("\u2694 "+b.name+" took the historic city at ("+tq.x+", "+tq.y+"). They\u2019ll raid you and your allies until you break them.");
+    note("alliance","\u2694 "+b.name+" took the historic city at ("+tq.x+", "+tq.y+"). They\u2019ll raid you and your allies until you break them.");
   } else {
     S.map.hit[c.target]={t:r.defender.slice(), f:r.forts.slice(), res:Object.assign({},cur.res), at:S.gt};
     chalDefeated(c, "threw everything at the historic city and broke against its walls");
-    finished.push(b.name+"\u2019s siege failed! You thinned them enough.");
+    note("alliance",b.name+"\u2019s siege failed! You thinned them enough.");
   }
   miniDirty=true;
 }
@@ -3791,7 +3822,7 @@ function chalRaid(c){
   } else {
     var q=allies[Math.floor(Math.random()*allies.length)];
     c.pending.push({target:q.id, t:t, arr:S.gt+lead});
-    finished.push(b.name+" is raiding your ally "+q.ai.name+" from the historic city.");
+    note("alliance",b.name+" is raiding your ally "+q.ai.name+" from the historic city.");
   }
 }
 function chalAllyHit(c, j){
@@ -4064,7 +4095,7 @@ function bfEnd(why){
   var msg = why==="quit" ? "You retreated from the battlefield. It counts as a loss." :
             why==="timeout" ? "The battlefield ran out its 24 hours unfinished. It counts as a loss." :
             win ? "Battlefield won, "+fmt(Math.round(us))+" to "+fmt(Math.round(them))+"! A Field Surgeon\u2019s Kit is yours." : "Battlefield lost, "+fmt(Math.round(us))+" to "+fmt(Math.round(them))+".";
-  A_log(msg); finished.push(msg);
+  A_log(msg); note("alliance",msg);
   S.bf=null; document.body.classList.remove("bfmode"); tab="alliance"; lastView="";
 }
 // the Field Surgeon's Kit, used outside the battlefield
@@ -4092,7 +4123,7 @@ function woundTotal(c){ var t=[0,0,0,0,0,0,0,0,0,0,0,0]; (c.wounded||[]).forEach
 function woundCost(t){ var g=0; t.forEach(function(n,i){ g+=n*HEAL_GOLD[i]; }); return g; }
 function woundExpire(){ S.cities.forEach(function(c){ if (!c.wounded||!c.wounded.length) return; var died=0;
   c.wounded=c.wounded.filter(function(b){ if (S.gt-b.at>=WOUND_LIFE){ died+=sumT(b.t); return false; } return true; });
-  if (died) finished.push(fmt(died)+" wounded troops in "+c.name+"\u2019s Medic Camp died untreated."); }); }
+  if (died) note("attack",fmt(died)+" wounded troops in "+c.name+"\u2019s Medic Camp died untreated."); }); }
 function healWounded(){ // oldest first, as far as this city's gold reaches
   var c=C(), healed=0, spent=0; woundExpire();
   (c.wounded||[]).forEach(function(b){ for (var i=0;i<12;i++){ var n=b.t[i]; if (!n) continue;
@@ -4221,10 +4252,10 @@ function bullyCampBattle(m){
     var mt = Math.random()<0.25 ? "starmetal" : "mithril"; S.items[mt]=(S.items[mt]||0)+1; drops.push(ITEMS[mt].name);
     gain=Math.min(8000, 2500*(0.6+b.iq/200)*(1+0.25*b.wins)); b.losses++;
     addRep(gain, "took "+b.name+"'s stronghold"); endBully("lost the stronghold and fled "+realmName()+"");
-    finished.push("You took "+b.name+"'s stronghold! +"+fmt(Math.round(gain))+" alliance rep.");
+    note("alliance","You took "+b.name+"'s stronghold! +"+fmt(Math.round(gain))+" alliance rep.");
   } else {
     gain=Math.min(600, 1500*dmg); if (gain>=10) addRep(gain, "battered "+b.name+"'s stronghold");
-    finished.push(b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
+    note("alliance",b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
   }
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
@@ -4393,19 +4424,23 @@ function bumpStats(c){
 }
 function addReport(rep){
   if (pendingWound && !rep.scout){ rep.wounded=(rep.wounded||0)+pendingWound; } pendingWound=0;
-  S.reports.unshift(rep); if (S.reports.length>FULL_CAP) S.reports.length=FULL_CAP;
-  var c=compactRep(rep); S.log.unshift(c); if (S.log.length>LOG_CAP) S.log.length=LOG_CAP; bumpStats(c);
+  S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
+  var c=compactRep(rep); S.log.unshift(c); trimKeepFav(S.log, LOG_CAP); bumpStats(c);
 }
 function gameClock(t){ t+=(S.dayOff||0); var d=Math.floor(t/86400000)+1, m=Math.floor(t%86400000/60000); return "Day "+d+", "+String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
+// saved (favorite) reports never roll off, and keep their full battle detail
+function trimKeepFav(arr,cap){ var over=arr.length-cap; for (var i=arr.length-1;i>=0 && over>0;i--) if (!arr[i].fav){ arr.splice(i,1); over--; } }
+function repFavCount(){ return S.log.filter(function(c){ return c.fav; }).length; }
 function repMatch(c){
   if (repFilter==="atk" && c.d) return false; if (repFilter==="def" && !c.d) return false;
   if (repFilter==="win" && (c.d ? c.r===1 : c.r!==1)) return false; if (repFilter==="loss" && (c.d ? c.r!==1 : c.r===1)) return false;
+  if (repFilter==="fav" && !c.fav) return false;
   if (repFilter==="medal" && c.m<0) return false; if (repFilter==="gear" && !c.g.some(isGearDrop)) return false;
   if (repQuery && (c.n+" "+c.c).toLowerCase().indexOf(repQuery.toLowerCase())<0) return false;
   return true;
 }
 function viewReports(){
-  var st=S.stats, f=[["all","All"],["atk","Attacks"],["def","Defenses"],["win","Victories"],["loss","Defeats"],["medal","Medals"],["gear","Materials"]];
+  var st=S.stats, f=[["all","All"],["atk","Attacks"],["def","Defenses"],["win","Victories"],["loss","Defeats"],["medal","Medals"],["gear","Materials"],["fav","\u2605 Saved"]];
   var h='<div class="section"><h3>Lifetime record</h3><div class="statcards">'+
     [["Attacks",fmt(st.atk)],["Victories",fmt(st.win)],["Flawless",fmt(st.flaw)],["Defenses held",fmt(st.held)+" / "+fmt(st.defs)],["Enemies killed",fmt(st.killT)],["Troops lost",fmt(st.lostT)],["Loot taken",fmt(st.loot)],["Medals",fmt(st.medals)],["Materials found",fmt(st.gear)]]
       .map(function(x){ return '<div><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'; }).join("")+'</div></div>';
@@ -4453,7 +4488,7 @@ function fillRepList(){
   h+=list.slice(repPage*per,(repPage+1)*per).map(function(c){
     var v = c.sc ? (c.r===1?"Scouted":"Caught") : c.d ? (c.r===1?"Broken":"Held") : (c.r===1?(c.l?"Victory":"Flawless"):c.r===3?"Stalemate":"Defeat"), good = c.d ? c.r!==1 : c.r===1;
     var extra=[]; if (c.l) extra.push("lost "+fmt(c.l)); if (c.k) extra.push("killed "+fmt(c.k)); if (c.lo) extra.push((c.d?"lost ":"")+fmt(c.lo)+" loot"); if (c.m>=0) extra.push(MEDALS[c.m][1]+" medal"); if (c.g.length) extra.push(c.g.join(", ")); if (c.h) extra.push(c.h+" captured"); if (c.f) extra.push(c.f+" taken"); if (c.o) extra.push("valley taken");
-    return '<button class="reprow" data-act="rep-open" data-id="'+c.id+'"><span class="chev">›</span><span class="dur">'+gameClock(c.at)+'</span> <b class="'+(good?'okc':'badc')+'">'+v+'</b> '+esc(c.n)+(S.cities.length>1&&!c.d?' <span class="dur">from '+esc(c.c)+'</span>':'')+'<div class="dur">'+extra.join(", ")+'</div></button>';
+    return '<button class="reprow" data-act="rep-open" data-id="'+c.id+'"><span class="chev">›</span><span class="dur">'+(c.fav?'<span style="color:var(--brass)">\u2605</span> ':'')+gameClock(c.at)+'</span> <b class="'+(good?'okc':'badc')+'">'+v+'</b> '+esc(c.n)+(S.cities.length>1&&!c.d?' <span class="dur">from '+esc(c.c)+'</span>':'')+'<div class="dur">'+extra.join(", ")+'</div></button>';
   }).join("");
   if (pages>1) h+='<div class="act" style="margin-top:10px"><button class="btn ghost small" data-act="rep-page" data-d="-1"'+(repPage?'':' disabled')+'>\u2039 Newer</button><span class="dur">Page '+(repPage+1)+' of '+pages+'</span><button class="btn ghost small" data-act="rep-page" data-d="1"'+(repPage<pages-1?'':' disabled')+'>Older \u203a</button></div>';
   if (el._sig!==h){ el.innerHTML=h; el._sig=h; }
@@ -4496,7 +4531,7 @@ function troopReqHtml(){
   var rows=U.map(function(u,i){ var others=u.req.filter(function(r){ return r[0]!=="barracks"; }), can=!missing(u.req).length;
     return '<tr class="'+(can?'ok':'')+'"><td>'+u.name+'</td><td>'+barracksReq(i)+'</td><td>'+(others.length?others.map(function(r){ return '<span class="'+(missing([r]).length?'why':'')+'">'+reqName(r)+'</span>'; }).join(', '):'\u2014')+'</td></tr>'; }).join("");
   return detBox("barracks_troops", true, '<b>Troops and what they need</b>',
-    '<p class="hint">Each unit needs a Barracks of at least this level, plus anything listed. Names in green you can train in '+esc(S.name)+' now; requirements in red are still missing.</p><div class="tscroll"><table class="gt reqt"><thead><tr><th>Unit</th><th>Barracks</th><th>Also needs</th></tr></thead><tbody>'+rows+'</tbody></table></div>', "det lvdet");
+    '<p class="hint">Each unit needs a Barracks of at least this level, plus anything listed. Names in green you can train in '+esc(S.name)+' now; requirements in red are still missing.</p><div class="tscroll"><table class="gt reqt"><thead><tr><th>Unit</th><th>Brks</th><th>Also needs</th></tr></thead><tbody>'+rows+'</tbody></table></div>', "det lvdet");
 }
 function upgradeBlock(w,i){
   var s=getSlot(w,i), d=DEF[s.type], L=s.level, busy=!!buildOn(w,i), h;
@@ -4504,12 +4539,13 @@ function upgradeBlock(w,i){
   if (L>0) h+='<div class="effect">'+effectLine(s.type,L)+'</div>';
   if (s.type==="barracks") h+=troopReqHtml();
   h+=levelGuideHtml(s.type, L);
-  if (busy) h+='<p class="sub">Construction in progress. The timer is in the queue at the top.</p><div class="act"><span class="dur">Queue the next level to start as soon as this finishes.</span><button class="btn ghost" data-act="queue-up">Add to queue</button></div>';
-  else if (L<maxLv(s.type)){
-    var why=upgradeWhy(s.type,L), qn=S.bq.filter(function(x){ return x.w===w && x.i===i; }).length;
-    h+=chips(costFor(s.type,L+1))+'<div class="act"><span class="dur">'+fmtT(realMs(timeFor(s.type,L+1)))+'</span>'+(why?'<span class="why">'+why+'</span>':'')+'<button class="btn" data-act="upgrade"'+(why?' disabled':'')+'>Upgrade to level '+(L+1)+'</button></div>'+
-      '<div class="act"><span class="dur">'+(qn?qn+' already queued here.':'Queued upgrades start on their own when a builder is free and you can afford them.')+'</span><button class="btn ghost" data-act="queue-up">Add to queue</button></div>';
-  } else h+='<p class="sub">Fully upgraded.</p>';
+  var qn=S.bq.filter(function(x){ return x.w===w && x.i===i; }).length, nextL=L+1+(busy?1:0)+qn;
+  if (nextL<=maxLv(s.type)){
+    var why=busy?"Upgrading now":upgradeWhy(s.type,L), canQ=nextL<=maxLv(s.type);
+    h+=chips(costFor(s.type,nextL))+'<div class="upact"><div class="upinfo"><span class="dur">Level '+nextL+': '+fmtT(realMs(timeFor(s.type,nextL)))+'</span><span class="why">'+(why||'')+'</span></div>'+
+      '<div class="upbtns">'+(!why?'<button class="btn" data-act="upgrade">Upgrade</button>':'<button class="btn ghost" data-act="queue-up"'+(canQ?'':' disabled')+'>Add to queue</button>')+'</div>'+ // one button, one spot: Upgrade when it can start now, otherwise Add to queue
+      '<p class="hint">'+(busy?'Construction in progress; the timer is in the queue at the top. ':'')+(qn?qn+' already queued here. ':'')+'Queued upgrades start on their own when a builder is free and you can afford them.</p></div>';
+  } else h+='<p class="sub">'+(busy||qn?'Its last level is already underway or queued.':'Fully upgraded.')+'</p>';
   if (L>0 && w!=="th" && w!=="wall"){
     var dw=demolishWhy(w,i);
     h+='<div class="act"><span class="dur">'+(dw?dw:'Clears the plot for something else. Nothing is refunded.')+'</span><button class="btn ghost danger small" data-act="demolish"'+(dw?' disabled':'')+'>'+(armed==="demolish"?"Tap again to demolish":"Demolish")+'</button></div>';
@@ -5004,6 +5040,30 @@ function doSpin10(){
 }
 
 var lastView = "";
+// screen lock: when the view is rebuilt (queueing a building, training troops...), keep the button you tapped,
+// or whatever was on screen, at the same height instead of letting new rows above push it around
+var viewSig="", lastTapEl=null;
+function anchorKey(el){
+  if (el.id) return "#"+CSS.escape(el.id);
+  if (!el.dataset || !el.dataset.act) return null;
+  var sel='[data-act="'+CSS.escape(el.dataset.act)+'"]';
+  for (var k in el.dataset) if (k!=="act" && k!=="wired") sel+='[data-'+k.replace(/[A-Z]/g,function(m){ return "-"+m.toLowerCase(); })+'="'+CSS.escape(el.dataset[k])+'"]';
+  return sel;
+}
+function viewAnchors(v){
+  var out=[], vh=window.innerHeight, seen={};
+  var add=function(el){ if (out.length>=6 || !el || !v.contains(el)) return; var r=el.getBoundingClientRect(); if (r.bottom<0 || r.top>vh || !r.height) return;
+    var k=anchorKey(el); if (!k || seen[k]) return; seen[k]=1; try { if (v.querySelectorAll(k).length!==1) return; } catch(e){ return; } out.push({k:k, top:r.top}); };
+  if (lastTapEl){ add(lastTapEl.id||(lastTapEl.dataset&&lastTapEl.dataset.act)?lastTapEl:lastTapEl.closest("[id],[data-act]")); }
+  var mid=lastTapEl&&v.contains(lastTapEl)?lastTapEl.getBoundingClientRect().top:vh/3;
+  [].slice.call(v.querySelectorAll("[id],[data-act]")).map(function(el){ var r=el.getBoundingClientRect(); return {el:el, d:Math.abs(r.top-mid), vis:r.bottom>0&&r.top<vh}; })
+    .filter(function(x){ return x.vis; }).sort(function(a,b){ return a.d-b.d; }).slice(0,40).forEach(function(x){ add(x.el); });
+  return out;
+}
+function restoreAnchor(v,anc){
+  lastTapEl=null; if (!anc) return;
+  for (var i=0;i<anc.length;i++){ var el=v.querySelector(anc[i].k); if (el){ var dy=el.getBoundingClientRect().top-anc[i].top; if (Math.abs(dy)>1) window.scrollBy(0,dy); return; } }
+}
 function renderView(force){
   var v=document.getElementById("view");
   if (tab==="wheel"){
@@ -5029,7 +5089,8 @@ function renderView(force){
   document.body.classList.toggle("bfmode", bfOn());
   var h = bfOn()?viewBattlefield():tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="farms"?viewFarms():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():viewCity();
   if (h===lastView && !force) return;
-  lastView=h; v.innerHTML=h; setTabs(); wireDetails(v);
+  var vsig=tab+"|"+S.cur+"|"+(tab==="bldg"&&pg?pg.w+pg.i:""), anc=(vsig===viewSig)?viewAnchors(v):null; viewSig=vsig;
+  lastView=h; v.innerHTML=h; setTabs(); wireDetails(v); restoreAnchor(v,anc);
   if (document.getElementById("m-have")) updateMarket();
   if (tab==="army") U.forEach(function(u,i){ updateTrainRow(i); });
   if (tab==="city" || tab==="bldg") FORTS.forEach(function(f,i){ updateFortRow(i); });
@@ -5049,7 +5110,9 @@ function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.
 
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
-function openSheet(kind){ sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal(); if (kind && !kind.focus && sheetBody.scrollTop) sheetBody.scrollTop=0; } // a new menu starts at its top
+function openSheet(kind){ var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal(); if (keep!=null) sheetBody.scrollTop=keep; else if (kind && !foc && sheetBody.scrollTop) sheetBody.scrollTop=0; }
+// back from a gear menu to the hero's sheet, scrolled to exactly where it was
+function heroBack(id){ var y=sheetFor&&sheetFor.backScroll; openSheet(y!=null?{kind:"hero",id:id,keepScroll:y}:{kind:"hero",id:id,focus:"gear"}); } // a new menu starts at its top
 function closeSheet(){ sheetFor=null; sheet.classList.remove("fit"); if (sheet.open) sheet.close(); }
 var repFit=false; // battle reports shrunk to fit one screen, for screenshots; stays on until turned off
 function fitReport(){
@@ -5061,7 +5124,7 @@ function fitReport(){
   w.style.zoom=Math.max(0.25,z);
 }
 function sheetBack(){ // a menu opened from a hero's gear returns to that hero's gear; anything else just closes
-  if (sheetFor && sheetFor.kind==="gearpick" && sheetFor.back!=null){ openSheet({kind:"hero",id:sheetFor.back,focus:"gear"}); return; }
+  if (sheetFor && sheetFor.kind==="gearpick" && sheetFor.back!=null){ heroBack(sheetFor.back); return; }
   closeSheet();
 }
 sheet.addEventListener("click",function(e){ if (e.target===sheet) sheetBack(); });
@@ -5116,6 +5179,11 @@ function renderSheet(){
       '<div><label for="allyname" class="sub">Alliance name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
       '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
+      '<details class="det" data-det="notif"'+(DET.notif?' open':'')+'><summary><b>Notifications</b> <span class="dur">'+NOTE_TYPES.filter(function(t){ return noteOn(t[0]); }).length+' of '+NOTE_TYPES.length+' on'+(S.phoneNotif?', phone on':'')+'</span></summary>'+
+        '<p class="hint">Pick which pop-ups the game shows. Everything still happens and still lands in your reports; this only hides the message.</p>'+
+        NOTE_TYPES.map(function(t){ return '<label class="ntrow"><input type="checkbox" data-note="'+t[0]+'"'+(noteOn(t[0])?' checked':'')+'> '+t[1]+'</label>'; }).join("")+
+        '<div class="h3" style="margin-top:10px">Phone notifications</div><label class="ntrow"><input type="checkbox" id="nt-phone"'+(S.phoneNotif?' checked':'')+'> Also send these as phone notifications</label>'+
+        '<p class="hint">'+(!("Notification" in window)?'This browser can\u2019t show notifications.':Notification.permission==="denied"?'Notifications are blocked for Ibory. Allow them in your phone\u2019s settings for this app, then turn this on.':'They arrive while Ibory is open or was just switched away from. Phones freeze background apps after a few minutes, so a build finishing hours later won\u2019t notify you yet.')+'</p></details>'+
       '<div><div class="h3" style="margin-bottom:6px">Move your save</div><p class="hint">Save a backup file to your phone, or copy a save code and paste it into the game on another device. The code holds everything: every city, hero, gear piece and the whole map.</p>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="save-file">Save to file</button><button class="btn ghost small" data-act="load-file">Load from file</button><button class="btn ghost small" data-act="save-export">Show save code</button><button class="btn ghost small" data-act="save-import-open">Load a save code</button></div>'+
       (saveUi==="export"?'<textarea id="savecode" readonly rows="4">'+esc(exportCode())+'</textarea><div class="btnrow"><button class="btn small" data-act="save-copy">Copy code</button><span class="dur" id="copymsg"></span></div>':'')+
@@ -5165,7 +5233,7 @@ function renderSheet(){
     var rex=[]; if (rc.l) rex.push("lost "+fmt(rc.l)); if (rc.k) rex.push("killed "+fmt(rc.k)); if (rc.lo) rex.push((rc.d?"lost ":"")+fmt(rc.lo)+" loot"); if (rc.m>=0) rex.push(MEDALS[rc.m][1]+" medal"); if (rc.g.length) rex.push(rc.g.join(", ")); if (rc.h) rex.push(rc.h+" captured"); if (rc.f) rex.push(rc.f+" taken");
     h='<div id="repwrap"'+(repFit?' class="fit"':'')+'><div class="head"><span class="ico">'+ICON.rally+'</span><div><h2><span class="'+(rg?'okc':'badc')+'">'+rv+'</span> '+esc(rc.n)+'</h2><div class="sub">'+gameClock(rc.at)+(rc.c&&!rc.d&&S.cities.length>1?', from '+esc(rc.c):'')+(rex.length?'. '+rex.join(", ")+'.':'')+'</div></div></div>'+
       (rr?reportDetail(rr):'<p class="hint">Only the summary of this older battle was kept.</p>')+'</div>'+
-      '<div class="btnrow" style="margin-top:10px"><button class="btn ghost small" data-act="rep-fit">'+(repFit?'Normal size':'Fit on one screen')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+'</div>'+
+      '<div class="btnrow" style="margin-top:10px"><button class="btn'+(rc.fav?'':' ghost')+' small" data-act="rep-fav">'+(rc.fav?'\u2605 Saved':'\u2606 Save report')+'</button><button class="btn ghost small" data-act="rep-fit">'+(repFit?'Normal size':'Fit on one screen')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+'</div>'+
       '<button class="closebtn" data-act="close">Close</button>';
   } else if (sheetFor.kind==="legend"){
     if (!S.pendingLegend){ closeSheet(); return; }
@@ -5200,8 +5268,11 @@ function renderSheet(){
     h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster. As trainer: training '+pct(1-Math.pow(0.995,hs(hr,"atk")))+' faster. As researcher: research '+pct(1-1/(1+hs(hr,"int")/200))+' faster.</p>';
     var hset=starSet(hr), nxt=nextSetTier(Math.max(0,hset));
     h+='<div class="h3" id="herogear">Gear</div><p class="sub">'+(hset<0?'Wear all 16 pieces to earn a star set bonus.':'Star set '+hset+': troops led by this hero have \u00d7'+setLife(hr)+' life.'+(nxt?' Next bonus (\u00d7'+nxt[1]+') at a '+nxt[0]+'-star set.':' Maximum bonus.'))+'</p><div class="gearslots">'+GEAR_POS.map(function(ps){ var g=wornAt(hr,ps.k), sl=g?slotOf(g):null;
-      return '<button class="gslot'+(g?' t'+g.tier:'')+'" data-act="gear-pick" data-slot="'+ps.k+'"><span class="gs-n">'+ps.name+'</span>'+(g?'<span class="gs-s">'+starStr(g)+'</span><span class="gs-b">+'+gearVal(g)+' '+STATN[sl.stat].slice(0,3)+(ps.k==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march':'')+'</span>':'<span class="gs-e">Empty</span>')+'</button>'; }).join("")+'</div>';
-    h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="gear-best"'+(S.gear.length?'':' disabled')+'>Equip best gear</button><span class="dur">Uses this hero\u2019s pieces and spare ones nobody is wearing.</span></div>';
+      return '<button class="gslot'+(g?' t'+g.tier:'')+'" data-act="gear-pick" data-slot="'+ps.k+'"><span class="gs-n">'+ps.name+'</span>'+(g?'<span class="gs-s">'+starStr(g)+'</span><span class="gs-b">+'+gearVal(g)+' '+STATN[gearStat(g)].slice(0,3)+(ps.k==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march':'')+'</span>':'<span class="gs-e">Empty</span>')+'</button>'; }).join("")+'</div>';
+    var wornN=S.gear.filter(function(g){ return g.on===hr.id; }).length;
+    h+= armed==="best"
+      ? '<div class="effect" style="margin-top:6px">Equip the best gear for which stat? Pieces of that stat are taken from other heroes.</div><div class="btnrow">'+["atk","pol","int"].map(function(k){ return '<button class="btn small" data-act="gear-best-go" data-stat="'+k+'">'+STATN[k]+'</button>'; }).join("")+'<button class="btn ghost small" data-act="gear-best-cancel">Cancel</button></div>'
+      : '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="gear-best"'+(S.gear.length?'':' disabled')+'>Equip best gear</button><button class="btn ghost small" data-act="gear-unequip"'+(wornN?'':' disabled')+'>Unequip all</button></div>';
     h+='<div class="h3" style="margin-top:8px">Gear presets</div><p class="hint">Save what '+esc(hr.name)+' wears now, then equip it again in one tap. Pieces another hero is wearing get taken from them.</p><div class="gearlist">';
     for (var gsi=0; gsi<GEAR_SETS; gsi++){ var gin=gearSetInfo(hr,gsi);
       h+='<div class="gearrow"><span class="gn"><input data-gsn="'+gsi+'" type="text" maxlength="24" value="'+esc(((hr.gearSetNames||[])[gsi])||"")+'" placeholder="Preset '+(gsi+1)+'" aria-label="Preset name" style="width:100%;font:inherit;padding:2px 6px"></span><span class="gb">'+(gin?gin.have+' piece'+(gin.have===1?'':'s'):'Empty')+'</span>'+
@@ -5357,9 +5428,10 @@ function processQueues(){
 }
 function processAll(){ var keep=S.cur; for (var ci=0; ci<S.cities.length; ci++){ S.cur=ci; processQueues(); if (typeof processAuto==="function") processAuto(); } S.cur=keep; }
 function refresh(){ renderQueue(); renderView(true); renderSheet(); tickText(); save(); }
-function flushFinished(){ if (finished.length){ toast(finished[finished.length-1]+(finished.length>1?" (and "+(finished.length-1)+" more)":"")); finished=[]; } }
+function flushFinished(){ if (!finished.length) return; var list=shownFinished(); if (!list.length) return; toast(list[list.length-1]+(list.length>1?" (and "+(list.length-1)+" more)":"")); phoneNotify(list); }
 
 document.addEventListener("click",function(e){
+  lastTapEl=e.target.closest("[data-act],[data-w]")||null;
   var p=e.target.closest("[data-w]");
   if (p && arrange && p.dataset.w===arrange.w && !p.classList.contains("locked")){
     var pi2=+p.dataset.i, arr2 = arrange.w==="in"?S.inside:S.fields;
@@ -5465,7 +5537,8 @@ document.addEventListener("click",function(e){
     var bi=ord.indexOf(swapWith); ord[at]=swapWith; ord[bi]=gu;
     S.gorder=ord; save(); lastView=""; renderView(true); return;
   }
-  if (act==="craft"){ craftTier=0; if (craftWhy(0)) return; S.items[MAT[0]]-=MAT_NEED[0]; var cg=makeGear(0,a.dataset.slot); toast("Crafted a "+gearName(cg)); save(); lastView=""; renderView(true); return; }
+  if (act==="craft-stat"){ if (STATN[a.dataset.v]) craftStat=a.dataset.v; lastView=""; renderView(true); if (sheetFor){ lastSheet=""; renderSheet(); } return; }
+  if (act==="craft"){ craftTier=0; if (craftWhy(0)) return; S.items[MAT[0]]-=MAT_NEED[0]; var cg=makeGear(0,a.dataset.slot,craftStat); toast("Crafted a "+gearName(cg)); save(); lastView=""; renderView(true); return; }
   if (act==="demolish"){
     var dc=ctxPlot(); if (!dc || demolishWhy(dc.w,dc.i)) return;
     if (armed!=="demolish"){ armed="demolish"; lastSheet=""; renderSheet(); lastView=""; renderView(true); return; }
@@ -5571,7 +5644,13 @@ document.addEventListener("click",function(e){
     if (!fq){ toast("None found"); return; } selectTile(fq.id,true); return; }
   if (act==="armory-filter"){ armoryFilter=a.dataset.slot; lastView=""; renderView(true); return; }
   if (act==="forge-open"){ forgeLog=[]; openSheet({kind:"forge",g:+a.dataset.g}); return; }
-  if (act==="gear-best"){ var bh=heroById(sheetFor.id); if (!bh) return; var bn=equipBest(bh); toast(bn?bh.name+": "+bn+" piece"+(bn===1?"":"s")+" swapped in":bh.name+" already wears the best spare gear"); save(); lastSheet=""; renderSheet(); refresh(); return; }
+  if (act==="gear-best"){ armed="best"; lastSheet=""; renderSheet(); return; }
+  if (act==="gear-best-cancel"){ armed=null; lastSheet=""; renderSheet(); return; }
+  if (act==="gear-best-go"){ var bh=heroById(sheetFor.id), bst=a.dataset.stat; if (!bh || !STATN[bst]) return; armed=null;
+    var br=equipBest(bh,bst), btk=Object.keys(br.took).map(function(n){ return br.took[n]+" from "+n; });
+    toast(br.changed ? bh.name+": best "+STATN[bst]+" gear on ("+br.changed+" piece"+(br.changed===1?"":"s")+" changed"+(btk.length?", took "+btk.join(", "):"")+")" : bh.name+" already wears the best "+STATN[bst]+" gear");
+    save(); lastSheet=""; renderSheet(); refresh(); return; }
+  if (act==="gear-unequip"){ var uh=heroById(sheetFor.id); if (!uh) return; var un=unequipAll(uh); toast(un?uh.name+": took off "+un+" piece"+(un===1?"":"s"):"Nothing to take off"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="gset-save"){ var sh=heroById(sheetFor.id), si=+a.dataset.i; if (!sh) return;
     if (gearSetOf(sh,si) && armed!=="gsave"+si){ armed="gsave"+si; lastSheet=""; renderSheet(); return; }
     armed=null; var sn=saveGearSet(sh,si); toast(gearSetName(sh,si)+" saved ("+sn+" piece"+(sn===1?"":"s")+")"); save(); lastSheet=""; renderSheet(); return; }
@@ -5579,17 +5658,17 @@ document.addEventListener("click",function(e){
     var tk=Object.keys(lr.took).map(function(n){ return lr.took[n]+" from "+n; });
     toast(lr.moved?gearSetName(lh,+a.dataset.i)+" equipped"+(tk.length?", took "+tk.join(", "):"")+(lr.gone?" ("+lr.gone+" scrapped piece"+(lr.gone===1?"":"s")+" skipped)":""):"Already wearing "+gearSetName(lh,+a.dataset.i));
     save(); lastSheet=""; renderSheet(); refresh(); return; }
-  if (act==="gear-pick"){ forgeLog=[]; openSheet({kind:"gearpick",hero:sheetFor.id,slot:a.dataset.slot,back:sheetFor.id}); return; }
+  if (act==="gear-pick"){ forgeLog=[]; openSheet({kind:"gearpick",hero:sheetFor.id,slot:a.dataset.slot,back:sheetFor.id,backScroll:sheetBody.scrollTop}); return; }
   if (act==="gear-on"){ var eg=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0];
-    var ep=sheetFor.slot; S.gear.forEach(function(x){ if (x!==eg && x.on===sheetFor.hero && posOf(x)===ep){ x.on=0; delete x.at; } }); eg.on=sheetFor.hero; eg.at=ep; var bh=sheetFor.back; openSheet({kind:"hero",id:bh,focus:"gear"}); refresh(); return; }
+    var ep=sheetFor.slot; S.gear.forEach(function(x){ if (x!==eg && x.on===sheetFor.hero && posOf(x)===ep){ x.on=0; delete x.at; } }); eg.on=sheetFor.hero; eg.at=ep; var bh=sheetFor.back; heroBack(bh); refresh(); return; }
   if (act==="gear-craft"){
     if (!sheetFor || sheetFor.kind!=="gearpick" || craftWhy(0)) return;
     var chr=heroById(sheetFor.hero), cps=posInfo(sheetFor.slot); if (!chr) return;
-    S.items[MAT[0]]-=MAT_NEED[0]; var ng=makeGear(0,cps.type); save();
+    S.items[MAT[0]]-=MAT_NEED[0]; var ng=makeGear(0,cps.type,craftStat); save();
     if (a.dataset.wear){ S.gear.forEach(function(x){ if (x!==ng && x.on===sheetFor.hero && posOf(x)===sheetFor.slot){ x.on=0; delete x.at; } }); ng.on=sheetFor.hero; ng.at=sheetFor.slot; toast("Crafted and equipped a "+gearName(ng)); }
     else toast("Crafted a "+gearName(ng));
     lastSheet=""; renderSheet(); refresh(); return; }
-  if (act==="gear-off"){ var og=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0]; if (og){ og.on=0; delete og.at; } openSheet({kind:"hero",id:sheetFor.back,focus:"gear"}); refresh(); return; }
+  if (act==="gear-off"){ var og=S.gear.filter(function(x){ return x.id===+a.dataset.g; })[0]; if (og){ og.on=0; delete og.at; } heroBack(sheetFor.back); refresh(); return; }
   if (act==="forge-gem"){ forgeGem=a.dataset.v; lastSheet=""; renderSheet(); return; }
   if (act==="forge-n"){ forgeN=+a.dataset.v; lastSheet=""; renderSheet(); return; }
   if (act==="forge-strike"){
@@ -5716,6 +5795,9 @@ document.addEventListener("click",function(e){
     advance(Date.now()); toast("Every timer here finished"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (act==="dbg-warend"){ if (warOn()){ warEnd(); flushFinished(); save(); refresh(); } return; }
   if (act==="rep-open"){ var rid=+a.dataset.id, rc2=S.log.filter(function(x){ return x.id===rid; })[0], rr2=S.reports.filter(function(x){ return x.id===rid; })[0]; if (!rc2) return; openSheet({kind:"report", c:rc2, rep:rr2||null}); return; }
+  if (act==="rep-fav"){ if (!sheetFor || sheetFor.kind!=="report") return; var fc=sheetFor.c, on=!fc.fav;
+    if (on) fc.fav=1; else delete fc.fav; if (sheetFor.rep){ if (on) sheetFor.rep.fav=1; else delete sheetFor.rep.fav; }
+    toast(on?"Report saved. It won\u2019t roll off, and it\u2019s under \u2605 Saved.":"Report unsaved"); save(); lastSheet=""; renderSheet(); var rl=document.getElementById("replist"); if (rl) rl._sig=""; fillRepList(); return; }
   if (act==="rep-filter"){ repFilter=a.dataset.f; repPage=0; lastView=""; renderView(true); return; }
   if (act==="rep-page"){ repPage=Math.max(0,repPage+(+a.dataset.d)); fillRepList(); window.scrollTo({top:0}); return; }
   if (act==="arrange"){ arrange = (arrange && arrange.w===a.dataset.aw) ? null : {w:a.dataset.aw, sel:null}; lastView=""; renderView(true); return; }
@@ -5879,6 +5961,12 @@ document.addEventListener("change",function(e){
   if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ lastSheet=""; renderSheet(); }
   if (e.target.dataset && e.target.dataset.bffavor!=null && bfOn()){ var fp=BF().p[+e.target.dataset.bffavor]; if (fp && fp.kind==="ally"){ fp.favor=e.target.value; toast(fp.name+" will favor "+e.target.options[e.target.selectedIndex].text.toLowerCase()); } }
   if (e.target.id==="m-res"){ mkt.res=e.target.value; updateMarket(); }
+  if (e.target.dataset && e.target.dataset.note){ S.notifOff=S.notifOff||{}; if (e.target.checked) delete S.notifOff[e.target.dataset.note]; else S.notifOff[e.target.dataset.note]=1; save(); lastSheet=""; renderSheet(); }
+  if (e.target.id==="nt-phone"){
+    if (!e.target.checked){ S.phoneNotif=false; save(); lastSheet=""; renderSheet(); }
+    else if (!("Notification" in window)){ e.target.checked=false; toast("This browser can\u2019t show notifications"); }
+    else Notification.requestPermission().then(function(r){ S.phoneNotif = r==="granted"; save(); lastSheet=""; renderSheet(); toast(r==="granted"?"Phone notifications on":"Notifications weren\u2019t allowed"); });
+  }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
@@ -5905,7 +5993,7 @@ document.addEventListener("visibilitychange",function(){ if (!document.hidden &&
 if (window.visualViewport) window.visualViewport.addEventListener("resize",function(){ if (tab==="map") requestDraw(); });
 document.addEventListener("scroll",function(){ if (tab==="map") requestDraw(); },{passive:true});
 advance(Date.now());
-if (finished.length){ toast("Finished while you were away: "+finished.slice(0,4).join(", ")+(finished.length>4?", and more":"")); finished=[]; }
+if (finished.length){ var awayL=shownFinished(); if (awayL.length) toast("Finished while you were away: "+awayL.slice(0,4).join(", ")+(awayL.length>4?", and more":"")); }
 refresh();
 
 setInterval(function(){
