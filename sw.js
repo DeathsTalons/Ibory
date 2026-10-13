@@ -1,5 +1,5 @@
 // Ibory offline worker. Bump CACHE on every release so phones pick up the new index.html.
-const CACHE = "ibory-v0.1.6";
+const CACHE = "ibory-v0.1.6b";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -16,6 +16,9 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  // only the game's own files and its fonts are cached; live data (the high scores server) always goes to the network
+  const u = new URL(e.request.url);
+  if (u.origin !== self.location.origin && !/^fonts\.(googleapis|gstatic)\.com$/.test(u.hostname)) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then((hit) => {
       if (hit) return hit;
