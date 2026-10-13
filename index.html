@@ -2580,7 +2580,7 @@ function wcSheet(p){
     h+='<div class="unit"><h4>Wave '+(w+1)+'</h4><span class="own" id="wctot-'+w+'">'+fmt(tot)+' / '+fmt(cap)+'</span>'+
       '<div style="grid-column:1/-1"><label class="sub">Leading hero</label><select data-wch="'+w+'"><option value="0">No hero</option>'+heroes.map(function(x){ return '<option value="'+x.id+'"'+(wv.hero===x.id?' selected':'')+'>'+esc(x.name)+' (Atk '+hs(x,"atk")+', Int '+hs(x,"int")+(setLife(x)>1?', set ×'+setLife(x):'')+')</option>'; }).join("")+'</select></div>'+
       '<table class="gt wct" style="grid-column:1/-1"><tbody>'+avail.map(function(i){ return '<tr><td>'+U[i].name+' <span class="dur">('+fmt(S.troops[i])+')</span></td><td><input type="number" inputmode="numeric" min="0" data-wct="'+w+':'+i+'" value="'+(wv.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table>'+
-      (d.waves.length>1?'<div class="btnrow" style="grid-column:1/-1"><button class="btn ghost small danger" data-act="wc-delwave" data-w="'+w+'">Remove wave '+(w+1)+'</button></div>':'')+'</div>';
+      (d.waves.length>1?'<div class="btnrow" style="grid-column:1/-1"><button class="btn ghost small danger" data-act="wc-delwave" data-wave="'+w+'">Remove wave '+(w+1)+'</button></div>':'')+'</div>';
   });
   var why=wcWhy(p,d);
   h+='<div class="upbtns" style="grid-template-columns:1fr 1fr">'+(d.waves.length<p.waves?'<button class="btn ghost" data-act="wc-addwave">Add a wave</button>':'<button class="btn ghost" disabled>'+p.waves+' wave'+(p.waves>1?'s':'')+' max</button>')+'<button class="btn" data-act="wc-run">Fight</button></div>'+
@@ -5673,7 +5673,7 @@ document.addEventListener("click",function(e){
   if (act==="lb-refresh"){ lbFetch(); return; }
   if (act==="wc-open"){ openSheet({kind:"wc", id:a.dataset.id}); return; }
   if (act==="wc-addwave"){ var wa=wcById(sheetFor&&sheetFor.id); if (!wa) return; var wd=wcDraftOf(wa); if (wd.waves.length<wa.waves) wd.waves.push({t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0}); lastSheet=""; renderSheet(); return; }
-  if (act==="wc-delwave"){ var wr=wcById(sheetFor&&sheetFor.id); if (!wr) return; var wd2=wcDraftOf(wr); if (wd2.waves.length>1) wd2.waves.splice(+a.dataset.w,1); lastSheet=""; renderSheet(); return; }
+  if (act==="wc-delwave"){ var wr=wcById(sheetFor&&sheetFor.id); if (!wr) return; var wd2=wcDraftOf(wr); if (wd2.waves.length>1) wd2.waves.splice(+a.dataset.wave,1); lastSheet=""; renderSheet(); return; }
   if (act==="wc-run"){ var wx=wcById(sheetFor&&sheetFor.id); if (!wx) return; wcRun(wx); sheetBody.scrollTop=0; return; }
   if (act==="lb-cat"){ lbFetch(a.dataset.cat); return; }
   if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
