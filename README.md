@@ -22,6 +22,9 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.15
+- Valleys and flats muster a full garrison again right after every fight (loot still refills over 4 hours). Spam-farming one means beating it every time.
+- Map: a hit NPC city fades, then regains its color from the bottom up as its loot refills (4 hours). Tile info shows troops and loot recovery with time left.
 ### 0.1.14
 - Every march preset (normal, auto-farm, timed waves and Battlefield) can pick its hero as Best attack (your strongest free hero) or Any free hero (your weakest free one, so the best stay home), as well as a named hero or none. Auto-farm never waits on Best/Any: if nobody is free it goes without. Timed waves give each preset a different hero.
 ### 0.1.13

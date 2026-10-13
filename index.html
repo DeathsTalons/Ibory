@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.14";
+var APP_VERSION = "0.1.15";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1305,6 +1305,7 @@ function current(q){
   var b=baseOf(q), h=S.map.hit[q.id]; if (!h) return b;
   var RT=q.k==="hc"?1*3.6e6:q.k==="ai"?24*3.6e6:REGEN_T, RR=q.k==="ai"?48*3.6e6:REGEN_R, ft=Math.min(1,(S.gt-h.at)/RT), fr=Math.min(1,(S.gt-h.at)/RR), res={};
   RES.forEach(function(k){ res[k]=Math.round(h.res[k]+(b.res[k]-h.res[k])*fr); });
+  if (VTYPES[q.k]) ft=1; // valleys and flats muster a full garrison again right after every fight
   return {t:b.t.map(function(v,i){ return Math.round(Math.min(h.t[i],v)+(v-Math.min(h.t[i],v))*ft); }), f:b.f.map(function(v,i){ return Math.round(h.f[i]+(v-h.f[i])*ft); }), wall:b.wall, r:b.r, res:res, am:b.am, fb:b.fb, hint:b.hint};
 }
 function ownedIds(){ var me=C().id; return Object.keys(S.map.owned).filter(function(k){ return S.map.owned[k]===me; }); }
@@ -1947,7 +1948,8 @@ function drawMap(){
     var q=tileAt(tx,ty), x=(tx-mv.x)*z, y=(ty-mv.y)*z;
     if (q.k==="home"){ g.fillStyle=q.city===C().id?brass:"#a88a45"; g.fillRect(x,y,z,z);
       if (detail){ g.fillStyle="#2a2210"; var u=z/30; g.fillRect(x+7*u,y+11*u,16*u,12*u); g.fillRect(x+7*u,y+7*u,4*u,4*u); g.fillRect(x+13*u,y+7*u,4*u,4*u); g.fillRect(x+19*u,y+7*u,4*u,4*u); } }
-    else if (q.k==="npc"){ var hit=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<REGEN_T; g.fillStyle=hit?"#6d6660":"#4a4541"; g.fillRect(x,y,z,z);
+    else if (q.k==="npc"){ var nh=S.map.hit[q.id], nf=nh?Math.max(0,Math.min(1,(S.gt-nh.at)/REGEN_R)):1;
+      if (nf<1){ g.fillStyle="#a39b8e"; g.fillRect(x,y,z,z); var fh=Math.round(z*nf); g.fillStyle="#4a4541"; g.fillRect(x,y+z-fh,z,fh); } else { g.fillStyle="#4a4541"; g.fillRect(x,y,z,z); }
       if (detail){ var u2=z/30; g.fillStyle="#b9b2a6"; g.fillRect(x+6*u2,y+13*u2,18*u2,10*u2); g.fillRect(x+6*u2,y+9*u2,4*u2,4*u2); g.fillRect(x+13*u2,y+9*u2,4*u2,4*u2); g.fillRect(x+20*u2,y+9*u2,4*u2,4*u2); g.fillStyle="#fff"; g.fillText(q.L,x+z/2,y+z*0.6); } }
     else if (q.k==="bully" || q.k==="war" || q.k==="chal" || q.k==="allycity"){ g.fillStyle=q.k==="allycity"?"#3f8f5a":"#b8322a"; g.fillRect(x,y,z,z);
       if (detail){ g.fillStyle="#fff"; g.fillText(q.k==="bully"?"!":q.k==="war"?"W":q.k==="chal"?(q.seat?"\u2605":"C"):"A",x+z/2,y+z/2+1); } }
@@ -2098,8 +2100,9 @@ function renderTileInfo(){
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
   if (q.k==="flat" && (S.items.teleport||0)>0 && (!C().fieldCap || hasHC(16))) h+='<div class="btnrow" style="margin:6px 0"><button class="btn" data-act="teleport" data-tile="'+q.id+'">'+(armedTile==="tp"+q.id?"Tap again to move "+esc(S.name)+" here":"Teleport "+esc(S.name)+" here ("+S.items.teleport+" left)")+'</button></div><p class="hint">The whole city moves: buildings, troops, heroes and held valleys. Its old tile becomes a flat.</p>';
   if (VTYPES[q.k]) h+='<p class="hint">Unheld valleys and flats gain a level every day at midnight, and drop back to level 1 after level 10 (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
-  var regen=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<REGEN_T;
-  if (regen) h+='<p class="hint">Still recovering from your last attack.</p>';
+  var hh=S.map.hit[q.id], since=hh?S.gt-hh.at:Infinity;
+  if (hh && VTYPES[q.k] && since<REGEN_R) h+='<p class="hint">Its troops are back at full strength. Loot refilling: <b>'+Math.floor(since/REGEN_R*100)+'%</b>, full in '+fmtT(realMs(REGEN_R-since))+'.</p>';
+  else if (hh && q.k==="npc" && since<REGEN_R) h+='<p class="hint">Recovering from your last attack. Troops '+(since<REGEN_T?'<b>'+Math.floor(since/REGEN_T*100)+'%</b> back, full in '+fmtT(realMs(REGEN_T-since)):'<b>fully back</b>')+'. Loot <b>'+Math.floor(since/REGEN_R*100)+'%</b>, full in '+fmtT(realMs(REGEN_R-since))+'.</p>';
   if (!needScout(q) || intel) h+='<div class="h3" style="margin-top:8px">Resources</div><div class="us">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(intel?roughN(intel.res[k]):cur.res[k])+'</b></span>'; }).join("")+'</div>';
   if (VTYPES[q.k]){
     h+= VTYPES[q.k].res ? '<p class="hint" style="margin-top:6px">Hold it for +'+pct(VALLEY_BONUS*q.L)+' '+VTYPES[q.k].res+' production. You can hold up to '+S.th+' valleys (your Town Hall level); you have '+ownedIds().length+'.</p>'
