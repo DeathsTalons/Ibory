@@ -334,7 +334,13 @@ summary{cursor:pointer;color:var(--muted);font-size:.92rem}
 .rpfield .rps{stroke-width:1.3;opacity:.75;fill:none} .rpfield .rps.A{stroke:var(--brass)} .rpfield .rps.D{stroke:var(--red)} .rpfield .rps.F{stroke:var(--stone);stroke-dasharray:3 2}
 .rpfield .rpah{fill:var(--muted)}
 .rpleg{margin:6px 0} .rpleg .sw{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin:0 3px 0 6px} .rpleg .sw.A{background:var(--brass)} .rpleg .sw.D{background:var(--red);border-radius:2px}
-.rpev{margin:6px 0;padding-left:22px;display:grid;gap:4px;font-size:.92rem} .rpev li{line-height:1.35}
+.rpsum{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 10px;margin:8px 0 4px;background:var(--panel2);border-radius:8px;font-variant-numeric:tabular-nums}
+.rpsum span:first-child{font-weight:700}
+.rph{margin:10px 0 2px;font:700 .95rem var(--display)}
+.rpe{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:start;padding:6px 0;border-top:1px solid var(--line);line-height:1.35}
+.rpe.nil{opacity:.65}
+.rpn{font:700 .75rem var(--body);color:var(--muted);background:var(--panel2);border-radius:10px;text-align:center;padding:1px 0;margin-top:1px}
+.rpk{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:1.02rem}
 table.gt.rpt2 td{vertical-align:top} table.gt.rpt2 td:first-child{white-space:nowrap;padding-right:10px} table.gt.rpt2 td+td{text-align:right}
 .bfmh{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .bfbar{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:4px 0}
@@ -538,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.11";
+var APP_VERSION = "0.1.13";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2494,7 +2500,7 @@ function lbSync(force){
 }
 function lbFetch(cat){
   if (!LB_URL) return; lbCat=cat||lbCat; lbBusy=true; lbErr=""; lastSheet=""; renderSheet();
-  fetch(LB_URL+"/board?cat="+encodeURIComponent(lbCat)+(S.lb&&S.lb.id?"&id="+S.lb.id:""),{cache:"no-store"})
+  fetch(LB_URL+"/board?cat="+encodeURIComponent(lbCat)+(lbOn()&&S.lb.id?"&id="+S.lb.id:""),{cache:"no-store"})
     .then(function(r){ return r.json(); }).then(function(d){ lbBusy=false; if (d && d.rows){ lbData[lbCat]=d; } else lbErr=(d&&d.error)||"Couldn\u2019t load the high scores"; lastSheet=""; renderSheet(); })
     .catch(function(){ lbBusy=false; lbErr="Couldn\u2019t reach the high scores. Check your connection."; lastSheet=""; renderSheet(); });
 }
@@ -2502,11 +2508,12 @@ function lbVal(cat,v){ if (/^hc/.test(cat)) return v?new Date(v).toLocaleDateStr
 function lbSheet(){
   var h='<div class="head lbhead"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>High scores</h2><div class="sub">Every Ibory player. Swipe or tap a tab to change boards.</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
   if (!LB_URL) return h+'<p class="hint">High scores aren\u2019t switched on in this version yet.</p><button class="closebtn" data-act="close">Close</button>';
-  if (S.lb && S.lb.removed) return h+'<p class="hint">This save was removed from the high scores.</p><button class="closebtn" data-act="close">Close</button>';
-  if (!lbOn()){
-    return h+'<p class="hint">'+(S.lb&&S.lb.optedOut?'You left the high scores. Rejoin any time.':'Join to put your realm on the boards.')+' Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, alliance reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
+  var listed=lbOn();
+  if (S.lb && S.lb.removed) h+='<p class="hint">This save was removed from the high scores, so it isn\u2019t listed. You can still browse the boards.</p>';
+  else if (!listed){
+    h+='<details class="det" data-det="lbjoin"'+(DET.lbjoin?' open':'')+'><summary><b>'+(S.lb&&S.lb.optedOut?'You left the high scores':'You\u2019re not on the boards')+'</b> <span class="dur">tap to '+(S.lb&&S.lb.optedOut?'rejoin':'join')+'</span></summary>'+'<p class="hint">'+(S.lb&&S.lb.optedOut?'You left the high scores. Rejoin any time.':'Join to put your realm on the boards.')+' Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, alliance reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
       '<div><label for="lbname" class="sub">Name on the boards (2 to 20 characters)</label><input id="lbname" type="text" maxlength="20" value="'+esc((S.lb&&S.lb.name)||S.lord||"")+'" placeholder="Your name"></div>'+
-      '<div class="upbtns"><button class="btn" data-act="lb-join">'+(S.lb&&S.lb.optedOut?'Rejoin the high scores':'Join the high scores')+'</button></div>'+(lbErr?'<p class="why">'+esc(lbErr)+'</p>':'')+'<button class="closebtn" data-act="close">Close</button>';
+      '<div class="upbtns"><button class="btn" data-act="lb-join">'+(S.lb&&S.lb.optedOut?'Rejoin the high scores':'Join the high scores')+'</button></div></details>';
   }
   var d=lbData[lbCat];
   h+='<div class="lbtabs" id="lbtabs">'+LB_CATS.map(function(c){ return '<button class="chipbtn'+(c[0]===lbCat?' on':'')+'" data-act="lb-cat" data-cat="'+c[0]+'">'+c[1]+'</button>'; }).join("")+'</div>';
@@ -2518,6 +2525,7 @@ function lbSheet(){
     else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td><td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
+  if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
   h+='<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn ghost small" data-act="lb-refresh">Refresh</button><button class="btn ghost small" data-act="lb-sync">Send my scores now</button></div>';
   h+='<details class="det" data-det="lbme"'+(DET.lbme?' open':'')+'><summary><b>Your entry</b> <span class="dur">as '+esc(S.lb.name)+'</span></summary>'+'<p class="hint">Everyone is listed automatically. Your name '+(S.lb.nameAuto?'follows your lord\u2019s name until you set one here':'is the one you set')+'. Leaving removes you from every board, and you won\u2019t be added back unless you rejoin.</p>'+
     '<div><label for="lbname" class="sub">Name on the boards</label><input id="lbname" type="text" maxlength="20" value="'+esc(S.lb.name)+'"></div>'+
@@ -2758,21 +2766,40 @@ function rpStop(){ if (rpTimer){ clearInterval(rpTimer); rpTimer=null; } if (RP)
 function rpWho(side){ return side===RP.mine ? "Your" : "Their"; }
 function rpN(i,n){ return fmt(n)+" "+uname(i,n); }
 function rpTgt(t){ return t===14 ? "Archer\u2019s Towers" : t==="wall" ? "the wall" : uname(t,2); }
-function rpModTxt(e){
-  if (e.s==='F' && e.f===2) return e.m<1?" (half damage: past half the towers\u2019 reach)":"";
-  if (e.t==="wall") return e.m<1?" (ranged troops do half damage to walls)":"";
-  if (!SIM.MELEE[e.u]) return e.m===0.25?" (quarter damage: shooting at melee troops close enough to strike back)":e.m===0.5?" (half damage: target past half their reach)":"";
-  return e.m!==1?" (\u00d7"+(Math.round(e.m*100)/100)+" against "+rpTgt(e.t)+")":"";
-}
-function rpEvent(e, fr){
-  var side=e.s==='A'?'A':e.s==='D'?'D':'D', cls=side===RP.mine?'okc':'badc', foe=side==='A'?'D':'A';
+// plain-words notes on why a hit did what it did
+function rpWhy(e){
+  var w=[];
   if (e.s==='F'){
-    var who=(RP.mine==='D'?'Your ':'Their ')+FORT_EVN[e.f];
-    return '<li><b class="'+cls+'">'+who+'</b>'+(e.f===2&&e.n?' ('+fmt(e.n)+')':'')+(e.d!=null?' at '+fmt(e.d)+' range':'')+' \u2192 '+rpWho(foe).toLowerCase()+' '+rpTgt(e.t)+': <b>'+fmt(e.got)+'</b> killed'+(e.k!=null&&e.k>e.got?' <span class="dur">(rolled '+fmt(e.k)+', only '+fmt(e.got)+' left)</span>':'')+(e.used?' <span class="dur">('+fmt(e.used)+' used up)</span>':'')+rpModTxt(e)+'</li>';
+    if (e.f===2){ if (e.d!=null) w.push(e.d>0?fmt(e.d)+" from the wall":"right at the wall"); if (e.m<1) w.push("half damage: past half the towers’ reach"); }
+    if (e.used) w.push(fmt(e.used)+" "+FORT_EVN[e.f].toLowerCase()+" used up");
+  } else if (e.t==="wall"){
+    if (e.m<1) w.push("ranged troops do half damage to walls");
+  } else {
+    var melee=SIM.MELEE[e.u], d=Math.abs(e.d||0);
+    w.push(d?(melee?"reached them ":"from ")+fmt(d)+" away":"face to face");
+    if (!melee){ if (e.m===0.25) w.push("quarter damage: the target can strike back at this range"); else if (e.m===0.5) w.push("half damage: target past half their reach"); }
+    else if (e.m>1) w.push("strong against "+rpTgt(e.t)+" (×"+(Math.round(e.m*100)/100)+")");
+    else if (e.m<1) w.push("weak against "+rpTgt(e.t)+" (×"+(Math.round(e.m*100)/100)+")");
   }
-  var src=rpWho(side)+' '+rpN(e.u,e.n);
-  if (e.t==="wall") return '<li><b class="'+cls+'">'+src+'</b> \u2192 the wall: <b>'+fmt(e.got)+'</b> damage'+rpModTxt(e)+'</li>';
-  return '<li><b class="'+cls+'">'+src+'</b> \u2192 '+rpWho(foe).toLowerCase()+' '+rpTgt(e.t)+', '+fmt(Math.abs(e.d))+' away: <b>'+fmt(e.got)+'</b> killed'+(e.k>e.got?' <span class="dur">(rolled '+fmt(e.k)+', only '+fmt(e.got)+' left)</span>':'')+rpModTxt(e)+'</li>';
+  if (e.k!=null && e.k>e.got) w.push("overkill: could have killed "+fmt(e.k)+", only "+fmt(e.got)+" were left");
+  return w;
+}
+var RP_VERB={0:"attacked",1:"attacked",2:"attacked",3:"attacked",4:"attacked",5:"shot",6:"attacked",7:"charged",8:"charged",9:"fired on",10:"rammed",11:"bombarded"};
+var FORT_VERB=["caught","stopped","shot","crushed","hit"];
+function rpEvent(e, n){
+  var side=e.s==='A'?'A':'D', mineSide=side===RP.mine, foeWord=mineSide?"their":"your", txt, loss, lossCls;
+  if (e.s==='F'){
+    txt=(mineSide?"Your ":"Their ")+FORT_EVN[e.f]+(e.f===2&&e.n?' <span class="dur">('+fmt(e.n)+')</span>':'')+' '+FORT_VERB[e.f]+' '+foeWord+' '+rpTgt(e.t);
+    loss='−'+fmt(e.got); lossCls=mineSide?'okc':'badc';
+  } else if (e.t==="wall"){
+    txt=(mineSide?"Your ":"Their ")+uname(e.u,e.n)+' <span class="dur">('+fmt(e.n)+')</span> hit the wall';
+    loss='−'+fmt(e.got)+' HP'; lossCls=mineSide?'okc':'badc';
+  } else {
+    txt=(mineSide?"Your ":"Their ")+uname(e.u,e.n)+' <span class="dur">('+fmt(e.n)+')</span> '+RP_VERB[e.u]+' '+foeWord+' '+rpTgt(e.t);
+    loss='−'+fmt(e.got); lossCls=mineSide?'okc':'badc';
+  }
+  var why=rpWhy(e);
+  return '<div class="rpe'+(e.got?'':' nil')+'"><span class="rpn">'+n+'</span><div class="rpx">'+txt+(why.length?'<div class="dur">'+esc(why.join(" · "))+'</div>':'')+'</div><b class="rpk '+lossCls+'">'+(e.got?loss:'0')+'</b></div>';
 }
 function rpField(fr){
   var res=RP.res, fs=res.fieldSize||1, rows=[], i;
@@ -2808,7 +2835,17 @@ function rpSheet(){
     '<input type="range" id="rpslider" min="0" max="'+last+'" value="'+f+'" aria-label="Round">';
   h+=rpField(fr)+'<p class="dur rpleg"><span class="sw A"></span>attackers'+(youA?' (you)':'')+' <span class="sw D"></span>defenders'+(youA?'':' (you)')+' · arrows are this round\u2019s shots. Positions are after this round\u2019s movement.</p>';
   if (f===0) h+='<p class="hint">Field length '+fmt(res.fieldSize)+': set by the longest reach on the field (troops, or 5,000 for traps, abatis and trebuchets). Attackers start at 0, defenders at the wall.</p>';
-  else h+=fr.ev.length?'<ol class="rpev">'+fr.ev.map(function(e){ return rpEvent(e, fr); }).join("")+'</ol>':'<p class="hint">Nobody was in reach this round: everyone moved.</p>';
+  else if (!fr.ev.length) h+='<p class="hint">Nobody was in reach this round: everyone moved.</p>';
+  else {
+    var eA0=fr.eA||fr.cA, eD0=fr.eD||fr.cD, lA=0, lD=0; for (var q=0;q<12;q++){ lA+=fr.cA[q]-eA0[q]; lD+=fr.cD[q]-eD0[q]; }
+    var youLost=RP.mine==='A'?lA:lD, theyLost=RP.mine==='A'?lD:lA, wallHit=Math.max(0,(fr.wall||0)-(fr.wallEnd==null?fr.wall:fr.wallEnd));
+    var nf=f<last?tr[f+1].forts:res.forts, fortLost=0; for (var q2=0;q2<5;q2++) fortLost+=Math.max(0,(fr.forts[q2]||0)-(nf[q2]||0));
+    h+='<div class="rpsum"><span>Round '+fr.r+'</span><span>You lost <b class="badc">'+fmt(youLost)+'</b></span><span>They lost <b class="okc">'+fmt(theyLost)+'</b></span>'+(fortLost?'<span>'+(RP.mine==='D'?'Your':'Their')+' forts <b class="'+(RP.mine==='D'?'badc':'okc')+'">\u2212'+fmt(fortLost)+'</b></span>':'')+(wallHit?'<span>Wall <b>\u2212'+fmt(wallHit)+'</b></span>':'')+'</div>';
+    var mineEv=[], theirEv=[]; fr.ev.forEach(function(e,ix){ var sd=e.s==='A'?'A':'D'; (sd===RP.mine?mineEv:theirEv).push(rpEvent(e, ix+1)); });
+    if (mineEv.length) h+='<h4 class="rph okc">Your side</h4>'+mineEv.join("");
+    if (theirEv.length) h+='<h4 class="rph badc">Their side</h4>'+theirEv.join("");
+    h+='<p class="dur" style="margin:4px 0 0">Numbers are the order things happened in this round. Counts in brackets are how many were attacking.</p>';
+  }
   // the tally for this round
   var rows=[]; for (var i=0;i<12;i++) if (tr[0].cA[i]>0 || tr[0].cD[i]>0) rows.push(i);
   var eA=fr.eA||fr.cA, eD=fr.eD||fr.cD;
@@ -6093,7 +6130,12 @@ document.addEventListener("click",function(e){
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
   if (act.indexOf("dbg-")===0 && !devOn()) return;
-  if (act==="dev-unlock"){ var dpw=document.getElementById("devpw"), dv=dpw?dpw.value.trim():""; if (devHash(dv)===2422952517){ devSet(true); toast("Developer tools unlocked"); armed=null; lastSheet=""; renderSheet(); } else { var dm=document.getElementById("devmsg"); if (dm) dm.textContent="Wrong password"; } return; }
+  if (act==="dev-unlock"){ var dpw=document.getElementById("devpw"), dv=dpw?dpw.value.trim():""; if (devHash(dv)===2422952517){ devSet(true); toast("Developer tools unlocked"); armed=null; lastSheet=""; renderSheet(); }
+    else if (devHash(dv.toLowerCase())===4145256078){ /* secret package: once per save */ var dm2=document.getElementById("devmsg"); S.secrets=S.secrets||{};
+      if (S.secrets.p1){ if (dm2) dm2.textContent="That package was already claimed on this save."; return; }
+      S.secrets.p1=1; RES.forEach(function(k){ S.res[k]+=200000; }); S.items.s15=(S.items.s15||0)+80;
+      if (dpw) dpw.value=""; if (dm2) dm2.textContent=""; save(); toast("Secret package! +200,000 of every resource in "+S.name+" and 80 15-minute speed-ups"); lastView=""; refresh(); }
+    else { var dm=document.getElementById("devmsg"); if (dm) dm.textContent="Wrong password"; } return; }
   if (act==="dev-lock"){ advance(Date.now()); devSet(false); S.speed=1; S.testSpeed=1; save(); toast("Developer tools locked"); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (advance(Date.now())) flushFinished();
   if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
@@ -6102,7 +6144,7 @@ document.addEventListener("click",function(e){
   if (act==="city-go"){ closeSheet(); farmArmed=false; S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
   if (act==="close"){ sheetBack(); return; }
   if (act==="settings"){ openSheet({kind:"settings"}); return; }
-  if (act==="lb-open"){ var fresh=!S.lb; lbAutoJoin(); if (fresh && lbOn()) lbSync(true); openSheet({kind:"lb"}); if (lbOn()) setTimeout(function(){ lbFetch(); }, fresh?1200:0); return; }
+  if (act==="lb-open"){ var fresh=!S.lb; lbAutoJoin(); if (fresh && lbOn()) lbSync(true); openSheet({kind:"lb"}); setTimeout(function(){ lbFetch(); }, fresh&&lbOn()?1200:0); return; }
   if (act==="lb-refresh"){ lbFetch(); return; }
   if (act==="wc-open"){ openSheet({kind:"wc", id:a.dataset.id}); return; }
   if (act==="wc-addwave"){ var wa=wcById(sheetFor&&sheetFor.id); if (!wa) return; var wd=wcDraftOf(wa); if (wd.waves.length<wa.waves) wd.waves.push({t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0}); lastSheet=""; renderSheet(); return; }
