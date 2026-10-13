@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.7
+Version 0.1.8
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.8
+- War College Sieges: 6 player-style cities (Treb Fort, Archer Keep, Pike Hedge, Siege Battery, Trap Field, Warlord's Seat), each with one weak spot and an allowed-troop rule, at three sizes: Outpost (3 waves, all three ratings are loss caps), Stronghold (5 waves), Citadel (6 waves, level 10 walls). Victory = break in (Outposts: capped); Commanding/Masterful = loss caps from optimizer plans at decent (research 8, Atk 200) and high (research 10, Atk 300, x2 set) gear. Data block WC_SIEGES is generated, not hand-edited.
 ### 0.1.7
 - War College tab: battle puzzles run on the real engine with the current city's troops, heroes, gear and research (simulated, nothing dies). Fixed seed 7 per attempt, so a plan always gives the same result.
 - Valleys 1-10 (1 wave, no siege; loss caps 0/1/1/1/3x6), NPC 1-5 (1 wave, no losses), NPC 6-10 (up to 4 waves; Victory = win, Commanding = loss caps 3,700/5,600/7,800/11,100/25,400, Masterful = 70/160/420/1,700/2,600).
