@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.16
+- Cloud backup (Settings): pick a backup name and password, and the game backs itself up to the Ibory server about twice a day while open, plus "Back up now". On a new device, sign in with the same name and password to restore. The server keeps the latest copy and one at least most of a day older. Saves are gzipped (about 8x smaller); passwords are stored only as salted hashes; 10 wrong passwords lock a name for 15 minutes. Needs the updated scores Worker (worker.js): the backups table creates itself.
 ### 0.1.15
 - Valleys and flats muster a full garrison again right after every fight (loot still refills over 4 hours). Spam-farming one means beating it every time.
 - Map: a hit NPC city fades, then regains its color from the bottom up as its loot refills (4 hours). Tile info shows troops and loot recovery with time left.
