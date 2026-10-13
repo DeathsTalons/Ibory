@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.5
+Version 0.1.6
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,11 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.6
+- High scores: trophy button in the header. Opt-in; sends name + prestige, kills by troop type, troops lost, best hero level, best star set, cities, alliance rep and historic levels taken to the Cloudflare Worker at LB_URL (source in scores-worker/worker.js). Syncs on open, every 5 minutes, and when the app is put away. 23 boards; "first to take" historic boards rank by the server's own clock.
+- Admin: LB_URL + "/admin" with the ADMIN_KEY secret lists players with Remove/Restore.
+- Alliance reputation keeps counting past 100,000 (the bar stays at 100%).
+- Header: Settings shows only its gear icon on phones so all buttons fit on one row.
 ### 0.1.5
 - Gear: every newly crafted piece adds Attack, Politics or Intelligence (pick at the Workshop; stored as `stat` on the piece). Older pieces keep their slot's stat.
 - Equip best gear asks for a stat and takes pieces of that stat from other heroes. New Unequip all button.

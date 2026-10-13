@@ -51,6 +51,9 @@ h1{font:700 1.5rem/1.1 var(--display);letter-spacing:.04em;margin:0}
 .lordline b{color:var(--brass);font-weight:700}
 .speedchip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;cursor:pointer;display:flex;gap:8px;align-items:center;font-size:.95rem}
 .speedchip b{color:var(--brass)}
+.speedchip.iconchip{padding:6px 10px}
+@media (max-width:390px){ .chiprow{gap:6px} .speedchip{padding:6px 9px;gap:6px;font-size:.9rem} .speedchip.iconchip{padding:6px 8px} }
+@media (max-width:520px){ .speedchip .chiptxt{display:none} .speedchip:has(.chiptxt){padding:6px 10px} } /* phones: Settings shows just its gear icon so the row fits */
 .speedchip b:empty{display:none}
 header{flex-wrap:wrap}
 .chiprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -334,6 +337,7 @@ table.gt.reqt{min-width:0;table-layout:fixed} table.gt.reqt th,table.gt.reqt td{
 table.gt.reqt th:nth-child(1),table.gt.reqt td:nth-child(1){width:34%} table.gt.reqt th:nth-child(2),table.gt.reqt td:nth-child(2){width:14%;text-align:center}
 table.gt.reqt td:nth-child(3){font-size:.85em;line-height:1.3}
 .ntrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)} .ntrow input{width:20px;height:20px;flex:none}
+table.gt.lbt{min-width:0} table.gt.lbt td:first-child{width:2.5em;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:anywhere} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
 .upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
 .upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
@@ -446,7 +450,8 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button class="speedchip" data-act="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
     <button class="speedchip" data-act="ach" aria-label="Achievements">Achievements<b id="abadge"></b></button>
-    <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</button>
+    <button class="speedchip iconchip" data-act="lb-open" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
+    <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
     </div>
   </header>
 
@@ -489,7 +494,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.5";
+var APP_VERSION = "0.1.6";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2068,7 +2073,7 @@ function renderReports(){
     var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
     h+='<details class="rep"><summary><b class="'+(r.result===1?'okc':'badc')+'">'+v+'</b> at '+esc(r.name)+(r.medal>=0?', '+MEDALS[r.medal][1]+' medal':'')+(r.gate?', gates shut':'')+(r.drops&&r.drops.length?', '+r.drops.join(", "):'')+(loot?', '+fmt(loot)+' loot':'')+(r.occupied?', valley taken':'')+'</summary>'+
       '<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
-      (loot?'<div class="us" style="margin-top:6px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'')+'</details>';
+      (loot?'<div class="us" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'')+'</details>';
   });
   el.innerHTML=h+'</div>';
 }
@@ -2385,6 +2390,57 @@ function grantBeta(){
   var b=genHero("legendary",1); b.name="Beta"; b.pol=b.atk=b.int=115; b.base={pol:115,atk:115,int:115}; b.pts=0; b.fixedName=1; b.unique="beta";
   if (S.heroes.length<hallCap()){ S.heroes.push(b); return "Beta joined your hall."; }
   S.waiting.push(b); return "Beta is waiting at the gate: free a place in your Feasting Hall.";
+}
+/* ---------- high scores (Cloudflare Worker) ---------- */
+var LB_URL = "https://ibory-scores.codylspaulding.workers.dev"; // the Worker address, e.g. "https://ibory-scores.yourname.workers.dev" (empty hides syncing)
+var LB_HC=[12,14,16,18], lbData={}, lbCat="prestige", lbBusy=false, lbErr="", lbLastSync=0;
+var LB_CATS=[["prestige","Prestige"],["kills","Enemies killed (all troops)"]].concat(["Workers","Warriors","Scouts","Pikemen","Swordsmen","Archers","Transporters","Cavalry","Cataphracts","Ballistas","Battering Rams","Catapults"].map(function(u,i){ return ["kill"+i,"Killed: "+u]; }))
+  .concat([["deaths","Troops lost"],["hero","Highest level hero"],["stars","Best star set"],["cities","Cities"],["rep","Alliance reputation"]]).concat(LB_HC.map(function(L){ return ["hc"+L,"First to take a level "+L+" historic city"]; }));
+function lbHex(n){ var a=new Uint8Array(n); (window.crypto||window.msCrypto).getRandomValues(a); return [].map.call(a,function(b){ return ("0"+b.toString(16)).slice(-2); }).join(""); }
+function lbOn(){ return !!(LB_URL && S.lb && S.lb.on && !S.lb.removed); }
+function lbStats(){
+  var hero=0; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ hero=Math.max(hero,h.level||0); }); }); (S.waiting||[]).forEach(function(h){ hero=Math.max(hero,h.level||0); });
+  S.hcSeen=S.hcSeen||{}; S.cities.forEach(function(c){ if (c.fieldCap && LB_HC.indexOf(c.fieldCap)>=0) S.hcSeen[c.fieldCap]=1; }); // once taken, it counts even if given away later
+  var hc={}; LB_HC.forEach(function(L){ if (S.hcSeen[L]) hc[L]=true; });
+  return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
+    hero:hero, stars:bestGearSet(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
+}
+function lbSync(force){
+  if (!lbOn()) return; var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
+  try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats()})})
+    .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); } }).catch(function(){}); } catch(e){}
+}
+function lbFetch(cat){
+  if (!LB_URL) return; lbCat=cat||lbCat; lbBusy=true; lbErr=""; lastSheet=""; renderSheet();
+  fetch(LB_URL+"/board?cat="+encodeURIComponent(lbCat)+(S.lb&&S.lb.id?"&id="+S.lb.id:""))
+    .then(function(r){ return r.json(); }).then(function(d){ lbBusy=false; if (d && d.rows){ lbData[lbCat]=d; } else lbErr=(d&&d.error)||"Couldn\u2019t load the high scores"; lastSheet=""; renderSheet(); })
+    .catch(function(){ lbBusy=false; lbErr="Couldn\u2019t reach the high scores. Check your connection."; lastSheet=""; renderSheet(); });
+}
+function lbVal(cat,v){ if (/^hc/.test(cat)) return v?new Date(v).toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+new Date(v).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}):"\u2014"; if (cat==="stars") return v+"\u2605"; if (cat==="hero") return "Level "+v; return fmt(v||0); }
+function lbSheet(){
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>High scores</h2><div class="sub">Every Ibory player, one board per stat.</div></div></div>';
+  if (!LB_URL) return h+'<p class="hint">High scores aren\u2019t switched on in this version yet.</p><button class="closebtn" data-act="close">Close</button>';
+  if (S.lb && S.lb.removed) return h+'<p class="hint">This save was removed from the high scores.</p><button class="closebtn" data-act="close">Close</button>';
+  if (!lbOn()){
+    return h+'<p class="hint">Join to put your realm on the boards. Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, alliance reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
+      '<div><label for="lbname" class="sub">Name on the boards (2 to 20 characters)</label><input id="lbname" type="text" maxlength="20" value="'+esc((S.lb&&S.lb.name)||S.lord||"")+'" placeholder="Your name"></div>'+
+      '<div class="upbtns"><button class="btn" data-act="lb-join">Join the high scores</button></div>'+(lbErr?'<p class="why">'+esc(lbErr)+'</p>':'')+'<button class="closebtn" data-act="close">Close</button>';
+  }
+  var d=lbData[lbCat];
+  h+='<div><label for="lbcat" class="sub">Board</label><select id="lbcat">'+LB_CATS.map(function(c){ return '<option value="'+c[0]+'"'+(c[0]===lbCat?' selected':'')+'>'+c[1]+'</option>'; }).join("")+'</select></div>';
+  if (lbErr) h+='<p class="why">'+esc(lbErr)+'</p>';
+  if (!d) h+='<p class="hint">'+(lbBusy?'Loading\u2026':'')+'</p>';
+  else {
+    h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
+    if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td><td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
+  }
+  h+='<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn ghost small" data-act="lb-refresh">Refresh</button><button class="btn ghost small" data-act="lb-sync">Send my scores now</button></div>';
+  h+='<details class="det" data-det="lbme"'+(DET.lbme?' open':'')+'><summary><b>Your entry</b> <span class="dur">as '+esc(S.lb.name)+'</span></summary>'+
+    '<div><label for="lbname" class="sub">Name on the boards</label><input id="lbname" type="text" maxlength="20" value="'+esc(S.lb.name)+'"></div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="lb-rename">Save name</button><button class="btn ghost small danger" data-act="lb-leave">'+(armed==="lbleave"?'Tap again to leave':'Leave the high scores')+'</button></div></details>';
+  return h+'<button class="closebtn" data-act="close">Close</button>';
 }
 var QUEEN_NAMES=["Isolde","Eleanor","Matilda","Adela","Sibylla","Ermengarde","Theodora","Aveline"];
 // once any city reaches Town Hall 10, a Queen (base 150 in every stat) joins that city, or waits at the gate if its hall is full
@@ -3306,7 +3362,7 @@ function isAlly(id){ return !!S.alliance && allyIdx(id)>=0; }
 function allyTiles(){ return AL().allies.map(function(a){ return TILE_BY[a.id]; }).filter(function(q){ return q && q.k==="ai"; }); }
 function repPct(){ return Math.min(100, AL().rep/REP_MAX*100); }
 function helpChance(){ return Math.min(0.95, 0.15+0.8*AL().rep/REP_MAX); }
-function addRep(n, why){ var A=AL(); A.rep=Math.min(REP_MAX, A.rep+Math.round(n)); A.log.unshift({at:S.gt, t:"+"+fmt(Math.round(n))+" rep: "+why}); if (A.log.length>40) A.log.length=40; }
+function addRep(n, why){ var A=AL(); A.rep=Math.max(0, A.rep+Math.round(n)); /* keeps counting past 100% for the high scores */ A.log.unshift({at:S.gt, t:"+"+fmt(Math.round(n))+" rep: "+why}); if (A.log.length>40) A.log.length=40; }
 function dailyRec(){ var A=AL(), d=gameDay(); if (!A.daily || A.daily.day!==d) A.daily={day:d, res:false, guard:false}; return A.daily; }
 function allyArmy(q){ return current(q).t; }
 function guardsAt(tileId){ return S.marches.filter(function(m){ return m.mission==="allyguard" && m.phase==="stay" && m.tile===tileId; }); }
@@ -4281,7 +4337,7 @@ function viewAlliance(){
   var A=AL(), b=bullyOf(), B=A.bully, d=dailyRec();
   var h='<div class="section"><div class="shead"><h3 id="allyh">'+esc(allyName())+'</h3><span class="dur">'+A.allies.length+' / '+Math.min(ALLY_MAX,maxB("embassy"))+' allies (Embassy level '+maxB("embassy")+')</span></div>'+
     '<div class="renrow"><label for="allyname2" class="sub">Rename alliance</label><input id="allyname2" data-ren="ally" type="text" value="'+esc(A.name||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
-    '<div class="repbar"><i style="width:'+repPct().toFixed(2)+'%"></i></div><p class="hint">Reputation <b>'+fmt(A.rep)+'</b> of '+fmt(REP_MAX)+' ('+repPct().toFixed(1)+'%). Allies answer a call for reinforcements '+Math.round(helpChance()*100)+'% of the time, and are likelier to accept an invitation as your standing grows.</p>'+
+    '<div class="repbar"><i style="width:'+repPct().toFixed(2)+'%"></i></div><p class="hint">Reputation <b>'+fmt(A.rep)+'</b> '+(A.rep>=REP_MAX?'(100%: maxed, and every point past '+fmt(REP_MAX)+' still counts on the high scores).':'of '+fmt(REP_MAX)+' ('+repPct().toFixed(1)+'%).')+' Allies answer a call for reinforcements '+Math.round(helpChance()*100)+'% of the time, and are likelier to accept an invitation as your standing grows.</p>'+
     '<div class="h3" style="margin-top:8px">Today</div><div class="gearlist">'+
     '<div class="gearrow'+(d.res?' t3':'')+'"><span class="gn">Send 10k+ resources to an ally</span><span class="gb">'+(d.res?'Done':'+50 rep')+'</span></div>'+
     '<div class="gearrow'+(d.guard?' t3':'')+'"><span class="gn">Station troops with an ally</span><span class="gb">'+(d.guard?'Done':'+60 rep')+'</span></div>'+
@@ -4478,7 +4534,7 @@ function reportDetailBase(r){
     FORTN.map(function(n,k){ if (!r.forts[k]) return ''; var lf=r.forts[k]-r.fleft[k]; return '<tr><td>Your '+n+'</td><td>'+fmt(r.forts[k])+'</td><td class="'+(lf?'loss':'')+'">'+fmt(lf)+'</td><td></td><td></td></tr>'; }).join("")+'</tbody></table></div>';
   var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
   return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
-    (loot?'<div class="us" style="margin-top:6px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'');
+    (loot?'<div class="us" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'');
 }
 function fillRepList(){
   var el=document.getElementById("replist"); if (!el) return;
@@ -5110,13 +5166,15 @@ function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.
 
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
-function openSheet(kind){ var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal(); if (keep!=null) sheetBody.scrollTop=keep; else if (kind && !foc && sheetBody.scrollTop) sheetBody.scrollTop=0; }
+function openSheet(kind){ var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal();
+  if (kind && kind.kind==="report"){ fitReport(); requestAnimationFrame(function(){ if (sheetFor===kind) fitReport(); }); } /* measure after the window is open */
+  if (keep!=null) sheetBody.scrollTop=keep; else if (kind && !foc && sheetBody.scrollTop) sheetBody.scrollTop=0; }
 // back from a gear menu to the hero's sheet, scrolled to exactly where it was
 function heroBack(id){ var y=sheetFor&&sheetFor.backScroll; openSheet(y!=null?{kind:"hero",id:id,keepScroll:y}:{kind:"hero",id:id,focus:"gear"}); } // a new menu starts at its top
 function closeSheet(){ sheetFor=null; sheet.classList.remove("fit"); if (sheet.open) sheet.close(); }
-var repFit=false; // battle reports shrunk to fit one screen, for screenshots; stays on until turned off
+var repFit=true; // battle reports always shrink to fit one screen
 function fitReport(){
-  var w=document.getElementById("repwrap"); if (!w) return;
+  var w=document.getElementById("repwrap"); if (!w || !sheet.open || !sheetBody.clientWidth) return;
   w.style.zoom=""; sheetBody.scrollTop=0;
   var cs=getComputedStyle(sheetBody), padW=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
   var other=sheetBody.scrollHeight-w.offsetHeight, availH=window.innerHeight*0.98-other, availW=sheetBody.clientWidth-padW;
@@ -5228,12 +5286,14 @@ function renderSheet(){
   } else if (sheetFor.kind==="waves"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=wavesSheet();
+  } else if (sheetFor.kind==="lb"){
+    h=lbSheet();
   } else if (sheetFor.kind==="report"){
     var rc=sheetFor.c, rr=sheetFor.rep, rv = rc.sc ? (rc.r===1?"Scouted":"Caught") : rc.d ? (rc.r===1?"Broken":"Held") : (rc.r===1?(rc.l?"Victory":"Flawless"):rc.r===3?"Stalemate":"Defeat"), rg = rc.d ? rc.r!==1 : rc.r===1;
     var rex=[]; if (rc.l) rex.push("lost "+fmt(rc.l)); if (rc.k) rex.push("killed "+fmt(rc.k)); if (rc.lo) rex.push((rc.d?"lost ":"")+fmt(rc.lo)+" loot"); if (rc.m>=0) rex.push(MEDALS[rc.m][1]+" medal"); if (rc.g.length) rex.push(rc.g.join(", ")); if (rc.h) rex.push(rc.h+" captured"); if (rc.f) rex.push(rc.f+" taken");
     h='<div id="repwrap"'+(repFit?' class="fit"':'')+'><div class="head"><span class="ico">'+ICON.rally+'</span><div><h2><span class="'+(rg?'okc':'badc')+'">'+rv+'</span> '+esc(rc.n)+'</h2><div class="sub">'+gameClock(rc.at)+(rc.c&&!rc.d&&S.cities.length>1?', from '+esc(rc.c):'')+(rex.length?'. '+rex.join(", ")+'.':'')+'</div></div></div>'+
       (rr?reportDetail(rr):'<p class="hint">Only the summary of this older battle was kept.</p>')+'</div>'+
-      '<div class="btnrow" style="margin-top:10px"><button class="btn'+(rc.fav?'':' ghost')+' small" data-act="rep-fav">'+(rc.fav?'\u2605 Saved':'\u2606 Save report')+'</button><button class="btn ghost small" data-act="rep-fit">'+(repFit?'Normal size':'Fit on one screen')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+'</div>'+
+      '<div class="btnrow" style="margin-top:10px"><button class="btn'+(rc.fav?'':' ghost')+' small" data-act="rep-fav">'+(rc.fav?'\u2605 Saved':'\u2606 Save report')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+'</div>'+
       '<button class="closebtn" data-act="close">Close</button>';
   } else if (sheetFor.kind==="legend"){
     if (!S.pendingLegend){ closeSheet(); return; }
@@ -5309,7 +5369,7 @@ function renderSheet(){
   }
   if (h===lastSheet) return;
   lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
-  var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn) fitReport();
+  var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn && sheet.open) fitReport();
   if (sheetFor && sheetFor.focus){ var fe=document.getElementById(sheetFor.focus==="gear"?"herogear":sheetFor.focus); sheetFor.focus=null; if (fe && fe.scrollIntoView) fe.scrollIntoView({block:"start"}); }
   var sa0=document.getElementById("saveage"); if (sa0) sa0.textContent=saveAge();
   if (sheetFor && sheetFor.kind==="march") updateMarchInfo();
@@ -5457,6 +5517,17 @@ document.addEventListener("click",function(e){
   if (act==="city-go"){ closeSheet(); farmArmed=false; S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
   if (act==="close"){ sheetBack(); return; }
   if (act==="settings"){ openSheet({kind:"settings"}); return; }
+  if (act==="lb-open"){ openSheet({kind:"lb"}); if (lbOn()) lbFetch(); return; }
+  if (act==="lb-refresh"){ lbFetch(); return; }
+  if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
+  if (act==="lb-join"){ var jn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim();
+    if (jn.length<2){ lbErr="Pick a name of 2 to 20 characters."; lastSheet=""; renderSheet(); return; }
+    S.lb={id:lbHex(16), token:lbHex(16), name:jn.slice(0,20), on:true}; lbErr=""; save(); lbSync(true); toast("You\u2019re on the high scores"); setTimeout(function(){ lbFetch("prestige"); },1500); lastSheet=""; renderSheet(); return; }
+  if (act==="lb-rename"){ var rn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim(); if (rn.length<2){ toast("Names need 2 to 20 characters"); return; }
+    S.lb.name=rn.slice(0,20); save(); lbSync(true); toast("Name saved"); setTimeout(function(){ lbFetch(); },1500); return; }
+  if (act==="lb-leave"){ if (armed!=="lbleave"){ armed="lbleave"; lastSheet=""; renderSheet(); return; } armed=null;
+    var lv={id:S.lb.id, token:S.lb.token}; S.lb.on=false; save(); try { fetch(LB_URL+"/leave",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(lv)}); } catch(e){}
+    lbData={}; toast("You left the high scores"); lastSheet=""; renderSheet(); return; }
   if (act==="gate"){ S.gate = S.gate==="closed" ? "open" : "closed"; toast(S.name+"\u2019s gate is "+S.gate); save(); lastView=""; refresh(); return; }
   if (act==="theme"){ try { localStorage.setItem("stonewatch-theme", a.dataset.v); } catch(e){} applyTheme(); lastSheet=""; renderSheet(); if (tab==="map") requestDraw(); return; }
   if (act==="save-export"){ saveUi= saveUi==="export"?"":"export"; armed=null; lastSheet=""; renderSheet(); return; }
@@ -5967,6 +6038,7 @@ document.addEventListener("change",function(e){
     else if (!("Notification" in window)){ e.target.checked=false; toast("This browser can\u2019t show notifications"); }
     else Notification.requestPermission().then(function(r){ S.phoneNotif = r==="granted"; save(); lastSheet=""; renderSheet(); toast(r==="granted"?"Phone notifications on":"Notifications weren\u2019t allowed"); });
   }
+  if (e.target.id==="lbcat"){ lbFetch(e.target.value); }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
@@ -5987,7 +6059,7 @@ genMap();
 applyTheme();
 if (window.matchMedia){ var mq=window.matchMedia("(prefers-color-scheme: dark)"); if (mq.addEventListener) mq.addEventListener("change", function(){ applyTheme(); if (tab==="map") requestDraw(); }); }
 document.getElementById("tabs").addEventListener("scroll", updateTabArrows, {passive:true});
-window.addEventListener("resize", function(){ updateTabArrows(); if (tab==="map") requestDraw(); });
+window.addEventListener("resize", function(){ if (sheetFor && sheetFor.kind==="report") fitReport(); updateTabArrows(); if (tab==="map") requestDraw(); });
 ["orientationchange","pageshow","focus"].forEach(function(ev){ window.addEventListener(ev,function(){ if (tab==="map") setTimeout(requestDraw,60); }); });
 document.addEventListener("visibilitychange",function(){ if (!document.hidden && tab==="map") setTimeout(requestDraw,60); });
 if (window.visualViewport) window.visualViewport.addEventListener("resize",function(){ if (tab==="map") requestDraw(); });
@@ -6005,6 +6077,8 @@ setInterval(function(){
   if (tab==="map" && !drag && ++mapTick%2===0) requestDraw();
 },500);
 setTimeout(updateTabArrows,50);
+setTimeout(function(){ lbSync(true); },4000); setInterval(function(){ lbSync(false); },60000);
+document.addEventListener("visibilitychange",function(){ if (document.hidden) lbSync(true); });
 if ("serviceWorker" in navigator && location.protocol==="https:" && !/claude\.ai|claudeusercontent/.test(location.hostname)){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
 wireDetails(document);
 setInterval(save,5000);
