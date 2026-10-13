@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.14
+- Every march preset (normal, auto-farm, timed waves and Battlefield) can pick its hero as Best attack (your strongest free hero) or Any free hero (your weakest free one, so the best stay home), as well as a named hero or none. Auto-farm never waits on Best/Any: if nobody is free it goes without. Timed waves give each preset a different hero.
 ### 0.1.13
 - A secret package hides somewhere in the game. Once per save.
 ### 0.1.12

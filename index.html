@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.13";
+var APP_VERSION = "0.1.14";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1558,7 +1558,14 @@ function handleMarch(m){
 }
 
 /* ---------- presets, auto-farm, timed waves ---------- */
-function presetHero(pr){ var h=pr.hero?heroById(pr.hero):null; return h && C().heroes.indexOf(h)>=0 ? h : null; }
+var HERO_BEST=-1, HERO_ANY=-2;
+function presetFreeHeroes(used){ return C().heroes.filter(function(x){ return !x.away && !isOfficer(x) && !(used&&used[x.id]); }); }
+function pickHero(mode, used){ var f=presetFreeHeroes(used); if (!f.length) return null;
+  f.sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); }); return mode===HERO_BEST ? f[0] : f[f.length-1]; }
+function presetHero(pr, used){ if (pr.hero===HERO_BEST || pr.hero===HERO_ANY) return pickHero(pr.hero, used);
+  var h=pr.hero?heroById(pr.hero):null; return h && C().heroes.indexOf(h)>=0 ? h : null; }
+function heroChoiceOpts(cur, list, label){ return '<option value="0"'+(!cur?' selected':'')+'>No hero</option><option value="-1"'+(cur===HERO_BEST?' selected':'')+'>Best attack (free hero)</option><option value="-2"'+(cur===HERO_ANY?' selected':'')+'>Any free hero</option>'+
+  list.map(function(x){ return '<option value="'+x.id+'"'+(x.id===cur?' selected':'')+'>'+label(x)+'</option>'; }).join(""); }
 function presetTotal(pr){ return pr.t.reduce(function(a,b){return a+b;},0); }
 function presetReady(pr){ if (!presetTotal(pr) || presetTotal(pr)>armyCap()) return false; for (var i=0;i<12;i++) if (pr.t[i]>S.troops[i]) return false; return true; }
 function farmTarget(id){ var q=TILE_BY[id]; return q && (q.k==="npc"||q.k==="ai"||q.k==="hc"||(VTYPES[q.k] && !S.map.owned[q.id])); }
@@ -1568,12 +1575,13 @@ function processAuto(){
     if (!pr.auto || !pr.farm.length) return;
     if (S.marches.some(function(m){ return m.city===C().id && m.preset===pi; })) return;
     if (cityMarches().length>=rl || !presetReady(pr)) return;
-    var nid=pr.farm[pr.idx % pr.farm.length], nq=nid&&TILE_BY[nid]; if (nq && S.res.food < marchFood(pr.t,"attack",travelMs(pr.t,nq,presetHero(pr)?pr.hero:0))) return; // wait for rations
-    var h=pr.hero?heroById(pr.hero):null;
-    if (h && C().heroes.indexOf(h)>=0 && (h.away || isOfficer(h))) return; // wait for the hero
+    var ph=presetHero(pr), phid=ph&&!ph.away&&!isOfficer(ph)?ph.id:0;
+    var nid=pr.farm[pr.idx % pr.farm.length], nq=nid&&TILE_BY[nid]; if (nq && S.res.food < marchFood(pr.t,"attack",travelMs(pr.t,nq,phid))) return; // wait for rations
+    var h=pr.hero>0?heroById(pr.hero):null;
+    if (h && C().heroes.indexOf(h)>=0 && (h.away || isOfficer(h))) return; // a named hero: wait for them (Best / Any never wait)
     var tries=0; while (tries<pr.farm.length && !farmTarget(pr.farm[pr.idx % pr.farm.length])){ pr.farm.splice(pr.idx % pr.farm.length,1); tries++; if (!pr.farm.length) return; }
     var id=pr.farm[pr.idx % pr.farm.length]; pr.idx=(pr.idx+1) % pr.farm.length;
-    launchMarch(id,"attack",pr.t,presetHero(pr)?pr.hero:0,{preset:pi});
+    launchMarch(id,"attack",pr.t,phid,{preset:pi});
   });
 }
 function presetSummary(pr){ var parts=[]; pr.t.forEach(function(n,i){ if (n) parts.push(fmt(n)+" "+U[i].name); }); return parts.length?parts.join(", "):"No troops set"; }
@@ -1583,7 +1591,7 @@ function presetsSection(){
     var hh=presetHero(pr), running=S.marches.some(function(m){ return m.city===C().id && m.preset===pi; });
     var rot=0; if (presetTotal(pr)) pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq) rot+=2*travelMs(pr.t,fq,hh?hh.id:0); });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
-      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(hh?esc(hh.name):"none")+'</b></span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
+      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+((pr.hero===HERO_BEST||pr.hero===HERO_ANY)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
       '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit</button>'+(pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+
       (presetTotal(pr)>armyCap()?'<span class="why">Over the '+fmt(armyCap())+'-troop march limit</span>':pr.auto && !presetReady(pr) && !running?'<span class="why">Waiting for troops</span>':'')+'</div></div>';
   });
@@ -1594,7 +1602,7 @@ function presetSheet(pi){
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Edit '+esc(pr.name)+'</h2><div class="sub">'+esc(S.name)+'</div></div></div>';
   h+='<div><label class="sub" for="pname">Name</label><input type="text" id="pname" data-pfield="name" value="'+esc(pr.name)+'" maxlength="24"></div>';
   h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
-  h+='<div><label class="sub" for="phero">Hero</label><select id="phero"><option value="0">No hero</option>'+fh.map(function(x){ return '<option value="'+x.id+'"'+(x.id===pr.hero?' selected':'')+'>'+esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+'</option>'; }).join("")+'</select></div>';
+  h+='<div><label class="sub" for="phero">Hero</label><select id="phero">'+heroChoiceOpts(pr.hero, fh, function(x){ return esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk"); })+'</select></div>';
   h+='<label class="chk"><input type="checkbox" id="pstop"'+(pr.stopOnLoss?' checked':'')+'> Pause auto-farm if a battle loses any troops</label>';
   h+='<div class="h3">Farm list ('+pr.farm.length+')</div>';
   if (!pr.farm.length) h+='<p class="hint">Empty. Tap a target on the Map and use "Add to farm list".</p>';
@@ -1691,7 +1699,7 @@ function viewFarms(){
     var hh=presetHero(pr), hid=hh?hh.id:0, rot=0, lv={}, msg=farmMsg[C().id+":"+pi], m=pr.farmMode?FARM_MODES[pr.farmMode]:null;
     pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq){ if (presetTotal(pr)) rot+=2*travelMs(pr.t,fq,hid); if (fq.L) lv[fq.L]=(lv[fq.L]||0)+1; } });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
-      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(hh?esc(hh.name):"none")+'</b></span></div>'+
+      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+((pr.hero===HERO_BEST||pr.hero===HERO_ANY)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span></div>'+
       '<div class="us"><span>Farm list <b>'+pr.farm.length+'</b></span>'+(rot?'<span>Round trip <b>'+fmtT(realMs(rot))+'</b>'+(m?' of '+m.hours+' h':'')+'</span>':'')+(pr.farm.length?'<span>'+farmLevelsText(lv)+'</span>':'')+'</div>'+
       '<div class="trainrow"><label class="dur" for="fl'+pi+'">NPC level</label><select id="fl'+pi+'" data-farmlvl="'+pi+'" style="width:auto">'+['<option value="0">Any</option>'].concat([1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(pr.farmLevel===n?' selected':'')+'>Level '+n+'</option>'; })).join("")+'</select></div>'+
       '<div class="trainrow">'+[["off","Off"],["training","Training"],["resources","Resources"]].map(function(x){ var on=(x[0]==="off")?!pr.farmMode:pr.farmMode===x[0];
@@ -1718,7 +1726,7 @@ function wavesSheet(){
 var waveDraft=null;
 function wavePlan(){
   var d=waveDraft, q=TILE_BY[d.tile], list=[], need=[0,0,0,0,0,0,0,0,0,0,0,0], heroUsed={};
-  S.presets.forEach(function(pr,pi){ for (var k=0;k<(d.n[pi]||0);k++){ var hero=presetHero(pr); var hid = hero && !hero.away && !isOfficer(hero) && !heroUsed[hero.id] ? hero.id : 0; if (hid) heroUsed[hid]=1;
+  S.presets.forEach(function(pr,pi){ for (var k=0;k<(d.n[pi]||0);k++){ var hero=presetHero(pr, heroUsed); var hid = hero && !hero.away && !isOfficer(hero) && !heroUsed[hero.id] ? hero.id : 0; if (hid) heroUsed[hid]=1;
     list.push({pi:pi, t:pr.t.slice(), hero:hid, travel:travelMs(pr.t,q,hid)}); pr.t.forEach(function(n,i){ need[i]+=n; }); } });
   var why="";
   if (!rallyLv()) why="Build a Rally Spot first";
@@ -4709,6 +4717,9 @@ var BF_NPRE=6;
 function bfPresets(){ if (!S.bfPresets || S.bfPresets.length!==BF_NPRE){ var old=S.bfPresets||[]; S.bfPresets=[]; for (var i=0;i<BF_NPRE;i++) S.bfPresets.push(old[i]||{name:"Field "+(i+1), t:Z12()}); } return S.bfPresets; }
 function bfPresetText(pr){ var parts=[]; pr.t.forEach(function(n,i){ if (n) parts.push(fmt(n)+" "+uname(i,n)); }); return parts.length?parts.join(", "):"empty"; }
 // what a preset sends right now: capped by what's in reserve, then scaled down to the march limit
+function bfPresetHero(pr){ var me=BF().p[0], free=(me.heroes||[]).filter(function(x){ return !bfHeroBusy(x.id); });
+  if (pr.hero===HERO_BEST||pr.hero===HERO_ANY){ if (!free.length) return 0; free.sort(function(a,b){ return b.atk-a.atk; }); return (pr.hero===HERO_BEST?free[0]:free[free.length-1]).id; }
+  return pr.hero && free.some(function(x){ return x.id===pr.hero; }) ? pr.hero : (pr.hero?null:0); }
 function bfPresetDraft(pr, me){ var t=pr.t.map(function(n,i){ return (i===0||i===6)?0:Math.max(0,Math.min(n||0, me.reserve[i])); }), cap=bfCap(me), tot=sumT(t);
   if (tot>cap){ var k=cap/tot; t=t.map(function(n){ return Math.floor(n*k); }); } return t; }
 var bfPreSel=0;
@@ -4717,6 +4728,8 @@ function bfPresetSheet(){
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Battlefield presets</h2><div class="sub">Separate from your normal presets. A preset sends what it lists, capped by what’s left in reserve and scaled down to the march limit.</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
   h+='<div class="lbtabs">'+ps.map(function(x,i){ return '<button class="chipbtn'+(i===bfPreSel?' on':'')+'" style="padding:0 10px" data-act="bfpre-tab" data-i="'+i+'">'+esc(x.name)+'</button>'; }).join("")+'</div>';
   h+='<div class="farmadd"><label for="bfpname" class="dur">Name</label><input id="bfpname" maxlength="18" value="'+esc(pr.name)+'"></div>';
+  var bfHs=bfOn()&&BF().p[0].heroes?BF().p[0].heroes:S.heroes.map(function(x){ return {id:x.id, name:x.name, atk:hs(x,"atk")}; });
+  h+='<div class="farmadd"><label for="bfphero" class="dur">Hero</label><select id="bfphero">'+heroChoiceOpts(pr.hero||0, bfHs, function(x){ return esc(x.name)+' (Atk '+x.atk+')'; })+'</select></div>';
   h+='<div class="tscroll"><table class="gt wct"><tbody>'+U.map(function(u,i){ if (i===0||i===6) return '';
     return '<tr><td>'+u.name+'</td><td><input type="number" inputmode="numeric" min="0" data-bfp="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
   h+='<p class="dur" id="bfptot">Total '+fmt(sumT(pr.t))+'</p><div class="btnrow"><button class="btn ghost small" data-act="bfpre-clear">Clear this preset</button></div><button class="closebtn" data-act="close">Done</button>';
@@ -6476,7 +6489,8 @@ document.addEventListener("click",function(e){
   if (act==="bf-mode"){ bfMode=a.dataset.v; bfDraft=null; bfSimTxt=""; lastSheet=""; renderSheet(); return; }
   if (act==="bf-recall"){ if (bfOn() && bfRecall(0,+a.dataset.b)) { toast("Withdrawing your troops"); lastView=""; refresh(); } return; }
   if (act==="bf-mrecall"){ if (bfOn() && bfRecallMarch(+a.dataset.m)){ toast("March turned back"); lastView=""; refresh(); } return; }
-  if (act==="bf-usepre"){ if (!bfOn()) return; var upr=bfPresets()[+a.dataset.i]; if (!upr) return; bfDraft=bfPresetDraft(upr, BF().p[0]); bfSimTxt=""; if (!sumT(bfDraft)) toast("Nothing in reserve for that preset"); lastSheet=""; renderSheet(); return; }
+  if (act==="bf-usepre"){ if (!bfOn()) return; var upr=bfPresets()[+a.dataset.i]; if (!upr) return; bfDraft=bfPresetDraft(upr, BF().p[0]); bfSimTxt="";
+    var uph=bfPresetHero(upr); if (uph===null) toast("That preset\u2019s hero is out leading a march"); else bfDraftHero=uph; if (!sumT(bfDraft)) toast("Nothing in reserve for that preset"); lastSheet=""; renderSheet(); return; }
   if (act==="bfpre-open"){ openSheet({kind:"bfpre"}); return; }
   if (act==="bfpre-tab"){ bfPreSel=+a.dataset.i; lastSheet=""; renderSheet(); return; }
   if (act==="bfpre-clear"){ bfPresets()[bfPreSel].t=Z12(); save(); lastSheet=""; renderSheet(); return; }
@@ -6661,6 +6675,7 @@ document.addEventListener("click",function(e){
 document.addEventListener("input",function(e){
   if (e.target.id==="allyname2"){ renameAlly(e.target.value); return; }
   if (e.target.dataset && e.target.dataset.bfp!=null && sheetFor && sheetFor.kind==="bfpre"){ var bpr=bfPresets()[bfPreSel]; bpr.t[+e.target.dataset.bfp]=Math.max(0,Math.floor(+e.target.value||0)); var bpt=document.getElementById("bfptot"); if (bpt) bpt.textContent="Total "+fmt(sumT(bpr.t)); save(); }
+  if (e.target.id==="bfphero" && sheetFor && sheetFor.kind==="bfpre"){ bfPresets()[bfPreSel].hero=+e.target.value; save(); }
   if (e.target.id==="bfpname" && sheetFor && sheetFor.kind==="bfpre"){ bfPresets()[bfPreSel].name=e.target.value.slice(0,18)||("Field "+(bfPreSel+1)); var bon=sheetBody.querySelector(".lbtabs .chipbtn.on"); if (bon) bon.textContent=bfPresets()[bfPreSel].name; save(); }
   if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ var bi2=+e.target.dataset.bfn, mx=BF().p[0].reserve[bi2]; if (!bfDraft) bfDraft=Z12(); bfDraft[bi2]=Math.max(0,Math.min(mx, Math.floor(+e.target.value||0))); bfSimTxt="";
     var gme=BF().p[0], gtot=sumT(bfDraft), gscout=sheetFor&&(sheetFor.tp!=null||bfMode==="scout"), gwhy=gtot<=0?(gscout?"Pick how many scouts":"Pick some troops"):gtot>bfCap(gme)?"Over the march limit of "+fmt(bfCap(gme)):bfOut(0)>=gme.rally?"All your marches are out":"";
