@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.11
+- War Wizard: replay any battle round by round. Every battle report (attacks, raids on your cities, ally defenses, camps) and every War College wave has a War Wizard button. The engine keeps each real fight's exact inputs and dice (about 400 bytes per report), so the replay is the same battle, not a re-roll. Field view with every unit group's position and count, this round's shots as arrows, a numbered list of who hit what at what distance with the damage modifier (melee bonuses, half damage past half reach, quarter damage on melee targets that can strike back, half damage to walls), rolled vs actual kills, trap/abatis/log/treb/tower strikes, and a per-round tally with reach. Reports from before this version have no replay. Trace mode (SIM.fight opts.trace) changes no results.
 ### 0.1.10
 - Battlefield map: your side, the rivals and the three buildings on one field, colored by owner; tap a building to attack, scout or reinforce, or a rival camp to scout it. March lines with moving markers and timers.
 - Beacon Tower on the Battlefield (the city you bring): below 8 enemy routes only, 8 how many marches per route, 9 the troops in each march, 10 exact landing times.
