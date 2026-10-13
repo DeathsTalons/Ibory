@@ -499,7 +499,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.8";
+var APP_VERSION = "0.1.9";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2406,7 +2406,7 @@ function lbOn(){ return !!(LB_URL && S.lb && S.lb.on && !S.lb.removed); }
 // everyone is on the high scores unless they leave: the name follows the lord's name (or first city) until they pick their own
 function lbAutoName(){ var n=(S.lord||"").replace(/\s+/g," ").trim(); if (n.length<2) n=((S.cities[0]&&S.cities[0].name)||"").trim(); if (n.length<2) n="Lord "+((S.lb&&S.lb.id)||lbHex(2)).slice(0,4); return n.slice(0,20); }
 function lbAutoJoin(){
-  if (!LB_URL) return;
+  if (!LB_URL || navigator.webdriver) return; // automated test browsers never join the real board
   if (S.lb && S.lb.on===false && !S.lb.optedOut) S.lb.optedOut=true; // left before auto-joining existed: respect it
   if (S.lb) return;
   S.lb={id:lbHex(16), token:lbHex(16), on:true, nameAuto:true}; S.lb.name=lbAutoName(); save();
@@ -2470,7 +2470,11 @@ var WC_TIERS=[
   {k:"npc6", name:"NPC cities 6 to 10", note:"Up to four waves. Every wave hits what the last one left behind. Three ratings: any win, then fewer and fewer troops lost."},
   {k:"siege_s", name:"Sieges: Outposts", note:"Player-style cities, each built with one weak spot. Every siege allows only certain troops. Outposts are small but strict: even a plain Victory needs the trick."},
   {k:"siege_m", name:"Sieges: Strongholds", note:"The same cities at full size, up to five waves. Victory is breaking in at all; Commanding and Masterful need the weak spot and good gear."},
-  {k:"siege_l", name:"Sieges: Citadels", note:"Huge garrisons, level 10 walls, up to six waves. Expect to need serious troops, star sets and the exact plan."}
+  {k:"siege_l", name:"Sieges: Citadels", note:"Huge garrisons, level 10 walls, up to six waves. Expect to need serious troops, star sets and the exact plan."},
+  {k:"def_s", name:"Defense: Skirmishes", note:"Now you hold the walls. Spend a prestige budget on troops this city owns and on any fortifications the puzzle allows, then face the waves. Losses count in prestige, forts included."},
+  {k:"def_m", name:"Defense: Assaults", note:"Three waves, bigger budgets. Every wave fights what the last one left of your garrison and forts."},
+  {k:"def_l", name:"Defense: Onslaughts", note:"Four huge waves and endgame budgets. Expect to need a large army, star sets and the right trick."},
+  {k:"def_x", name:"Defense: Trick Shots", note:"One-off defenses, each built around a single quirk of the battlefield. The obvious defense fails every one of them."}
 ];
 var WC=[];
 (function(){
@@ -2498,12 +2502,62 @@ WC_SIEGES.forEach(function(d){
 function wcDef(p){ if (p.kind!=="siege") return wcBase(p.kind,p.L); var c=p.spec;
   return {troops:c.t.slice(), fortifications:c.f.slice(), wallLevel:c.W, research:c.r, hero:{intel:c.hint}, life_modifier:c.life, defence_modifier:1, attack_modifier:c.am, fortBonus:c.fb, trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25}; }
 function wcRuleText(p){ if (p.kind!=="siege") return p.ban.length?"no siege engines":""; return "only "+p.allow.map(function(i){ return uname(i,2); }).join(", ").replace(/, ([^,]*)$/," and $1"); }
+// Defense puzzles: hold the city against fixed waves with a prestige budget. Data generated from the tested designs (see README).
+var WC_DEFS=[{"id":"ds_field","tier":"def_s","name":"Open Field (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":3,"budget":84000,"spec":{"R":8},"waves":[[0,0,0,0,3500,0,0,5250,0,0,0,0],[0,10500,0,5250,0,0,0,0,0,0,0,0]],"caps":[null,5,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dm_field","tier":"def_m","name":"Open Field (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":240000,"spec":{"R":8},"waves":[[0,0,0,0,10000,0,0,15000,0,0,0,0],[0,30000,0,15000,0,0,0,0,0,0,0,0],[0,0,0,0,10000,0,0,10000,4000,0,0,0]],"caps":[null,7,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dl_field","tier":"def_l","name":"Open Field (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":8,"budget":720000,"spec":{"R":8},"waves":[[0,0,0,0,30000,0,0,45000,0,0,0,0],[0,90000,0,45000,0,0,0,0,0,0,0,0],[0,0,0,0,30000,0,0,30000,12000,0,0,0],[0,0,0,0,45000,0,0,0,24000,0,1500,0]],"caps":[null,110,82],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"ds_horse","tier":"def_s","name":"Horse Lords (Skirmish)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":4,"budget":157500,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,8750,0,0,0,0],[0,0,0,0,0,0,0,5250,1750,0,0,0]],"caps":[null,4,0],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dm_horse","tier":"def_m","name":"Horse Lords (Assault)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":6,"budget":450000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,25000,0,0,0,0],[0,0,0,0,0,0,0,15000,5000,0,0,0],[0,0,0,0,0,0,0,0,10000,0,0,0]],"caps":[null,4,0],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dl_horse","tier":"def_l","name":"Horse Lords (Onslaught)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":9,"budget":1350000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,75000,0,0,0,0],[0,0,0,0,0,0,0,45000,15000,0,0,0],[0,0,0,0,0,0,0,0,30000,0,0,0],[0,0,0,0,0,0,0,60000,30000,0,0,0]],"caps":[null,790000,130000],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"ds_horde","tier":"def_s","name":"The Horde (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":131250,"spec":{"R":8},"waves":[[0,21000,0,0,7000,0,0,0,0,0,0,0],[0,0,0,7000,10500,0,0,0,0,0,0,0]],"caps":[null,64,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dm_horde","tier":"def_m","name":"The Horde (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":375000,"spec":{"R":8},"waves":[[0,60000,0,0,20000,0,0,0,0,0,0,0],[0,0,0,20000,30000,0,0,0,0,0,0,0],[0,40000,0,30000,0,0,0,0,0,0,0,0]],"caps":[null,64,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dl_horde","tier":"def_l","name":"The Horde (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1125000,"spec":{"R":8},"waves":[[0,180000,0,0,60000,0,0,0,0,0,0,0],[0,0,0,60000,90000,0,0,0,0,0,0,0],[0,120000,0,90000,0,0,0,0,0,0,0,0],[0,60000,0,60000,120000,0,0,0,0,0,0,0]],"caps":[null,120000,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"ds_train","tier":"def_s","name":"Siege Train (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":5,"budget":157500,"spec":{"R":8},"waves":[[0,7000,0,0,0,0,0,0,0,0,525,0],[0,3500,0,0,0,0,0,0,0,700,0,525]],"caps":[null,18000,8000],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dm_train","tier":"def_m","name":"Siege Train (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":7,"budget":450000,"spec":{"R":8},"waves":[[0,20000,0,0,0,0,0,0,0,0,1500,0],[0,10000,0,0,0,0,0,0,0,2000,0,1500],[0,0,0,10000,0,0,0,0,0,0,2000,1500]],"caps":[null,76000,88],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dl_train","tier":"def_l","name":"Siege Train (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":10,"budget":1350000,"spec":{"R":8},"waves":[[0,60000,0,0,0,0,0,0,0,0,4500,0],[0,30000,0,0,0,0,0,0,0,6000,0,4500],[0,0,0,30000,0,0,0,0,0,0,6000,4500],[0,0,0,0,30000,0,0,0,0,9000,0,6000]],"caps":[null,500000,200000],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"ds_arrows","tier":"def_s","name":"Arrow Storm (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":157500,"spec":{"R":8,"arch":10},"waves":[[0,1750,0,0,0,10500,0,0,0,0,0,0],[0,0,0,1750,0,10500,0,0,0,0,0,0]],"caps":[null,30000,13000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dm_arrows","tier":"def_m","name":"Arrow Storm (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":450000,"spec":{"R":8,"arch":10},"waves":[[0,5000,0,0,0,30000,0,0,0,0,0,0],[0,0,0,5000,0,30000,0,0,0,0,0,0],[0,0,0,0,5000,40000,0,0,0,0,0,0]],"caps":[null,200000,87000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dl_arrows","tier":"def_l","name":"Arrow Storm (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1350000,"spec":{"R":8,"arch":10},"waves":[[0,15000,0,0,0,90000,0,0,0,0,0,0],[0,0,0,15000,0,90000,0,0,0,0,0,0],[0,0,0,0,15000,120000,0,0,0,0,0,0],[0,15000,0,15000,0,120000,0,0,0,0,0,0]],"caps":[null,930000,490000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"ds_gates","tier":"def_s","name":"Shut Gates (Skirmish)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":5,"budget":105000,"spec":{"R":8},"waves":[[0,10500,0,0,0,0,0,0,0,0,350,0],[0,0,0,0,0,0,0,7000,0,0,0,0]],"caps":[null,2400,2100],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dm_gates","tier":"def_m","name":"Shut Gates (Assault)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":7,"budget":300000,"spec":{"R":8},"waves":[[0,30000,0,0,0,0,0,0,0,0,1000,0],[0,0,0,0,0,0,0,20000,0,0,0,0],[0,0,0,0,10000,0,0,0,0,1500,0,800]],"caps":[null,8600,7500],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dl_gates","tier":"def_l","name":"Shut Gates (Onslaught)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":10,"budget":900000,"spec":{"R":8},"waves":[[0,90000,0,0,0,0,0,0,0,0,3000,0],[0,0,0,0,0,0,0,60000,0,0,0,0],[0,0,0,0,30000,0,0,0,0,4500,0,2400],[0,0,0,0,0,0,0,0,15000,0,6000,0]],"caps":[null,55000,31000],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dx_engineers","tier":"def_x","name":"Engineers' Duel","allow":[0,9,10,11],"forts":"none","fallow":[],"W":5,"budget":500000,"spec":{"R":8},"waves":[[0,30000,0,0,10000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,15000,0,0,0,0],[0,0,0,10000,0,15000,0,0,0,0,0,0]],"caps":[null,99,76],"tag":"Only siege engines answer the call. The enemy brings a bit of everything.","hint":"Ballistas do the killing. One Ram in front takes the first hits, and one Catapult behind makes the battlefield long enough for the Ballistas to finish the job. More Rams or Catapults are wasted budget."},{"id":"dx_shortfield","tier":"def_x","name":"Short Field","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":250000,"spec":{"R":8,"arch":10},"waves":[[0,0,0,0,0,20000,0,8000,0,0,0,0],[0,5000,0,0,0,0,0,8000,0,2500,0,0]],"caps":[null,110000,45000],"tag":"Their archers have Archery 10, with cavalry and ballistas behind. You may build traps, abatis and logs.","hint":"A trap or abatis stretches the battlefield, and a long field helps whoever shoots better. Below Archery 10, build none: meet them with a wall of Warriors and some Pikemen, plus one each of Scout, Swordsman, Archer, Cataphract, Ballista and Catapult to draw volleys. With Archery 10 and strong gear, archers and traps start to win instead."},{"id":"dx_cuts","tier":"def_x","name":"Thousand Cuts","allow":[0,1,2,3,4,5,7,8],"forts":"build","fallow":[0,1,3,4],"W":6,"budget":75000,"spec":{"R":8},"waves":[[0,0,0,0,4000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,3000,0,0,0,0],[0,0,0,5000,0,0,0,0,0,0,0,0],[0,8000,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,4000,0,0,0,0],[0,0,0,0,6000,0,0,0,1500,0,0,0]],"caps":[null,2300,30],"tag":"Six small waves, one after another, on a tight budget. Nothing heals in between.","hint":"Archers do the killing, but every wave chips at them. Keep a reserve of about 1,300 Warriors to soak what gets through, and build a single abatis for field length."},{"id":"dx_skeleton","tier":"def_x","name":"Skeleton Crew","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":125000,"spec":{"R":8},"waves":[[0,60000,0,20000,0,0,0,0,0,0,0,0]],"caps":[null,92,0],"tag":"Eighty thousand infantry against a tiny budget. Every prestige point counts.","hint":"Spend nearly all of it. Archers do the killing behind one each of Worker, Warrior, Pikeman, Swordsman and Ram, with a few hundred Ballistas mixed in."}];
+var WC_DEF_RW={def_s:[{gemD:20,s60:1},{gemF:5,ingot:1},{gemF:10,mithril:1}],
+  def_m:[{gemF:10,s150:1,ingot:2},{gemF:20,mithril:1},{gemF:30,mithril:2,starmetal:1}],
+  def_l:[{gemF:30,mithril:2},{gemF:50,starmetal:2},{gemF:100,starmetal:3,scale:1}],
+  def_x:[{gemF:10,s150:1,ingot:2},{gemF:20,mithril:1},{gemF:30,mithril:2,starmetal:1}]};
+var FORT_SP=[1,2,3,4,6];
+WC_DEFS.forEach(function(d){
+  WC.push({id:d.id, tier:d.tier, name:d.name, kind:"defense", dz:d, waves:d.waves.length, ban:[], tag:d.tag, hint:d.hint,
+    goals:d.caps.map(function(c){ return {cap:c}; }), rewards:WC_DEF_RW[d.tier].map(function(it){ return {res:QR(0,0,0,0,0), items:it}; })});
+});
+function wcdForts(p){ return p.dz.forts==="none"?[]:p.dz.fallow; }
+function wcdTroopsOk(p){ return p.dz.forts==="shut"?[]:p.dz.allow; }
+function wcdCost(d){ var c=0, i; for (i=0;i<12;i++) c+=(d.t[i]||0)*PREST_U[i]; for (i=0;i<5;i++) c+=(d.f[i]||0)*FORTS[i].prest; return c; }
+function wcdSpace(d){ var c=0; for (var i=0;i<5;i++) c+=(d.f[i]||0)*FORT_SP[i]; return c; }
+function wcdCap(p){ return 1000*tri(p.dz.W); }
+var wcdDraft={};
+function wcdDraftOf(p){ if (!wcdDraft[p.id]) wcdDraft[p.id]={t:[0,0,0,0,0,0,0,0,0,0,0,0], f:[0,0,0,0,0], hero:0}; return wcdDraft[p.id]; }
+function wcdFoe(p,w){ var R=p.dz.spec.R, ar=p.dz.spec.arch!=null?p.dz.spec.arch:R;
+  return {troops:p.dz.waves[w].slice(), research:{military_tradition:R, iron_working:R, medicine:R, compass:R, horseback_riding:R, archery:ar}, hero:{intel:100}, life_modifier:1, defence_modifier:1, attack_modifier:1+0.05*R+1.5}; }
+function wcdWaveText(p,w){ var t=p.dz.waves[w], parts=[]; for (var i=0;i<12;i++) if (t[i]) parts.push(fmt(t[i])+" "+uname(i,t[i])); return parts.join(", "); }
+function wcdRuleText(p){ var z=p.dz, f=z.forts==="shut"?"gate shut, forts only":z.forts==="none"?"no forts":"forts: "+z.fallow.map(function(i){ return FORTN[i]; }).join(", ");
+  var ban=z.forts==="shut"?"":(z.allow.indexOf(5)<0?"no Archers · ":""); return ban+f; }
+function wcdWhy(p,d){
+  var any=false, i, okT=wcdTroopsOk(p), okF=wcdForts(p);
+  for (i=0;i<12;i++) if (d.t[i]){ if (okT.indexOf(i)<0) return uname(i,2)+" aren’t allowed in this puzzle"; if (d.t[i]>S.troops[i]) return "You only have "+fmt(S.troops[i])+" "+uname(i,S.troops[i])+" in "+S.name; any=true; }
+  for (i=0;i<5;i++) if (d.f[i]){ if (okF.indexOf(i)<0) return FORTN[i]+" aren’t allowed in this puzzle"; any=true; }
+  if (!any) return "Place some defenders first";
+  if (wcdCost(d)>p.dz.budget) return "Over the "+fmt(p.dz.budget)+" prestige budget";
+  if (wcdSpace(d)>wcdCap(p)) return "Fortifications need "+fmt(wcdSpace(d))+" space, and level "+p.dz.W+" walls hold "+fmt(wcdCap(p));
+  if (d.hero && S.heroes.indexOf(heroById(d.hero))<0) return "That hero isn’t in "+S.name;
+  return "";
+}
+function wcdRun(p){
+  var d=wcdDraftOf(p), why=wcdWhy(p,d); if (why){ toast(why); return; }
+  var hero=d.hero?heroById(d.hero):null, shut=p.dz.forts==="shut";
+  var D={troops:shut?[0,0,0,0,0,0,0,0,0,0,0,0]:d.t.slice(), fortifications:d.f.slice(), wallLevel:p.dz.W, research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(),
+    attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0), trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25};
+  var r=wcRng(WC_SEED), lost=0, log=[], held=true;
+  for (var w=0; w<p.dz.waves.length; w++){
+    var A=wcdFoe(p,w), b=D.troops.slice(), bf=D.fortifications.slice(), o=SIM.fight(A,D,{rand:r}), l=0, k=0, i;
+    for (i=0;i<12;i++){ l+=(b[i]-o.defender[i])*PREST_U[i]; k+=A.troops[i]-o.attacker[i]; }
+    for (i=0;i<5;i++) l+=(bf[i]-o.forts[i])*FORTS[i].prest;
+    lost+=l; D.troops=o.defender.slice(); D.fortifications=o.forts.slice();
+    log.push({held:o.result!==1, lost:Math.round(l), killed:k, rounds:o.rounds});
+    if (o.result===1){ held=false; break; }
+  }
+  wcFinish(p,{won:held, lost:Math.round(lost), waves:log.length, log:log});
+}
 function wcById(id){ for (var i=0;i<WC.length;i++) if (WC[i].id===id) return WC[i]; return null; }
 function wcSt(){ if (!S.college) S.college={best:{}, got:{}}; return S.college; }
 function wcGot(p){ return (wcSt().got[p.id]||0); } // ratings earned (and paid) so far
 function wcStars(){ var n=0; WC.forEach(function(p){ n+=wcGot(p); }); return n; }
 function wcMaxStars(){ var n=0; WC.forEach(function(p){ n+=p.goals.length; }); return n; }
-function wcGoalText(p,g){ var nm=WC_NAMES[p.goals.length===1?0:g], c=p.goals[g].cap; return nm+": "+(c==null?"win":c===0?"win without losing a troop":"win losing "+fmt(c)+" or fewer"); }
+function wcGoalText(p,g){ var nm=WC_NAMES[p.goals.length===1?0:g], c=p.goals[g].cap;
+  if (p.kind==="defense") return nm+": "+(c==null?"hold the city":c===0?"hold without losing anything":"hold, losing "+fmt(c)+" prestige or fewer"); return nm+": "+(c==null?"win":c===0?"win without losing a troop":"win losing "+fmt(c)+" or fewer"); }
 function wcRating(p,res){ if (!res.won) return 0; var r=0; p.goals.forEach(function(g,i){ if (g.cap==null || res.lost<=g.cap) r=i+1; }); return r; }
 function wcDefText(p){ var b=wcDef(p), parts=[]; U.forEach(function(u,i){ if (b.troops[i]) parts.push(fmt(b.troops[i])+" "+uname(i,b.troops[i])); });
   var f=[]; FORTN.forEach(function(n,i){ if (b.fortifications[i]) f.push(fmt(b.fortifications[i])+" "+n); });
@@ -2535,31 +2589,36 @@ function wcRun(p){
     log.push({won:o.result===1, lost:l, killed:k, forts:fBefore.map(function(n,i){ return n-o.forts[i]; }).reduce(function(a,b){ return a+b; },0), left:D.troops.reduce(function(a,b){ return a+b; },0), rounds:o.rounds, hero:hero?hero.name:""});
     if (o.result===1){ won=true; break; }
   }
-  var res={won:won, lost:lost, waves:d.waves.length, log:log}, rating=wcRating(p,res), st=wcSt(), prev=st.best[p.id], paid=[];
+  wcFinish(p,{won:won, lost:lost, waves:d.waves.length, log:log});
+}
+function wcFinish(p,res){
+  var rating=wcRating(p,res), st=wcSt(), prev=st.best[p.id], paid=[], lost=res.lost, won=res.won, log=res.log, def=p.kind==="defense";
   if (won && (!prev || rating>prev.rating || (rating===prev.rating && lost<prev.lost))) st.best[p.id]={lost:lost, rating:rating, waves:log.length};
   var got=wcGot(p);
   for (var g=got; g<rating; g++){ var rw=p.rewards[g]; RES.forEach(function(k2){ S.res[k2]+=rw.res[k2]||0; }); for (var it in rw.items) S.items[it]=(S.items[it]||0)+rw.items[it]; paid.push(WC_NAMES[p.goals.length===1?0:g]+": "+rewardText(rw)); }
   if (rating>got) st.got[p.id]=rating;
   res.rating=rating; res.paid=paid; wcOut[p.id]=res; save();
   if (paid.length) toast("War College: "+(p.goals.length===1?"puzzle solved":WC_NAMES[rating-1])+"! Rewards added to "+S.name+".");
+  else if (def) toast(won?"Held, losing "+fmt(lost)+" prestige"+(rating?"":". Not enough for a rating yet"):"The city fell");
   else toast(won?"Won, losing "+fmt(lost)+(rating?"":". Not enough for a rating yet"):"The defenders held");
   lastSheet=""; renderSheet(); lastView="";
 }
 function viewCollege(){
   var h='<div class="section"><div class="shead"><h3>War College</h3><span class="dur">'+wcStars()+' of '+wcMaxStars()+' ratings earned</span></div>'+
-    '<p class="hint">Battle puzzles. Plan the waves with '+esc(S.name)+'’s own troops, heroes, gear and research, then fight a simulated battle. Nothing dies for real, and you can retry as often as you like. The same plan always gets the same result. Each rating pays out once.</p></div>';
+    '<p class="hint">Battle puzzles. Plan an attack or hold the walls with '+esc(S.name)+'’s own troops, heroes, gear and research, then fight a simulated battle. Nothing dies for real, and you can retry as often as you like. The same plan always gets the same result. Each rating pays out once.</p></div>';
   WC_TIERS.forEach(function(tr){
     h+='<div class="section"><h3>'+tr.name+'</h3><p class="hint">'+tr.note+'</p><div class="gearlist">';
     WC.filter(function(p){ return p.tier===tr.k; }).forEach(function(p){
       var got=wcGot(p), b=wcSt().best[p.id], stars=""; for (var g=0; g<p.goals.length; g++) stars+= g<got?"★":"☆";
       h+='<button class="gearrow'+(got===p.goals.length?' t3':got?' t1':'')+'" data-act="wc-open" data-id="'+p.id+'"><span class="gn">'+p.name+'</span><span class="gst">'+stars+'</span>'+
-        '<span class="dur" style="grid-column:1/-1">'+esc(wcGoalText(p,Math.min(got,p.goals.length-1)))+(b?' · best: lost '+fmt(b.lost):'')+'</span></button>';
+        '<span class="dur" style="grid-column:1/-1">'+esc(wcGoalText(p,Math.min(got,p.goals.length-1)))+(b?' · best: lost '+fmt(b.lost)+(p.kind==="defense"?' prestige':''):'')+'</span></button>';
     });
     h+='</div></div>';
   });
   return h;
 }
 function wcSheet(p){
+  if (p.kind==="defense") return wcdSheet(p);
   var d=wcDraftOf(p), got=wcGot(p), b=wcSt().best[p.id], cap=armyCap(), heroes=wcHeroes(), out=wcOut[p.id];
   var h='<div class="head lbhead"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>'+p.name+'</h2><div class="sub">War College · up to '+p.waves+' wave'+(p.waves>1?'s':'')+(wcRuleText(p)?' · '+wcRuleText(p):'')+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
   if (p.tag) h+='<p class="hint" style="margin:0"><i>'+esc(p.tag)+'</i></p>';
@@ -2585,6 +2644,32 @@ function wcSheet(p){
   var why=wcWhy(p,d);
   h+='<div class="upbtns" style="grid-template-columns:1fr 1fr">'+(d.waves.length<p.waves?'<button class="btn ghost" data-act="wc-addwave">Add a wave</button>':'<button class="btn ghost" disabled>'+p.waves+' wave'+(p.waves>1?'s':'')+' max</button>')+'<button class="btn" data-act="wc-run">Fight</button></div>'+
     '<p class="why" id="wcwhy">'+esc(why)+'</p><button class="closebtn" data-act="close">Back to War College</button>';
+  return h;
+}
+function wcdSheet(p){
+  var z=p.dz, d=wcdDraftOf(p), got=wcGot(p), b=wcSt().best[p.id], out=wcOut[p.id], heroes=wcHeroes(), shut=z.forts==="shut", okT=wcdTroopsOk(p), okF=wcdForts(p);
+  var h='<div class="head lbhead"><span class="ico">'+ICON.walls+'</span><div style="flex:1"><h2>'+p.name+'</h2><div class="sub">War College · defend · '+z.waves.length+' wave'+(z.waves.length>1?'s':'')+' · '+esc(wcdRuleText(p))+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  if (p.tag) h+='<p class="hint" style="margin:0"><i>'+esc(p.tag)+'</i></p>';
+  h+='<div class="effect"><b>Attackers</b> <span class="dur">(research '+z.spec.R+(z.spec.arch!=null&&z.spec.arch!==z.spec.R?', Archery '+z.spec.arch:'')+')</span>'+z.waves.map(function(w,i){ return '<br>Wave '+(i+1)+': '+esc(wcdWaveText(p,i)); }).join("")+'</div>';
+  h+='<p class="dur" style="margin:0">Budget '+fmt(z.budget)+' prestige · walls level '+z.W+' for this fight'+(okF.length?' (fort space '+fmt(wcdCap(p))+')':'')+(shut?' · the gate stays shut: only fortifications fight':'')+'</p>';
+  if (p.hint) h+='<details class="det" data-det="wchint"><summary><b>Hint</b> <span class="dur">the trick</span></summary><p class="hint">'+esc(p.hint)+'</p></details>';
+  h+='<div class="gearlist">'+p.goals.map(function(g,i){ var done=i<got, nm=WC_NAMES[i];
+    return '<div class="gearrow'+(done?' t3':'')+'"><span class="gn"><span style="font:400 1rem var(--body);color:var(--brass)">'+(done?'★':'☆')+'</span> '+esc(wcGoalText(p,i).replace(nm+": ",nm+" — "))+'</span><span class="dur" style="grid-column:1/-1">'+(done?'Earned. ':'Reward: ')+esc(rewardText(p.rewards[i]))+'</span></div>'; }).join("")+'</div>';
+  if (b) h+='<p class="dur">Your best: held, losing '+fmt(b.lost)+' prestige.</p>';
+  if (out){ h+='<div class="section" style="margin:0"><h3 class="'+(out.won?'okc':'badc')+'" style="margin:0 0 4px">'+(out.won?(out.rating?WC_NAMES[out.rating-1]:'Held, no rating')+': lost '+fmt(out.lost)+' prestige':'The city fell')+'</h3>'+
+      out.log.map(function(x,i){ return '<p class="dur" style="margin:2px 0">Wave '+(i+1)+': '+(x.held?'held':'broke through')+', you lost '+fmt(x.lost)+' prestige, killed '+fmt(x.killed)+', '+x.rounds+' rounds.</p>'; }).join("")+
+      (out.paid.length?'<p class="effect okc">'+out.paid.map(esc).join("<br>")+'</p>':'')+'</div>'; }
+  h+='<div class="unit"><h4>Your defense</h4><span class="own" id="wcdspent">'+fmt(Math.round(wcdCost(d)))+' / '+fmt(z.budget)+'</span>'+
+    '<div style="grid-column:1/-1"><label class="sub">Commanding hero</label><select data-wdh="1"><option value="0">No hero</option>'+heroes.map(function(x){ return '<option value="'+x.id+'"'+(d.hero===x.id?' selected':'')+'>'+esc(x.name)+' (Atk '+hs(x,"atk")+', Int '+hs(x,"int")+(setLife(x)>1?', set ×'+setLife(x):'')+')</option>'; }).join("")+'</select></div>';
+  var tAv=okT.filter(function(i){ return S.troops[i]>0; }), fAv=okF;
+  if (tAv.length) h+='<table class="gt wct" style="grid-column:1/-1"><tbody>'+tAv.map(function(i){ return '<tr><td>'+U[i].name+' <span class="dur">('+fmt(S.troops[i])+' · '+PREST_U[i]+')</span></td><td><input type="number" inputmode="numeric" min="0" data-wdt="'+i+'" value="'+(d.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table>';
+  if (okF.length){ h+='<div class="sub" style="grid-column:1/-1">Fortifications <span class="dur" id="wcdspace">'+fmt(wcdSpace(d))+' / '+fmt(wcdCap(p))+' space</span></div>';
+    if (fAv.length) h+='<table class="gt wct" style="grid-column:1/-1"><tbody>'+fAv.map(function(i){ return '<tr><td>'+FORTN[i]+' <span class="dur">('+FORTS[i].prest+' each, '+FORT_SP[i]+' space)</span></td><td><input type="number" inputmode="numeric" min="0" data-wdf="'+i+'" value="'+(d.f[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table>';
+  }
+  if (okT.length && !tAv.length) h+='<p class="why" style="grid-column:1/-1">'+esc(S.name)+' has none of the troops this puzzle allows. Train some first.</p>';
+  h+='<p class="hint" style="grid-column:1/-1">Troops: what you own and the prestige each costs; you must own the troops you place. Fortifications come with the puzzle’s walls: place any you like within the budget and wall space.</p></div>';
+  h+='<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn ghost" data-act="wcd-clear">Clear</button><button class="btn" data-act="wcd-run">Defend</button></div>'+
+    '<p class="why" id="wcwhy">'+esc(wcdWhy(p,d))+'</p><button class="closebtn" data-act="close">Back to War College</button>';
   return h;
 }
 var QUEEN_NAMES=["Isolde","Eleanor","Matilda","Adela","Sibylla","Ermengarde","Theodora","Aveline"];
@@ -5674,6 +5759,8 @@ document.addEventListener("click",function(e){
   if (act==="wc-open"){ openSheet({kind:"wc", id:a.dataset.id}); return; }
   if (act==="wc-addwave"){ var wa=wcById(sheetFor&&sheetFor.id); if (!wa) return; var wd=wcDraftOf(wa); if (wd.waves.length<wa.waves) wd.waves.push({t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0}); lastSheet=""; renderSheet(); return; }
   if (act==="wc-delwave"){ var wr=wcById(sheetFor&&sheetFor.id); if (!wr) return; var wd2=wcDraftOf(wr); if (wd2.waves.length>1) wd2.waves.splice(+a.dataset.wave,1); lastSheet=""; renderSheet(); return; }
+  if (act==="wcd-run"){ var wdx=wcById(sheetFor&&sheetFor.id); if (!wdx) return; wcdRun(wdx); sheetBody.scrollTop=0; return; }
+  if (act==="wcd-clear"){ var wdc=wcById(sheetFor&&sheetFor.id); if (!wdc) return; wcdDraft[wdc.id]=null; lastSheet=""; renderSheet(); return; }
   if (act==="wc-run"){ var wx=wcById(sheetFor&&sheetFor.id); if (!wx) return; wcRun(wx); sheetBody.scrollTop=0; return; }
   if (act==="lb-cat"){ lbFetch(a.dataset.cat); return; }
   if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
@@ -6175,6 +6262,10 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.gsn!=null && sheetFor && sheetFor.kind==="hero"){ var nh=heroById(sheetFor.id); if (nh){ nh.gearSetNames=nh.gearSetNames||[]; nh.gearSetNames[+e.target.dataset.gsn]=e.target.value.replace(/\s+/g," ").trim().slice(0,24); save(); } }
   if (e.target.dataset && e.target.dataset.wct && sheetFor && sheetFor.kind==="wc"){ var wcp2=wcById(sheetFor.id); if (wcp2){ var wpart=e.target.dataset.wct.split(":"), wdr=wcDraftOf(wcp2), wv=wdr.waves[+wpart[0]];
       if (wv){ wv.t[+wpart[1]]=Math.max(0,Math.floor(+e.target.value||0)); var wtot=document.getElementById("wctot-"+wpart[0]); if (wtot) wtot.textContent=fmt(wv.t.reduce(function(a2,b2){ return a2+b2; },0))+" / "+fmt(armyCap()); var wwhy=document.getElementById("wcwhy"); if (wwhy) wwhy.textContent=wcWhy(wcp2,wdr); } } }
+  if (e.target.dataset && (e.target.dataset.wdt!=null || e.target.dataset.wdf!=null) && sheetFor && sheetFor.kind==="wc"){ var wdp=wcById(sheetFor.id); if (wdp && wdp.kind==="defense"){ var wdd=wcdDraftOf(wdp), wn=Math.max(0,Math.floor(+e.target.value||0));
+      if (e.target.dataset.wdt!=null) wdd.t[+e.target.dataset.wdt]=wn; else wdd.f[+e.target.dataset.wdf]=wn;
+      var ws1=document.getElementById("wcdspent"); if (ws1) ws1.textContent=fmt(Math.round(wcdCost(wdd)))+" / "+fmt(wdp.dz.budget); var ws2=document.getElementById("wcdspace"); if (ws2) ws2.textContent=fmt(wcdSpace(wdd))+" / "+fmt(wcdCap(wdp))+" space";
+      var ws3=document.getElementById("wcwhy"); if (ws3) ws3.textContent=wcdWhy(wdp,wdd); } }
   if (e.target.id==="repq"){ repQuery=e.target.value; repPage=0; fillRepList(); }
   if (e.target.dataset.reserve!=null){ S.reserve[e.target.dataset.reserve]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.goal!=null){ S.goals[+e.target.dataset.goal]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
@@ -6198,6 +6289,7 @@ document.addEventListener("change",function(e){
     else Notification.requestPermission().then(function(r){ S.phoneNotif = r==="granted"; save(); lastSheet=""; renderSheet(); toast(r==="granted"?"Phone notifications on":"Notifications weren\u2019t allowed"); });
   }
   if (e.target.dataset && e.target.dataset.wch!=null && sheetFor && sheetFor.kind==="wc"){ var wcp3=wcById(sheetFor.id); if (wcp3){ wcDraftOf(wcp3).waves[+e.target.dataset.wch].hero=+e.target.value; lastSheet=""; renderSheet(); } }
+  if (e.target.dataset && e.target.dataset.wdh!=null && sheetFor && sheetFor.kind==="wc"){ var wdp2=wcById(sheetFor.id); if (wdp2 && wdp2.kind==="defense"){ wcdDraftOf(wdp2).hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }

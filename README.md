@@ -22,6 +22,11 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.9
+- War College Defense: 6 attack themes (Open Field, Horse Lords, The Horde, Siege Train, Arrow Storm, Shut Gates) at three sizes: Skirmish (2 waves), Assault (3), Onslaught (4). You spend a prestige budget on troops the city owns and on fortifications (free to place, no need to build them), at a wall level fixed by the puzzle; each theme sets which troops and forts are allowed (or shuts the gate). Waves hit in order and your survivors and forts carry over. Losses count in prestige (troops + forts). Victory = hold; Commanding/Masterful = loss caps from optimizer plans at the same decent/high reference gear as Sieges. Data block WC_DEFS is generated (tools in war-college-tools).
+- War College Defense: Trick Shots, 4 one-off defenses built on battlefield quirks: Engineers' Duel (siege engines only: Ballistas + one Ram + one Catapult), Short Field (enemy Archery 10: stretching the field helps whoever shoots better, so the answer depends on your own Archery), Thousand Cuts (6 waves on a tight budget), Skeleton Crew (125k budget vs 80k infantry, every layer counts). 150 War College ratings in total.
+- Fix: "Remove wave" in War College no longer opens the field screen.
+- Automated test browsers never join the real high scores.
 ### 0.1.8
 - War College Sieges: 6 player-style cities (Treb Fort, Archer Keep, Pike Hedge, Siege Battery, Trap Field, Warlord's Seat), each with one weak spot and an allowed-troop rule, at three sizes: Outpost (3 waves, all three ratings are loss caps), Stronghold (5 waves), Citadel (6 waves, level 10 walls). Victory = break in (Outposts: capped); Commanding/Masterful = loss caps from optimizer plans at decent (research 8, Atk 200) and high (research 10, Atk 300, x2 set) gear. Data block WC_SIEGES is generated, not hand-edited.
 ### 0.1.7
