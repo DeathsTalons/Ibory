@@ -300,6 +300,33 @@ summary{cursor:pointer;color:var(--muted);font-size:.92rem}
 .lvdet>summary{padding:4px 0}
 .reqt tr.ok td:first-child{color:#3f8f5a;font-weight:600}
 .reqt td .why{color:var(--red)}
+.bfmap svg{width:100%;height:auto;display:block;background:var(--panel2);border-radius:10px}
+.bfmap .bfmid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 5}
+.bfmap .bfr{stroke-width:1.6;opacity:.85}
+.bfmap .bfr.me{stroke:var(--brass);stroke-width:2.6}
+.bfmap .bfr.me.back{stroke-dasharray:6 4} .bfmap .bfr.me.scout{stroke-width:1.6;stroke-dasharray:2 3}
+.bfmap .bfn.foe{cursor:pointer} .bfmap .bfn.foe:hover circle{stroke-width:3.5}
+.bfmap .bfr.ally{stroke:var(--grass)}
+.bfmap .bfr.foe{stroke:var(--red)}
+.bfmap .bfr.foe.dim{stroke-dasharray:2 4;opacity:.6}
+.bfmap .bfd{stroke:var(--panel2);stroke-width:1.5}
+.bfmap .bfd.me{fill:var(--brass)} .bfmap .bfd.ally{fill:var(--grass)} .bfmap .bfd.foe{fill:var(--red)}
+.bfmap .bfl{font:700 11px var(--body);text-anchor:middle;paint-order:stroke;stroke:var(--panel2);stroke-width:3px;font-variant-numeric:tabular-nums}
+.bfmap .bfl.me{fill:var(--brass)} .bfmap .bfl.foe{fill:var(--red)}
+.bfmap .bfn circle{fill:var(--panel);stroke-width:2.5}
+.bfmap .bfn.me circle{stroke:var(--brass)} .bfmap .bfn.ally circle{stroke:var(--grass)} .bfmap .bfn.foe circle{stroke:var(--red)}
+.bfmap .bfnt{font:700 12px var(--display);fill:var(--ink);text-anchor:middle}
+.bfmap .bfnn{font:600 10.5px var(--body);fill:var(--ink);text-anchor:middle} .bfmap .bfnp{font:400 9.5px var(--body);fill:var(--muted);text-anchor:middle}
+.bfmap .bfb{cursor:pointer} .bfmap .bfb rect{fill:var(--panel);stroke:var(--stone);stroke-width:2}
+.bfmap .bfb.ours rect{stroke:var(--grass);fill:var(--grass-soft)} .bfmap .bfb.theirs rect{stroke:var(--red)}
+.bfmap .bfb:hover rect,.bfmap .bfb:focus rect{stroke-width:3}
+.bfmap .bfbt{font:700 12px var(--display);fill:var(--ink);text-anchor:middle} .bfmap .bfbs{font:500 10px var(--body);fill:var(--muted);text-anchor:middle}
+.bfleg{margin:6px 0 0} .bfleg .sw{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin:0 3px 0 6px}
+.bfleg .sw.me{background:var(--brass)} .bfleg .sw.ally{background:var(--grass)} .bfleg .sw.foe{background:var(--red)}
+.bfm{border-top:1px solid var(--line);padding:6px 0}
+.bfmh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bfbar{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:4px 0}
+.bfbar span{display:block;height:100%;background:var(--brass)}
 body.bfmode #tabs, body.bfmode .tabarrow, body.bfmode .queue, body.bfmode #marchstrip, body.bfmode #threats{display:none!important}
 .achlist{display:grid;gap:8px;margin-top:8px}
 .achrow{display:grid;grid-template-columns:24px 1fr auto;gap:3px 10px;align-items:center;background:var(--panel2);border-radius:10px;padding:9px 12px}
@@ -499,7 +526,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.9";
+var APP_VERSION = "0.1.10";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1285,7 +1312,7 @@ function friendlyArrive(m){
     RES.forEach(function(k){ dest.res[k]+=m.cargo[k]||0; });
     var tot=RES.reduce(function(a,k){ return a+(m.cargo[k]||0); },0);
     note("march","Delivered "+fmt(tot)+" resources to "+dest.name);
-    m.cargo={}; m.loot={}; m.phase="back"; m.ret=S.gt+m.travel;
+    m.cargo={}; m.loot={}; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel;
     return true;
   }
   // reinforce: troops join the destination city
@@ -1356,10 +1383,10 @@ function scoutArrive(m){
     loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, medal:-1, drops:[], lost:aLost, hero:null, xp:0, intel:snap});
   note("march",ok ? "Scouts report back from "+tileName(q)+(aLost?" ("+fmt(aLost)+" lost)":"")+"." : "Your scouts were caught at "+tileName(q)+". Send more, or research Informatics.");
   if (left[2]<=0) return false;
-  m.t=left; m.loot={}; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  m.t=left; m.loot={}; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
 function allyGuardArrive(m){
-  var q=TILE_BY[m.tile]; if (!q || !isAlly(m.tile)){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
+  var q=TILE_BY[m.tile]; if (!q || !isAlly(m.tile)){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; return true; }
   m.phase="stay"; var d=dailyRec(); if (!d.guard){ d.guard=true; addRep(60, "stationed troops with "+q.ai.name); }
   note("march",fmt(sumT(m.t))+" troops are now guarding "+q.ai.name+". Recall them from the march bar when you want them back."); return true;
 }
@@ -1367,7 +1394,7 @@ function allyTransportArrive(m){
   var q=TILE_BY[m.tile], tot=RES.reduce(function(a,k){ return a+(m.cargo[k]||0); },0), d=dailyRec();
   if (tot>=10000 && !d.res){ d.res=true; addRep(50, "sent supplies to "+q.ai.name); }
   note("march","Delivered "+fmt(tot)+" resources to your ally "+q.ai.name);
-  m.cargo={}; m.loot={}; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  m.cargo={}; m.loot={}; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
 function resolveMarch(m){
   if (m.mission==="allyguard") return allyGuardArrive(m);
@@ -1385,7 +1412,7 @@ function resolveMarch(m){
       m.mission="reinforce"; return friendlyArrive(m); }
   }
   if (!hq || !(hq.k in VTYPES || hq.k==="npc" || hq.k==="ai" || hq.k==="hc" || hq.k==="monster" || hq.k==="flat")){ // nothing left to fight there: turn round
-    m.phase="back"; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; note("march","Your army found nothing to fight and is heading home"); return true; }
+    m.phase="back"; m.bs=S.gt; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; note("march","Your army found nothing to fight and is heading home"); return true; }
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
   var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
@@ -1471,7 +1498,7 @@ function resolveMarch(m){
   var saved=surgeonHeal(m.t, r.attacker), alive = saved.some(function(n){ return n>0; });
   woundFrom(m.city, m.t, saved, true);
   if (!alive){ if (hero) hero.away=false; return false; }
-  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel;
+  m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel;
   return true;
 }
 function marchHome(m){
@@ -1894,7 +1921,15 @@ function drawMap(){
     for (var gy=y0; gy<=y1+1; gy++){ var py=Math.round((gy-mv.y)*z)+.5; g.moveTo(0,py); g.lineTo(W,py); } g.stroke(); }
   S.marches.forEach(function(m){ var q=TILE_BY[m.tile], oc=S.cities[cityIndex(m.city)]; if (!q||!oc) return;
     g.strokeStyle=(m.mission==="transport"||m.mission==="reinforce")?"#5fa36a":m.phase==="out"?"#e05a4f":brass; g.lineWidth=2; if (g.setLineDash) g.setLineDash([5,4]); g.beginPath();
-    g.moveTo((oc.x+.5-mv.x)*z,(oc.y+.5-mv.y)*z); g.lineTo((q.x+.5-mv.x)*z,(q.y+.5-mv.y)*z); g.stroke(); if (g.setLineDash) g.setLineDash([]); });
+    g.moveTo((oc.x+.5-mv.x)*z,(oc.y+.5-mv.y)*z); g.lineTo((q.x+.5-mv.x)*z,(q.y+.5-mv.y)*z); g.stroke(); if (g.setLineDash) g.setLineDash([]);
+    // where the march is right now
+    var f=0, home=false;
+    if (m.phase==="out"){ f=(S.gt-m.dep)/Math.max(1,m.arr-m.dep); }
+    else if (m.phase==="stay"){ f=1; }
+    else if (m.phase==="back"){ var bs=m.bs!=null?m.bs:m.ret-m.travel; f=1-(S.gt-bs)/Math.max(1,m.ret-bs); }
+    f=Math.max(0,Math.min(1,f));
+    var mx=(oc.x+.5+(q.x-oc.x)*f-mv.x)*z, my=(oc.y+.5+(q.y-oc.y)*f-mv.y)*z, mr=Math.max(3,Math.min(7,z/4));
+    g.fillStyle=g.strokeStyle; g.beginPath(); g.arc(mx,my,mr,0,Math.PI*2); g.fill(); g.lineWidth=1.5; g.strokeStyle="rgba(0,0,0,.55)"; g.stroke(); });
   if (selTile && TILE_BY[selTile]){ var sq=TILE_BY[selTile]; g.strokeStyle=ink; g.lineWidth=2.5; g.strokeRect((sq.x-mv.x)*z+1,(sq.y-mv.y)*z+1,z-2,z-2); }
   var cc=document.getElementById("mapcoord"); if (cc) cc.textContent="View ("+Math.round(mv.x+W/z/2)+", "+Math.round(mv.y+H/z/2)+")";
   drawMini();
@@ -3119,7 +3154,7 @@ function advance(now){
 }
 
 /* ---------- formatting ---------- */
-function fmt(n){ n=Math.floor(n); if (n>=1e6) return (n/1e6).toFixed(1)+"M"; if (n>=1e4) return (n/1e3).toFixed(1)+"k"; return n.toLocaleString(); }
+function fmt(n){ n=Math.floor(n); if (n>=999950) return (n/1e6).toFixed(1)+"M"; if (n>=1e4) return (n/1e3).toFixed(1)+"k"; return n.toLocaleString(); }
 function fmtT(ms){ var s=Math.max(0,Math.ceil(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   if (h) return h+"h "+String(m).padStart(2,"0")+"m"; if (m) return m+"m "+String(x).padStart(2,"0")+"s"; return x+"s"; }
 function realMs(gameMs){ return gameMs/S.speed; }
@@ -3849,7 +3884,7 @@ function warBase(i){
 }
 function warCityBattle(m){
   var q=TILE_BY[m.tile], i=q?q.eid:-1, w=W(), hero=m.hero?heroById(m.hero):null;
-  if (i==null || i<0 || !w || !w.active){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
+  if (i==null || i<0 || !w || !w.active){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; return true; }
   var E=w.enemies[i], b=rosterById(E.rid), base=warBase(i);
   var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1;
@@ -3870,7 +3905,7 @@ function warCityBattle(m){
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
-  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
 // rivals rebuild a little each day of the war
 function warDaily(){
@@ -4025,7 +4060,7 @@ function chalBase(q){
 // you hit one of their cities, or their seat
 function chalCityBattle(m){
   var q=TILE_BY[m.tile], c=q&&chalById(q.cid), hero=m.hero?heroById(m.hero):null;
-  if (!c){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
+  if (!c){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; return true; }
   var b=rosterById(c.rid), base=chalBase(q);
   var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1, k;
@@ -4047,7 +4082,7 @@ function chalCityBattle(m){
   addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
-  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
 function chalDefeated(c, why){
   var A=AL(), b=rosterById(c.rid);
@@ -4196,15 +4231,21 @@ function bfWhy(){
   return "";
 }
 function bfPos(p){ return p.team===0 ? {x:0, y:p.slot} : {x:4, y:p.slot}; }
-function bfTravel(pi, bi, t){
-  var p=BF().p[pi], a=bfPos(p), d=Math.hypot(2-a.x, BF_B[bi].y-a.y), slow=(t[9]||t[10]||t[11])?1.25:1;
-  return Math.round(27000*d*slow/(1+(p.hint||0)/400)); // about a minute on most routes
+function bfTravel(pi, bi, t, hint, tp){
+  var bf=BF(), p=bf.p[pi], a=bfPos(p), to=tp!=null?bfPos(bf.p[tp]):{x:2, y:BF_B[bi].y}, d=Math.hypot(to.x-a.x, to.y-a.y), slow=(t[9]||t[10]||t[11])?1.25:1;
+  var scoutsOnly=(t[2]>0 && sumT(t)===t[2])?0.5:1, h=hint!=null?hint:(p.hint||0);
+  return Math.round(27000*d*slow*scoutsOnly/(1+h/400)); // about a minute on most routes
 }
+function bfTgtName(m){ var bf=BF(); return m.tp!=null ? bf.p[m.tp].name+"’s camp" : BF_B[m.b].name; }
+function bfHeroSnap(id){ var me=BF().p[0]; if (!id || !me.heroes) return {atk:0, int:0, life:1, name:""}; for (var i=0;i<me.heroes.length;i++) if (me.heroes[i].id===id) return me.heroes[i]; return {atk:0, int:0, life:1, name:""}; }
+function bfHeroBusy(id){ return !!id && BF().m.some(function(m){ return m.p===0 && m.h===id; }); }
 function bfAm(p){ var lb=0; if (p.team===1) BF().p.forEach(function(o){ if (o!==p && o.team===1 && o.leader) lb=Math.max(lb,o.leader); }); return p.am+lb; }
 function bfCap(p){ var B=BF().b[0]; return Math.round(p.rally*10000*(B.owner===p.team?BF_BANNER:1)); }
 function bfOut(pi){ return BF().m.filter(function(m){ return m.p===pi; }).length; }
 function bfGar(B){ var t=Z12(); for (var k in B.gar) B.gar[k].forEach(function(n,i){ t[i]+=n; }); return t; }
-function bfSide(p){ return {troops:null, research:p.r, attack_modifier:bfAm(p), defence_modifier:p.dm||1, life_modifier:p.life||1, hero:{intel:p.hint||0}}; }
+function bfSide(p, h){
+  if (h) return {troops:null, research:p.r, attack_modifier:bfAm(p)-p.am+(p.amBase!=null?p.amBase:p.am)+(h.atk||0)/100, defence_modifier:p.dm||1, life_modifier:h.life||1, hero:{intel:h.int||0}};
+  return {troops:null, research:p.r, attack_modifier:bfAm(p), defence_modifier:p.dm||1, life_modifier:p.life||1, hero:{intel:p.hint||0}}; }
 function bfMyPts(){ return BF().p[0].pts; }
 function bfTeamPts(team){ var s2=0; BF().p.forEach(function(p){ if (p.team===team) s2+=p.pts; }); return s2; }
 function bfLog(t){ var bf=BF(); bf.log.unshift({t:bf.t, s:t}); if (bf.log.length>30) bf.log.length=30; }
@@ -4221,22 +4262,87 @@ function bfPick(p, cap, frac){
   for (i=1;i<12 && left>0;i++){ if (i===6) continue; var add=Math.min(left, p.reserve[i]-t[i]); if (add>0){ t[i]+=add; left-=add; } }
   return t;
 }
-function bfSend(pi, bi, t, hasten){
-  var bf=BF(), p=bf.p[pi]; if (sumT(t)<=0) return false;
+// main troop types a lord builds around: its favor, or for rivals (and Balanced allies) its three biggest weighted stacks
+var BF_MAINS={archers:[[5],[5,9]], cavalry:[[7],[8],[7,8]], infantry:[[3],[4],[3,4]], siege:[[9],[11],[9,11]]};
+function bfMainsFor(p){
+  if (p.favor && BF_MAINS[p.favor]) return BF_MAINS[p.favor].filter(function(g){ return g.some(function(i){ return p.reserve[i]>0; }); });
+  var w=p.favor && BF_FAVOR_W[p.favor] ? BF_FAVOR_W[p.favor] : (p.mix||null);
+  return [1,3,4,5,7,8,9,10,11].filter(function(i){ return p.reserve[i]>0; })
+    .sort(function(a,b){ return p.reserve[b]*(w?w[b]:1)-p.reserve[a]*(w?w[a]:1); }).slice(0,3).map(function(i){ return [i]; });
+}
+// the player's trick: one of every other troop in front as layers (a lone Catapult stretches the field too), the rest in the main stack
+function bfLayered(p, size, main){
+  var t=Z12(), i; for (i=1;i<12;i++){ if (i===6 || main.indexOf(i)>=0) continue; if (p.reserve[i]>0) t[i]=1; }
+  var room=size-sumT(t), pool=main.reduce(function(a,j){ return a+p.reserve[j]; },0); if (room<=0 || !pool) return null;
+  main.forEach(function(j){ t[j]=Math.min(p.reserve[j], Math.floor(room*p.reserve[j]/pool)); });
+  var left=size-sumT(t); main.forEach(function(j){ var add=Math.min(left, p.reserve[j]-t[j]); if (add>0){ t[j]+=add; left-=add; } });
+  return t;
+}
+// candidate marches, best first: smart lords simulate each against the target and keep the one that does best
+function bfBest(p, cap, frac, def, smart){
+  var size=Math.min(cap, Math.round(sumT(p.reserve)*(frac||1))), cands=[{k:"mix", t:bfPick(p, cap, frac)}];
+  bfMainsFor(p).forEach(function(g){ var t=bfLayered(p, size, g); if (t) cands.push({k:"layers", t:t}); });
+  cands=cands.filter(function(c){ return sumT(c.t)>=300; });
+  if (!cands.length) return null;
+  // an ally you've given a troop focus follows it properly: layered marches only, the best one simulated
+  if (p.kind==="ally" && BF_MAINS[p.favor]){ var lay=cands.filter(function(c){ return c.k==="layers"; }); if (lay.length){ cands=lay; smart=true; } }
+  if (!smart){ // habit: the brighter they are, the more often they bother with layers
+    var c0=cands.length>1 && Math.random()<Math.max(0,(p.iq-60)/80) ? cands[1+Math.floor(Math.random()*(cands.length-1))] : cands[0];
+    var A0=bfSide(p); A0.troops=c0.t.slice(); return {t:c0.t, r:SIM.fight(A0, def)};
+  }
+  var best=null;
+  cands.forEach(function(c){ var A=bfSide(p); A.troops=c.t.slice(); var r=SIM.fight(A, def), lost=ptsOf(killedOf(c.t, r.attacker)), kill=ptsOf(killedOf(def.troops, r.defender));
+    var sc=r.result===1 ? 1e9-lost : kill-lost*0.5; if (!best || sc>best.sc) best={t:c.t, r:r, sc:sc}; });
+  return best;
+}
+function bfSend(pi, bi, t, hasten, opt){
+  opt=opt||{}; var bf=BF(), p=bf.p[pi]; if (sumT(t)<=0) return false;
+  if (opt.hero && bfHeroBusy(opt.hero)) return false;
   if (bfOut(pi)>=p.rally) return false;
   for (var i=0;i<12;i++){ if ((t[i]||0)>p.reserve[i]) return false; }
   if (sumT(t)>bfCap(p)) return false;
   for (i=0;i<12;i++) p.reserve[i]-=t[i]||0;
-  var tr=bfTravel(pi, bi, t);
-  bf.m.push({id:++bf.mid, p:pi, b:bi, t:t.slice(), arr:bf.t+tr, back:false});
+  var tr=bfTravel(pi, bi, t, opt.hero?bfHeroSnap(opt.hero).int:null, opt.tp);
+  var kind=opt.scout?"scout":bf.b[bi].owner===p.team?"reinforce":"attack";
+  var m={id:++bf.mid, p:pi, b:bi, t:t.slice(), dep:bf.t, arr:bf.t+tr, back:false, kind:kind, h:opt.hero||0};
+  if (opt.tp!=null) m.tp=opt.tp; if (opt.scout) m.scout=true;
+  bf.m.push(m);
+  if (pi===0 && kind==="attack") bfSyncAllies(bi, m.arr);
   return true;
+}
+// allies told to sync launch alongside your attack, timed to land just after it
+function bfSyncAllies(bi, arr){
+  var bf=BF();
+  bf.p.forEach(function(p,pi){ if (p.kind!=="ally" || p.order!=="sync" || bfOut(pi)>=p.rally) return;
+    var pk=bfBest(p, bfCap(p), 0.75, bfDefender(bf.b[bi]), p.iq>=140); if (!pk) return; var t=pk.t;
+    var tr=bfTravel(pi, bi, t), dep=Math.max(bf.t, arr+1500*pi-tr);
+    for (var i=0;i<12;i++) p.reserve[i]-=t[i];
+    bf.m.push({id:++bf.mid, p:pi, b:bi, t:t, dep:dep, arr:dep+tr, back:false, kind:"attack", sync:true});
+    bfLog(p.name+" will hit "+BF_B[bi].name+" alongside you."); });
+}
+// scouts against scouts, the same rule as everywhere else: more scouts (weighted by Informatics) wins
+function bfScoutArrive(m){
+  var bf=BF(), p=bf.p[m.p], snap, ds, key;
+  if (m.tp!=null){ var o=bf.p[m.tp]; ds=o.reserve[2]||0; key="p"+m.tp; snap={t:o.reserve.slice()}; }
+  else { var B=bf.b[m.b], g=B.owner<0?(B.neutral||Z12()):bfGar(B); ds=g[2]||0; key="b"+m.b; snap={t:g.slice(), f:B.forts.slice(), wall:B.wall, owner:B.owner}; }
+  var inf=p.inf||0, dInf=10, as=m.t[2]||0, aE=as*(1+0.1*inf), dE=ds*(1+0.1*dInf), ok=aE>dE, aLost=ok?Math.min(as, Math.ceil(dE/(1+0.1*inf))):as;
+  if (ok){ snap.at=bf.t; bf.intel=bf.intel||{}; bf.intel[key]=snap; }
+  bfLog(ok ? "Your scouts report from "+bfTgtName(m)+(aLost?" ("+fmt(aLost)+" lost)":"")+"." : "Your scouts were caught at "+bfTgtName(m)+": they had "+(ds?"more scouts":"scouts")+" than you sent.");
+  if (m.p===0) toast(ok?"Scouts report from "+bfTgtName(m):"Scouts caught at "+bfTgtName(m));
+  var left=as-aLost; if (left<=0) return;
+  var back={id:++bf.mid, p:m.p, b:m.b, t:Z12(), dep:bf.t, back:true, scout:true, h:0}; back.t[2]=left; if (m.tp!=null) back.tp=m.tp;
+  back.arr=bf.t+bfTravel(m.p, m.b, back.t, null, m.tp); bf.m.push(back);
 }
 function bfRecall(pi, bi){ // pull your troops out of a building you hold
   var bf=BF(), B=bf.b[bi], t=B.gar[pi]; if (!t || !sumT(t)) return false;
   delete B.gar[pi];
   if (!sumT(bfGar(B))){ B.owner=-1; B.gar={}; B.neutral=Z12(); }
-  bf.m.push({id:++bf.mid, p:pi, b:bi, t:t.slice(), arr:bf.t+bfTravel(pi,bi,t), back:true});
+  bf.m.push({id:++bf.mid, p:pi, b:bi, t:t.slice(), dep:bf.t, arr:bf.t+bfTravel(pi,bi,t), back:true, h:0});
   return true;
+}
+function bfRecallMarch(id){
+  var bf=BF(), m=bf.m.filter(function(x){ return x.id===id && x.p===0; })[0]; if (!m || m.back) return false;
+  var dep=m.dep!=null?m.dep:bf.t, gone=Math.max(1000, bf.t-dep); m.back=true; m.dep=bf.t; m.arr=bf.t+gone; return true;
 }
 function bfDefender(B){
   if (B.owner<0) return {troops:(B.neutral||Z12()).slice(), fortifications:B.forts.slice(), wallLevel:B.wall, research:npcSimResearch(10), attack_modifier:1+0.5+npcHero(10)[0]/100, hero:{intel:npcHero(10)[1]}, fortBonus:2};
@@ -4250,8 +4356,9 @@ function bfHeal(team, lost, pi){ // the Infirmary gives back a tenth of what its
 function bfArrive(m){
   var bf=BF(), B=bf.b[m.b], p=bf.p[m.p], i, k;
   if (m.back){ for (i=0;i<12;i++) p.reserve[i]+=m.t[i]; return; }
+  if (m.scout){ bfScoutArrive(m); return; }
   if (B.owner===p.team){ B.gar[m.p]=(B.gar[m.p]||Z12()).map(function(n,j){ return n+m.t[j]; }); return; }
-  var A=bfSide(p); A.troops=m.t.slice();
+  var A=(m.p===0 && p.heroes)?bfSide(p, bfHeroSnap(m.h)):bfSide(p); A.troops=m.t.slice();
   var def=bfDefender(B), before=def.troops.slice(), r=SIM.fight(A, def), won=r.result===1;
   var atkLost=killedOf(m.t, r.attacker), defLost=killedOf(before, r.defender);
   // kills score for whoever made them; neutral guards score nothing
@@ -4270,7 +4377,7 @@ function bfArrive(m){
     B.owner=p.team; B.gar={}; B.gar[m.p]=r.attacker.slice(); B.forts=[0,0,0,0,0]; B.wall=0; // the guard's walls and traps are gone for good: troop against troop from here
     bfLog(p.name+" took "+nm+(was<0?"":" from "+(was===0?"your side":"the rivals"))+".");
   } else {
-    if (sumT(r.attacker)) bf.m.push({id:++bf.mid, p:m.p, b:m.b, t:r.attacker.slice(), arr:bf.t+bfTravel(m.p,m.b,r.attacker), back:true});
+    if (sumT(r.attacker)) bf.m.push({id:++bf.mid, p:m.p, b:m.b, t:r.attacker.slice(), dep:bf.t, arr:bf.t+bfTravel(m.p,m.b,r.attacker,m.h?bfHeroSnap(m.h).int:null), back:true, h:m.h||0});
     if (m.p===0 || B.owner===0) bfLog(p.name+" hit "+nm+" and was thrown back"+(B.owner>=0?" (killed "+fmt(sumT(defLost))+")":"")+".");
   }
   for (k in B.gar) if (!sumT(B.gar[k])) delete B.gar[k];
@@ -4289,36 +4396,39 @@ function bfThink(pi){
       if (sumT(bfGar(B))<threat*0.8) opts.push({bi:bi, v:val*(smart?1.3:0.8), kind:"reinforce"});
     } else opts.push({bi:bi, v:val, kind:"attack"});
   });
+  if (p.kind==="ally" && p.order==="sync") return; // waits for your attacks
+  if (p.kind==="ally" && p.order && p.order.charAt(0)==="b"){ var fx=+p.order.slice(1); opts=opts.filter(function(o){ return o.bi===fx; }); }
   opts.sort(function(a,b){ return b.v-a.v; });
   for (var oi=0; oi<opts.length; oi++){
     var o=opts[oi], B=bf.b[o.bi];
     if (o.kind==="reinforce"){ var rt=bfPick(p, cap, 0.4); if (bfSend(pi, o.bi, rt)) return; continue; }
     var def=bfDefender(B), defN=sumT(def.troops);
-    var big=bfPick(p, cap, smart?0.75:0.9); if (sumT(big)<300) continue;
-    var A=bfSide(p); A.troops=big.slice(); var test=SIM.fight(A, def);
-    if (test.result===1){ if (bfSend(pi, o.bi, big)) return; continue; }
+    var big=bfBest(p, cap, smart?0.75:0.9, def, smart); if (!big) continue;
+    if (big.r.result===1){ if (bfSend(pi, o.bi, big.t)) return; continue; }
     // can't win it outright: grind it with a smaller march if each hit takes a real bite
-    var part=bfPick(p, cap, 0.35); if (sumT(part)<300) continue;
-    A.troops=part.slice(); var t2=SIM.fight(A, def), bite=(defN-sumT(t2.defender))/Math.max(1,defN);
+    var part=bfBest(p, cap, 0.35, def, smart); if (!part) continue;
+    var t2=part.r, bite=(defN-sumT(t2.defender))/Math.max(1,defN); part=part.t;
     var go = smart ? (bite>=0.05 && Math.random()<0.6) : Math.random()<0.3; // neutral guards never recover, so every bite counts
     if (go && bfSend(pi, o.bi, part)) return;
   }
 }
 function bfEnter(cityIdx, allyIds){
   if (bfWhy()) return false;
-  var A=AL(), bf={active:true, t:0, last:Date.now(), realStart:Date.now(), m:[], mid:0, log:[], p:[], b:[], tier:0, centerMs:0, sgt:S.gt};
+  var A=AL(), bf={active:true, t:0, last:Date.now(), realStart:Date.now(), m:[], mid:0, log:[], p:[], b:[], tier:0, centerMs:0, sgt:S.gt, intel:{}};
   // you: a copy of one city
   var me=null;
   withCity(cityIdx, function(){
     var hero=null, best=-1; (S.heroes||[]).forEach(function(h){ var a=hs(h,"atk"); if (a>best){ best=a; hero=h; } });
     var cp=S.troops.slice(); cp[0]=0; cp[6]=0; // workers and transporters stay home
     me={name:"You", team:0, slot:0, kind:"me", city:S.name, reserve:cp, r:simResearch(), am:1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack(),
-      dm:bDefend(), life:hero?setLife(hero):1, hint:hs(hero,"int"), hero:hero?hero.name:null, rally:Math.max(1,bLevel("rally")), iq:200, pts:0};
+      dm:bDefend(), life:hero?setLife(hero):1, hint:hs(hero,"int"), hero:hero?hero.name:null, rally:Math.max(1,bLevel("rally")), iq:200, pts:0, beacon:bLevel("beacon"),
+      amBase:1+0.05*(S.tech.militarytradition||0)+bAttack(), inf:S.tech.informatics||0,
+      heroes:(S.heroes||[]).map(function(h){ return {id:h.id, name:h.name, atk:hs(h,"atk"), int:hs(h,"int"), life:setLife(h)}; }).sort(function(a,b){ return b.atk-a.atk; })};
   });
   bf.p.push(me);
   allyIds.slice(0,2).forEach(function(id,ix){ var q=TILE_BY[id], cur=current(q), rt=cur.t.slice(); rt[0]=0; rt[6]=0; // their real army
     bf.p.push({name:q.ai.name, team:0, slot:ix+1, kind:"ally", tile:id, reserve:rt, r:cur.r, am:cur.am||1, hint:0, rally:10, // peers on the field: same march size as the rivals
-      iq:60+10*(q.ai.tech||0), favor:"balanced", pts:0}); });
+      iq:60+10*(q.ai.tech||0), favor:"balanced", order:"free", pts:0}); });
   var ours=0; bf.p.forEach(function(p){ p.reserve[0]=0; p.reserve[6]=0; ours+=sumT(p.reserve); });
   var used=[];
   for (var k=0;k<3;k++){
@@ -4445,6 +4555,107 @@ function useSurgeon(){
   toast("Surgeons ready: half your losses heal for the next hour"); save(); lastView=""; refresh();
 }
 var bfArmed=false, bfQuitArmed=false;
+/* battlefield presets: their own six, kept apart from your normal march presets */
+var BF_NPRE=6;
+function bfPresets(){ if (!S.bfPresets || S.bfPresets.length!==BF_NPRE){ var old=S.bfPresets||[]; S.bfPresets=[]; for (var i=0;i<BF_NPRE;i++) S.bfPresets.push(old[i]||{name:"Field "+(i+1), t:Z12()}); } return S.bfPresets; }
+function bfPresetText(pr){ var parts=[]; pr.t.forEach(function(n,i){ if (n) parts.push(fmt(n)+" "+uname(i,n)); }); return parts.length?parts.join(", "):"empty"; }
+// what a preset sends right now: capped by what's in reserve, then scaled down to the march limit
+function bfPresetDraft(pr, me){ var t=pr.t.map(function(n,i){ return (i===0||i===6)?0:Math.max(0,Math.min(n||0, me.reserve[i])); }), cap=bfCap(me), tot=sumT(t);
+  if (tot>cap){ var k=cap/tot; t=t.map(function(n){ return Math.floor(n*k); }); } return t; }
+var bfPreSel=0;
+function bfPresetSheet(){
+  var ps=bfPresets(), pr=ps[bfPreSel];
+  var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Battlefield presets</h2><div class="sub">Separate from your normal presets. A preset sends what it lists, capped by what’s left in reserve and scaled down to the march limit.</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  h+='<div class="lbtabs">'+ps.map(function(x,i){ return '<button class="chipbtn'+(i===bfPreSel?' on':'')+'" style="padding:0 10px" data-act="bfpre-tab" data-i="'+i+'">'+esc(x.name)+'</button>'; }).join("")+'</div>';
+  h+='<div class="farmadd"><label for="bfpname" class="dur">Name</label><input id="bfpname" maxlength="18" value="'+esc(pr.name)+'"></div>';
+  h+='<div class="tscroll"><table class="gt wct"><tbody>'+U.map(function(u,i){ if (i===0||i===6) return '';
+    return '<tr><td>'+u.name+'</td><td><input type="number" inputmode="numeric" min="0" data-bfp="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
+  h+='<p class="dur" id="bfptot">Total '+fmt(sumT(pr.t))+'</p><div class="btnrow"><button class="btn ghost small" data-act="bfpre-clear">Clear this preset</button></div><button class="closebtn" data-act="close">Done</button>';
+  return h;
+}
+function bfBeacon(){ var me=BF().p[0]; return me.beacon!=null?me.beacon:bLevel("beacon"); }
+function bfBeaconText(L){ return L>=10?"enemy routes, how many marches, the troops in each and exact landing times":L>=9?"enemy routes, how many marches and the troops in each":L>=8?"enemy routes and how many marches on each":"only which routes the enemy is using"; }
+function bfEnemyList(){
+  var bf=BF(), bl=bfBeacon(); if (bl<9) return "";
+  var ms=bf.m.filter(function(m){ return !m.back && bf.p[m.p].team===1; }).sort(function(a,b){ return a.arr-b.arr; });
+  var h='<div class="section"><div class="shead"><h3>Rival marches</h3><span class="dur">'+ms.length+' on the field</span></div>';
+  if (!ms.length) h+='<p class="hint">None moving right now.</p>';
+  ms.forEach(function(m){ h+='<div class="bfm"><div class="bfmh"><span><b style="color:var(--red)">'+esc(bfShort(bf.p[m.p].name))+'</b> → '+bfTgtName(m)+'</span>'+(bl>=10?'<span class="qtime">'+bfMin(Math.max(0,m.arr-bf.t))+'</span>':'')+'</div>'+
+    '<p class="dur" style="margin:2px 0">'+fmt(sumT(m.t))+': '+esc(bfPresetText({t:m.t}))+'.</p></div>'; });
+  return h+'</div>';
+}
+function bfIntelLine(key){ var bf=BF(), it=bf.intel&&bf.intel[key]; if (!it) return "";
+  var parts=[]; it.t.forEach(function(n,i){ if (n) parts.push(fmt(n)+" "+uname(i,n)); });
+  return '<p class="hint" style="margin:2px 0"><b>Scouted at '+bfMin(it.at)+'</b>: '+(parts.length?esc(parts.join(", ")):'no troops')+(it.wall?'. Walls level '+it.wall:'')+(it.f&&it.f.some(function(n){ return n>0; })?', forts '+it.f.map(function(n){ return fmt(n); }).join("/"):'')+'.</p>'; }
+// the field: your side on the left, rivals on the right, the three buildings between
+var BFM={w:330, h:262, xl:30, xr:300, xb:165, rows:[42,130,218]};
+function bfNodeXY(p){ return {x:p.team===0?BFM.xl:BFM.xr, y:BFM.rows[p.slot]}; }
+function bfShort(n){ var ws=String(n).split(" "), w=ws[0].length>9?ws[0].slice(0,8)+"…":ws[0], last=ws.length>1?ws[ws.length-1]:"";
+  return w+(last&&/[A-Za-z]/.test(last.charAt(0))?" "+last.charAt(0).toUpperCase()+".":""); }
+function bfInitial(n){ var m=String(n).match(/[A-Za-z]/); return m?m[0].toUpperCase():"?"; }
+function bfMap(){
+  var bf=BF(), bl=bfBeacon(), lines="", dots="", labels="", nodes="", stacks={};
+  // timer labels gather in stacks per route, then stacks are nudged apart so none overlap
+  function lab(key,x,y,txt,cls){ var g=stacks[key]||(stacks[key]={x:x,y:y,cls:cls,t:[]}); g.t.push(txt); }
+  function placeLabels(){ var placed=[], out="";
+    Object.keys(stacks).map(function(k){ return stacks[k]; }).sort(function(a,b){ return a.y-b.y; }).forEach(function(g){
+      var w=16+g.t.reduce(function(m,t){ return Math.max(m,t.length); },0)*6, hgt=g.t.length*12, x=Math.max(w/2+2,Math.min(BFM.w-w/2-2,g.x)), y=g.y, tries=0;
+      function hit(){ return placed.some(function(b){ return Math.abs(b.x-x)<(b.w+w)/2 && y-10<b.y+b.h-10 && b.y-10<y+hgt-10; }); }
+      while (hit() && tries++<40) y+=4;
+      placed.push({x:x,y:y,w:w,h:hgt});
+      g.t.forEach(function(t,i){ out+='<text class="bfl '+g.cls+'" x="'+x.toFixed(1)+'" y="'+(y+i*12).toFixed(1)+'">'+t+'</text>'; }); });
+    return out; }
+  var routes={};
+  bf.m.forEach(function(m){
+    var p=bf.p[m.p], a=bfNodeXY(p), b=m.tp!=null?bfNodeXY(bf.p[m.tp]):{x:BFM.xb, y:BFM.rows[m.b]}, from=m.back?b:a, to=m.back?a:b;
+    var dep=m.dep!=null?m.dep:m.arr-60000, f=Math.max(0,Math.min(1,(bf.t-dep)/Math.max(1,m.arr-dep)));
+    var px=from.x+(to.x-from.x)*f, py=from.y+(to.y-from.y)*f, left=bfMin(Math.max(0,m.arr-bf.t));
+    if (m.p===0){
+      lines+='<line class="bfr me'+(m.back?' back':'')+(m.scout?' scout':'')+'" x1="'+from.x+'" y1="'+from.y+'" x2="'+to.x+'" y2="'+to.y+'"/>';
+      dots+='<circle class="bfd me" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="4.5"/>';
+      lab("me"+m.p+"-"+m.b+(m.back?"b":""), (from.x+to.x)/2, (from.y+to.y)/2-6, left, "me");
+    } else if (p.team===0){
+      if (m.back) return;
+      lines+='<line class="bfr ally" x1="'+from.x+'" y1="'+from.y+'" x2="'+to.x+'" y2="'+to.y+'"/>';
+      dots+='<circle class="bfd ally" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="3.5"/>';
+    } else {
+      if (m.back) return;
+      var key=m.p+"-"+(m.tp!=null?"p"+m.tp:m.b); (routes[key]=routes[key]||{from:from,to:to,ms:[]}).ms.push({m:m,px:px,py:py,left:left});
+    }
+  });
+  for (var k in routes){ var R=routes[k], mx=R.from.x+(R.to.x-R.from.x)*0.3, my=R.from.y+(R.to.y-R.from.y)*0.3;
+    lines+='<line class="bfr foe'+(bl<8?' dim':'')+'" x1="'+R.from.x+'" y1="'+R.from.y+'" x2="'+R.to.x+'" y2="'+R.to.y+'"/>';
+    if (bl>=10){ R.ms.sort(function(a,b){ return a.m.arr-b.m.arr; }); R.ms.forEach(function(o){ dots+='<circle class="bfd foe" cx="'+o.px.toFixed(1)+'" cy="'+o.py.toFixed(1)+'" r="3.5"/>'; lab("f"+k, mx, my-7-(R.ms.length-1)*6, o.left, "foe"); }); }
+    else if (bl>=8) lab("f"+k, mx, my-6, "×"+R.ms.length, "foe"); }
+  bf.p.forEach(function(p,pi){ var c=bfNodeXY(p), cls=pi===0?"me":p.team===0?"ally":"foe";
+    nodes+='<g class="bfn '+cls+'"'+(p.team===1?' data-act="bf-scout" data-p="'+pi+'" role="button" aria-label="Scout '+esc(p.name)+'"':'')+'><circle cx="'+c.x+'" cy="'+c.y+'" r="16"/><text class="bfnt" x="'+c.x+'" y="'+(c.y+4)+'">'+(pi===0?"You":bfInitial(p.name))+'</text>'+
+      '<text class="bfnn" x="'+c.x+'" y="'+(c.y+30)+'">'+(pi===0?esc(bfShort(p.city||"You")):esc(bfShort(p.name)))+'</text><text class="bfnp" x="'+c.x+'" y="'+(c.y+41)+'">'+fmt(Math.round(p.pts))+' pts</text></g>'; });
+  bf.b.forEach(function(B,bi){ var y=BFM.rows[BF_B[bi].y], own=B.owner<0?"neu":B.owner===0?"ours":"theirs", g=B.owner<0?sumT(B.neutral||Z12()):sumT(bfGar(B));
+    nodes+='<g class="bfb '+own+'" data-act="bf-send" data-b="'+bi+'" role="button" aria-label="'+BF_B[bi].name+'"><rect x="'+(BFM.xb-52)+'" y="'+(y-22)+'" width="104" height="44" rx="7"/>'+
+      '<text class="bfbt" x="'+BFM.xb+'" y="'+(y-4)+'">'+BF_B[bi].name+'</text><text class="bfbs" x="'+BFM.xb+'" y="'+(y+11)+'">'+(B.owner<0?'Guards':B.owner===0?'Ours':'Rivals')+' · '+(B.owner===0?fmt(g):'~'+fmt(roughN(g)))+'</text></g>'; });
+  labels=placeLabels();
+  return '<div class="bfmap"><svg viewBox="0 0 '+BFM.w+' '+BFM.h+'" role="img" aria-label="Battlefield map">'+
+    '<line class="bfmid" x1="'+BFM.xb+'" y1="8" x2="'+BFM.xb+'" y2="'+(BFM.h-8)+'"/>'+lines+dots+nodes+labels+'</svg>'+
+    '<p class="dur bfleg"><span class="sw me"></span>your marches <span class="sw ally"></span>allies <span class="sw foe"></span>rivals · tap a building to attack, scout or reinforce, or a rival camp to scout it. Beacon Tower level '+bl+': '+bfBeaconText(bl)+'.</p></div>';
+}
+function bfMarchPanel(){
+  var bf=BF(), me=bf.p[0], mine=bf.m.filter(function(m){ return m.p===0; }).sort(function(a,b){ return a.arr-b.arr; }), sp=S.items.marchsp||0;
+  var h='<div class="section"><div class="shead"><h3>Your marches</h3><span class="dur">'+mine.length+' of '+me.rally+' out · up to '+fmt(bfCap(me))+' each</span></div>';
+  if (!mine.length) h+='<p class="hint">No marches out. Tap a building on the map to send one.</p>';
+  mine.forEach(function(m){ var dep=m.dep!=null?m.dep:m.arr-60000, f=Math.max(0,Math.min(1,(bf.t-dep)/Math.max(1,m.arr-dep))), nm="";
+    nm=bfTgtName(m); var hn=m.h?bfHeroSnap(m.h).name:"";
+    var what=m.back?'Returning from '+nm:(m.kind==="reinforce"?'Reinforcing ':m.kind==="scout"?'Scouting ':'Attacking ')+nm;
+    h+='<div class="bfm"><div class="bfmh"><b>'+what+'</b><span class="qtime">'+bfMin(Math.max(0,m.arr-bf.t))+'</span></div>'+
+      '<div class="bfbar"><span style="width:'+Math.round(f*100)+'%"></span></div>'+
+      '<p class="dur" style="margin:2px 0">'+fmt(sumT(m.t))+' troops: '+esc(bfPresetText({t:m.t}))+'.'+(hn?' Led by '+esc(hn)+'.':'')+' '+(m.back?'Home':'Lands')+' at '+bfMin(m.arr)+' on the battle clock.</p>'+
+      '<div class="btnrow">'+(m.back?'':'<button class="btn ghost small" data-act="bf-mrecall" data-m="'+m.id+'">Recall</button>')+
+      '<button class="btn ghost small" data-act="bf-hasten" data-m="'+m.id+'"'+(sp>0?'':' disabled')+'>Speed up ('+sp+')</button></div></div>'; });
+  var held=[]; bf.b.forEach(function(B,bi){ if (B.gar[0] && sumT(B.gar[0])) held.push({bi:bi, n:sumT(B.gar[0])}); });
+  if (held.length) h+='<h4 style="margin:8px 0 2px">Holding</h4>'+held.map(function(x){ return '<div class="bfmh"><span>'+fmt(x.n)+' in '+BF_B[x.bi].name+'</span><button class="btn ghost small" data-act="bf-recall" data-b="'+x.bi+'">Withdraw</button></div>'; }).join("");
+  h+='<p class="hint">In reserve: '+(U.map(function(u,i){ return me.reserve[i]?fmt(me.reserve[i])+' '+uname(i,me.reserve[i]):''; }).filter(Boolean).join(", ")||'nothing')+'.'+(me.heroes&&me.heroes.length?' Heroes free: '+esc(me.heroes.filter(function(x){ return !bfHeroBusy(x.id); }).map(function(x){ return x.name; }).join(", ")||'none')+'.':'')+'</p>'+
+    '<div class="btnrow"><button class="btn ghost small" data-act="bfpre-open">Battlefield presets</button></div></div>';
+  return h;
+}
 function bfSection(){
   var A=AL(), why=bfWhy(), last=A.bfLast, allies=allyTiles();
   var h='<div class="section"><div class="shead"><h3>Battlefield</h3><span class="dur">'+(repPct()<75?'unlocks at 75% rep':'every '+(BF_COOLDOWN_DAYS*bfCooldownMul()).toFixed(1).replace(/\.0$/,"")+' days')+'</span></div>'+
@@ -4455,6 +4666,7 @@ function bfSection(){
     h+='<div class="farmadd" style="margin-top:6px"><label for="bfcity" class="dur">City</label><select id="bfcity">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===S.cur?' selected':'')+'>'+esc(c.name)+' ('+fmt(sumT(c.troops))+')</option>'; }).join("")+'</select></div>'+
       '<div class="farmadd"><label class="dur">Allies</label>'+[0,1].map(function(n){ return '<select id="bfally'+n+'">'+allies.map(function(q,i){ return '<option value="'+q.id+'"'+(i===n?' selected':'')+'>'+esc(q.ai.name)+'</option>'; }).join("")+'</select>'; }).join("")+'</div>';
   }
+  h+='<p class="hint" style="margin-top:6px">Battlefield presets: '+bfPresets().filter(function(pr){ return sumT(pr.t)>0; }).length+' of '+BF_NPRE+' set.</p><div class="btnrow"><button class="btn ghost small" data-act="bfpre-open">Edit battlefield presets</button></div>';
   h+='<div class="act"><span class="why">'+why+'</span><button class="btn'+(bfArmed?' danger':'')+'" data-act="bf-enter"'+(why?' disabled':'')+'>'+(bfArmed?'Tap again: take the field':'Take the field')+'</button></div>';
   return h+'</div>';
 }
@@ -4463,33 +4675,49 @@ function viewBattlefield(){
   var h='<div class="section bullybox"><div class="shead"><h3>Battlefield</h3><span class="dur"><b>'+bfMin(left)+'</b> left</span></div>'+
     '<div class="act"><div><div class="bigstat">'+fmt(Math.round(us))+'</div><span class="dur">your side</span></div><div style="text-align:center"><div class="bigstat">'+fmt(Math.round(bfMyPts()))+'</div><span class="dur">you</span></div><div style="text-align:right"><div class="bigstat">'+fmt(Math.round(them))+'</div><span class="dur">rivals</span></div></div>'+
     '<p class="hint">'+(nt?'Next spoils at '+fmt(Math.round(nt.f*bf.T/6))+' of your points: '+rewardText({items:nt.r})+'.':'Every rung of spoils claimed.')+' The clock stops whenever you leave this screen.</p></div>';
+  h+='<div class="section">'+bfMap()+'</div>'+bfEnemyList()+bfMarchPanel();
   bf.b.forEach(function(B,bi){ var d=BF_B[bi], g=bfGar(B), mineHere=B.gar[0]?sumT(B.gar[0]):0;
     var holder=B.owner<0?'Neutral guards':B.owner===0?'<b style="color:var(--green,#3f8f5a)">Your side</b>':'<b style="color:var(--red)">Rivals</b>';
     var garN=B.owner<0?sumT(B.neutral||Z12()):sumT(g);
-    h+='<div class="section"><div class="shead"><h3>'+d.name+'</h3><span class="dur">'+holder+'</span></div><p class="hint">'+d.eff+'. '+(B.wall?'Level '+B.wall+' walls, traps '+(B.forts.reduce(function(a,c){ return a+c; },0)?'set':'spent')+'.':'Walls down: troop against troop.')+' Garrison '+(B.owner===0?fmt(garN):'about '+fmt(roughN(garN)))+(mineHere?', '+fmt(mineHere)+' of them yours':'')+'.</p>'+
-      '<div class="btnrow"><button class="btn small" data-act="bf-send" data-b="'+bi+'"'+(bfOut(0)>=me.rally?' disabled':'')+'>'+(B.owner===0?'Reinforce':'Attack')+'</button>'+(mineHere?'<button class="btn ghost small" data-act="bf-recall" data-b="'+bi+'">Withdraw yours</button>':'')+'</div></div>'; });
-  var mine=bf.m.filter(function(m){ return m.p===0; });
-  h+='<div class="section"><div class="shead"><h3>Your army</h3><span class="dur">'+mine.length+' of '+me.rally+' marches out, up to '+fmt(bfCap(me))+' each</span></div>'+
-    '<p class="hint">In reserve: '+(U.map(function(u,i){ return me.reserve[i]?fmt(me.reserve[i])+' '+u.name:''; }).filter(Boolean).join(", ")||'nothing')+'.'+(me.hero?' '+esc(me.hero)+' leads every march.':'')+'</p>'+
-    mine.map(function(m){ return '<div class="bq"><span>'+(m.back?'Returning from ':'\u2192 ')+BF_B[m.b].name+': '+fmt(sumT(m.t))+'</span><span class="qtime">'+bfMin(Math.max(0,m.arr-bf.t))+'</span>'+((S.items.marchsp||0)>0?'<div class="qacts"><button class="link strong" data-act="bf-hasten" data-m="'+m.id+'">Speed up ('+S.items.marchsp+')</button></div>':'')+'</div>'; }).join("")+'</div>';
+    h+='<div class="section"><div class="shead"><h3>'+d.name+'</h3><span class="dur">'+holder+'</span></div><p class="hint">'+d.eff+'. '+(B.wall?'Level '+B.wall+' walls, traps '+(B.forts.reduce(function(a,c){ return a+c; },0)?'set':'spent')+'.':'Walls down: troop against troop.')+' Garrison '+(B.owner===0?fmt(garN):'about '+fmt(roughN(garN)))+(mineHere?', '+fmt(mineHere)+' of them yours':'')+'.</p>'+(B.owner!==0?bfIntelLine("b"+bi):'')+
+      '<div class="btnrow"><button class="btn small" data-act="bf-send" data-b="'+bi+'"'+(bfOut(0)>=me.rally?' disabled':'')+'>'+(B.owner===0?'Reinforce':'Attack or scout')+'</button>'+(mineHere?'<button class="btn ghost small" data-act="bf-recall" data-b="'+bi+'">Withdraw yours</button>':'')+'</div></div>'; });
   h+='<div class="section"><h3>Allies</h3><div class="gearlist">'+bf.p.filter(function(p){ return p.kind==="ally"; }).map(function(p){ var pi=bf.p.indexOf(p);
-    return '<div class="gearrow"><span class="gn">'+esc(p.name)+'</span><span class="gb">'+fmt(Math.round(p.pts))+' pts</span><span class="dur" style="grid-column:1/-1">Reserve '+fmt(sumT(p.reserve))+'. Favor: <select data-bffavor="'+pi+'">'+BF_FAVORS.map(function(f){ return '<option value="'+f[0]+'"'+(p.favor===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join("")+'</select></span></div>'; }).join("")+'</div></div>';
+    return '<div class="gearrow"><span class="gn">'+esc(p.name)+'</span><span class="gb">'+fmt(Math.round(p.pts))+' pts</span><span class="dur" style="grid-column:1/-1">Reserve '+fmt(sumT(p.reserve))+'.</span>'+
+      '<span class="dur" style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center">Orders <select data-bforder="'+pi+'">'+[["free","Fire at will"],["b0","Attack the War Banner"],["b1","Attack The Keep"],["b2","Attack the Infirmary"],["sync","Sync with my attacks"]].map(function(o){ return '<option value="'+o[0]+'"'+((p.order||"free")===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join("")+'</select>'+
+      ' Troops <select data-bffavor="'+pi+'">'+BF_FAVORS.map(function(f){ return '<option value="'+f[0]+'"'+(p.favor===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join("")+'</select></span></div>'; }).join("")+'</div>'+
+    '<p class="hint">Fire at will: they pick their own targets. Attack: they only go for that building, and hold it once it’s yours. Sync: they wait, and launch whenever you attack so they land just after you.</p></div>';
   h+='<div class="section"><h3>Rivals</h3><div class="gearlist">'+bf.p.filter(function(p){ return p.kind==="foe"; }).map(function(p){ var b=rosterById(p.rid), f=b&&friendOf(b);
-    return '<div class="gearrow'+(f?' t3':'')+'"><span class="gn">'+(f?'\u2605 ':'')+esc(p.name)+'</span><span class="gb">'+fmt(Math.round(p.pts))+' pts</span><span class="dur" style="grid-column:1/-1">'+esc(b?bullyStyleName(b):'')+'. Reserve about '+fmt(roughN(sumT(p.reserve)))+'.'+(p.leader?' Leads the others: +'+Math.round(p.leader*100)+'% attack.':'')+'</span></div>'; }).join("")+'</div></div>';
+    return '<div class="gearrow'+(f?' t3':'')+'"><span class="gn">'+(f?'\u2605 ':'')+esc(p.name)+'</span><span class="gb">'+fmt(Math.round(p.pts))+' pts</span><span class="dur" style="grid-column:1/-1">'+esc(b?bullyStyleName(b):'')+'. Reserve about '+fmt(roughN(sumT(p.reserve)))+'.'+(p.leader?' Leads the others: +'+Math.round(p.leader*100)+'% attack.':'')+'</span><span style="grid-column:1/-1">'+bfIntelLine("p"+bf.p.indexOf(p))+'<button class="btn ghost small" data-act="bf-scout" data-p="'+bf.p.indexOf(p)+'">Scout camp</button></span></div>'; }).join("")+'</div></div>';
   if (bf.log.length) h+='<div class="section"><h3>Field reports</h3><ul class="log">'+bf.log.slice(0,10).map(function(l){ return '<li><span class="dur">'+bfMin(l.t)+'</span> '+esc(l.s)+'</li>'; }).join("")+'</ul></div>';
   h+='<div class="section"><div class="act"><span class="dur">Retreating ends it now as a loss.</span><button class="btn ghost danger" data-act="bf-quit">'+(bfQuitArmed?'Tap again: retreat':'Retreat')+'</button></div></div>';
   return h;
 }
 var bfDraft=null, bfSimTxt="";
+var bfMode="troops", bfDraftHero=null;
 function bfSendSheet(){
-  var bf=BF(), me=bf.p[0], bi=sheetFor.b, B=bf.b[bi], cap=bfCap(me), d=bfDraft||(bfDraft=Z12());
-  var tot=sumT(d), why=tot<=0?"Pick some troops":tot>cap?"Over the march limit of "+fmt(cap):bfOut(0)>=me.rally?"All your marches are out":"";
-  var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>'+(B.owner===0?'Reinforce ':'Attack ')+BF_B[bi].name+'</h2><div class="sub">Up to '+fmt(cap)+' per march'+(bf.b[0].owner===0?' (War Banner +25%)':'')+', arriving in about '+bfMin(bfTravel(0,bi,d))+'</div></div></div>';
-  h+='<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Reserve</th><th>Send</th></tr></thead><tbody>'+U.map(function(u,i){ if (!me.reserve[i] || i===0 || i===6) return '';
-    return '<tr><td>'+u.name+'</td><td>'+fmt(me.reserve[i])+'</td><td><input type="number" min="0" max="'+me.reserve[i]+'" data-bfn="'+i+'" value="'+(d[i]||'')+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
-  h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="bf-fill" data-v="all">Fill to the limit</button><button class="btn ghost small" data-act="bf-fill" data-v="none">Clear</button>'+(B.owner!==0?'<button class="btn ghost small" data-act="bf-sim">Simulate</button>':'')+'</div>';
+  var bf=BF(), me=bf.p[0], tp=sheetFor.tp, bi=tp!=null?-1:sheetFor.b, B=bi>=0?bf.b[bi]:null, cap=bfCap(me), d=bfDraft||(bfDraft=Z12());
+  var own=B&&B.owner===0, scout=tp!=null||bfMode==="scout";
+  if (scout){ for (var z=0;z<12;z++) if (z!==2) d[z]=0; }
+  var heroes=(me.heroes||[]).filter(function(x){ return !bfHeroBusy(x.id); });
+  if (bfDraftHero==null) bfDraftHero=heroes.length?heroes[0].id:0;
+  if (bfDraftHero && bfHeroBusy(bfDraftHero)) bfDraftHero=heroes.length?heroes[0].id:0;
+  var hs0=bfHeroSnap(bfDraftHero), tot=sumT(d);
+  var why=tot<=0?(scout?"Pick how many scouts":"Pick some troops"):tot>cap?"Over the march limit of "+fmt(cap):bfOut(0)>=me.rally?"All your marches are out":"";
+  var name=tp!=null?bf.p[tp].name+"\u2019s camp":BF_B[bi].name, verb=scout?"Scout ":own?"Reinforce ":"Attack ";
+  var h='<div class="head"><span class="ico">'+ICON[scout?"beacon":"rally"]+'</span><div><h2>'+verb+esc(name)+'</h2><div class="sub">Up to '+fmt(cap)+' per march'+(bf.b[0].owner===0?' (War Banner +25%)':'')+', arriving in about '+bfMin(bfTravel(0,Math.max(0,bi),tot?d:[0,1,0,0,0,0,0,0,0,0,0,0],scout?null:hs0.int,tp))+'</div></div></div>';
+  if (tp==null && !own) h+='<div class="lbtabs" style="position:static;margin:4px 0"><button class="chipbtn'+(!scout?' on':'')+'" style="padding:0 12px" data-act="bf-mode" data-v="troops">Attack</button><button class="chipbtn'+(scout?' on':'')+'" style="padding:0 12px" data-act="bf-mode" data-v="scout">Scout</button></div>';
+  h+=bfIntelLine(tp!=null?"p"+tp:"b"+bi);
+  if (scout) h+='<p class="hint">Scouts fight scouts: yours get through if they outnumber the defenders\u2019 scouts (Informatics adds 10% a level on each side; the rivals have level 10). Survivors bring back exact troops'+(tp==null?', walls and forts':'')+'. Scouts travel twice as fast.</p>';
+  else h+='<div class="farmadd"><label for="bfhero" class="dur">Hero</label><select id="bfhero"><option value="0">No hero</option>'+heroes.map(function(x){ return '<option value="'+x.id+'"'+(x.id===bfDraftHero?' selected':'')+'>'+esc(x.name)+' (Atk '+x.atk+', Int '+x.int+(x.life>1?', set \u00d7'+x.life:'')+')</option>'; }).join("")+'</select></div>'+
+    ((me.heroes||[]).length>heroes.length?'<p class="dur" style="margin:0">'+((me.heroes||[]).length-heroes.length)+' of your heroes are out leading marches.</p>':'');
+  h+='<table class="gt wct"><tbody>'+U.map(function(u,i){ if (!me.reserve[i] || i===0 || i===6 || (scout && i!==2)) return '';
+    return '<tr><td>'+u.name+' <span class="dur">('+fmt(me.reserve[i])+')</span></td><td><input type="number" inputmode="numeric" min="0" max="'+me.reserve[i]+'" data-bfn="'+i+'" value="'+(d[i]||'')+'" placeholder="0"></td><td style="width:1%"><button class="link" data-act="bf-all" data-unit="'+i+'">All</button></td></tr>'; }).join("")+'</tbody></table>';
+  if (scout && !me.reserve[2]) h+='<p class="why">No scouts left in reserve.</p>';
+  if (!scout) h+='<div class="sub" style="margin-top:6px">Presets</div><div class="btnrow">'+bfPresets().map(function(pr,i){ var any=sumT(pr.t)>0;
+    return '<button class="btn ghost small" data-act="bf-usepre" data-i="'+i+'"'+(any?'':' disabled')+' title="'+esc(bfPresetText(pr))+'">'+esc(pr.name)+'</button>'; }).join("")+'</div>';
+  h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="bf-fill" data-v="'+(scout?'scouts':'all')+'">'+(scout?'All scouts':'Fill to the limit')+'</button><button class="btn ghost small" data-act="bf-fill" data-v="none">Clear</button>'+(!scout&&!own?'<button class="btn ghost small" data-act="bf-sim">Simulate</button>':'')+'</div>';
   if (bfSimTxt) h+='<p class="hint">'+bfSimTxt+'</p>';
-  h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="bf-go"'+(why?' disabled':'')+'>Send '+fmt(tot)+'</button></div><button class="closebtn" data-act="close">Close</button>';
+  h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="bf-go"'+(why?' disabled':'')+'>'+(scout?'Send '+fmt(tot)+' scouts':'Send '+fmt(tot))+'</button></div><button class="closebtn" data-act="close">Close</button>';
   return h;
 }
 function nextAllianceEvent(){
@@ -4520,7 +4748,7 @@ function bullyBase(){
 // you attacked the bully's camp
 function bullyCampBattle(m){
   var A=AL(), B=A.bully, b=bullyOf(), q=TILE_BY[m.tile], hero=m.hero?heroById(m.hero):null;
-  if (!B || !b){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; return true; }
+  if (!B || !b){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; return true; }
   var base=bullyBase();
   var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1, lost=0, i;
@@ -4546,7 +4774,7 @@ function bullyCampBattle(m){
   addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
-  m.t=saved; m.loot=loot; m.phase="back"; m.ret=S.gt+m.travel; return true;
+  m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
 // ally help arriving at your city
 // allyId given: only that ally's troops. The Embassy hosts 10,000 per level from EACH ally.
@@ -5436,7 +5664,7 @@ function effectLine(type,L,only){
   if (type==="forge") return "Iron Working and Metal Casting up to level "+L+(top?"":" → "+nx);
   if (type==="rally") return L+" march"+(L>1?"es":"")+" at once, up to "+fmt(10000*L)+" troops each; Logistics, Compass, Privateering and Cartography up to level "+L+(top?"":" → "+nx+" marches, "+fmt(10000*nx)+" troops each");
   if (type==="embassy") return "Room for "+Math.min(10,L)+" all"+(L===1?"y":"ies")+", hosts "+fmt(L*10000)+" troops from each ally"+(top?"":" → "+Math.min(10,nx)+" allies, "+fmt(nx*10000)+" each");
-  if (type==="beacon") return beaconText(L)+(top?"":" → level "+nx+": "+beaconText(nx));
+  if (type==="beacon") return beaconText(L)+(top?"":" → level "+nx+": "+beaconText(nx))+". On the Battlefield: level 8 shows how many enemy marches are on each route, level 9 the troops in each, level 10 their exact landing times";
   if (type==="warehouse") return "Stockpile up to level "+L+(top?"":" → "+nx);
   if (type==="feasting") return "Holds "+(4+L)+" heroes"+(top?"":" → "+(4+nx));
   if (type==="inn") return (1+Math.ceil(L/2))+" heroes for hire, up to level "+(L*3)+(top?"":" → "+(1+Math.ceil(nx/2))+", up to level "+(nx*3));
@@ -5492,8 +5720,13 @@ function renderSheet(){
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=marchSheet();
+  } else if (sheetFor.kind==="bfpre"){
+    if (sheetBody.contains(document.activeElement) && document.activeElement.tagName==="INPUT" && lastSheet) return;
+    h=bfPresetSheet();
   } else if (sheetFor.kind==="bfsend"){
-    if (!bfOn()){ closeSheet(); return; } h=bfSendSheet();
+    if (!bfOn()){ closeSheet(); return; }
+    if (sheetBody.contains(document.activeElement) && document.activeElement.tagName==="INPUT" && lastSheet) return;
+    h=bfSendSheet();
   } else if (sheetFor.kind==="ach"){
     h=achSheet();
   } else if (sheetFor.kind==="quests"){
@@ -5828,7 +6061,7 @@ document.addEventListener("click",function(e){
     var lt=a.dataset.tile; if (armedTile!=="al"+lt){ armedTile="al"+lt; lastView=""; renderView(true); return; }
     armedTile=null; var A2=S.alliance, li=allyIdx(lt); if (li<0) return; var lq=TILE_BY[lt];
     A2.allies.splice(li,1); Object.keys(A2.sat).forEach(function(id){ if (A2.sat[id].ally===lt) delete A2.sat[id]; }); Object.keys(A2.farms).forEach(function(id){ if (A2.farms[id]===lt) delete A2.farms[id]; });
-    S.marches.forEach(function(m){ if (m.mission==="allyguard" && m.tile===lt && m.phase==="stay"){ m.phase="back"; m.ret=S.gt+m.travel; m.loot={}; } });
+    S.marches.forEach(function(m){ if (m.mission==="allyguard" && m.tile===lt && m.phase==="stay"){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; } });
     A2.log.unshift({at:S.gt,t:(lq&&lq.ai?lq.ai.name:"An ally")+" left the alliance"}); miniDirty=true; save(); lastView=""; refresh(); return;
   }
   if (act==="ally-request"){
@@ -6051,9 +6284,9 @@ document.addEventListener("click",function(e){
         var wh=mm.hero?heroById(mm.hero):null; if (wh) wh.away=false; if (mm.ensign) S.items.ensign=(S.items.ensign||0)+1;
         S.marches=S.marches.filter(function(x){ return x!==mm; }); toast("Wave cancelled; troops and rations returned");
       } else if (mm.phase==="stay"){
-        mm.phase="back"; mm.ret=S.gt+mm.travel; mm.loot={}; toast("Guards recalled, home in "+fmtT(realMs(mm.travel)));
+        mm.phase="back"; mm.bs=S.gt; mm.ret=S.gt+mm.travel; mm.loot={}; toast("Guards recalled, home in "+fmtT(realMs(mm.travel)));
       } else if (mm.phase==="out"){
-        mm.phase="back"; mm.ret=S.gt+Math.max(1,S.gt-mm.dep); mm.loot=refund; toast("Army turned back, home in "+fmtT(realMs(mm.ret-S.gt)));
+        mm.phase="back"; mm.bs=S.gt; mm.ret=S.gt+Math.max(1,S.gt-mm.dep); mm.loot=refund; toast("Army turned back, home in "+fmtT(realMs(mm.ret-S.gt)));
       }
     });
     save(); refresh(); return;
@@ -6070,15 +6303,27 @@ document.addEventListener("click",function(e){
     if (!al[0] || !al[1] || al[0]===al[1]){ toast("Pick two different allies"); return; }
     if (!bfArmed){ bfArmed=true; lastView=""; renderView(true); var r0=document.getElementById("bfcity"), r1=document.getElementById("bfally0"), r2=document.getElementById("bfally1"); if (r0) r0.value=String(ci); if (r1) r1.value=al[0]; if (r2) r2.value=al[1]; return; }
     bfArmed=false; if (bfEnter(ci, al)){ closeSheet(); window.scrollTo({top:0}); } save(); lastView=""; refresh(); return; }
-  if (act==="bf-send"){ if (!bfOn()) return; bfDraft=null; bfSimTxt=""; openSheet({kind:"bfsend", b:+a.dataset.b}); return; }
+  if (act==="bf-send"){ if (!bfOn()) return; bfDraft=null; bfSimTxt=""; bfMode="troops"; bfDraftHero=null; openSheet({kind:"bfsend", b:+a.dataset.b}); return; }
+  if (act==="bf-scout"){ if (!bfOn()) return; bfDraft=null; bfSimTxt=""; bfMode="scout"; openSheet({kind:"bfsend", b:-1, tp:+a.dataset.p}); return; }
+  if (act==="bf-all"){ if (!bfOn()) return; var mea=BF().p[0], ui=+a.dataset.unit; if (!bfDraft) bfDraft=Z12();
+    var others=sumT(bfDraft)-(bfDraft[ui]||0); bfDraft[ui]=Math.max(0, Math.min(mea.reserve[ui], bfCap(mea)-others));
+    if (!bfDraft[ui]) toast("The march is already full"); bfSimTxt=""; lastSheet=""; renderSheet(); return; }
+  if (act==="bf-mode"){ bfMode=a.dataset.v; bfDraft=null; bfSimTxt=""; lastSheet=""; renderSheet(); return; }
   if (act==="bf-recall"){ if (bfOn() && bfRecall(0,+a.dataset.b)) { toast("Withdrawing your troops"); lastView=""; refresh(); } return; }
+  if (act==="bf-mrecall"){ if (bfOn() && bfRecallMarch(+a.dataset.m)){ toast("March turned back"); lastView=""; refresh(); } return; }
+  if (act==="bf-usepre"){ if (!bfOn()) return; var upr=bfPresets()[+a.dataset.i]; if (!upr) return; bfDraft=bfPresetDraft(upr, BF().p[0]); bfSimTxt=""; if (!sumT(bfDraft)) toast("Nothing in reserve for that preset"); lastSheet=""; renderSheet(); return; }
+  if (act==="bfpre-open"){ openSheet({kind:"bfpre"}); return; }
+  if (act==="bfpre-tab"){ bfPreSel=+a.dataset.i; lastSheet=""; renderSheet(); return; }
+  if (act==="bfpre-clear"){ bfPresets()[bfPreSel].t=Z12(); save(); lastSheet=""; renderSheet(); return; }
   if (act==="bf-hasten"){ var bm=BF().m.filter(function(x){ return x.id===+a.dataset.m && x.p===0; })[0]; if (!bm || !(S.items.marchsp>0)) return; S.items.marchsp--; bm.arr=BF().t+(bm.arr-BF().t)/2; toast("March hastened: half the remaining time"); lastView=""; refresh(); return; }
   if (act==="bf-quit"){ if (!bfOn()) return; if (!bfQuitArmed){ bfQuitArmed=true; lastView=""; renderView(true); return; } bfQuitArmed=false; bfEnd("quit"); flushFinished(); save(); lastView=""; refresh(); return; }
-  if (act==="bf-fill"){ var me0=BF().p[0]; if (a.dataset.v==="none") bfDraft=Z12(); else bfDraft=bfPick(me0, bfCap(me0), 1); bfSimTxt=""; lastSheet=""; renderSheet(); return; }
-  if (act==="bf-sim"){ var me1=BF().p[0], sb=sheetFor.b, AA=bfSide(me1); AA.troops=(bfDraft||Z12()).slice(); var sr=SIM.fight(AA, bfDefender(BF().b[sb]));
+  if (act==="bf-fill"){ var me0=BF().p[0]; if (a.dataset.v==="none") bfDraft=Z12(); else if (a.dataset.v==="scouts"){ bfDraft=Z12(); bfDraft[2]=Math.min(me0.reserve[2], bfCap(me0)); } else bfDraft=bfPick(me0, bfCap(me0), 1); bfSimTxt=""; lastSheet=""; renderSheet(); return; }
+  if (act==="bf-sim"){ var me1=BF().p[0], sb=sheetFor.b, AA=me1.heroes?bfSide(me1, bfHeroSnap(bfDraftHero)):bfSide(me1); AA.troops=(bfDraft||Z12()).slice(); var sr=SIM.fight(AA, bfDefender(BF().b[sb]));
     bfSimTxt = sr.result===1 ? "Simulated: you take it with about "+fmt(sumT(sr.attacker))+" left." : "Simulated: thrown back, losing about "+fmt(sumT(killedOf(bfDraft||Z12(), sr.attacker)))+".";
     lastSheet=""; renderSheet(); return; }
-  if (act==="bf-go"){ if (bfSend(0, sheetFor.b, bfDraft||Z12())){ toast("March sent"); closeSheet(); bfDraft=null; lastView=""; refresh(); } return; }
+  if (act==="bf-go"){ var gscout=sheetFor.tp!=null||bfMode==="scout", gd=(bfDraft||Z12()).slice(); if (gscout) gd=gd.map(function(n,i){ return i===2?n:0; });
+    if (bfSend(0, sheetFor.tp!=null?0:sheetFor.b, gd, false, gscout?{scout:true, tp:sheetFor.tp}:{hero:bfDraftHero||0})){ toast(gscout?"Scouts sent":"March sent"); closeSheet(); bfDraft=null; bfDraftHero=null; lastView=""; refresh(); }
+    else toast("Couldn\u2019t send that march"); return; }
   if (act==="chal-go"){ var pick=document.getElementById("chalpick"), rid=pick?+pick.value:null; if (rid==null || chalWhy(rid)) return;
     if (!chalArmed){ chalArmed=true; lastView=""; renderView(true); var pk=document.getElementById("chalpick"); if (pk) pk.value=String(rid); return; }
     chalArmed=false; challenge(rid); flushFinished(); save(); lastView=""; refresh(); return; }
@@ -6250,7 +6495,12 @@ document.addEventListener("click",function(e){
 });
 document.addEventListener("input",function(e){
   if (e.target.id==="allyname2"){ renameAlly(e.target.value); return; }
-  if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ var bi2=+e.target.dataset.bfn, mx=BF().p[0].reserve[bi2]; if (!bfDraft) bfDraft=Z12(); bfDraft[bi2]=Math.max(0,Math.min(mx, Math.floor(+e.target.value||0))); bfSimTxt=""; }
+  if (e.target.dataset && e.target.dataset.bfp!=null && sheetFor && sheetFor.kind==="bfpre"){ var bpr=bfPresets()[bfPreSel]; bpr.t[+e.target.dataset.bfp]=Math.max(0,Math.floor(+e.target.value||0)); var bpt=document.getElementById("bfptot"); if (bpt) bpt.textContent="Total "+fmt(sumT(bpr.t)); save(); }
+  if (e.target.id==="bfpname" && sheetFor && sheetFor.kind==="bfpre"){ bfPresets()[bfPreSel].name=e.target.value.slice(0,18)||("Field "+(bfPreSel+1)); var bon=sheetBody.querySelector(".lbtabs .chipbtn.on"); if (bon) bon.textContent=bfPresets()[bfPreSel].name; save(); }
+  if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ var bi2=+e.target.dataset.bfn, mx=BF().p[0].reserve[bi2]; if (!bfDraft) bfDraft=Z12(); bfDraft[bi2]=Math.max(0,Math.min(mx, Math.floor(+e.target.value||0))); bfSimTxt="";
+    var gme=BF().p[0], gtot=sumT(bfDraft), gscout=sheetFor&&(sheetFor.tp!=null||bfMode==="scout"), gwhy=gtot<=0?(gscout?"Pick how many scouts":"Pick some troops"):gtot>bfCap(gme)?"Over the march limit of "+fmt(bfCap(gme)):bfOut(0)>=gme.rally?"All your marches are out":"";
+    var gb=sheetBody.querySelector('[data-act="bf-go"]'); if (gb){ gb.disabled=!!gwhy; gb.textContent=gscout?"Send "+fmt(gtot)+" scouts":"Send "+fmt(gtot); }
+    var gw=sheetBody.querySelector('.act .why'); if (gw) gw.textContent=gwhy; }
   if (e.target.id==="m-amt"){ mkt.amt=Math.max(0,Math.floor(+e.target.value||0)); updateMarket(); }
   if (e.target.dataset.unit!=null && e.target.tagName==="INPUT"){ var iu=+e.target.dataset.unit; trainAmt[iu]=Math.max(0,Math.floor(+e.target.value||0)); updateTrainRow(iu); }
   if (e.target.dataset.ptroop!=null){ S.presets[sheetFor.p].t[+e.target.dataset.ptroop]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
@@ -6279,7 +6529,8 @@ document.addEventListener("input",function(e){
   }
 });
 document.addEventListener("change",function(e){
-  if (e.target.dataset && e.target.dataset.bfn!=null && bfOn()){ lastSheet=""; renderSheet(); }
+  if (e.target.id==="bfhero" && bfOn()){ bfDraftHero=+e.target.value; bfSimTxt=""; lastSheet=""; renderSheet(); }
+  if (e.target.dataset && e.target.dataset.bforder!=null && bfOn()){ var op=BF().p[+e.target.dataset.bforder]; if (op && op.kind==="ally"){ op.order=e.target.value; op.nextAt=Math.min(op.nextAt||0, BF().t+3000); toast(op.name+": "+e.target.options[e.target.selectedIndex].text.toLowerCase()); } }
   if (e.target.dataset && e.target.dataset.bffavor!=null && bfOn()){ var fp=BF().p[+e.target.dataset.bffavor]; if (fp && fp.kind==="ally"){ fp.favor=e.target.value; toast(fp.name+" will favor "+e.target.options[e.target.selectedIndex].text.toLowerCase()); } }
   if (e.target.id==="m-res"){ mkt.res=e.target.value; updateMarket(); }
   if (e.target.dataset && e.target.dataset.note){ S.notifOff=S.notifOff||{}; if (e.target.checked) delete S.notifOff[e.target.dataset.note]; else S.notifOff[e.target.dataset.note]=1; save(); lastSheet=""; renderSheet(); }
@@ -6325,7 +6576,7 @@ setInterval(function(){
   var changed=advance(Date.now());
   if (finished.length || changed){ flushFinished(); renderQueue(); renderView(tab==="map"); renderSheet(); tickText(); save(); }
   else { tickText(); renderView(false); renderSheet(); }
-  if (tab==="map" && !drag && ++mapTick%2===0) requestDraw();
+  if (tab==="map" && !drag && (S.marches.length || ++mapTick%2===0)) requestDraw();
 },500);
 setTimeout(updateTabArrows,50);
 setTimeout(function(){ lbSync(true); },4000); setInterval(function(){ lbSync(false); },60000);

@@ -22,6 +22,16 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.10
+- Battlefield map: your side, the rivals and the three buildings on one field, colored by owner; tap a building to attack, scout or reinforce, or a rival camp to scout it. March lines with moving markers and timers.
+- Beacon Tower on the Battlefield (the city you bring): below 8 enemy routes only, 8 how many marches per route, 9 the troops in each march, 10 exact landing times.
+- Your marches panel: mission, target, troops, hero, progress, landing time, Recall and Speed up; held buildings with Withdraw.
+- Scouting on the Battlefield: scouts fight scouts (Informatics on both sides, rivals at 10), twice as fast; reports show exact troops, walls and forts.
+- Hero per march on the Battlefield; each hero leads one march at a time.
+- Battlefield presets: six of their own, editable from the Alliance tab or mid-battle. All buttons per troop in the send screen, which now fits a phone.
+- Ally orders: Fire at will, Attack a building, or Sync with my attacks. AI lords build layered marches (main stack behind one of each other troop); smart lords simulate their options, allies with a troop focus always layer.
+- World map: moving markers on every march, out and back.
+- Fixes: tapping Send right after typing could miss; 999,999 showed as 1000.0k.
 ### 0.1.9
 - War College Defense: 6 attack themes (Open Field, Horse Lords, The Horde, Siege Train, Arrow Storm, Shut Gates) at three sizes: Skirmish (2 waves), Assault (3), Onslaught (4). You spend a prestige budget on troops the city owns and on fortifications (free to place, no need to build them), at a wall level fixed by the puzzle; each theme sets which troops and forts are allowed (or shuts the gate). Waves hit in order and your survivors and forts carry over. Losses count in prestige (troops + forts). Victory = hold; Commanding/Masterful = loss caps from optimizer plans at the same decent/high reference gear as Sieges. Data block WC_DEFS is generated (tools in war-college-tools).
 - War College Defense: Trick Shots, 4 one-off defenses built on battlefield quirks: Engineers' Duel (siege engines only: Ballistas + one Ram + one Catapult), Short Field (enemy Archery 10: stretching the field helps whoever shoots better, so the answer depends on your own Archery), Thousand Cuts (6 waves on a tight budget), Skeleton Crew (125k budget vs 80k infantry, every layer counts). 150 War College ratings in total.
