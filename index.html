@@ -2308,8 +2308,8 @@ var ACH=[
    tiers:[500,10000,250000,5000000,100000000], prog:function(){ return Math.floor(achStore().tiles); }},
   {k:"kill", name:"Gravedigger", icon:"barracks", goal:"Kill this many of every combat troop type (Workers and Transporters don\u2019t count)", buff:"Troop defense",
    tiers:[100,2500,50000,500000,10000000], prog:function(){ return minAcross(achStore().kills.filter(function(n,i){ return i!==0 && i!==6; })); }, each:true}, // Workers (0) and Transporters (6) left out
-  {k:"train", name:"Drillmaster", icon:"barracks", goal:"Train this many of EVERY troop type", buff:"Training speed",
-   tiers:[50,1000,20000,250000,5000000], prog:function(){ return minAcross(achStore().trained); }, each:true},
+  {k:"train", name:"Drillmaster", icon:"barracks", goal:"Train this many of every combat troop type (Workers and Transporters don\u2019t count)", buff:"Training speed",
+   tiers:[50,1000,20000,250000,5000000], prog:function(){ return minAcross(achStore().trained.filter(function(n,i){ return i!==0 && i!==6; })); }, each:true}, // Workers (0) and Transporters (6) left out
   {k:"hero", name:"Court of Generals", icon:"crest", goal:"Legendary and historic heroes in your halls", buff:"Heroes gain more experience",
    tiers:[1,5,15,40,100], prog:function(){ return eliteHeroCount(); }},
   {k:"medal", name:"Decorated", icon:"medalseg", goal:"Earn this many of EVERY medal", buff:"Item drop rate",
