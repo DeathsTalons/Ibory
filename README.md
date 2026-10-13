@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.6
+Version 0.1.7
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,10 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.7
+- War College tab: battle puzzles run on the real engine with the current city's troops, heroes, gear and research (simulated, nothing dies). Fixed seed 7 per attempt, so a plan always gives the same result.
+- Valleys 1-10 (1 wave, no siege; loss caps 0/1/1/1/3x6), NPC 1-5 (1 wave, no losses), NPC 6-10 (up to 4 waves; Victory = win, Commanding = loss caps 3,700/5,600/7,800/11,100/25,400, Masterful = 70/160/420/1,700/2,600).
+- Ratings pay out once; saved in S.college {best, got}. High scores get a "War College" board (worker adds the column itself).
 ### 0.1.6
 - High scores: trophy button in the header. Opt-in; sends name + prestige, kills by troop type, troops lost, best hero level, best star set, cities, alliance rep and historic levels taken to the Cloudflare Worker at LB_URL (source in scores-worker/worker.js). Syncs on open, every 5 minutes, and when the app is put away. 23 boards; "first to take" historic boards rank by the server's own clock.
 - Admin: LB_URL + "/admin" with the ADMIN_KEY secret lists players with Remove/Restore.

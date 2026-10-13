@@ -340,6 +340,7 @@ table.gt.reqt td:nth-child(3){font-size:.85em;line-height:1.3}
 dialog.full{width:100%;max-width:none;height:100%;max-height:none;margin:0;border-radius:0}
 dialog.full .sheet{height:100dvh;max-height:none;border-radius:0;border:0;align-content:start;padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .lbtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;position:sticky;top:-16px;background:var(--panel);z-index:1;margin:0 -2px} .lbtabs::-webkit-scrollbar{display:none} .lbtabs .chipbtn{flex:none;white-space:nowrap}
+table.gt.wct{min-width:0} table.gt.wct td{white-space:normal;padding:3px 4px} table.gt.wct td:first-child{text-align:left} table.gt.wct input{width:7.5em}
 table.gt.lbt{min-width:0} table.gt.lbt td:first-child{width:2.5em;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:anywhere} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
 .upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
 .upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
@@ -479,6 +480,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button role="tab" data-act="tab" data-tab="heroes">Heroes</button>
     <button role="tab" data-act="tab" data-tab="alliance">Alliance</button>
     <button role="tab" data-act="tab" data-tab="war">War Room</button>
+    <button role="tab" data-act="tab" data-tab="college">War College</button>
     <button role="tab" data-act="tab" data-tab="items">Items</button>
     <button role="tab" data-act="tab" data-tab="wheel">Wheel</button>
   </nav><button class="tabarrow right" data-act="tabscroll" data-dir="1" aria-label="Scroll tabs right" hidden>›</button></div>
@@ -497,7 +499,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.6";
+var APP_VERSION = "0.1.7";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2397,7 +2399,7 @@ function grantBeta(){
 /* ---------- high scores (Cloudflare Worker) ---------- */
 var LB_URL = "https://ibory-scores.codylspaulding.workers.dev"; // the Worker address, e.g. "https://ibory-scores.yourname.workers.dev" (empty hides syncing)
 var LB_HC=[12,14,16,18], lbData={}, lbCat="prestige", lbBusy=false, lbErr="", lbLastSync=0;
-var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Alliance rep"]]
+var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Alliance rep"],["college","War College"]]
   .concat(LB_HC.map(function(L){ return ["hc"+L,"First L"+L+" historic"]; }));
 function lbHex(n){ var a=new Uint8Array(n); (window.crypto||window.msCrypto).getRandomValues(a); return [].map.call(a,function(b){ return ("0"+b.toString(16)).slice(-2); }).join(""); }
 function lbOn(){ return !!(LB_URL && S.lb && S.lb.on && !S.lb.removed); }
@@ -2415,7 +2417,7 @@ function lbStats(){
   S.hcSeen=S.hcSeen||{}; S.cities.forEach(function(c){ if (c.fieldCap && LB_HC.indexOf(c.fieldCap)>=0) S.hcSeen[c.fieldCap]=1; }); // once taken, it counts even if given away later
   var hc={}; LB_HC.forEach(function(L){ if (S.hcSeen[L]) hc[L]=true; });
   return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
-    hero:hero, stars:bestGearSet(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
+    hero:hero, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
 }
 function lbSync(force){
   lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
@@ -2453,6 +2455,119 @@ function lbSheet(){
     '<div><label for="lbname" class="sub">Name on the boards</label><input id="lbname" type="text" maxlength="20" value="'+esc(S.lb.name)+'"></div>'+
     '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="lb-rename">Save name</button><button class="btn ghost small danger" data-act="lb-leave">'+(armed==="lbleave"?'Tap again to leave':'Leave the high scores')+'</button></div></details>';
   return h+'<button class="closebtn" data-act="close">Close</button>';
+}
+/* ---------- War College: battle puzzles ----------
+   Puzzles run the real battle engine against a fixed defender, with your current city's troops, heroes, gear and research.
+   Nothing is lost: it is a simulation. Each puzzle uses the same random seed every time, so the same plan always gives the same result. */
+var WC_SEED=7, WC_NAMES=["Victory","Commanding Victory","Masterful Victory"], WC_NOSIEGE=[9,10,11];
+function wcRng(seed){ var a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function wcBase(kind,L){ var b=kind==="npc"?baseOf({k:"npc",L:L}):baseOf({k:"forest",L:L});
+  return {troops:b.t.slice(), fortifications:b.f.slice(), wallLevel:b.wall, research:b.r, attack_modifier:b.am||1, fortBonus:b.fb||1, hero:{intel:b.hint||0}}; }
+function wcR(f,g,items){ return {res:QR(f,f,f,f,g), items:items||{}}; }
+var WC_TIERS=[
+  {k:"valley", name:"Valleys", note:"One wave, no siege engines (Ballistas, Rams or Catapults). Win while losing no more than the limit: layers of single troops are the trick."},
+  {k:"npc1", name:"NPC cities 1 to 5", note:"One wave. Break the city without losing a single troop."},
+  {k:"npc6", name:"NPC cities 6 to 10", note:"Up to four waves. Every wave hits what the last one left behind. Three ratings: any win, then fewer and fewer troops lost."}
+];
+var WC=[];
+(function(){
+  var vcap=[0,1,1,1,3,3,3,3,3,3];
+  for (var L=1;L<=10;L++) WC.push({id:"v"+L, tier:"valley", name:"Level "+L+" valley", kind:"valley", L:L, waves:1, ban:WC_NOSIEGE,
+    goals:[{cap:vcap[L-1]}], rewards:[wcR(5000*L, 1000*L, L<=3?{s15:1}:L<=6?{s60:1,gemD:L}:{s150:1,gemD:2*L})]});
+  for (L=1;L<=5;L++) WC.push({id:"n"+L, tier:"npc1", name:"Level "+L+" NPC city", kind:"npc", L:L, waves:1, ban:[],
+    goals:[{cap:0}], rewards:[wcR(20000*L, 5000*L, {s150:1, gemD:5*L, ore:L})]});
+  var comm={6:3700,7:5600,8:7800,9:11100,10:25400}, mast={6:70,7:160,8:420,9:1700,10:2600};
+  var mastRw={6:{gemF:15,mithril:1},7:{gemF:25,mithril:2},8:{gemF:40,mithril:2,starmetal:1},9:{gemF:60,starmetal:2},10:{gemF:100,starmetal:3}};
+  for (L=6;L<=10;L++){ var n=L-5; WC.push({id:"n"+L, tier:"npc6", name:"Level "+L+" NPC city", kind:"npc", L:L, waves:4, ban:[],
+    goals:[{cap:null},{cap:comm[L]},{cap:mast[L]}],
+    rewards:[wcR(50000*L, 10000*L, {s150:1, gemD:10*n}), {res:QR(0,0,0,0,0), items:{s480:1, gemF:5*n, ingot:n}}, {res:QR(0,0,0,0,0), items:mastRw[L]}]}); }
+})();
+function wcById(id){ for (var i=0;i<WC.length;i++) if (WC[i].id===id) return WC[i]; return null; }
+function wcSt(){ if (!S.college) S.college={best:{}, got:{}}; return S.college; }
+function wcGot(p){ return (wcSt().got[p.id]||0); } // ratings earned (and paid) so far
+function wcStars(){ var n=0; WC.forEach(function(p){ n+=wcGot(p); }); return n; }
+function wcMaxStars(){ var n=0; WC.forEach(function(p){ n+=p.goals.length; }); return n; }
+function wcGoalText(p,g){ var nm=WC_NAMES[p.goals.length===1?0:g], c=p.goals[g].cap; return nm+": "+(c==null?"win":c===0?"win without losing a troop":"win losing "+fmt(c)+" or fewer"); }
+function wcRating(p,res){ if (!res.won) return 0; var r=0; p.goals.forEach(function(g,i){ if (g.cap==null || res.lost<=g.cap) r=i+1; }); return r; }
+function wcDefText(p){ var b=wcBase(p.kind,p.L), parts=[]; U.forEach(function(u,i){ if (b.troops[i]) parts.push(fmt(b.troops[i])+" "+uname(i,b.troops[i])); });
+  var f=[]; FORTN.forEach(function(n,i){ if (b.fortifications[i]) f.push(fmt(b.fortifications[i])+" "+n); });
+  return parts.join(", ")+(f.length?". Fortifications: "+f.join(", "):"")+(b.wallLevel?". Walls level "+b.wallLevel:"")+"."; }
+var wcDraft={}, wcOut={};
+function wcDraftOf(p){ if (!wcDraft[p.id]) wcDraft[p.id]={waves:[{t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0}]}; return wcDraft[p.id]; }
+function wcHeroes(){ return S.heroes.slice().sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); }); }
+function wcWhy(p,d){
+  var cap=armyCap(), used=[0,0,0,0,0,0,0,0,0,0,0,0], heroes={};
+  if (!rallyLv()) return "Build a Rally Spot first: it sets how big each wave can be";
+  for (var w=0; w<d.waves.length; w++){ var wv=d.waves[w], tot=0;
+    for (var i=0;i<12;i++){ var n=wv.t[i]||0; if (n && p.ban.indexOf(i)>=0) return U[i].name+"s aren’t allowed in this puzzle"; tot+=n; used[i]+=n; }
+    if (!tot) return "Wave "+(w+1)+" has no troops";
+    if (tot>cap) return "Wave "+(w+1)+" is over the "+fmt(cap)+"-troop march limit";
+    if (wv.hero){ if (heroes[wv.hero]) return "A hero can only lead one wave"; heroes[wv.hero]=1; if (S.heroes.indexOf(heroById(wv.hero))<0) return "That hero isn’t in "+S.name; }
+  }
+  for (i=0;i<12;i++) if (used[i]>S.troops[i]) return "You only have "+fmt(S.troops[i])+" "+uname(i,S.troops[i])+" in "+S.name;
+  return "";
+}
+function wcRun(p){
+  var d=wcDraftOf(p), why=wcWhy(p,d); if (why){ toast(why); return; }
+  var D=wcBase(p.kind,p.L), r=wcRng(WC_SEED), lost=0, log=[], won=false;
+  for (var w=0; w<d.waves.length; w++){
+    var hero=d.waves[w].hero?heroById(d.waves[w].hero):null, t=d.waves[w].t.slice();
+    var A={troops:t, research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
+    var before=D.troops.slice(), fBefore=D.fortifications.slice(), o=SIM.fight(A,D,{rand:r}), l=0, k=0;
+    for (var i=0;i<12;i++){ l+=t[i]-o.attacker[i]; k+=before[i]-o.defender[i]; }
+    lost+=l; D.troops=o.defender.slice(); D.fortifications=o.forts.slice();
+    log.push({won:o.result===1, lost:l, killed:k, forts:fBefore.map(function(n,i){ return n-o.forts[i]; }).reduce(function(a,b){ return a+b; },0), left:D.troops.reduce(function(a,b){ return a+b; },0), rounds:o.rounds, hero:hero?hero.name:""});
+    if (o.result===1){ won=true; break; }
+  }
+  var res={won:won, lost:lost, waves:d.waves.length, log:log}, rating=wcRating(p,res), st=wcSt(), prev=st.best[p.id], paid=[];
+  if (won && (!prev || rating>prev.rating || (rating===prev.rating && lost<prev.lost))) st.best[p.id]={lost:lost, rating:rating, waves:log.length};
+  var got=wcGot(p);
+  for (var g=got; g<rating; g++){ var rw=p.rewards[g]; RES.forEach(function(k2){ S.res[k2]+=rw.res[k2]||0; }); for (var it in rw.items) S.items[it]=(S.items[it]||0)+rw.items[it]; paid.push(WC_NAMES[p.goals.length===1?0:g]+": "+rewardText(rw)); }
+  if (rating>got) st.got[p.id]=rating;
+  res.rating=rating; res.paid=paid; wcOut[p.id]=res; save();
+  if (paid.length) toast("War College: "+(p.goals.length===1?"puzzle solved":WC_NAMES[rating-1])+"! Rewards added to "+S.name+".");
+  else toast(won?"Won, losing "+fmt(lost)+(rating?"":". Not enough for a rating yet"):"The defenders held");
+  lastSheet=""; renderSheet(); lastView="";
+}
+function viewCollege(){
+  var h='<div class="section"><div class="shead"><h3>War College</h3><span class="dur">'+wcStars()+' of '+wcMaxStars()+' ratings earned</span></div>'+
+    '<p class="hint">Battle puzzles. Plan the waves with '+esc(S.name)+'’s own troops, heroes, gear and research, then fight a simulated battle. Nothing dies for real, and you can retry as often as you like. The same plan always gets the same result. Each rating pays out once.</p></div>';
+  WC_TIERS.forEach(function(tr){
+    h+='<div class="section"><h3>'+tr.name+'</h3><p class="hint">'+tr.note+'</p><div class="gearlist">';
+    WC.filter(function(p){ return p.tier===tr.k; }).forEach(function(p){
+      var got=wcGot(p), b=wcSt().best[p.id], stars=""; for (var g=0; g<p.goals.length; g++) stars+= g<got?"★":"☆";
+      h+='<button class="gearrow'+(got===p.goals.length?' t3':got?' t1':'')+'" data-act="wc-open" data-id="'+p.id+'"><span class="gn">'+p.name+'</span><span class="gst">'+stars+'</span>'+
+        '<span class="dur" style="grid-column:1/-1">'+esc(wcGoalText(p,Math.min(got,p.goals.length-1)))+(b?' · best: lost '+fmt(b.lost):'')+'</span></button>';
+    });
+    h+='</div></div>';
+  });
+  return h;
+}
+function wcSheet(p){
+  var d=wcDraftOf(p), got=wcGot(p), b=wcSt().best[p.id], cap=armyCap(), heroes=wcHeroes(), out=wcOut[p.id];
+  var h='<div class="head lbhead"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>'+p.name+'</h2><div class="sub">War College · up to '+p.waves+' wave'+(p.waves>1?'s':'')+(p.ban.length?' · no siege engines':'')+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  h+='<div class="effect"><b>Defenders:</b> '+esc(wcDefText(p))+'</div>';
+  h+='<div class="gearlist">'+p.goals.map(function(g,i){ var done=i<got, nm=WC_NAMES[p.goals.length===1?0:i];
+    return '<div class="gearrow'+(done?' t3':'')+'"><span class="gn"><span style="font:400 1rem var(--body);color:var(--brass)">'+(done?'★':'☆')+'</span> '+esc(wcGoalText(p,i).replace(nm+": ",nm+" — "))+'</span><span class="dur" style="grid-column:1/-1">'+(done?'Earned. ':'Reward: ')+esc(rewardText(p.rewards[i]))+'</span></div>'; }).join("")+'</div>';
+  if (b) h+='<p class="dur">Your best: lost '+fmt(b.lost)+' in '+b.waves+' wave'+(b.waves>1?'s':'')+'.</p>';
+  if (out){ h+='<div class="section" style="margin:0"><h3 class="'+(out.won?'okc':'badc')+'" style="margin:0 0 4px">'+(out.won?(out.rating?WC_NAMES[p.goals.length===1?0:out.rating-1]:'Won, no rating')+': lost '+fmt(out.lost):'Defeat: lost '+fmt(out.lost))+'</h3>'+
+      out.log.map(function(x,i){ return '<p class="dur" style="margin:2px 0">Wave '+(i+1)+(x.hero?' ('+esc(x.hero)+')':'')+': '+(x.won?'won':'did not break them')+', lost '+fmt(x.lost)+', killed '+fmt(x.killed)+(x.forts?', destroyed '+fmt(x.forts)+' fortifications':'')+(x.won?'':', '+fmt(x.left)+' defenders left')+', '+x.rounds+' rounds.</p>'; }).join("")+
+      (out.paid.length?'<p class="effect okc">'+out.paid.map(esc).join("<br>")+'</p>':'')+'</div>'; }
+  // available troops: what this city owns, minus banned types
+  var avail=U.map(function(u,i){ return i; }).filter(function(i){ return p.ban.indexOf(i)<0 && S.troops[i]>0; });
+  h+='<p class="hint">'+esc(S.name)+' can send up to '+fmt(cap)+' troops per wave. Waves hit in order, each fighting what the last one left.</p>';
+  if (!avail.length) h+='<p class="why">'+esc(S.name)+' has no troops this puzzle allows. Train some first.</p>';
+  d.waves.forEach(function(wv,w){
+    var tot=wv.t.reduce(function(a,b2){ return a+b2; },0);
+    h+='<div class="unit"><h4>Wave '+(w+1)+'</h4><span class="own" id="wctot-'+w+'">'+fmt(tot)+' / '+fmt(cap)+'</span>'+
+      '<div style="grid-column:1/-1"><label class="sub">Leading hero</label><select data-wch="'+w+'"><option value="0">No hero</option>'+heroes.map(function(x){ return '<option value="'+x.id+'"'+(wv.hero===x.id?' selected':'')+'>'+esc(x.name)+' (Atk '+hs(x,"atk")+', Int '+hs(x,"int")+(setLife(x)>1?', set ×'+setLife(x):'')+')</option>'; }).join("")+'</select></div>'+
+      '<table class="gt wct" style="grid-column:1/-1"><tbody>'+avail.map(function(i){ return '<tr><td>'+U[i].name+' <span class="dur">('+fmt(S.troops[i])+')</span></td><td><input type="number" inputmode="numeric" min="0" data-wct="'+w+':'+i+'" value="'+(wv.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table>'+
+      (d.waves.length>1?'<div class="btnrow" style="grid-column:1/-1"><button class="btn ghost small danger" data-act="wc-delwave" data-w="'+w+'">Remove wave '+(w+1)+'</button></div>':'')+'</div>';
+  });
+  var why=wcWhy(p,d);
+  h+='<div class="upbtns" style="grid-template-columns:1fr 1fr">'+(d.waves.length<p.waves?'<button class="btn ghost" data-act="wc-addwave">Add a wave</button>':'<button class="btn ghost" disabled>'+p.waves+' wave'+(p.waves>1?'s':'')+' max</button>')+'<button class="btn" data-act="wc-run">Fight</button></div>'+
+    '<p class="why" id="wcwhy">'+esc(why)+'</p><button class="closebtn" data-act="close">Back to War College</button>';
+  return h;
 }
 var QUEEN_NAMES=["Isolde","Eleanor","Matilda","Adela","Sibylla","Ermengarde","Theodora","Aveline"];
 // once any city reaches Town Hall 10, a Queen (base 150 in every stat) joins that city, or waits at the gate if its hall is full
@@ -5155,7 +5270,7 @@ function renderView(force){
   if (v.contains(document.activeElement) && document.activeElement.tagName!=="BUTTON") return;
   if (tab==="fields") tab="city"; // fields now live under the city, not in the tab bar
   document.body.classList.toggle("bfmode", bfOn());
-  var h = bfOn()?viewBattlefield():tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="farms"?viewFarms():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():viewCity();
+  var h = bfOn()?viewBattlefield():tab==="items"?viewItems():tab==="alliance"?viewAlliance():tab==="farms"?viewFarms():tab==="bldg"?viewBuilding():tab==="heroes"?viewHeroes():tab==="army"?viewArmy():tab==="college"?viewCollege():viewCity();
   if (h===lastView && !force) return;
   var vsig=tab+"|"+S.cur+"|"+(tab==="bldg"&&pg?pg.w+pg.i:""), anc=(vsig===viewSig)?viewAnchors(v):null; viewSig=vsig;
   lastView=h; v.innerHTML=h; setTabs(); wireDetails(v); restoreAnchor(v,anc);
@@ -5304,6 +5419,8 @@ function renderSheet(){
     h=wavesSheet();
   } else if (sheetFor.kind==="lb"){
     h=lbSheet();
+  } else if (sheetFor.kind==="wc"){
+    var wcp=wcById(sheetFor.id); if (!wcp){ closeSheet(); return; } h=wcSheet(wcp);
   } else if (sheetFor.kind==="report"){
     var rc=sheetFor.c, rr=sheetFor.rep, rv = rc.sc ? (rc.r===1?"Scouted":"Caught") : rc.d ? (rc.r===1?"Broken":"Held") : (rc.r===1?(rc.l?"Victory":"Flawless"):rc.r===3?"Stalemate":"Defeat"), rg = rc.d ? rc.r!==1 : rc.r===1;
     var rex=[]; if (rc.l) rex.push("lost "+fmt(rc.l)); if (rc.k) rex.push("killed "+fmt(rc.k)); if (rc.lo) rex.push((rc.d?"lost ":"")+fmt(rc.lo)+" loot"); if (rc.m>=0) rex.push(MEDALS[rc.m][1]+" medal"); if (rc.g.length) rex.push(rc.g.join(", ")); if (rc.h) rex.push(rc.h+" captured"); if (rc.f) rex.push(rc.f+" taken");
@@ -5385,7 +5502,7 @@ function renderSheet(){
   }
   if (h===lastSheet) return;
   lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
-  sheet.classList.toggle("full", sheetFor.kind==="lb"); if (sheetFor.kind==="lb"){ var lbt=document.querySelector("#lbtabs .on"); if (lbt) lbt.scrollIntoView({block:"nearest",inline:"center"}); }
+  sheet.classList.toggle("full", sheetFor.kind==="lb" || sheetFor.kind==="wc"); if (sheetFor.kind==="lb"){ var lbt=document.querySelector("#lbtabs .on"); if (lbt) lbt.scrollIntoView({block:"nearest",inline:"center"}); }
   var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn && sheet.open) fitReport();
   if (sheetFor && sheetFor.focus){ var fe=document.getElementById(sheetFor.focus==="gear"?"herogear":sheetFor.focus); sheetFor.focus=null; if (fe && fe.scrollIntoView) fe.scrollIntoView({block:"start"}); }
   var sa0=document.getElementById("saveage"); if (sa0) sa0.textContent=saveAge();
@@ -5536,6 +5653,10 @@ document.addEventListener("click",function(e){
   if (act==="settings"){ openSheet({kind:"settings"}); return; }
   if (act==="lb-open"){ var fresh=!S.lb; lbAutoJoin(); if (fresh && lbOn()) lbSync(true); openSheet({kind:"lb"}); if (lbOn()) setTimeout(function(){ lbFetch(); }, fresh?1200:0); return; }
   if (act==="lb-refresh"){ lbFetch(); return; }
+  if (act==="wc-open"){ openSheet({kind:"wc", id:a.dataset.id}); return; }
+  if (act==="wc-addwave"){ var wa=wcById(sheetFor&&sheetFor.id); if (!wa) return; var wd=wcDraftOf(wa); if (wd.waves.length<wa.waves) wd.waves.push({t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0}); lastSheet=""; renderSheet(); return; }
+  if (act==="wc-delwave"){ var wr=wcById(sheetFor&&sheetFor.id); if (!wr) return; var wd2=wcDraftOf(wr); if (wd2.waves.length>1) wd2.waves.splice(+a.dataset.w,1); lastSheet=""; renderSheet(); return; }
+  if (act==="wc-run"){ var wx=wcById(sheetFor&&sheetFor.id); if (!wx) return; wcRun(wx); sheetBody.scrollTop=0; return; }
   if (act==="lb-cat"){ lbFetch(a.dataset.cat); return; }
   if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
   if (act==="lb-join"){ var jn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim();
@@ -6034,6 +6155,8 @@ document.addEventListener("input",function(e){
   if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic" && !rh.fixedName){ rh.name=e.target.value.replace(/\s+/g," ").trim()||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
   if (e.target.id==="gname"){ var ng=forgeGear(); if (ng){ ng.nm=e.target.value.replace(/\s+/g," ").trim().slice(0,28)||undefined; if (!ng.nm) delete ng.nm; save(); } }
   if (e.target.dataset.gsn!=null && sheetFor && sheetFor.kind==="hero"){ var nh=heroById(sheetFor.id); if (nh){ nh.gearSetNames=nh.gearSetNames||[]; nh.gearSetNames[+e.target.dataset.gsn]=e.target.value.replace(/\s+/g," ").trim().slice(0,24); save(); } }
+  if (e.target.dataset && e.target.dataset.wct && sheetFor && sheetFor.kind==="wc"){ var wcp2=wcById(sheetFor.id); if (wcp2){ var wpart=e.target.dataset.wct.split(":"), wdr=wcDraftOf(wcp2), wv=wdr.waves[+wpart[0]];
+      if (wv){ wv.t[+wpart[1]]=Math.max(0,Math.floor(+e.target.value||0)); var wtot=document.getElementById("wctot-"+wpart[0]); if (wtot) wtot.textContent=fmt(wv.t.reduce(function(a2,b2){ return a2+b2; },0))+" / "+fmt(armyCap()); var wwhy=document.getElementById("wcwhy"); if (wwhy) wwhy.textContent=wcWhy(wcp2,wdr); } } }
   if (e.target.id==="repq"){ repQuery=e.target.value; repPage=0; fillRepList(); }
   if (e.target.dataset.reserve!=null){ S.reserve[e.target.dataset.reserve]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.goal!=null){ S.goals[+e.target.dataset.goal]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
@@ -6056,6 +6179,7 @@ document.addEventListener("change",function(e){
     else if (!("Notification" in window)){ e.target.checked=false; toast("This browser can\u2019t show notifications"); }
     else Notification.requestPermission().then(function(r){ S.phoneNotif = r==="granted"; save(); lastSheet=""; renderSheet(); toast(r==="granted"?"Phone notifications on":"Notifications weren\u2019t allowed"); });
   }
+  if (e.target.dataset && e.target.dataset.wch!=null && sheetFor && sheetFor.kind==="wc"){ var wcp3=wcById(sheetFor.id); if (wcp3){ wcDraftOf(wcp3).waves[+e.target.dataset.wch].hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }

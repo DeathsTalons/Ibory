@@ -19,6 +19,7 @@ const CATS = {
   stars: { t: "Best star set", v: "star_set", dir: "DESC" },
   cities: { t: "Cities", v: "cities", dir: "DESC" },
   rep: { t: "Alliance reputation", v: "rep", dir: "DESC" },
+  college: { t: "War College ratings", v: "college", dir: "DESC" },
 };
 UNITS.forEach((u, i) => { CATS["kill" + i] = { t: "Killed: " + u, v: "json_extract(kills_by,'$[" + i + "]')", dir: "DESC" }; });
 HC_LEVELS.forEach((L) => { CATS["hc" + L] = { t: "First to take a level " + L + " historic city", v: "hc" + L, dir: "ASC", first: 10 }; });
@@ -32,10 +33,13 @@ const SCHEMA = [
      hc12 INTEGER, hc14 INTEGER, hc16 INTEGER, hc18 INTEGER)`,
   `CREATE INDEX IF NOT EXISTS players_prestige ON players(banned, prestige)`,
 ];
+// columns added after launch: added to existing databases automatically
+const ADDED = ["college INTEGER DEFAULT 0"];
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
   for (const q of SCHEMA) await env.DB.prepare(q).run();
+  for (const col of ADDED) { try { await env.DB.prepare("ALTER TABLE players ADD COLUMN " + col).run(); } catch (e) { /* already there */ } }
   schemaReady = true;
 }
 
@@ -65,12 +69,12 @@ async function submit(req, env) {
   HC_LEVELS.forEach((L) => { const had = row && row["hc" + L]; hc[L] = had ? had : (s.hc && s.hc[L] ? now : null); });
   const vals = [name, String(b.ver || "").slice(0, 12), now,
     num(s.prestige), killsBy.reduce((a, x) => a + x, 0), JSON.stringify(killsBy), num(s.deaths),
-    num(s.hero, 100000), num(s.stars, 1000), num(s.cities, 1000), num(s.rep), hc[12], hc[14], hc[16], hc[18]];
+    num(s.hero, 100000), num(s.stars, 1000), num(s.cities, 1000), num(s.rep), hc[12], hc[14], hc[16], hc[18], num(s.college, 10000)];
   if (row) {
-    await env.DB.prepare(`UPDATE players SET name=?, ver=?, updated=?, prestige=?, kills=?, kills_by=?, deaths=?, hero_lv=?, star_set=?, cities=?, rep=?, hc12=?, hc14=?, hc16=?, hc18=? WHERE id=?`)
+    await env.DB.prepare(`UPDATE players SET name=?, ver=?, updated=?, prestige=?, kills=?, kills_by=?, deaths=?, hero_lv=?, star_set=?, cities=?, rep=?, hc12=?, hc14=?, hc16=?, hc18=?, college=? WHERE id=?`)
       .bind(...vals, b.id).run();
   } else {
-    await env.DB.prepare(`INSERT INTO players (name, ver, updated, prestige, kills, kills_by, deaths, hero_lv, star_set, cities, rep, hc12, hc14, hc16, hc18, id, token, joined) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    await env.DB.prepare(`INSERT INTO players (name, ver, updated, prestige, kills, kills_by, deaths, hero_lv, star_set, cities, rep, hc12, hc14, hc16, hc18, college, id, token, joined) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .bind(...vals, b.id, b.token, now).run();
   }
   return json({ ok: true });
