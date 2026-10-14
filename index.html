@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.17";
+var APP_VERSION = "0.1.18";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -4972,6 +4972,34 @@ function bfSendSheet(){
 // holds only what your scouts and Beacon Tower let you see. Shown with developer tools on while it's being tested.
 var PV={v:null, bf:null, at:0, skew:0, seq:0, got:0, busy:0, poll:0, lastPoll:0, err:"", lost:false, code:"", quitArmed:false, logKey:""};
 var PV_LEAVE_ARMED=false;
+var PV_TESTER=758262355; // the tester code's hash (the code itself isn't in the game); entered in Settings' developer box
+// the save's PvP identity: ratings follow it, and a cloud backup carries it to a new device
+function pvId(){ if (!S.pvpId || !S.pvpId.id) S.pvpId={id:lbHex(16), token:lbHex(16)}; return S.pvpId; }
+function pvShown(){ return devOn() || !!S.pvpTester; }
+PV.board={data:null, at:0, busy:false, err:""};
+function pvBoardLoad(force){
+  var B=PV.board; if (!LB_URL || B.busy || (!force && B.at && Date.now()-B.at<60000)) return;
+  B.busy=true; B.at=Date.now();
+  fetch(LB_URL+"/pvp/board?rid="+pvId().id,{cache:"no-store"}).then(function(r){ return r.json(); })
+    .then(function(d){ B.busy=false; B.err=""; B.data=d; lastView=""; lastSheet=""; renderSheet(); },
+          function(){ B.busy=false; B.err="Couldn\u2019t reach the server."; lastSheet=""; renderSheet(); });
+}
+function pvRec(m){ return m.w+'-'+m.l+(m.d?'-'+m.d:''); }
+function pvBoardSheet(){
+  var B=PV.board, d=B.data;
+  var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Battlefield rating</h2><div class="sub">PvP Battlefield, rated like chess: everyone starts at 1,000, and beating a higher-rated player gains more.</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
+  if (!d) h+=B.err?'<p class="why">'+esc(B.err)+'</p>':'<p class="hint">Loading\u2026</p>';
+  else {
+    if (!d.rows.length) h+='<p class="hint">No rated matches yet. Be the first.</p>';
+    else h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>#</th><th>Lord</th><th>Rating</th><th>Record</th></tr></thead><tbody>'+d.rows.map(function(r){
+      return '<tr'+(r.me?' style="font-weight:700;color:var(--brass)"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td><td>'+r.rating+'</td><td>'+pvRec(r)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    var me=d.me;
+    if (me && me.games && !d.rows.some(function(r){ return r.me; })) h+='<p class="hint">You: '+(me.rank?'#'+me.rank+' ':'')+'with '+me.rating+' ('+pvRec(me)+').</p>';
+    if (me && me.off) h+='<p class="why">You\u2019ve been taken off the rating board.</p>';
+    h+='<p class="dur">'+fmt(d.players)+' rated player'+(d.players===1?'':'s')+'. A pair\u2019s first 3 matches each day count.</p>';
+  }
+  return h+'<button class="closebtn" data-act="close">Close</button>';
+}
 function pvOn(){ return !!(S.pvp && S.pvp.code); }
 function pvLive(){ return pvOn() && !!PV.v && PV.v.status==="live" && !!PV.bf; }
 function bfAny(){ return bfOn() || pvLive(); }
@@ -5043,7 +5071,7 @@ function pvTick(){
 function pvStart(path, body, ci){
   PV.busy=1; PV.err=""; PV.v=null; PV.bf=null; lastView=""; renderView(true);
   pvPost(path, body).then(function(j){ PV.busy=0;
-    if (j.error || !j.token){ PV.err=j.error||"Something went wrong. Try again."; PV.v=null; PV.bf=null; lastView=""; refresh(); return; }
+    if (j.error || !j.token){ PV.err=j.error||"Something went wrong. Try again."; PV.idClash=j._st===403 && /rating/.test(PV.err); PV.v=null; PV.bf=null; lastView=""; refresh(); return; }
     S.pvp={code:j.code||body.code, token:j.token, ci:ci}; PV.code=""; PV.lost=false; PV.lastPoll=Date.now(); tab="alliance"; save(); lastView=""; refresh(); });
 }
 function pvClear(){ S.pvp=null; PV.v=null; PV.bf=null; PV.err=""; PV.lost=false; PV.quitArmed=false; PV_LEAVE_ARMED=false; PV.busy=0; document.body.classList.remove("bfmode"); tab="alliance"; lastView=""; }
@@ -5070,16 +5098,20 @@ function pvCollect(){
   if (R.winner<0) st.d++; else if (R.winner===me) st.w++; else st.l++;
   var foe=(v.players[1-me]||{}).name||"your opponent";
   A_log("PvP Battlefield against "+foe+": "+(R.winner<0?"a draw":R.winner===me?"won":"lost")+", "+fmt(R.pts[me])+" to "+fmt(R.pts[1-me]||0)+".");
-  pvClear(); save();
+  PV.board.at=0; pvClear(); save();
 }
 function pvCitySel(id, sel){
   return '<div class="farmadd"><label for="'+id+'" class="dur">City</label><select id="'+id+'">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===sel?' selected':'')+'>'+esc(c.name)+' ('+fmt(sumT(c.troops))+')</option>'; }).join("")+'</select></div>';
 }
 function pvWhy(){ return !LB_URL?"Needs the online server":bfOn()?"Finish your Battlefield first":""; }
 function pvSection(){
-  var st=S.pvpStats, why=pvWhy();
-  var h='<div class="section"><div class="shead"><h3>PvP Battlefield</h3><span class="dur">testing'+(st?' · '+st.w+'-'+st.l+(st.d?'-'+st.d:''):'')+'</span></div>'+
+  var why=pvWhy(); pvBoardLoad(false);
+  var bd=PV.board.data, me=bd&&bd.me;
+  var h='<div class="section"><div class="shead"><h3>PvP Battlefield</h3><span class="dur">testing'+(me&&me.games?' \u00b7 rating '+me.rating:'')+'</span></div>'+
     '<p class="hint">You against another player on the Battlefield, for 25 real minutes. A copy of one city fights, so your real troops never die, but March Speed-ups you use are used up for real. Create a match and send your opponent the code, or join theirs. The server keeps the clock, so it runs whether or not you’re looking; if you drop for a minute, an autopilot plays for you until you’re back.</p>'+
+    '<p class="hint">Building guards are sized to the smaller side: about three of its full marches, behind level 10 walls and traps.</p>'+
+    '<p class="hint">'+(me&&me.games?'Your rating: <b>'+me.rating+'</b>'+(me.rank?', #'+me.rank+' of '+fmt(bd.players):'')+' ('+pvRec(me)+').':'Your rating starts at 1,000 and moves after your first rated match.')+(me&&me.off?' You\u2019re off the rating board.':'')+'</p>'+
+    '<div class="btnrow"><button class="btn ghost small" data-act="pv-board">Rating board</button>'+(PV.idClash?'<button class="btn ghost small danger" data-act="pv-newid">Start a fresh rating</button>':'')+'</div>'+
     pvCitySel("pvcity", S.cur)+
     '<div class="act"><span class="why">'+esc(why||PV.err)+'</span><button class="btn" data-act="pv-create"'+(why||PV.busy?' disabled':'')+'>'+(PV.busy?'Working…':'Create match')+'</button></div>'+
     '<div class="farmadd"><label for="pvcode" class="dur">Code</label><input id="pvcode" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" value="'+esc(PV.code)+'" placeholder="KQ7M2D" style="text-transform:uppercase;letter-spacing:.1em"><button class="btn" data-act="pv-join"'+(why||PV.busy?' disabled':'')+'>Join</button></div>';
@@ -5102,7 +5134,7 @@ function pvLobby(){
     '<p class="hint">Send this code to your opponent. Once you’re both ready, the battle starts 10 seconds later and lasts 25 minutes. An unused code expires after 30 minutes.</p></div>';
   h+='<div class="section"><h3>Players</h3><div class="gearlist">'+[0,1].map(function(i){ var p=v.players[i];
     if (!p) return '<div class="gearrow"><span class="gn">Waiting for an opponent…</span></div>';
-    return '<div class="gearrow'+(p.ready?' t3':'')+'"><span class="gn">'+esc(p.name)+(i===me?' (you)':'')+'</span><span class="gb">'+(p.ready?'Ready':'Not ready')+'</span><span class="dur" style="grid-column:1/-1">'+esc(p.city)+', about '+fmt(p.army||0)+' troops.</span></div>'; }).join("")+'</div></div>';
+    return '<div class="gearrow'+(p.ready?' t3':'')+'"><span class="gn">'+esc(p.name)+(i===me?' (you)':'')+'</span><span class="gb">'+(p.ready?'Ready':'Not ready')+'</span><span class="dur" style="grid-column:1/-1">'+esc(p.city)+', about '+fmt(p.army||0)+' troops.'+(p.rating!=null?' Rating '+p.rating+'.':' No rating.')+'</span></div>'; }).join("")+'</div><p class="hint">The match counts for ratings if you both have one and haven\u2019t already played 3 rated matches together today.</p></div>';
   h+='<div class="section"><h3>Your army</h3><p class="hint">Changing city unreadies you. Your troops, research, heroes, Rally Spot and Beacon Tower are copied the moment you pick.</p>'+pvCitySel("pvcity2", S.pvp.ci!=null?S.pvp.ci:S.cur)+
     (PV.err?'<p class="why">'+esc(PV.err)+'</p>':'')+
     '<div class="act"><button class="btn ghost danger" data-act="pv-leave">'+(PV_LEAVE_ARMED?'Tap again: leave':'Leave')+'</button><button class="btn'+(mine.ready?' ghost':'')+'" data-act="pv-ready">'+(mine.ready?'Not ready':'Ready')+'</button></div></div>';
@@ -5123,6 +5155,7 @@ function pvField(){
   var h=pvHead(cd?'starts in <b>'+Math.max(0,Math.ceil((v.start-pvNow())/1000))+'</b>':'<b>'+bfMin(Math.max(0,v.len-t))+'</b> left')+
     '<div class="act"><div><div class="bigstat">'+fmt(P[me].pts)+'</div><span class="dur">you</span></div><div style="text-align:right"><div class="bigstat">'+fmt(foe.pts)+'</div><span class="dur">'+esc(foe.name)+(foe.ai?' (autopilot)':'')+'</span></div></div>'+
     (PV.err?'<p class="why">'+esc(PV.err)+'</p>':'')+
+    '<p class="dur" style="margin:2px 0">'+(v.rated?'Rated match.':'Unrated'+(v.unrated?': '+esc(v.unrated):'')+'.')+' Guards '+fmt(v.guard||0)+' per building.</p>'+
     '<p class="hint">The clock runs on the server and never stops. Close the game or lose connection for a minute and an autopilot plays for you until you’re back.</p></div>';
   h+='<div class="section">'+bfMap()+'</div>'+bfEnemyList()+bfMarchPanel();
   v.buildings.forEach(function(B,bi){ var d=BF_B[bi], own=bf.b[bi].owner, mineHere=B.mine?sumT(B.mine):0;
@@ -5141,6 +5174,7 @@ function pvDone(){
   var h=pvHead(R.why==="forfeit"?(win?esc(foe.name)+' retreated':'you retreated'):'time’s up')+
     '<h2 style="margin:4px 0">'+(draw?'A draw':win?'Victory!':'Defeat')+'</h2>'+
     '<div class="act"><div><div class="bigstat">'+fmt(R.pts[me]||0)+'</div><span class="dur">you</span></div><div style="text-align:right"><div class="bigstat">'+fmt(R.pts[fo]||0)+'</div><span class="dur">'+esc(foe.name)+'</span></div></div>'+
+    (function(){ var rr=R.rating&&R.rating[me]; return '<p class="hint">'+(rr?'Rating '+rr.from+' \u2192 <b>'+(rr.from+rr.d)+'</b> ('+(rr.d>=0?'+':'')+rr.d+').':'Unrated'+(v.unrated?': '+esc(v.unrated):'')+'.')+'</p>'; })()+
     '<p class="hint">Spoils: '+esc(spT)+'.'+(used?' You used '+used+' March Speed-up'+(used>1?'s':'')+'.':'')+' Your real army is untouched.</p>'+
     '<div class="btnrow"><button class="btn" data-act="pv-collect">'+(Object.keys(sp).length?'Collect and return':'Return to the game')+'</button></div></div>';
   return h+pvReports()+pvLog(25);
@@ -5255,7 +5289,7 @@ function viewAlliance(){
     return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future alliance events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></details>';
   h+=collapsify("ev_war", warSection(), repPct()>=50);
   h+=collapsify("ev_bf", bfSection(), repPct()>=75);
-  if (devOn()) h+=collapsify("ev_pvp", pvSection(), true); // PvP: testers only for now
+  if (pvShown()) h+=collapsify("ev_pvp", pvSection(), true); // PvP: testers only for now (dev tools or the tester code)
   h+=collapsify("ev_chal", chalSection(), A.rep>=REP_MAX);
   if (A.log.length) h+='<details class="section det" data-det="alog"'+(DET.alog?' open':'')+'><summary><b>Alliance log</b></summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
   return h;
@@ -6150,6 +6184,8 @@ function renderSheet(){
     h=marchSheet();
   } else if (sheetFor.kind==="replay"){
     if (!RP){ closeSheet(); return; } h=rpSheet();
+  } else if (sheetFor.kind==="pvboard"){
+    h=pvBoardSheet();
   } else if (sheetFor.kind==="bfpre"){
     if (sheetBody.contains(document.activeElement) && document.activeElement.tagName==="INPUT" && lastSheet) return;
     h=bfPresetSheet();
@@ -6413,6 +6449,7 @@ document.addEventListener("click",function(e){
       if (S.secrets.p1){ if (dm2) dm2.textContent="That package was already claimed on this save."; return; }
       S.secrets.p1=1; RES.forEach(function(k){ S.res[k]+=200000; }); S.items.s15=(S.items.s15||0)+80;
       if (dpw) dpw.value=""; if (dm2) dm2.textContent=""; save(); toast("Secret package! +200,000 of every resource in "+S.name+" and 80 15-minute speed-ups"); lastView=""; refresh(); }
+    else if (devHash(dv.toLowerCase())===PV_TESTER){ S.pvpTester=1; if (dpw) dpw.value=""; var dm3=document.getElementById("devmsg"); if (dm3) dm3.textContent=""; save(); toast("PvP Battlefield unlocked: find it in the Alliance tab"); lastView=""; refresh(); }
     else { var dm=document.getElementById("devmsg"); if (dm) dm.textContent="Wrong password"; } return; }
   if (act==="dev-lock"){ advance(Date.now()); devSet(false); S.speed=1; S.testSpeed=1; save(); toast("Developer tools locked"); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (advance(Date.now())) flushFinished();
@@ -6775,9 +6812,11 @@ document.addEventListener("click",function(e){
     lastSheet=""; renderSheet(); return; }
   if (act==="pv-create" || act==="pv-join"){ if (pvWhy() || PV.busy || pvOn()) return; var pc=document.getElementById("pvcity"), pci=pc?+pc.value:S.cur, psn=pvSnap(pci);
     if (!sumT(psn.troops)){ PV.err="That city has no troops to bring"; lastView=""; refresh(); return; }
-    if (act==="pv-create"){ pvStart("create", {snap:psn}, pci); return; }
+    if (act==="pv-create"){ pvStart("create", {snap:psn, rid:pvId().id, rtok:pvId().token}, pci); return; }
     var pcd=(PV.code||"").replace(/[^A-Z0-9]/g,""); if (pcd.length!==6){ PV.err="Match codes are 6 letters and numbers"; lastView=""; refresh(); return; }
-    pvStart("join", {code:pcd, snap:psn}, pci); return; }
+    pvStart("join", {code:pcd, snap:psn, rid:pvId().id, rtok:pvId().token}, pci); return; }
+  if (act==="pv-board"){ pvBoardLoad(true); openSheet({kind:"pvboard"}); return; }
+  if (act==="pv-newid"){ S.pvpId=null; pvId(); PV.idClash=false; PV.err=""; PV.board.at=0; save(); toast("Fresh PvP rating: you start again at 1,000"); lastView=""; refresh(); return; }
   if (act==="pv-ready"){ if (!pvOn() || !PV.v) return; var prm=PV.v.players[PV.v.me]||{}; pvPost("ready", pvWith({ready:!prm.ready})).then(function(j){ PV.err=j.error||""; lastView=""; refresh(); }); return; }
   if (act==="pv-leave"){ if (!pvOn()) return; if (!PV_LEAVE_ARMED){ PV_LEAVE_ARMED=true; lastView=""; renderView(true); return; }
     pvPost("leave", pvKey()).then(function(j){ if (j.error && j._st!==404 && j._st!==403){ PV_LEAVE_ARMED=false; toast(j.error); lastView=""; refresh(); return; } pvClear(); toast("You left the match"); save(); refresh(); }); return; }

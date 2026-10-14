@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.17
+Version 0.1.18
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,11 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.18
+- PvP Battlefield opens to testers: entering the tester code in Settings' developer box unlocks it on that save (developer tools still show it too).
+- Battlefield rating: Elo, everyone starts at 1,000. A pair's first 3 matches each day are rated; forfeits count. Rating board in the PvP section; lobby shows each side's rating; the result screen shows the change. Each save gets its own PvP identity (carried by cloud backups).
+- Building guards in PvP scale to the smaller side: three of its full marches (no more than a quarter of its army), 30k to 400k, with walls and traps scaled to match.
+- Server (worker.js): rating and match-log tables create themselves. Admin page (/admin) now has tabs: High scores, PvP matches (result, rating change, guard size, flags, full field log) and PvP ratings (remove/restore from the board). Looser limits for real late-game saves (research to 18, big heroes); suspicious saves are flagged, never blocked.
 ### 0.1.17
 - PvP Battlefield (testing, hidden unless developer tools are unlocked): 1v1 against a real player on the Battlefield field for 25 real minutes. Create a match for a 6-character code or join one, pick a city, both ready, 10-second countdown. Same map, send sheet, presets, scouting, Beacon intel and War Wizard as the single-player Battlefield; camp-to-camp routes bend around The Keep. The server keeps the clock; drop for a minute and an autopilot plays for you. Results: March Speed-ups used are deducted, spoils from the Battlefield ladder, a Field Surgeon's Kit for the winner. Needs the updated scores Worker (worker.js): the pvp table creates itself.
 ### 0.1.16
