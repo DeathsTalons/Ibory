@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.20
+Version 0.1.21
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,10 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.21
+- Cloud saves sync between devices. The game saves to the cloud every hour while open and whenever you switch away. Opening the game (or coming back to it) checks the cloud: if another device saved a newer game, that one loads automatically, and this device's copy is kept for a week (Settings > Cloud backup > Undo). If two devices play at once, the second one to save is asked which game to keep instead of silently overwriting. Older game versions still back up as before.
+- Players without a cloud save are asked to set one up when they open the game ("Not now" asks again in 3 days).
+- Needs the updated scores Worker (worker.js): two columns are added to the backups table automatically.
 ### 0.1.20
 - Warehouse shows its plunder protection: the effect line and "What each level does" list how much of each resource it keeps safe (and what the next level adds), the description explains the rule (50,000 x (1+2+...+level) of every resource per Warehouse, Warehouses add up, Stockpile +10% a level), and the Warehouse page opens with a Plunder protection section: each Warehouse, the Stockpile bonus, the total, and how much of each resource is open to raiders right now.
 ### 0.1.19

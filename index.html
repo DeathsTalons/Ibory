@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.20";
+var APP_VERSION = "0.1.21";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2536,7 +2536,29 @@ function lbFetch(cat){
     .catch(function(){ lbBusy=false; lbErr="Couldn\u2019t reach the high scores. Check your connection."; lastSheet=""; renderSheet(); });
 }
 /* ---------- cloud backup: name + password, kept on the high-scores Worker ---------- */
-var CB={busy:false, msg:"", found:null}, CB_EVERY=12*3600e3;
+var CB={busy:false, msg:"", found:null, conflict:null}, CB_EVERY=3600e3; // the cloud copy is refreshed every hour while you play
+// this device's id (kept outside the save, which travels between devices), so the server can say which device saved last
+function cbDev(){ try { var d=localStorage.getItem("ibory-device"); if (!d){ d=lbHex(8); localStorage.setItem("ibory-device", d); } return d; } catch(e){ return CB.devMem||(CB.devMem=lbHex(8)); } }
+var CB_UNDO="ibory-pre-sync"; // this device's game as it was just before a newer one was loaded over it
+function cbKeepUndo(){ try { var at=Date.now(); return cbPack(JSON.stringify(S)).then(function(pk){ try { localStorage.setItem(CB_UNDO, JSON.stringify({at:at, enc:pk.enc, body:pk.body})); } catch(e){} }); } catch(e){ return Promise.resolve(); } }
+function cbUndoInfo(){ try { var u=JSON.parse(localStorage.getItem(CB_UNDO)||"null"); return u && Date.now()-u.at<7*86400e3 ? u : null; } catch(e){ return null; } }
+function cbLoadState(obj, cloud, at, rev){ // swap the running game for a downloaded one
+  obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; obj.cloud={name:cloud.name, token:cloud.token, last:at||Date.now(), rev:rev||0, info:cloud.info};
+  S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+  document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh();
+}
+// is there a newer save from another device? Then it wins: load it (this device's copy is kept for Undo)
+function cbCheck(){
+  if (!cbOn() || CB.busy || CB.checking) return; CB.checking=true;
+  cbPost("/backup/info",{name:S.cloud.name, token:S.cloud.token}).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
+    CB.checking=false; var d=o.d; if (o.st===403 && S.cloud){ S.cloud.token=null; save(); return; } if (!d || !d.ok) return;
+    S.cloud.info=d.info; var L=d.info.latest, mine=S.cloud.rev||0;
+    if (!L || (d.info.rev||0)<=mine) return;
+    var other=!L.dev || L.dev==="legacy" || L.dev!==cbDev(), later=L.at>(S.cloud.last||0)+1000;
+    if (other && later) cbRestore("latest", {auto:true, at:L.at});
+    else { S.cloud.rev=d.info.rev; S.cloud.last=Math.max(S.cloud.last||0, L.at); save(); } // our own save: just catch up on the number
+  }).catch(function(){ CB.checking=false; });
+}
 function cbOn(){ return !!(LB_URL && S.cloud && S.cloud.token); }
 function cbB64(buf){ var b=new Uint8Array(buf), s="", i; for (i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null, b.subarray(i,i+0x8000)); return btoa(s); }
 function cbUnB64(t){ var s=atob(t), b=new Uint8Array(s.length); for (var i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return b; }
@@ -2556,32 +2578,59 @@ function cbSignIn(name, pass){
     else { CB.found=d.info; cbUi("Signed in. This account already has a backup.", true); }
   }).catch(function(){ CB.busy=false; cbUi("Couldn\u2019t reach the backup server. Check your connection."); });
 }
-function cbSave(auto){
-  if (!cbOn() || CB.busy) return; CB.busy=true; if (!auto) cbUi("Backing up\u2026", true);
+function cbSave(auto, opt){
+  opt=opt||{}; if (!cbOn() || CB.busy) return; CB.busy=true; if (!auto) cbUi("Backing up\u2026", true);
   var cloud=S.cloud;
   cbPack(JSON.stringify(S)).then(function(pk){
-    return fetch(LB_URL+"/backup/save",{method:"POST", cache:"no-store", headers:{"Content-Type":"text/plain", "X-Name":encodeURIComponent(cloud.name), "X-Token":cloud.token, "X-Ver":APP_VERSION, "X-Enc":pk.enc}, body:pk.body});
+    var hd={"Content-Type":"text/plain", "X-Name":encodeURIComponent(cloud.name), "X-Token":cloud.token, "X-Ver":APP_VERSION, "X-Enc":pk.enc, "X-Base":String(cloud.rev||0), "X-Dev":cbDev()};
+    if (opt.force) hd["X-Force"]="1";
+    return fetch(LB_URL+"/backup/save",{method:"POST", cache:"no-store", keepalive:!!opt.leaving && pk.body.length<60000, headers:hd, body:pk.body});
   }).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
     CB.busy=false;
-    if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.info=o.d.info; CB.found=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
+    if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
+    if (o.st===409 && o.d && o.d.conflict){ // another device saved since: don't overwrite it, ask which game to keep
+      CB.conflict=o.d.info; cbUi(""); if (!sheetFor || sheetFor.kind==="settings") openSheet({kind:"cbconflict"}); return; }
     if (o.st===403){ S.cloud.token=null; save(); }
     if (o.st===429 && auto) S.cloud.last=Date.now()-CB_EVERY+3600e3; // try again in an hour
     if (!auto) cbUi((o.d&&o.d.error)||"Backup failed"); else cbUi("Last automatic backup failed: "+((o.d&&o.d.error)||"no connection"));
   }).catch(function(){ CB.busy=false; if (S.cloud) S.cloud.lastTry=Date.now(); if (!auto) cbUi("Couldn\u2019t reach the backup server. Check your connection."); });
 }
-function cbRestore(slot){
-  if (!cbOn() || CB.busy) return; CB.busy=true; cbUi("Downloading your backup\u2026", true);
-  var cloud={name:S.cloud.name, token:S.cloud.token}, enc="plain";
+function cbRestore(slot, opt){
+  opt=opt||{}; if (!cbOn() || CB.busy) return; CB.busy=true; if (!opt.auto) cbUi("Downloading your backup\u2026", true);
+  var cloud={name:S.cloud.name, token:S.cloud.token, info:S.cloud.info}, enc="plain", rev=0, at=0;
   cbPost("/backup/load",{name:cloud.name, token:cloud.token, slot:slot}).then(function(r){
     if (!r.ok) return r.json().then(function(d){ throw new Error((d&&d.error)||"Couldn\u2019t load the backup"); });
-    enc=r.headers.get("X-Enc")||"plain"; return r.text();
+    enc=r.headers.get("X-Enc")||"plain"; rev=+(r.headers.get("X-Rev")||0); at=+(r.headers.get("X-At")||0); return r.text();
   }).then(function(body){ return cbUnpack(body, enc); }).then(function(txt){
     var obj=JSON.parse(txt); if (!obj || !obj.v || !(obj.cities||obj.res)) throw new Error("That backup looks damaged");
-    CB.busy=false; CB.found=null; CB.msg="";
-    obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; obj.cloud={name:cloud.name, token:cloud.token, last:Date.now()};
-    S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
-    document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Backup restored. Welcome back, "+TITLES[S.title].name+".");
+    return cbKeepUndo().then(function(){
+      CB.busy=false; CB.found=null; CB.conflict=null; CB.msg="";
+      cbLoadState(obj, cloud, slot==="latest"?at:Date.now(), rev);
+      toast(opt.auto ? "Loaded your newer game from the cloud, saved on another device "+cbWhen(at)+". Settings can undo it." : "Backup restored. Welcome back, "+TITLES[S.title].name+".");
+    });
   }).catch(function(e){ CB.busy=false; cbUi(e&&e.message?e.message:"Couldn\u2019t load the backup"); });
+}
+// put back this device's game from before the last sync, and make it the cloud's latest
+function cbUndo(){
+  var u=cbUndoInfo(); if (!u || !cbOn() || CB.busy) return; var cloud={name:S.cloud.name, token:S.cloud.token, info:S.cloud.info}, rev=S.cloud.rev;
+  cbUnpack(u.body, u.enc).then(function(txt){ var obj=JSON.parse(txt);
+    try { localStorage.removeItem(CB_UNDO); } catch(e){}
+    cbLoadState(obj, cloud, Date.now(), rev); cbSave(false, {force:true}); toast("This device\u2019s earlier game is back, and backed up over the other one");
+  }).catch(function(){ cbUi("Couldn\u2019t bring that game back"); });
+}
+// the conflict choice: another device saved while this one was playing
+function cbConflictSheet(){
+  var c=CB.conflict||{}, L=c.latest||{};
+  return '<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Played on another device</h2><div class="sub">Your game was saved from another device at <b>'+cbWhen(L.at)+'</b>, while this one was also playing. Which game do you want to keep?</div></div></div>'+
+    '<p class="hint">Load the other game, and this device\u2019s copy is kept for a week (Undo is in Settings). Keep this one, and it replaces the other device\u2019s save; the cloud\u2019s older copy stays as a fallback.</p>'+
+    '<div class="btnrow"><button class="btn" data-act="cb-pull">Load the other device\u2019s game</button><button class="btn ghost" data-act="cb-force">Keep this device\u2019s game</button></div>'+
+    '<button class="closebtn" data-act="close">Decide later</button>';
+}
+// everyone without a cloud save is asked once in a while to make one
+function cbAskSheet(){
+  return '<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Keep your game safe</h2><div class="sub">Turn on cloud saves</div></div></div>'+
+    '<p class="hint">Right now your whole game lives on this device. Lose the phone, clear the browser or reinstall the computer, and it\u2019s gone. A cloud save keeps it online: it saves every hour while you play, and you can pick it up on any device with a name and a password.</p>'+
+    '<div class="btnrow"><button class="btn" data-act="cb-ask-yes">Set up a cloud save</button><button class="btn ghost" data-act="cb-ask-later">Not now</button></div>';
 }
 function cbWhen(t){ return t?new Date(t).toLocaleString(undefined,{weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}):"never"; }
 function cbSection(){
@@ -2596,9 +2645,12 @@ function cbSection(){
     var inf=S.cloud.info||{};
     if (CB.found && CB.found.latest){
       h+='<p class="effect">This account has a backup from <b>'+cbWhen(CB.found.latest.at)+'</b> (version '+esc(CB.found.latest.ver||"?")+'). Restore it, or back up the game on this device over it?</p>'+
-        '<div class="btnrow"><button class="btn small" data-act="cb-restore" data-v="latest">'+(armed==="cbr-latest"?'Tap again to replace this game':'Restore that backup')+'</button><button class="btn ghost small" data-act="cb-save">Back up this game over it</button></div>';
+        '<div class="btnrow"><button class="btn small" data-act="cb-restore" data-v="latest">'+(armed==="cbr-latest"?'Tap again to replace this game':'Restore that backup')+'</button><button class="btn ghost small" data-act="cb-force">'+(armed==="cbforce"?'Tap again to overwrite it':'Back up this game over it')+'</button></div>';
     } else {
-      h+='<p class="hint">Backing up as <b>'+esc(S.cloud.name)+'</b>, automatically about twice a day while the game is open. Latest backup: <b>'+cbWhen(inf.latest&&inf.latest.at)+'</b>'+(inf.older?'. Older copy: '+cbWhen(inf.older.at):'')+'.</p>'+
+      var un=cbUndoInfo();
+      h+='<p class="hint">Saving to the cloud as <b>'+esc(S.cloud.name)+'</b> every hour while the game is open, and when you switch away. Open the game on another device signed in with the same name and it picks up your newest save. Latest save: <b>'+cbWhen(inf.latest&&inf.latest.at)+'</b>'+(inf.older?'. Older copy: '+cbWhen(inf.older.at):'')+'.</p>'+
+        (CB.conflict?'<p class="why">Another device saved at '+cbWhen(CB.conflict.latest&&CB.conflict.latest.at)+' while this one was playing.</p><div class="btnrow"><button class="btn small" data-act="cb-pull">Load the other device\u2019s game</button><button class="btn ghost small" data-act="cb-force">'+(armed==="cbforce"?'Tap again to overwrite it':'Keep this device\u2019s game')+'</button></div>':'')+
+        (un?'<p class="dur" style="margin:4px 0">A newer game was loaded over this device\u2019s game on '+cbWhen(un.at)+'.</p><div class="btnrow"><button class="btn ghost small" data-act="cb-undo">'+(armed==="cbundo"?'Tap again to bring it back':'Undo: bring back that game')+'</button></div>':'')+
         '<div class="btnrow"><button class="btn small" data-act="cb-save"'+(CB.busy?' disabled':'')+'>Back up now</button>'+
         (inf.latest?'<button class="btn ghost small danger" data-act="cb-restore" data-v="latest">'+(armed==="cbr-latest"?'Tap again to replace this game':'Restore latest')+'</button>':'')+
         (inf.older?'<button class="btn ghost small danger" data-act="cb-restore" data-v="older">'+(armed==="cbr-older"?'Tap again to replace this game':'Restore older copy')+'</button>':'')+
@@ -6222,6 +6274,10 @@ function renderSheet(){
     h=marchSheet();
   } else if (sheetFor.kind==="replay"){
     if (!RP){ closeSheet(); return; } h=rpSheet();
+  } else if (sheetFor.kind==="cbconflict"){
+    h=cbConflictSheet();
+  } else if (sheetFor.kind==="cbask"){
+    h=cbAskSheet();
   } else if (sheetFor.kind==="pvboard"){
     h=pvBoardSheet();
   } else if (sheetFor.kind==="bfpre"){
@@ -6551,6 +6607,11 @@ document.addEventListener("click",function(e){
   if (act==="cb-signin"){ var cn=((document.getElementById("cbname")||{}).value||"").replace(/\s+/g," ").trim(), cp=(document.getElementById("cbpass")||{}).value||"";
     CB.nameDraft=cn; if (cn.length<2){ cbUi("Backup names need 2 to 20 characters"); return; } if (cp.length<4){ cbUi("Passwords need at least 4 characters"); return; } cbSignIn(cn, cp); return; }
   if (act==="cb-save"){ armed=null; cbSave(false); return; }
+  if (act==="cb-force"){ if (sheetFor && sheetFor.kind==="settings" && armed!=="cbforce"){ armed="cbforce"; lastSheet=""; renderSheet(); return; } armed=null; CB.conflict=null; if (sheetFor && sheetFor.kind==="cbconflict") closeSheet(); cbSave(false, {force:true}); return; }
+  if (act==="cb-pull"){ armed=null; if (sheetFor && sheetFor.kind==="cbconflict") closeSheet(); cbRestore("latest", {auto:true}); return; }
+  if (act==="cb-undo"){ if (armed!=="cbundo"){ armed="cbundo"; lastSheet=""; renderSheet(); return; } armed=null; cbUndo(); return; }
+  if (act==="cb-ask-yes"){ DET.cloud=true; openSheet({kind:"settings"}); setTimeout(function(){ var d=document.querySelector('details[data-det="cloud"]'); if (d){ d.open=true; d.scrollIntoView({block:"start"}); } var n=document.getElementById("cbname"); if (n) n.focus(); }, 120); return; }
+  if (act==="cb-ask-later"){ S.cloudAsk=Date.now()+3*86400e3; save(); closeSheet(); toast("You can turn on cloud saves any time in Settings"); return; }
   if (act==="cb-restore"){ var slot=a.dataset.v; if (armed!=="cbr-"+slot){ armed="cbr-"+slot; lastSheet=""; renderSheet(); return; } armed=null; cbRestore(slot); return; }
   if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; var keepName=S.cloud&&S.cloud.name; S.cloud={name:keepName}; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
   if (act==="save-import"){
@@ -7133,8 +7194,18 @@ setInterval(function(){
 },500);
 setTimeout(updateTabArrows,50);
 setTimeout(function(){ lbSync(true); },4000); setInterval(function(){ lbSync(false); },60000);
-function cbAuto(){ if (cbOn() && !CB.busy && Date.now()-(S.cloud.last||0)>=CB_EVERY && !(S.cloud.lastTry && Date.now()-S.cloud.lastTry<15*60000)) cbSave(true); }
+// hourly cloud save; never before the opening check for a newer save has answered, and not while a conflict waits for a choice
+function cbAuto(){ if (cbOn() && !CB.busy && CB.checked && !CB.conflict && Date.now()-(S.cloud.last||0)>=CB_EVERY && !(S.cloud.lastTry && Date.now()-S.cloud.lastTry<15*60000)) cbSave(true); }
+setTimeout(function(){ CB.checked=false; cbCheck(); setTimeout(function(){ CB.checked=true; }, 6000); }, 1200); // on open: is there a newer game from another device?
 setTimeout(cbAuto, 8000); setInterval(cbAuto, 60000);
+// switching away saves to the cloud (so another device can pick up from here); coming back checks for a newer game
+var cbHiddenAt=0;
+document.addEventListener("visibilitychange",function(){
+  if (document.hidden){ cbHiddenAt=Date.now(); if (cbOn() && !CB.conflict && Date.now()-(S.cloud.last||0)>5*60000) cbSave(true, {leaving:true}); }
+  else if (cbHiddenAt && Date.now()-cbHiddenAt>60000) cbCheck();
+});
+// no cloud save yet: ask (again after "Not now", every few days); never in test browsers
+setTimeout(function(){ if (LB_URL && !cbOn() && !navigator.webdriver && !(S.cloudAsk && Date.now()<S.cloudAsk) && !sheetFor && !bfOn() && !pvOn()){ S.cloudAsk=Date.now()+86400e3; save(); openSheet({kind:"cbask"}); } }, 4000); // closing it without answering asks again tomorrow
 document.addEventListener("visibilitychange",function(){ if (document.hidden) lbSync(true); });
 if ("serviceWorker" in navigator && location.protocol==="https:" && !/claude\.ai|claudeusercontent/.test(location.hostname)){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
 wireDetails(document);
