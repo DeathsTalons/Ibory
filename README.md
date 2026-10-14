@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.21
+Version 0.1.22
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,10 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.22
+- Hourly snapshots and cheat checks: each cloud save carries a small summary (army, troops ever trained, prestige, resources, production, cities, best hero, game time). The server keeps two weeks of them and compares each with the one before: troops that appear without being trained, training without the prestige it always earns, game time running ahead of real time (device clock moved forward), resources far beyond production, an army worth far more than the prestige earned, giant heroes, and developer tools on. Nothing is blocked; flags appear on the admin page.
+- Admin page: new Saves tab with every cloud save, its flags (30 days), and per player the flag history, hourly snapshots and a download of the latest save (for fixing a game by hand).
+- Needs the updated scores Worker (worker.js): its tables create themselves.
 ### 0.1.21
 - Cloud saves sync between devices. The game saves to the cloud every hour while open and whenever you switch away. Opening the game (or coming back to it) checks the cloud: if another device saved a newer game, that one loads automatically, and this device's copy is kept for a week (Settings > Cloud backup > Undo). If two devices play at once, the second one to save is asked which game to keep instead of silently overwriting. Older game versions still back up as before.
 - Players without a cloud save are asked to set one up when they open the game ("Not now" asks again in 3 days).

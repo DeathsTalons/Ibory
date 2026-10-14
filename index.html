@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.21";
+var APP_VERSION = "0.1.22";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2547,6 +2547,23 @@ function cbLoadState(obj, cloud, at, rev){ // swap the running game for a downlo
   S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
   document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh();
 }
+// a small summary sent with every cloud save; the server compares each hour's with the last to spot edited saves
+function cbStats(){
+  var ar=[0,0,0,0,0,0,0,0,0,0,0,0], re=[0,0,0,0,0], pg=0, hA=0, hI=0, ci=[];
+  S.cities.forEach(function(c, i){ withCity(i, function(){
+    var t=S.troops.slice(); // the army: home, marching or stationed away, and waiting in the Medic Camp
+    (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,j){ t[j]+=n; }); });
+    S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,j){ t[j]+=n; }); });
+    t.forEach(function(n,j){ ar[j]+=n; });
+    RES.forEach(function(k,j){ re[j]+=S.res[k]||0; });
+    var r=rates(); pg+=Math.max(0,(r.food||0)+upkeep())+Math.max(0,r.lumber||0)+Math.max(0,r.stone||0)+Math.max(0,r.iron||0)+Math.max(0,r.gold||0);
+    (S.heroes||[]).forEach(function(h){ hA=Math.max(hA,hs(h,"atk")); hI=Math.max(hI,hs(h,"int")); });
+    var bl=0; S.inside.forEach(function(b){ if (b) bl+=b.level||0; }); S.fields.forEach(function(b){ if (b) bl+=b.level||0; });
+    ci.push([c.name, c.x, c.y, S.th, S.wall||0, sumT(t), bl]);
+  }); });
+  return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:devOn()?1:0, pr:Math.floor(S.prestige||0), tth:totalTH(), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
+    pg:Math.round(pg), hA:hA, hI:hI, ci:ci, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
+}
 // is there a newer save from another device? Then it wins: load it (this device's copy is kept for Undo)
 function cbCheck(){
   if (!cbOn() || CB.busy || CB.checking) return; CB.checking=true;
@@ -2584,6 +2601,7 @@ function cbSave(auto, opt){
   cbPack(JSON.stringify(S)).then(function(pk){
     var hd={"Content-Type":"text/plain", "X-Name":encodeURIComponent(cloud.name), "X-Token":cloud.token, "X-Ver":APP_VERSION, "X-Enc":pk.enc, "X-Base":String(cloud.rev||0), "X-Dev":cbDev()};
     if (opt.force) hd["X-Force"]="1";
+    try { hd["X-Stats"]=encodeURIComponent(JSON.stringify(cbStats())); } catch(e){}
     return fetch(LB_URL+"/backup/save",{method:"POST", cache:"no-store", keepalive:!!opt.leaving && pk.body.length<60000, headers:hd, body:pk.body});
   }).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
     CB.busy=false;
