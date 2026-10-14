@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.18";
+var APP_VERSION = "0.1.19";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1387,15 +1387,32 @@ function historicHero(q){
   st[HIST_SPEC[name]||["pol","atk","int"][Math.floor(u(5)*3)]] += 40+Math.floor(u(6)*30);
   return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:{pol:st.pol, atk:st.atk, int:st.int}};
 }
+// a conquered NPC or AI lord's city keeps its town: one of every building at the city's level, and its walls
+var CAP_SLOTS=["cottage","cottage","cottage","cottage","cottage","cottage","barracks","academy","rally","warehouse"], CAP_FIELDS=["farm","sawmill","quarry","ironmine"];
+// raises city c to at least one of each building at level L (and walls to L); plots being built or queued are left alone. Returns what changed.
+function capFill(c, L){
+  var busy=function(w,i){ return (c.builds||[]).some(function(b){ return b.where===w && (w==="wall" || b.idx===i); }) || (c.bq||[]).some(function(q){ return q.w===w && (w==="wall" || q.i===i); }); };
+  var done=[];
+  INSIDE.forEach(function(t){
+    var best=-1; c.inside.forEach(function(x,i){ if (x && x.type===t && (best<0 || x.level>c.inside[best].level)) best=i; });
+    if (best>=0){ if (c.inside[best].level<L && !busy("in",best)){ c.inside[best].level=L; done.push(t); } return; }
+    // a plot the player already queued this building on gets it, and that queue entry is no longer needed
+    var qd=(c.bq||[]).filter(function(q){ return q.w==="in" && q.type===t && !c.inside[q.i] && !(c.builds||[]).some(function(x){ return x.where==="in" && x.idx===q.i; }); })[0];
+    if (qd){ c.inside[qd.i]={type:t,level:L}; c.bq.splice(c.bq.indexOf(qd),1); done.push(t); return; }
+    for (var i=0;i<c.inside.length;i++) if (!c.inside[i] && !busy("in",i)){ c.inside[i]={type:t,level:L}; done.push(t); return; }
+  });
+  if ((c.wall||0)<L && !busy("wall",0)){ c.wall=L; done.push("walls"); }
+  return done;
+}
 function captureCity(q, troops){
   achCapture(q);
   var nc=newCity(S.nextCityId++, q.k==="hc" ? (q.name||"Historic City") : "Captured City "+(S.cities.length+1), q.x, q.y), L=q.L;
   nc.troops=troops.slice();
   if (q.k==="npc" || q.k==="ai"){
     if (q.k==="ai"){ nc.name=q.ai.name.split(" ")[0]+"\u2019s Hold"; ["archery","medicine","ironworking","horsebackriding","compass","militarytradition"].forEach(function(k){ setTech(k, Math.min(MAXLV, q.ai.tech)); }); }
-    nc.th=L; var slots=["cottage","cottage","cottage","cottage","cottage","cottage","barracks","academy","rally","warehouse"];
-    slots.forEach(function(t,i){ nc.inside[i]={type:t,level:L}; });
-    ["farm","sawmill","quarry","ironmine"].forEach(function(t,i){ for (var k=0;k<3;k++) nc.fields[i*3+k]={type:t,level:L}; });
+    nc.th=L; CAP_SLOTS.forEach(function(t,i){ nc.inside[i]={type:t,level:L}; });
+    CAP_FIELDS.forEach(function(t,i){ for (var k=0;k<3;k++) nc.fields[i*3+k]={type:t,level:L}; });
+    capFill(nc, L); nc.cap={k:q.k, L:L};
   } else {
     nc.fieldCap=L; ["farm","sawmill","quarry","ironmine"].forEach(function(t,i){ nc.fields[i]={type:t,level:L}; });
   }
@@ -2094,7 +2111,7 @@ function renderTileInfo(){
     h+='<div class="taunt"><span>IQ <b>'+iq+'</b> ('+({low:"dim",mid:"sharp enough",high:"dangerous"})[iqBand(iq)]+')</span>'+(angry?'<span class="badc">Already coming for you</span>':'<span class="btnrow"><button class="btn ghost small" data-act="ally-invite" data-tile="'+q.id+'">Invite to alliance</button><button class="btn ghost small danger" data-act="taunt" data-tile="'+q.id+'"'+(tauntsLeft()?'':' disabled')+'>Talk trash ('+tauntsLeft()+' left today)</button></span>')+'</div>'; }
   if (q.k==="ai") h+='<p class="hint">A '+q.ai.pers.n.toLowerCase()+' with Town Hall '+q.ai.th+' and research around level '+q.ai.tech+'. Growing '+(q.ai.rate<0.7?'slowly':q.ai.rate<1.1?'steadily':'quickly')+'. AI lords never attack unless you provoke them; they slowly grow, train and hoard. Troops you kill return over a game day, and their stockpile refills over two.</p>';
   if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. Every attack you win knocks off 10. It holds for an hour after your last win, then recovers 10 per hour, so 10 wins in quick succession takes the city, if your title has room for another.'+
-    (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with its buildings and fields at level '+q.L+'.')+'</p>';
+    (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
   if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
@@ -2559,7 +2576,7 @@ function cbRestore(slot){
     var obj=JSON.parse(txt); if (!obj || !obj.v || !(obj.cities||obj.res)) throw new Error("That backup looks damaged");
     CB.busy=false; CB.found=null; CB.msg="";
     obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; obj.cloud={name:cloud.name, token:cloud.token, last:Date.now()};
-    S=migrate(obj); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+    S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
     document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Backup restored. Welcome back, "+TITLES[S.title].name+".");
   }).catch(function(e){ CB.busy=false; cbUi(e&&e.message?e.message:"Couldn\u2019t load the backup"); });
 }
@@ -3199,6 +3216,19 @@ function migrate(s){
   if (s.v===37){ s.items=s.items||{}; s.items.warhorn=s.items.warhorn||0; s.items.corselet=s.items.corselet||0; s.hornUntil=0; s.corsUntil=0; s.v=38; }
   if (s.v===38){ s.cities.forEach(function(cc){ cc.trainer=null; cc.researcher=null; }); s.v=39; }
   if (s.v===39){ s.items=s.items||{}; s.items.script=s.items.script||0; s.v=40; }
+  if (s.v===40){ // conquered cities used to arrive with only ten buildings: fill in the rest at the level they were taken at
+    s.cities.forEach(function(c, ci){
+      if (ci===0 || c.fieldCap || c.cap || !c.inside || !c.fields) return;
+      // recognised by the exact layout a conquest left: six cottages, barracks, academy, Rally Spot, warehouse, then 3 of each field
+      var ins=CAP_SLOTS.every(function(t,i){ return c.inside[i] && c.inside[i].type===t; });
+      var fld=CAP_FIELDS.every(function(t,i){ for (var k=0;k<3;k++){ var f=c.fields[i*3+k]; if (!f || f.type!==t) return false; } return true; });
+      if (!ins || !fld) return;
+      // the level it was taken at: its lowest original building or field (they can only have gone up since)
+      var lv=[c.th||1]; CAP_SLOTS.forEach(function(t,i){ lv.push(c.inside[i].level); }); for (var k=0;k<12;k++) lv.push(c.fields[k].level);
+      var L=Math.max(1, Math.min.apply(null, lv)); c.cap={k:"npc", L:L, back:1};
+      var got=capFill(c, L); if (got.length) (s.capFixed=s.capFixed||[]).push({name:c.name, L:L, n:got.length});
+    });
+    s.v=41; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -3235,7 +3265,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=40) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=41) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=devOn()?(S.testSpeed||1):1; // real time unless a testing speed is set
 installProxies(S);
@@ -6506,7 +6536,7 @@ document.addEventListener("click",function(e){
           fi.value="";
           if (!ob || !ob.v || !(ob.cities||ob.res)){ toast("That file isn\u2019t an Ibory save."); return; }
           if (!window.confirm("Replace your current game with this save file?")) return;
-          ob.real=Date.now(); ob.speed=1; ob.testSpeed=0; S=migrate(ob); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+          ob.real=Date.now(); ob.speed=1; ob.testSpeed=0; S=migrate(ob); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
           document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded from file."); };
         rd.readAsText(f); }); }
     fi.click(); return; }
@@ -6520,7 +6550,7 @@ document.addEventListener("click",function(e){
     try { obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,""))))); } catch(e){ obj=null; }
     if (!obj || !obj.v || !(obj.cities||obj.res)){ document.getElementById("importmsg").textContent="That doesn\u2019t look like a save code."; return; }
     if (armed!=="import"){ armed="import"; var keep=code; lastSheet=""; renderSheet(); var ni=document.getElementById("saveinput"); if (ni) ni.value=keep; return; }
-    armed=null; saveUi=""; obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; S=migrate(obj); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+    armed=null; saveUi=""; obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
     document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded. Welcome back, "+TITLES[S.title].name+"."); return; }
   if (act==="reset"){
     if (armed!=="reset"){ armed="reset"; lastSheet=""; renderSheet(); return; }
@@ -7079,6 +7109,10 @@ document.addEventListener("scroll",function(){ if (tab==="map") requestDraw(); }
 advance(Date.now());
 if (finished.length){ var awayL=shownFinished(); if (awayL.length) toast("Finished while you were away: "+awayL.slice(0,4).join(", ")+(awayL.length>4?", and more":"")); }
 refresh();
+// tell the player once about conquered cities that were filled in by the 0.1.19 fix
+function capFixToast(){ if (!S.capFixed || !S.capFixed.length) return; var cf=S.capFixed; delete S.capFixed; save();
+  toast("Conquered cities fixed: "+cf.map(function(x){ return x.name+" got "+x.n+" building"+(x.n>1?"s":"")+" at level "+x.L; }).join("; ")+"."); }
+setTimeout(capFixToast, 1500);
 
 setInterval(function(){
   if (bfOn()) bfTick();
