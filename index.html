@@ -545,7 +545,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.23";
+var APP_VERSION = "0.1.25";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -5077,7 +5077,7 @@ function bfSendSheet(){
   if (scout && !me.reserve[2]) h+='<p class="why">No scouts left in reserve.</p>';
   if (!scout) h+='<div class="sub" style="margin-top:6px">Presets</div><div class="btnrow">'+bfPresets().map(function(pr,i){ var any=sumT(pr.t)>0;
     return '<button class="btn ghost small" data-act="bf-usepre" data-i="'+i+'"'+(any?'':' disabled')+' title="'+esc(bfPresetText(pr))+'">'+esc(pr.name)+'</button>'; }).join("")+'</div>';
-  h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="bf-fill" data-v="'+(scout?'scouts':'all')+'">'+(scout?'All scouts':'Fill to the limit')+'</button><button class="btn ghost small" data-act="bf-fill" data-v="none">Clear</button>'+(!scout&&!own&&!bf.pvp?'<button class="btn ghost small" data-act="bf-sim">Simulate</button>':'')+'</div>';
+  h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="bf-fill" data-v="'+(scout?'scouts':'all')+'">'+(scout?'All scouts':'Fill to the limit')+'</button><button class="btn ghost small" data-act="bf-fill" data-v="none">Clear</button>'+(!scout&&!own&&!bf.pvp?'<button class="btn ghost small" data-act="bf-sim">Simulate</button><button class="btn ghost small" data-act="bf-opt">'+(LO?'Stop optimizing':'Optimize layers')+'</button>':'')+'</div>';
   if (bfSimTxt) h+='<p class="hint">'+bfSimTxt+'</p>';
   h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="bf-go"'+(why?' disabled':'')+'>'+(scout?'Send '+fmt(tot)+' scouts':'Send '+fmt(tot))+'</button></div><button class="closebtn" data-act="close">Close</button>';
   return h;
@@ -5808,11 +5808,117 @@ function viewArmy(){
   return h+'</div>';
 }
 
+/* ---------- layer optimizer ---------- */
+// Finds the layers (small stacks of other troops) that cost the fewest troops (or prestige) against one defender,
+// keeping the main troop type and the march size. Every candidate fights with the same dice, so differences are real.
+// Runs in slices of ~25 ms so the phone stays responsive. Used by the War Room and the Battlefield send sheet.
+var LO=null;
+var LO_TYPES=[1,2,3,4,6,7,8,9,10,11]; // every troop but workers
+var LO_GRID=[0,0,0,1,.0025,.005,.01,.015,.02,.03,.04,.06]; // layer sizes as shares of the march (1 = a single troop)
+function loRand(seed){ var a=seed|0; return function(){ a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function loClone(D){ var o={}; for (var k in D){ var v=D[k]; o[k]=Array.isArray(v)?v.slice():(v&&typeof v==="object"?JSON.parse(JSON.stringify(v)):v); } return o; }
+function loEval(t, runs){
+  var job=LO.job, key=t.join(",")+"|"+runs; if (LO.cache[key]) return LO.cache[key];
+  var lost=0, win=0;
+  for (var k=0;k<runs;k++){
+    var r=SIM.fight(job.mkA(t.slice()), loClone(job.D), {rand:loRand(7919*k+13)}), l=0;
+    for (var i=0;i<12;i++){ var d=Math.max(0,t[i]-r.attacker[i]); l+= job.goal==="p" ? d*PREST_U[i] : d; }
+    lost+=l; if (r.result===1) win++;
+  }
+  var avg=lost/runs, wr=win/runs, res={t:t, avg:avg, win:wr, score:avg+(1-wr)*job.full*0.5}; // a lost fight costs extra: the target is still standing
+  LO.cache[key]=res; LO.done+=runs; return res;
+}
+function loMk(lay){
+  var job=LO.job, T=job.total, m=job.main, t=[0,0,0,0,0,0,0,0,0,0,0,0], u=0;
+  LO.types.forEach(function(i){ var n=Math.max(0,Math.min(job.avail[i], Math.round(lay[i]||0))); t[i]=n; u+=n; });
+  if (u>T*0.4) return null; t[m]=T-u; if (job.mainMax!=null && t[m]>job.mainMax) return null; return t;
+}
+function loLay(t){ var o={}; LO.types.forEach(function(i){ if (t[i]) o[i]=t[i]; }); return o; }
+// job: {mkA(troops) -> attacker side, D: defender side, total, main, avail[12], goal:"n"|"p", base:troops, onTick(pct), onDone(result)}
+function loStart(job){
+  var T=job.total, m=job.main;
+  LO={job:job, cache:{}, done:0, stop:false, phase:1, q:[], res:[], best:[], it:0, seen:{}};
+  LO.types=LO_TYPES.filter(function(i){ return i!==m && (job.avail[i]||0)>0; });
+  var mainOnly=[0,0,0,0,0,0,0,0,0,0,0,0]; mainOnly[m]=Math.min(T, job.mainMax!=null?job.mainMax:T);
+  var mo=[]; for (var i=0;i<12;i++) mo.push(mainOnly[i]*(job.goal==="p"?PREST_U[i]:1)); job.full=mo.reduce(function(a,b){ return a+b; },0);
+  LO.mainOnly=mainOnly;
+  function add(t){ if (!t) return; var k=t.join(","); if (LO.seen[k]) return; LO.seen[k]=1; LO.q.push(t); }
+  add(job.base.slice()); add(mainOnly.slice());
+  var one={}; LO.types.forEach(function(i){ one[i]=1; }); add(loMk(one));
+  var inf={}; [1,2,3,4].forEach(function(i){ inf[i]=1; }); add(loMk(inf));
+  add(loMk({3:.0125*T, 4:.0125*T, 8:.02*T, 9:.01*T, 11:.015*T}));
+  add(loMk({1:.01*T, 2:.01*T, 3:.01*T, 4:.01*T}));
+  var seed=1234567, rnd=function(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };
+  for (var c=0;c<220;c++){ var lay={}; LO.types.forEach(function(i){ var g=LO_GRID[Math.floor(rnd()*LO_GRID.length)]; lay[i]=g===1?1:Math.round(g*T/50)*50; }); add(loMk(lay)); }
+  LO.est=LO.q.length*12 + 2*3*Math.max(1,LO.types.length)*5*24 + 6*80;
+  LO.runs=12;
+  setTimeout(loStep, 0);
+}
+function loNeighbors(){
+  var T=LO.job.total, steps=[-.01,-.005,.005,.01];
+  LO.best.forEach(function(b){
+    LO.types.forEach(function(i){
+      steps.forEach(function(s){ var lay=loLay(b.t); lay[i]=Math.max(0,(lay[i]||0)+Math.round(s*T/50)*50); var t=loMk(lay); if (t){ var k=t.join(","); if (!LO.seen[k]){ LO.seen[k]=1; LO.q.push(t); } } });
+      var lay2=loLay(b.t); lay2[i]=lay2[i]?0:1; var t2=loMk(lay2); if (t2){ var k2=t2.join(","); if (!LO.seen[k2]){ LO.seen[k2]=1; LO.q.push(t2); } } // add or drop a single-troop layer
+    });
+  });
+}
+function loStep(){
+  if (!LO || LO.stop) return;
+  var t0=Date.now();
+  while (Date.now()-t0<25){
+    if (LO.q.length){ LO.res.push(loEval(LO.q.shift(), LO.runs)); continue; }
+    var sorted=LO.res.slice().sort(function(a,b){ return a.score-b.score; });
+    if (LO.phase===1){ // the best three of the wide search, fought again with more battles
+      LO.phase=2; LO.runs=24; LO.best=sorted.slice(0,3).map(function(r){ return loEval(r.t, 24); }); LO.res=LO.best.slice(); loNeighbors(); continue;
+    }
+    if (LO.phase===2){
+      LO.best=sorted.slice(0,3); LO.it++;
+      if (LO.it<2){ LO.res=LO.best.slice(); loNeighbors(); continue; }
+      LO.phase=3; LO.runs=80; LO.res=[]; // final check: the finalists, your setup and plain troops, 80 battles each
+      var fin=[LO.job.base, LO.mainOnly].concat(LO.best.map(function(b){ return b.t; })), fs={};
+      fin.forEach(function(t){ var k=t.join(","); if (!fs[k]){ fs[k]=1; LO.q.push(t.slice()); } }); continue;
+    }
+    // done
+    var bt=sorted[0], base=loEval(LO.job.base, 80), plain=loEval(LO.mainOnly, 80), job=LO.job;
+    LO=null; job.onDone({best:bt, base:base, plain:plain, goal:job.goal, main:job.main, total:job.total});
+    return;
+  }
+  LO.job.onTick(Math.min(99, Math.round(100*LO.done/LO.est)));
+  setTimeout(loStep, 0);
+}
+function loStop(){ if (LO){ LO.stop=true; LO=null; } }
+function loCost(r, goal){ return goal==="p" ? fmt(Math.round(r.avg))+" prestige" : fmt(Math.round(r.avg))+" troops"; }
+// the lines a result shows: what to send, and how it compares
+function loSummary(res){
+  var b=res.best, lay=[], main=res.main;
+  for (var i=0;i<12;i++) if (i!==main && b.t[i]>0) lay.push(fmt(b.t[i])+" "+uname(i,b.t[i]));
+  var same=res.plain.score<=b.score*1.02;
+  return {lay:lay, same:same,
+    rows:[["Your setup", res.base], ["Only "+U[main].name+(U[main].name.slice(-1)==="s"?"":"s"), res.plain], ["Optimized", b]]};
+}
+function loResultHtml(res, saveBtn){
+  var s=loSummary(res), b=res.best, main=res.main;
+  var h='<div class="section"><div class="shead"><h3>Optimized layers</h3><span class="dur">'+(res.goal==="p"?'least prestige lost':'fewest troops lost')+'</span></div>';
+  h+='<p class="effect">Send <b>'+fmt(b.t[main])+' '+uname(main,b.t[main])+'</b>'+(s.lay.length?' with '+esc(s.lay.join(", ")):' and nothing else')+'.</p>';
+  if (s.same) h+='<p class="hint">Plain '+U[main].name.toLowerCase()+(U[main].name.slice(-1)==="s"?'':'s')+' already do about as well as anything here: every layer troop dies, so extra stacks only add to the wounded.</p>';
+  h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th></th><th>Lost per fight</th><th>Wins</th></tr></thead><tbody>'+
+    s.rows.map(function(r){ var bold=r[0]==="Optimized"; return '<tr><td>'+(bold?'<b>':'')+r[0]+(bold?'</b>':'')+'</td><td>'+(bold?'<b>':'')+loCost(r[1],res.goal)+(bold?'</b>':'')+'</td><td>'+Math.round(r[1].win*100)+'%</td></tr>'; }).join("")+'</tbody></table></div>';
+  h+='<p class="dur" style="margin:4px 0 0">80 simulated battles each, all with the same dice so the comparison is fair. Your troops on the form are now set to the optimized march.</p>';
+  return h+(saveBtn||'')+'</div>';
+}
+// skip: troop types the optimizer may not use as layers (shared by the War Room and the Battlefield)
+var LOW={goal:"n", own:false, skip:{}}, loRes=null, simShow="sim";
+function loUi(on, p){
+  var st=document.getElementById("lostat"), b=document.getElementById("lobtn");
+  if (b){ b.dataset.act=on?"sim-opt-stop":"sim-opt"; b.textContent=on?"Cancel":"Optimize layers"; }
+  if (st) st.innerHTML=on?'<p class="dur" style="margin:6px 0 4px">Trying layer mixes\u2026 '+(p||0)+'%</p><div class="bar"><i style="width:'+(p||0)+'%"></i></div>':'';
+}
 /* war room */
 var SIMK = ["military_tradition","iron_working","medicine","compass","horseback_riding","archery"];
 var sim = null, simOut = null;
 function npcSimResearch(L){ var n=npcResearch(L); return {military_tradition:L,iron_working:n.iron_working,medicine:n.medicine,compass:n.compass,horseback_riding:n.horseback_riding,archery:n.archery}; }
-function initSim(){ // a clean slate: no troops, no research, no hero on either side. The buttons load your own army, research or city.
+function initSim(){ if (S.loSkip) LOW.skip=S.loSkip; // a clean slate: no troops, no research, no hero on either side. The buttons load your own army, research or city.
   sim = {atk:{t:[0,0,0,0,0,0,0,0,0,0,0,0], r:{military_tradition:0,iron_working:0,medicine:0,compass:0,horseback_riding:0,archery:0}, hatk:0, hint:0, life:1},
          def:{preset:"custom", t:[0,0,0,0,0,0,0,0,0,0,0,0], f:[0,0,0,0,0], wall:0, r:{military_tradition:0,iron_working:0,medicine:0,compass:0,horseback_riding:0,archery:0}, hatk:0, hint:0, eng:0}};
 }
@@ -5844,7 +5950,13 @@ function viewWar(){
   h+='<tr><td>Attack</td><td>'+simInput("atk","hatk",null,a.hatk)+'</td><td>'+simInput("def","hatk",null,d.hatk)+'</td></tr>';
   h+='<tr><td>Intelligence</td><td>'+simInput("atk","hint",null,a.hint)+'</td><td>'+simInput("def","hint",null,d.hint)+'</td></tr>';
   h+='<tr><td>Star set \u00d7</td><td>'+simInput("atk","life",null,a.life||1)+'</td><td>'+simInput("def","life",null,d.life||1)+'</td></tr>';
-  h+='</tbody></table><div class="simrow"><button class="btn" data-act="sim-run">Fight</button><button class="btn ghost" data-act="sim-run20">Fight 20 times</button><span class="dur">Traps roll randomly, so repeat runs can differ.</span></div></div>';
+  h+='</tbody></table><div class="simrow"><button class="btn" data-act="sim-run">Fight</button><button class="btn ghost" data-act="sim-run20">Fight 20 times</button><span class="dur">Traps roll randomly, so repeat runs can differ.</span></div>'+
+    '<div class="simrow" style="flex-wrap:wrap"><select id="logoal" aria-label="Optimize for"><option value="n"'+(LOW.goal==="n"?' selected':'')+'>Fewest troops lost</option><option value="p"'+(LOW.goal==="p"?' selected':'')+'>Least prestige lost</option></select>'+
+    '<label class="dur" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="loown"'+(LOW.own?' checked':'')+'> only layers I have</label>'+
+    '<button class="btn ghost" id="lobtn" data-act="'+(LO?'sim-opt-stop':'sim-opt')+'">'+(LO?'Cancel':'Optimize layers')+'</button></div>'+
+    '<details class="det" data-det="lotypes"'+(DET.lotypes?' open':'')+'><summary class="dur">Layers may use: '+(function(){ var off=LO_TYPES.filter(function(i){ return LOW.skip[i]; }); return off.length?'all but '+off.map(function(i){ return U[i].name; }).join(", "):'every troop'; })()+'</summary>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0">'+LO_TYPES.map(function(i){ return '<label class="dur" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-loskip="'+i+'"'+(LOW.skip[i]?'':' checked')+'> '+U[i].name+'</label>'; }).join("")+'</div></details>'+
+    '<p class="dur" style="margin:2px 0 0">Optimize keeps your main troop and march size, and tries hundreds of layer mixes against this defender.</p><div id="lostat"></div></div>';
   h+='<div id="simresult"></div>';
   return h;
 }
@@ -5856,7 +5968,7 @@ function simSide(x, isDef){
   return o;
 }
 function runSim(times){
-  var A=simSide(sim.atk,false), D=simSide(sim.def,true);
+  simShow="sim"; var A=simSide(sim.atk,false), D=simSide(sim.def,true);
   if (!A.troops.some(function(v){return v>0;})){ toast("Add some attacking troops first"); return; }
   if (times===1){ simOut={one:SIM.fight(A,D,{log:true}), A:A, D:D}; }
   else {
@@ -5868,7 +5980,11 @@ function runSim(times){
 }
 function unitName(t){ return t===14 ? "Archer\u2019s Towers" : U[t].name; }
 function renderSimResult(){
-  var el=document.getElementById("simresult"); if (!el || !simOut) return;
+  var el=document.getElementById("simresult"); if (!el) return;
+  if (simShow==="lo" && loRes){
+    el.innerHTML=loResultHtml(loRes, '<div class="farmadd" style="margin-top:8px"><label for="lopre" class="dur">Preset</label><select id="lopre">'+S.presets.map(function(p,i){ return '<option value="'+i+'">'+esc(p.name)+(sumT(p.t)?'':' (empty)')+'</option>'; }).join("")+'</select><button class="btn small" data-act="sim-opt-save">Save as preset</button></div>');
+    return; }
+  if (!simOut) return;
   var h='<div class="section">';
   if (simOut.many){
     var m=simOut.many;
@@ -7056,6 +7172,37 @@ document.addEventListener("click",function(e){
   if (act==="cancel-fort" && S.fortQ){ var cq=S.fortQ, rc2={}; for (var ck2 in FORTS[cq.f].cost) rc2[ck2]=FORTS[cq.f].cost[ck2]*cq.n; pay(rc2,-1); S.fortQ=null; toast("Fortification work cancelled. Resources returned."); refresh(); return; }
   if (act==="sim-mydef"){ var md=mayorActive(); if (!sim) initSim(); sim.def={preset:"custom", t:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.slice(), f:S.forts.slice(), wall:S.wall||0, r:simResearch(), hatk:hs(md,"atk"), hint:hs(md,"int"), life:setLife(md), eng:S.tech.engineering||0};
     simOut=null; lastView=""; renderView(true); toast("Loaded "+S.name+"\u2019s defenses"); return; }
+  if (act==="sim-opt-stop"){ loStop(); loUi(false); toast("Optimizing stopped"); return; }
+  if (act==="sim-opt"){
+    if (LO){ toast("Already optimizing"); return; }
+    var oA=simSide(sim.atk,false), oT=sumT(oA.troops); if (!oT){ toast("Add some attacking troops first"); return; }
+    var oD=simSide(sim.def,true); if (!sumT(oD.troops) && !oD.wallLevel && !oD.fortifications.some(function(n){ return n>0; })){ toast("Set up the defender first"); return; }
+    var oM=1; for (var oi=1;oi<12;oi++) if (oA.troops[oi]>oA.troops[oM]) oM=oi;
+    var ow=document.getElementById("loown"), og=document.getElementById("logoal"); LOW.own=!!(ow&&ow.checked); LOW.goal=og?og.value:"n";
+    var oAv=[]; for (oi=0;oi<12;oi++) oAv.push(LOW.skip[oi] && oi!==oM ? 0 : LOW.own?(S.troops[oi]||0):oT);
+    if (LOW.own && !LO_TYPES.some(function(i){ return i!==oM && oAv[i]>0; })) toast("You have no other troops at home to layer with: untick \u201conly layers I have\u201d to try any");
+    loUi(true, 0);
+    loStart({mkA:function(t){ return {troops:t, research:oA.research, hero:oA.hero, life_modifier:oA.life_modifier, attack_modifier:oA.attack_modifier}; },
+      D:oD, total:oT, main:oM, avail:oAv, goal:LOW.goal, base:oA.troops.slice(),
+      onTick:function(pc){ loUi(true, pc); },
+      onDone:function(res){ sim.atk.t=res.best.t.slice(); loRes=res; simShow="lo"; if (tab==="war"){ lastView=""; renderView(true); } loUi(false); toast("Layers optimized"); } });
+    return; }
+  if (act==="sim-opt-save"){ var lp=document.getElementById("lopre"), li=lp?+lp.value:0, pr=S.presets[li]; if (!pr || !loRes) return; pr.t=loRes.best.t.slice(); save(); toast("Saved to "+pr.name); return; }
+  if (act==="bf-opt"){
+    if (LO){ loStop(); bfSimTxt="Stopped."; lastSheet=""; renderSheet(); return; }
+    if (!bfOn() || !sheetFor || sheetFor.kind!=="bfsend" || sheetFor.b<0) return;
+    if (S.loSkip) LOW.skip=S.loSkip;
+    var bme=BF().p[0], bB=BF().b[sheetFor.b], bcap=bfCap(bme), bd=(bfDraft||Z12()).slice(), bT=sumT(bd);
+    if (!bT){ bd=bfPick(bme, bcap, 1); bT=sumT(bd); } if (!bT){ toast("Nothing in reserve to send"); return; }
+    var bM=1; for (var bi=1;bi<12;bi++) if (bd[bi]>bd[bM]) bM=bi;
+    var bh=bme.heroes?bfHeroSnap(bfDraftHero):null, bLast=0, bSheet=sheetFor;
+    bfSimTxt="Trying layer mixes\u2026 0%"; lastSheet=""; renderSheet();
+    loStart({mkA:function(t){ var A=bh?bfSide(bme,bh):bfSide(bme); A.troops=t; return A; }, D:bfDefender(bB), total:bT, main:bM, avail:bme.reserve.map(function(n,i){ return LOW.skip[i] && i!==bM ? 0 : n; }), mainMax:bme.reserve[bM], goal:"n", base:bd,
+      onTick:function(pc){ if (sheetFor!==bSheet){ loStop(); return; } if (Date.now()-bLast<300) return; bLast=Date.now(); bfSimTxt="Trying layer mixes\u2026 "+pc+"% (tap Optimize again to stop)"; lastSheet=""; renderSheet(); },
+      onDone:function(res){ if (sheetFor!==bSheet) return; var su=loSummary(res); bfDraft=res.best.t.slice();
+        bfSimTxt="Optimized: about "+fmt(Math.round(res.best.avg))+" troops lost per hit ("+Math.round(res.best.win*100)+"% wins), against "+fmt(Math.round(res.plain.avg))+" with only "+U[bM].name.toLowerCase()+(U[bM].name.slice(-1)==="s"?"":"s")+"."+(su.lay.length?" Layers: "+su.lay.join(", ")+".":"")+(su.same?" Plain troops do about as well here; layers only add to the dead.":"");
+        lastSheet=""; renderSheet(); } });
+    return; }
   if (act==="sim-run"){ runSim(1); return; }
   if (act==="sim-run20"){ runSim(20); return; }
   if (act==="sim-mine"){ sim.atk.t=S.troops.slice(); lastView=""; renderView(true); return; }
@@ -7184,6 +7331,7 @@ document.addEventListener("input",function(e){
   }
 });
 document.addEventListener("change",function(e){
+  if (e.target.dataset && e.target.dataset.loskip!=null){ var lsk=+e.target.dataset.loskip; if (e.target.checked) delete LOW.skip[lsk]; else LOW.skip[lsk]=1; S.loSkip=LOW.skip; save(); var lsum=e.target.closest("details"); if (lsum){ var off=LO_TYPES.filter(function(i){ return LOW.skip[i]; }); lsum.querySelector("summary").textContent="Layers may use: "+(off.length?"all but "+off.map(function(i){ return U[i].name; }).join(", "):"every troop"); } return; }
   if (e.target.id==="pvcity2" && pvOn() && PV.v && PV.v.status==="lobby"){ var pnc=+e.target.value; e.target.blur(); S.pvp.ci=pnc; save();
     pvPost("snap", pvWith({snap:pvSnap(pnc)})).then(function(j){ PV.err=j.error||""; if (!j.error) toast("Bringing "+S.cities[pnc].name); lastView=""; refresh(); }); return; }
   if (e.target.id==="bfhero" && bfAny()){ bfDraftHero=+e.target.value; bfSimTxt=""; lastSheet=""; renderSheet(); }

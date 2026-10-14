@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.23
+Version 0.1.25
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,11 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.25
+- Optimize layers: "Layers may use" checkboxes for every troop type. Untick a troop (say Ballistas, until you have thousands) and the optimizer never puts it in a mix. The choice is remembered and also applies to the Battlefield's Optimize button.
+### 0.1.24
+- Optimize layers (War Room): keeps your main troop and march size and searches hundreds of layer mixes against the defender you've set up, then fills in the best one. Pick "Fewest troops lost" (fewest wounded) or "Least prestige lost". Works with any troops by default; tick "only layers I have" to limit it to what's at home. Shows your setup vs plain troops vs optimized (80 battles each, same dice), and can save the result as a march preset. Runs in the background with a progress bar and Cancel.
+- The same button on the Battlefield send screen (single-player), using your reserve against that building's guards.
 ### 0.1.23
 - Every march shows what's in it: troops by unit, the hero leading it, and any cargo or plunder it's carrying (in the march strip and on the Map tab).
 - Army tab: new Troop totals section with home, out marching, this city's total and the total across all cities per unit, plus each city's total.
