@@ -101,6 +101,7 @@ table.simtab input{width:100%;min-width:0;padding:5px 6px;text-align:right;font-
 .bq .mbtns{grid-column:1/-1;justify-content:flex-start;margin:0}
 .mrowl{display:flex;justify-content:space-between;gap:10px;font-size:.9rem;border-left:3px solid var(--line);padding-left:8px}
 .mrowl span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msum{margin:0 0 2px 11px;font-size:.8rem;line-height:1.3}
 .mrowl.out{border-color:#e05a4f} .mrowl.back{border-color:var(--brass)} .mrowl.friend{border-color:#5fa36a}
 .arrbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;min-height:34px}
 .arrbar.on{background:var(--brass-soft);border-radius:8px;padding:6px 10px}
@@ -544,7 +545,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.22";
+var APP_VERSION = "0.1.23";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2145,7 +2146,7 @@ function renderMarchBox(){
   else if (!S.marches.length) h+='<p class="hint">No armies in the field.</p>';
   S.marches.filter(function(m){ return m.city===C().id || true; }).forEach(function(m){
     var q=TILE_BY[m.tile], n=m.t.reduce(function(a,b){return a+b;},0);
-    h+='<div class="bq"><span>'+((m.preset!=null||m.label!=null)?'<b>'+esc(S.cities[cityIndex(m.city)].presets[m.preset!=null?m.preset:m.label].name)+'</b>: ':'')+(m.phase==="wait"?"Wave queued for "+esc(tileName(q)):m.phase!=="back"?({occupy:"Occupying ",found:"Founding at ",transport:"Carrying resources to ",reinforce:"Reinforcing ",attack:"Attacking ",conquer:"Conquering "}[m.mission])+esc(tileName(q)):"Returning from "+esc(tileName(q)))+(S.cities.length>1?' ('+esc(S.cities[cityIndex(m.city)].name)+')':'')+', '+fmt(n)+' troops</span><span class="qtime" id="mt-'+m.id+'"></span>'+(m.city===C().id?marchBtns(m):'')+'</div>';
+    h+='<div class="bq"><span>'+((m.preset!=null||m.label!=null)?'<b>'+esc(S.cities[cityIndex(m.city)].presets[m.preset!=null?m.preset:m.label].name)+'</b>: ':'')+(m.phase==="wait"?"Wave queued for ":marchVerb(m))+esc(tileName(q))+(S.cities.length>1?' ('+esc(S.cities[cityIndex(m.city)].name)+')':'')+'</span><span class="qtime" id="mt-'+m.id+'"></span><span class="dur" style="grid-column:1/-1">'+esc(marchSummary(m))+'</span>'+(m.city===C().id?marchBtns(m):'')+'</div>';
   });
   var held=ownedIds();
   h+='</div><div class="section"><div class="shead"><h3>Held valleys</h3><span class="dur">'+held.length+' / '+S.th+'</span></div>';
@@ -3535,9 +3536,21 @@ function hasSpeedups(forBuild){ return (S.items.s15||0)+(S.items.s60||0)+(S.item
 var ledger = document.getElementById("ledger");
 ledger.innerHTML = RES.map(function(k){ return '<div class="res" title="'+RNAME[k]+'"><span class="ico">'+ICON[k]+'</span><b id="r-'+k+'"></b><small id="rr-'+k+'"></small></div>'; }).join("");
 
+// what a march carries, in one line: its troops by unit, who leads it, and any cargo or plunder
+function troopList(t){ var p=[]; for (var i=0;i<12;i++) if (t[i]>0) p.push(fmt(t[i])+" "+uname(i,t[i])); return p.join(", ")||"no troops"; }
+function marchHeroName(m){ if (!m.hero) return ""; var c=S.cities[cityIndex(m.city)], hs=(c&&c.heroes)||[]; for (var i=0;i<hs.length;i++) if (hs[i].id===m.hero) return hs[i].name; var h=heroById(m.hero); return h?h.name:""; }
+function marchSummary(m){
+  var bits=[fmt(sumT(m.t))+" troops: "+troopList(m.t)], hn=marchHeroName(m), carry={};
+  if (hn) bits.push("led by "+hn);
+  RES.forEach(function(k){ var n=((m.cargo&&m.cargo[k])||0)+((m.loot&&m.loot[k])||0); if (n>0) carry[k]=n; });
+  var cs=RES.filter(function(k){ return carry[k]; }).map(function(k){ return fmt(carry[k])+" "+RNAME[k].toLowerCase(); });
+  if (cs.length) bits.push((m.phase==="back"?"bringing home ":"carrying ")+cs.join(", "));
+  return bits.join(" \u00b7 ");
+}
+function marchVerb(m){ return m.phase==="wait" ? "Wave for " : m.phase==="back" ? "Returning from " : m.phase==="stay" ? "Guarding " : ({allyguard:"Marching to guard ",scout:"Scouting ",occupy:"Occupying ",found:"Founding at ",transport:"Carrying to ",reinforce:"Reinforcing ",attack:"Attacking ",conquer:"Conquering "}[m.mission]||"Marching to "); }
 function marchLine(m){
   var q=TILE_BY[m.tile], nm=q?tileName(q):m.tile, pre=(m.preset!=null||m.label!=null)?S.presets[m.preset!=null?m.preset:m.label].name+": ":"";
-  var verb = m.phase==="wait" ? "Wave for " : m.phase==="back" ? "Returning from " : m.phase==="stay" ? "Guarding " : ({allyguard:"Marching to guard ",scout:"Scouting ",occupy:"Occupying ",found:"Founding at ",transport:"Carrying to ",reinforce:"Reinforcing ",attack:"Attacking ",conquer:"Conquering "}[m.mission]);
+  var verb = marchVerb(m);
   return {txt:pre+verb+nm, cls:m.phase==="back"?"back":(m.mission==="transport"||m.mission==="reinforce")?"friend":"out"};
 }
 function marchBtns(m){
@@ -3551,7 +3564,7 @@ function renderMarchStrip(){
   var me=C().id, ms=S.marches.filter(function(m){ return m.city===me; }).sort(function(a,b){ return marchT(a)-marchT(b); });
   if (!ms.length){ if (el.innerHTML) el.innerHTML=""; el.dataset.sig=""; return; }
   var h='<details class="mstrip"'+(stripOpen?' open':'')+'><summary><b>'+ms.length+' march'+(ms.length>1?'es':'')+'</b> <span class="dur">next event in <span id="ms-next"></span></span></summary><div class="mlist">'+
-    ms.map(function(m){ var l=marchLine(m); return '<div class="mrowl '+l.cls+'"><span>'+esc(l.txt)+'</span><span class="qtime" id="ms-'+m.id+'"></span></div>'+marchBtns(m); }).join("")+'</div></details>';
+    ms.map(function(m){ var l=marchLine(m); return '<div class="mrowl '+l.cls+'"><span>'+esc(l.txt)+'</span><span class="qtime" id="ms-'+m.id+'"></span></div><div class="dur msum">'+esc(marchSummary(m))+'</div>'+marchBtns(m); }).join("")+'</div></details>';
   if (el.dataset.sig!==h){ el.innerHTML=h; el.dataset.sig=h; var d=el.querySelector("details"); d.addEventListener("toggle",function(){ stripOpen=d.open; }); }
   var nx=document.getElementById("ms-next"); if (nx) nx.textContent= isFinite(marchT(ms[0])) ? fmtT(realMs(marchT(ms[0])-S.gt)) : "(all on guard)";
   ms.forEach(function(m){ var e=document.getElementById("ms-"+m.id); if (e) e.textContent= m.phase==="stay" ? "on guard" : fmtT(realMs(marchT(m)-S.gt)); });
@@ -5749,10 +5762,27 @@ function updateTrainRow(i){
   var si=document.getElementById("tr-sinfo-"+i); if (si) setText(si, notes.join(" \u00b7 "));
   var mx=document.getElementById("tr-max-"+i); if (mx) setText(mx, "Max "+fmt(maxTrain(i)));
 }
+// troops at home, out marching (attacking, guarding allies, coming home) and their totals, for this city and every city
+function cityTroops(ci){ var c=S.cities[ci], home=c.troops.slice(), out=[0,0,0,0,0,0,0,0,0,0,0,0];
+  S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,i){ out[i]+=n; }); });
+  return {home:home, out:out, all:home.map(function(n,i){ return n+out[i]; })}; }
+function troopTotals(){
+  var here=cityTroops(S.cur), every=[0,0,0,0,0,0,0,0,0,0,0,0], per=[];
+  S.cities.forEach(function(c,ci){ var t=cityTroops(ci); t.all.forEach(function(n,i){ every[i]+=n; }); per.push({name:c.name, n:sumT(t.all), out:sumT(t.out), me:ci===S.cur}); });
+  var many=S.cities.length>1;
+  var h='<details class="det" data-det="ttot"'+(DET.ttot?' open':'')+'><summary><b>Troop totals</b> <span class="dur">'+fmt(sumT(here.all))+' in '+esc(S.name)+(sumT(here.out)?' ('+fmt(sumT(here.out))+' out marching)':'')+(many?', '+fmt(sumT(every))+' across all cities':'')+'</span></summary>';
+  h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Unit</th><th>Home</th><th>Marching</th><th>'+(many?'This city':'Total')+'</th>'+(many?'<th>All cities</th>':'')+'</tr></thead><tbody>'+
+    U.map(function(u,i){ if (!here.all[i] && !every[i]) return '';
+      return '<tr><td>'+u.name+'</td><td>'+fmt(here.home[i])+'</td><td>'+(here.out[i]?fmt(here.out[i]):'\u2014')+'</td><td><b>'+fmt(here.all[i])+'</b></td>'+(many?'<td>'+fmt(every[i])+'</td>':'')+'</tr>'; }).join("")+
+    '<tr><td><b>Total</b></td><td><b>'+fmt(sumT(here.home))+'</b></td><td><b>'+fmt(sumT(here.out))+'</b></td><td><b>'+fmt(sumT(here.all))+'</b></td>'+(many?'<td><b>'+fmt(sumT(every))+'</b></td>':'')+'</tr></tbody></table></div>';
+  if (many) h+='<p class="hint" style="margin-top:6px">'+per.map(function(p){ return (p.me?'<b>':'')+esc(p.name)+': '+fmt(p.n)+(p.out?' ('+fmt(p.out)+' marching)':'')+(p.me?'</b>':''); }).join(" \u00b7 ")+'</p>';
+  h+='<p class="dur" style="margin:4px 0 0">Marching counts everything out of the city: attacks, scouts, transports, troops guarding allies and armies on their way home. Troops still training and wounded in the Medic Camp aren\u2019t counted.</p>';
+  return h+'</details>';
+}
 function viewArmy(){
   var bl=barracksList(), total=S.troops.reduce(function(a,b){return a+b;},0), r=simResearch();
-  var h='<div class="section"><div class="shead"><h3>Your army</h3><span class="dur">'+fmt(total)+' troops, eating '+fmt(upkeep())+' food/h</span></div>'+
-    '<p class="hint">Troops eat food but never starve; food just stops at zero. Training draws from idle people (population not working the fields): <b id="idlepop"></b> right now.</p>';
+  var h='<div class="section"><div class="shead"><h3>Your army</h3><span class="dur">'+fmt(total)+' at home, eating '+fmt(upkeep())+' food/h</span></div>'+
+    '<p class="hint">Troops eat food but never starve; food just stops at zero. Training draws from idle people (population not working the fields): <b id="idlepop"></b> right now.</p>'+troopTotals();
   if (!bl.length) h+='<p class="warn">Build a Barracks on an empty city plot to train troops.</p>';
   var sp=hasSpeedups();
   bl.forEach(function(slot,n){
