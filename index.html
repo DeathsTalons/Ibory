@@ -544,7 +544,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.19";
+var APP_VERSION = "0.1.20";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -619,7 +619,7 @@ var DEF = {
   beacon:{name:"Beacon Tower",cost:{food:600,lumber:2500,stone:3000,iron:600},t:300,unique:true,
     desc:"Watches the roads. Without one, enemy armies arrive unannounced. Each level reveals more about incoming attacks: when they land, who\u2019s coming, which troops and how many, and at the top levels their plan. Your best Beacon also reads bully attacks on your allies."},
   warehouse:{name:"Warehouse",cost:{food:400,lumber:1000,stone:1000,iron:200},t:120,
-    desc:"Shields resources from plunder when your city is raided, holds your auto-train reserve so training never starves your build queue, and caps Stockpile research."},
+    desc:"Keeps resources safe when your city is raided: each Warehouse protects 50,000 \u00d7 (1+2+\u2026+its level) of every resource (50k at level 1, 2.75M at level 10), several Warehouses add up, and Stockpile research adds 10% a level. Raiders can only carry off what\u2019s above that. Also holds your auto-train reserve and caps Stockpile research."},
   farm:{name:"Farm",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"food",desc:"Grows food. Every troop eats food each hour, so your farms decide how large an army you can feed. A level 5 Farm unlocks the Stable."},
   sawmill:{name:"Sawmill",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"lumber",desc:"Cuts lumber, the main material for buildings and most troops."},
   quarry:{name:"Quarry",cost:{food:100,lumber:100,stone:250,iron:300},t:45,res:"stone",desc:"Cuts stone for walls, fortifications and the bigger buildings. Walls need a level 2 Quarry."},
@@ -1841,7 +1841,10 @@ function planAttack(q, city){
   return {waves:out, plan:choice, iq:iq};
 }
 var PLAN_NAMES={mob:"a disorganized mob",assault:"a full frontal assault",rainbow:"a rainbow strike",layered:"layered waves",blitz:"a cavalry blitz",spam:"trap-bait spam followed by a main strike"};
-function warehouseProtect(){ var p=0; S.inside.forEach(function(b){ if (b && b.type==="warehouse") p+=50000*tri(b.level); }); return p*(1+0.1*(S.tech.stockpile||0)); }
+// each Warehouse keeps 50,000 x (1+2+...+level) of EVERY resource safe from plunder; they add up, and Stockpile adds 10% a level
+function whBase(L){ return 50000*tri(L); }
+function whMul(){ return 1+0.1*(S.tech.stockpile||0); }
+function warehouseProtect(){ var p=0; S.inside.forEach(function(b){ if (b && b.type==="warehouse") p+=whBase(b.level); }); return p*whMul(); }
 function resolveDefense(w){
   var ci=cityIndex(w.city); if (!S.cities[ci] || S.cities[ci].id!==w.city) return;
   withCity(ci, function(){
@@ -5583,10 +5586,15 @@ function viewBuilding(){
   else if (s.type==="rally") h+=medicSection()+presetsSection()+'<p class="hint" style="margin-top:10px">Marches in the field are listed on the Map tab.</p>';
   else if (s.type==="market") h+='<div class="pagelabel">Trade</div>'+viewMarket();
   else if (s.type==="warehouse"){
-    var rv=S.reserve;
+    var rv=S.reserve, whs=S.inside.filter(function(b){ return b && b.type==="warehouse"; }), wp=warehouseProtect(), sp=S.tech.stockpile||0;
+    h+='<div class="section"><div class="shead"><h3>Plunder protection</h3><span class="dur"><b>'+fmt(wp)+'</b> of each</span></div>'+
+      '<p class="hint">When raiders win at '+esc(S.name)+', they can only carry off what\u2019s above this much of each resource. Each Warehouse protects 50,000 \u00d7 (1+2+\u2026+its level); they add up, and Stockpile adds 10% a level.</p>'+
+      '<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+whs.map(function(b){ return '<tr><td>Warehouse level '+b.level+'</td><td>'+fmt(whBase(b.level))+'</td></tr>'; }).join("")+
+      '<tr><td>Stockpile level '+sp+'</td><td>+'+(sp*10)+'%</td></tr><tr><td><b>Protected</b></td><td><b>'+fmt(wp)+'</b> each</td></tr></tbody></table></div>'+
+      '<p class="hint" style="margin-top:6px">Open to plunder right now: '+RES.map(function(k){ return RNAME[k]+' '+fmt(Math.max(0,S.res[k]-wp)); }).join(", ")+'.</p></div>';
     h+='<div class="section"><h3>Reserve for building</h3><p class="hint">Auto-train will never spend below these amounts, so your build and research queues always have something to work with. Manual training and everything else ignore it.</p>'+
       '<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+RES.map(function(k){ return '<tr><td>'+RNAME[k]+' <span class="dur">('+fmt(S.res[k])+')</span></td><td><input type="number" inputmode="numeric" min="0" step="1000" data-reserve="'+k+'" value="'+(rv[k]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>'+
-      '<p class="hint" style="margin-top:6px">Protected from plunder by your Warehouses: '+fmt(warehouseProtect())+' of each.</p></div>';
+      '</div>';
   }
   return h;
 }
@@ -6156,7 +6164,7 @@ function effectLine(type,L,only){
   if (type==="rally") return L+" march"+(L>1?"es":"")+" at once, up to "+fmt(10000*L)+" troops each; Logistics, Compass, Privateering and Cartography up to level "+L+(top?"":" → "+nx+" marches, "+fmt(10000*nx)+" troops each");
   if (type==="embassy") return "Room for "+Math.min(10,L)+" all"+(L===1?"y":"ies")+", hosts "+fmt(L*10000)+" troops from each ally"+(top?"":" → "+Math.min(10,nx)+" allies, "+fmt(nx*10000)+" each");
   if (type==="beacon") return beaconText(L)+(top?"":" → level "+nx+": "+beaconText(nx))+". On the Battlefield: level 8 shows how many enemy marches are on each route, level 9 the troops in each, level 10 their exact landing times";
-  if (type==="warehouse") return "Stockpile up to level "+L+(top?"":" → "+nx);
+  if (type==="warehouse") return "Protects "+fmt(whBase(L)*whMul())+" of each resource from plunder"+(top?"":" → "+fmt(whBase(nx)*whMul()))+"; Stockpile up to level "+L+(top?"":" → "+nx);
   if (type==="feasting") return "Holds "+(4+L)+" heroes"+(top?"":" → "+(4+nx));
   if (type==="inn") return (1+Math.ceil(L/2))+" heroes for hire, up to level "+(L*3)+(top?"":" → "+(1+Math.ceil(nx/2))+", up to level "+(nx*3));
   if (d.res) return fmt(tri(L)*100)+" "+d.res+"/h, "+(20*L)+" workers"+(top?"":" → "+fmt(tri(nx)*100)+"/h, "+(20*nx)+" workers");

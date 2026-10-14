@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.19
+Version 0.1.20
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 40.
 
 ## Release notes
+### 0.1.20
+- Warehouse shows its plunder protection: the effect line and "What each level does" list how much of each resource it keeps safe (and what the next level adds), the description explains the rule (50,000 x (1+2+...+level) of every resource per Warehouse, Warehouses add up, Stockpile +10% a level), and the Warehouse page opens with a Plunder protection section: each Warehouse, the Stockpile bonus, the total, and how much of each resource is open to raiders right now.
 ### 0.1.19
 - Fix: conquering an NPC city (or an AI lord's) now gives you one of every building at that city's level, plus its walls, along with the six cottages and twelve fields it already came with. Before, it arrived with only ten buildings and no walls.
 - Backport: on first load, cities you conquered before this fix are found (by the layout a conquest left) and filled in at the level you took them at: missing buildings are added, lower ones raised to that level, walls raised to it. Anything you upgraded higher stays; buildings mid-construction are left alone; a building you'd queued on an empty plot is placed there. A message lists what changed. Founded and historic cities are untouched.
