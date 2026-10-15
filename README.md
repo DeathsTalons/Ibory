@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.57
+Version 0.1.58
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,12 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.58
+- World chat: a chat button in the header opens the chat bar with World and Alliance channels (Pin keeps it on every page). Needs a cloud save to talk. Settings: World chat Shown / Hidden.
+- Single player / multiplayer: Settings > Multiplayer On / Off. Off hides alliances, invasions and PvP (and alliance chat); the rest of the game is unchanged. A first-open popup explains the choice.
+- High scores split into Single player and Multiplayer boards. Everyone starts on single player. Founding, applying to or joining an alliance, joining or launching invasions, and PvP move a save to the multiplayer boards for good, after a warning. Chatting never counts. Multiplayer boards add Invasion honor.
+- Players already in an alliance get a one-time choice: go multiplayer, or leave (founders: disband when alone) and stay single player. Earlier invasions/PvP don't count.
+- Needs the matching Worker (scores-worker 0.1.58): world chat (/wc/sync, /wc/say, admin /admin/api/wchat), the multiplayer flag (/me/mp, set automatically by alliance and invasion actions), players.mp and /board?mp=. No save version change.
 ### 0.1.57
 - Barracks: under each troop's cost, a Cost for N line shows the total resource cost of the amount typed in the box, updating as you type (red chips are resources you're short on). No save or Worker change.
 ### 0.1.56

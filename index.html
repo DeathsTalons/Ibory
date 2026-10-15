@@ -463,6 +463,10 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .dkhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .dkhead b{font:700 .9rem var(--display)}
 #dkmsgs{max-height:36vh;min-height:90px}
+.dktabs{display:flex;gap:6px}.dktabs .chipbtn{padding:4px 10px;font-size:.85rem}
+#dkhint:empty{display:none}
+.chatchip{position:relative}.chatchip .cbadge{position:absolute;top:-4px;right:-4px;background:var(--brass);color:var(--bg);border-radius:999px;padding:0 6px;font-size:.7rem;font-weight:700;line-height:1.5}.chatchip .cbadge:empty{display:none}
+.alm .wtag{color:var(--muted);font-size:.8rem;margin-left:2px}
 body.dock .wrap{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
 body.dock #toast{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
 body.bfmode #chatdock{display:none!important}
@@ -574,6 +578,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <div class="hdl"><button class="hdav" id="hdav" data-act="me" aria-label="Me: your character and account" title="Me"></button><div style="min-width:0"><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div></div>
     <div class="chiprow">
     <button class="speedchip" data-act="quests" data-tab="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
+    <button class="speedchip iconchip chatchip" id="chatchip" data-act="chat-open" aria-label="Chat" title="Chat" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="cbadge" id="chatbadge"></span></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
     <button class="speedchip iconchip" data-act="ach" data-tab="ach" aria-label="Achievements" title="Achievements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.2L7 21l5-3 5 3-1.6-7.8"/></svg><b id="abadge"></b></button>
     <button class="speedchip iconchip" data-act="lb-open" data-tab="lb" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
@@ -625,17 +630,18 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 
 <dialog id="sheet"><div class="sheet" id="sheetbody"></div></dialog>
 <div id="chatdock"><div class="dkin">
-  <button class="dkbar" data-act="dock-toggle" aria-label="Open alliance chat"><b>Alliance</b><span class="dklast" id="dklast"></span><span class="dkn" id="dkn"></span><span aria-hidden="true">&#9650;</span></button>
-  <div class="dkpanel"><div class="dkhead"><b>Alliance chat</b><span><button class="link" data-act="dock-toggle">Collapse</button> <button class="link" data-act="dock-unpin">Unpin</button></span></div>
+  <button class="dkbar" data-act="dock-toggle" aria-label="Open chat"><b id="dkch">Chat</b><span class="dklast" id="dklast"></span><span class="dkn" id="dkn"></span><span aria-hidden="true">&#9650;</span></button>
+  <div class="dkpanel"><div class="dkhead"><span class="dktabs" id="dktabs"></span><span><button class="link" data-act="dock-pin" id="dkpin">Pin</button> <button class="link" data-act="dock-toggle">Collapse</button> <button class="link" data-act="dock-close">Close</button></span></div>
     <div id="dkmsgs" class="alchat"></div>
-    <div class="farmadd" id="dkform" style="margin-top:8px"><input id="dockin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn small" data-act="dock-send">Send</button></div></div>
+    <p class="hint" id="dkhint" style="margin:6px 0 0"></p>
+    <div class="farmadd" id="dkform" style="margin-top:8px"><input id="dockin" type="text" maxlength="300" autocomplete="off" placeholder="Message" style="width:auto;flex:1"><button class="btn small" data-act="dock-send">Send</button></div></div>
 </div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.57";
+var APP_VERSION = "0.1.58";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2698,6 +2704,10 @@ var LB_URL = "https://ibory-scores.codylspaulding.workers.dev"; // the Worker ad
 var LB_HC=[12,14,16,18], lbData={}, lbCat="prestige", lbBusy=false, lbErr="", lbLastSync=0;
 var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Kingdom rep"],["college","War College"]]
   .concat(LB_HC.map(function(L){ return ["hc"+L,"First L"+L+" historic"]; }));
+var lbMpSel=null; // which boards are open: null follows this save (single until it does something multiplayer)
+function lbMp(){ return lbMpSel==null ? (S.mp?1:0) : lbMpSel; }
+function lbCats(){ return lbMp() ? LB_CATS.concat([["honor","Invasion honor"]]) : LB_CATS; }
+function lbKey(){ return lbCat+"|"+lbMp(); }
 function lbHex(n){ var a=new Uint8Array(n); (window.crypto||window.msCrypto).getRandomValues(a); return [].map.call(a,function(b){ return ("0"+b.toString(16)).slice(-2); }).join(""); }
 function lbOn(){ return !!(LB_URL && S.lb && S.lb.on && !S.lb.removed); }
 // everyone is on the high scores unless they leave: the name follows the lord's name (or first city) until they pick their own
@@ -2722,20 +2732,33 @@ function lbAvatar(r){ // a small picture for each high scores row: yours straigh
   return avatarHtml(pf||{}, r.name, true);
 }
 function lbSync(force){
-  profSync(); lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
-  try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
+  profSync(); mpTell(); lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
+  try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),mp:S.mp?1:0,cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
     .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); } }).catch(function(){}); } catch(e){}
 }
 function lbFetch(cat){
   if (!LB_URL) return; lbCat=cat||lbCat; lbBusy=true; lbErr=""; lastSheet=""; renderSheet();
-  fetch(LB_URL+"/board?cat="+encodeURIComponent(lbCat)+(lbOn()&&S.lb.id?"&id="+S.lb.id:""),{cache:"no-store"})
-    .then(function(r){ return r.json(); }).then(function(d){ lbBusy=false; if (d && d.rows){ lbData[lbCat]=d; } else lbErr=(d&&d.error)||"Couldn\u2019t load the high scores"; lastSheet=""; renderSheet(); })
+  if (!lbCats().some(function(c){ return c[0]===lbCat; })) lbCat="prestige"; var lbk=lbKey();
+  fetch(LB_URL+"/board?cat="+encodeURIComponent(lbCat)+"&mp="+lbMp()+(lbOn()&&S.lb.id?"&id="+S.lb.id:""),{cache:"no-store"})
+    .then(function(r){ return r.json(); }).then(function(d){ lbBusy=false; if (d && d.rows){ lbData[lbk]=d; } else lbErr=(d&&d.error)||"Couldn\u2019t load the high scores"; lastSheet=""; renderSheet(); })
     .catch(function(){ lbBusy=false; lbErr="Couldn\u2019t reach the high scores. Check your connection."; lastSheet=""; renderSheet(); });
 }
 /* ---------- player alliances (need a cloud save; the server keeps everything) ---------- */
 var ALS={d:null, list:null, chat:[], top:0, busy:false, err:"", msg:"", sub:"chat", last:0, listAt:0, listBusy:false, sort:"prestige", armed:null, aid:null};
 var AL_PERM_NAMES={accept:"Answer applications", kick:"Remove members", promote:"Change ranks", desc:"Edit the description", chat:"Moderate chat", bank:"Spend the alliance bank", map:"Move things on the alliance map", monster:"Summon monsters", research:"Start alliance research"};
 function alOn(){ return cbOn(); }
+/* ---------- single player / multiplayer ----------
+   S.mpOn: multiplayer features shown (alliances, invasions, PvP); off = the classic single-player game. S.wcOn: world chat shown.
+   S.mp: this save is on the multiplayer high scores. Set (after a warning) by founding, applying to or joining an alliance, invasions or PvP. Never goes back.
+   S.mpIntro: the first-open explanation was answered. S.mpGrace: a player already in an alliance made their one free choice. */
+function mpShown(){ return S.mpOn!==false; }
+function wcShown(){ return S.wcOn!==false; }
+var MP_ACTS={"al-create":"Founding an alliance", "al-apply":"Applying to an alliance", "iv-optin":"Joining invasions", "iv-find":"Launching an invasion", "pv-create":"Starting a PvP match", "pv-join":"Joining a PvP match"};
+var mpPending=null, mpGraceAsked=false;
+function mpGo(why){ if (!S.mp){ S.mp=true; S.mpWhy=why||"chose"; S.mpAt=Date.now(); save(); lbData={}; lbLastSync=0; } mpTell(); }
+function mpTell(){ if (S.mp && !S.mpSent && cbOn()) alPost("/me/mp",{why:S.mpWhy||"chose"}).then(function(d){ if (d && d.ok){ S.mpSent=1; save(); } }).catch(function(){}); }
+function mpInAlliance(){ return !!(alMine() || S.alMember); }
+function mpNeedsGrace(){ return !S.mp && !S.mpGrace && mpInAlliance(); }
 function alMine(){ return ALS.d && ALS.d.member && ALS.d.al ? ALS.d.al : null; }
 function alPost(path, body){ var b={name:S.cloud.name, token:S.cloud.token}; for (var k in body) b[k]=body[k];
   return cbPost(path,b).then(function(r){ return r.json().then(function(d){ if (!r.ok && !d.error) d.error="Server error"; return d; }); }); }
@@ -2779,6 +2802,7 @@ function alApplyHelps(hp){
 }
 function alTick(){
   if (document.hidden) return;
+  if (!mpShown() && !mpNeedsGrace()) return; // multiplayer off: no alliance traffic (unless a member still has to make their one-time choice)
   arTick();
   if (!alOn()) return;
   if (alMine()){ var sig=alMyJobs().map(function(j){ return j.ref; }).join("|"); if (sig!==ALS.jobSig && Date.now()-ALS.last>3000) ALS.last=0; } // a new build or research: tell the alliance soon
@@ -3126,25 +3150,72 @@ function fillAlChat(){
   if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
 }
 /* pinned chat dock: a bar at the bottom of every page (only for alliance members who pinned it); it opens into the chat */
-var dockPin=false, dockOpen=false;
-try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorage.getItem("ibory-dock-open")==="1"; } catch(e){}
-function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); } catch(e){} }
+var dockPin=false, dockOpen=false, dockCh="world";
+try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorage.getItem("ibory-dock-open")==="1"; dockCh=localStorage.getItem("ibory-dock-ch")||"world"; } catch(e){}
+function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); localStorage.setItem("ibory-dock-ch",dockCh); } catch(e){} }
+function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); return c; }
+/* ---------- world chat: everyone with a cloud save; lives in the chat dock next to alliance chat ---------- */
+var WCH={lines:[], top:0, last:0, busy:false, mutedUntil:0, err:""};
+function wcUnread(){ var seen=S.wcSeen||0, me=S.cloud&&S.cloud.name, n=0; WCH.lines.forEach(function(l){ if (l.id>seen && l.name!==me) n++; }); return n; }
+function wcSync(){
+  if (WCH.busy || !cbOn()) return; WCH.busy=true;
+  alPost("/wc/sync",{since:WCH.top}).then(function(d){ WCH.busy=false; WCH.last=Date.now(); if (d.error){ WCH.err=d.error; renderDock(); return; } WCH.err="";
+    var gone={}; (d.gone||[]).forEach(function(id){ gone[id]=1; }); (d.lines||[]).forEach(function(l){ if (l.del) gone[l.id]=1; });
+    WCH.lines=WCH.lines.concat((d.lines||[]).filter(function(l){ return !l.del; })).filter(function(l){ return !gone[l.id]; }).slice(-150);
+    (d.lines||[]).forEach(function(l){ if (l.id>WCH.top) WCH.top=l.id; });
+    WCH.mutedUntil=d.mutedUntil||0; if (d.mp && !S.mp){ S.mp=true; S.mpSent=1; save(); }
+    if (!S.wcSeen && WCH.top) S.wcSeen=WCH.top; // first look: older lines aren't "new"
+    renderDock(); })
+  .catch(function(){ WCH.busy=false; WCH.last=Date.now(); });
+}
+function wcTick(){
+  if (document.hidden || !wcShown() || !cbOn()) return;
+  var looking = dockOpen && dockCh==="world" && dockChans().indexOf("world")>=0;
+  if (Date.now()-WCH.last >= (looking?4000:60000)) wcSync();
+}
+setInterval(wcTick, 1000);
+function wcSend(){ var i=document.getElementById("dockin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value="";
+  alPost("/wc/say",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { WCH.last=0; wcSync(); } }).catch(function(){ toast("Couldn’t reach the server"); i.value=t; }); }
+function wcTime(at){ var d=new Date(at); return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"); }
 function renderDock(){
-  var el=document.getElementById("chatdock"); if (!el) return;
-  var show = dockPin && alOn() && !!alMine() && !(tab==="guild" && ALS.sub==="chat") && !document.body.classList.contains("bfmode");
+  var el=document.getElementById("chatdock"); if (!el || !WCH) return; // (world chat state is set up a moment after the first render)
+  var chans=dockChans(), chip=document.getElementById("chatchip");
+  if (chip){ var cd=chans.length?"":"none"; if (chip.style.display!==cd) chip.style.display=cd; }
+  if (chans.length && chans.indexOf(dockCh)<0) dockCh=chans[0];
+  var unW=wcShown()?wcUnread():0, unA=(chans.indexOf("al")>=0)?alUnread():0;
+  setText(document.getElementById("chatbadge"), (unW+unA)?String(Math.min(99,unW+unA)):"");
+  var onAlPage = tab==="guild" && ALS.sub==="chat" && dockCh==="al";
+  var show = chans.length && (dockPin || dockOpen) && !onAlPage && !document.body.classList.contains("bfmode");
   if (!show){ if (el.style.display!=="none"){ el.style.display="none"; document.body.classList.remove("dock"); } return; }
   if (el.style.display!=="block"){ el.style.display="block"; document.body.classList.add("dock"); }
   el.classList.toggle("open", dockOpen);
-  var al=alMine(), my=al.my||{}, msgs=ALS.chat.filter(function(c){ return !c.del; });
-  var last=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ last=msgs[i]; break; }
-  setText(document.getElementById("dklast"), last ? last.name+": "+last.text : "No messages yet");
+  setText(document.getElementById("dkpin"), dockPin?"Unpin":"Pin");
+  var tabsH=chans.length>1 ? chans.map(function(c){ var n=c==="world"?unW:unA; return '<button class="chipbtn'+(c===dockCh?' on':'')+'" data-act="dock-ch" data-ch="'+c+'">'+(c==="world"?"World":"Alliance")+(n&&c!==dockCh?' ('+n+')':'')+'</button>'; }).join("") : '<b>'+(dockCh==="world"?"World chat":"Alliance chat")+'</b>';
+  var tb=document.getElementById("dktabs"); if (tb && tb.innerHTML!==tabsH) tb.innerHTML=tabsH;
+  var inp=document.getElementById("dockin"); if (inp){ var ph=dockCh==="world"?"Message everyone":"Message your alliance"; if (inp.placeholder!==ph) inp.placeholder=ph; }
+  var fm=document.getElementById("dkform"), hint="", canSay=true, msgs, hh, lastTxt;
+  if (dockCh==="world"){
+    if (!cbOn()){ canSay=false; hint="World chat needs a cloud save. Set one up in Settings, then come back."; }
+    else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
+    else if (WCH.err) hint=WCH.err;
+    msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?lw.name+": "+lw.text:(cbOn()?"No messages yet":"Sign in to chat");
+    hh=msgs.length ? msgs.slice(-80).map(function(c){ return '<div class="alm"><b>'+esc(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    setText(document.getElementById("dkch"), "World");
+  } else {
+    var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
+    msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
+    lastTxt=la?la.name+": "+la.text:"No messages yet";
+    hh=msgs.length ? msgs.slice(-60).map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+esc(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    setText(document.getElementById("dkch"), "Alliance");
+  }
+  setText(document.getElementById("dklast"), lastTxt);
+  setText(document.getElementById("dkhint"), hint);
+  var fd=canSay?"":"none"; if (fm && fm.style.display!==fd) fm.style.display=fd;
   if (dockOpen){
-    if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
-    var box=document.getElementById("dkmsgs"), hh=msgs.length ? msgs.slice(-60).map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+esc(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
-    if (box && box._sig!==hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig; box.innerHTML=hh; box._sig=hh; if (atBottom) box.scrollTop=box.scrollHeight; }
-    var fm=document.getElementById("dkform"), muted=my.mutedUntil>Date.now(), fd=muted?"none":""; if (fm && fm.style.display!==fd) fm.style.display=fd;
+    if (dockCh==="world"){ if (WCH.top>(S.wcSeen||0)) S.wcSeen=WCH.top; } else if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
+    var box=document.getElementById("dkmsgs"); if (box && box._sig!==dockCh+hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig || box._sig.indexOf(dockCh)!==0; box.innerHTML=hh; box._sig=dockCh+hh; if (atBottom) box.scrollTop=box.scrollHeight; }
     setText(document.getElementById("dkn"), "");
-  } else { var un=alUnread(); setText(document.getElementById("dkn"), un?String(un):""); }
+  } else { var un=dockCh==="world"?unW:unA; setText(document.getElementById("dkn"), un?String(un):""); }
 }
 function alSend(id){ var i=document.getElementById(id||"alchatin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value=""; alPost("/al/chat",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { ALS.last=0; alSync(); } }).catch(function(){ toast("Couldn\u2019t reach the server"); i.value=t; }); }
 /* ---------- cloud backup: name + password, kept on the high-scores Worker ---------- */
@@ -3366,8 +3437,10 @@ function lbSheet(){
       '<div><label for="lbname" class="sub">Name on the boards (2 to 20 characters)</label><input id="lbname" type="text" maxlength="20" value="'+esc((S.lb&&S.lb.name)||S.lord||"")+'" placeholder="Your name"></div>'+
       '<div class="upbtns"><button class="btn" data-act="lb-join">'+(S.lb&&S.lb.optedOut?'Rejoin the high scores':'Join the high scores')+'</button></div></details>';
   }
-  var d=lbData[lbCat];
-  h+='<div class="lbtabs" id="lbtabs">'+LB_CATS.map(function(c){ return '<button class="chipbtn'+(c[0]===lbCat?' on':'')+'" data-act="lb-cat" data-cat="'+c[0]+'">'+c[1]+'</button>'; }).join("")+'</div>';
+  var d=lbData[lbKey()];
+  h+='<div class="speeds" style="margin-bottom:8px"><button data-act="lb-mp" data-v="0" aria-pressed="'+!lbMp()+'">Single player</button><button data-act="lb-mp" data-v="1" aria-pressed="'+!!lbMp()+'">Multiplayer</button></div>'+
+    '<p class="hint" style="margin-top:0">You are on the <b>'+(S.mp?'multiplayer':'single-player')+'</b> boards.'+(S.mp?'':' Alliances, invasions and PvP move you to multiplayer for good.')+'</p>';
+  h+='<div class="lbtabs" id="lbtabs">'+lbCats().map(function(c){ return '<button class="chipbtn'+(c[0]===lbCat?' on':'')+'" data-act="lb-cat" data-cat="'+c[0]+'">'+c[1]+'</button>'; }).join("")+'</div>';
   if (lbErr) h+='<p class="why">'+esc(lbErr)+'</p>';
   if (!d) h+='<p class="hint">'+(lbBusy?'Loading\u2026':'')+'</p>';
   else {
@@ -5849,7 +5922,7 @@ function bfSendSheet(){
 // and you scout for up to 6 hours before picking one of their cities. The fight runs 6 hours camp against camp. One city leaves your
 // map while it is out (its builds, research and training wait). The server keeps the result in a ledger; this game applies it once.
 var IV={st:null, at:0, skew:0, busy:0, err:"", search:0, lastPoll:0, lastSearch:0, lastPack:0, map:null, mapBusy:0, draft:Z12(), hero:0, scoutN:0, tx:"", ty:"", armed:"", seenId:"", leaveArmed:0, msg:""};
-function invShown(){ return pvShown() && !!LB_URL; }
+function invShown(){ return pvShown() && !!LB_URL && mpShown(); }
 function invOk(){ return invShown() && cbOn(); }
 function invPost(path, body){
   body=body||{}; body.name=S.cloud.name; body.token=S.cloud.token;
@@ -6144,7 +6217,7 @@ var PV_LEAVE_ARMED=false;
 var PV_TESTER=758262355; // the tester code's hash (the code itself isn't in the game); entered in Settings' developer box
 // the save's PvP identity: ratings follow it, and a cloud backup carries it to a new device
 function pvId(){ if (!S.pvpId || !S.pvpId.id) S.pvpId={id:lbHex(16), token:lbHex(16)}; return S.pvpId; }
-function pvShown(){ return devOn() || !!S.pvpTester; }
+function pvShown(){ return (devOn() || !!S.pvpTester) && mpShown(); }
 PV.board={data:null, at:0, busy:false, err:""};
 function pvBoardLoad(force){
   var B=PV.board; if (!LB_URL || B.busy || (!force && B.at && Date.now()-B.at<60000)) return;
@@ -6578,6 +6651,31 @@ function meSheet(){
     row("Achievements",achTotal())+row("War College stars",st.college)+row("Kingdom rep",fmt(st.rep))+row("War Marks",fmt(S.warMarks||0))+row("Days played",fmt(Math.floor((S.gt||0)/86400000)))+
     row("Cloud save",(S.cloud&&S.cloud.name)?esc(S.cloud.name):"not set up")+'</div>';
   return h+'<button class="closebtn" data-act="close">Close</button>';
+}
+function mpIntroSheet(){
+  return '<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>How do you want to play?</h2><div class="sub">You can change this any time in Settings.</div></div></div>'+
+    '<p>Ibory is a complete <b>single-player</b> game. Every building, hero, battle and quest works without anyone else.</p>'+
+    '<p><b>Multiplayer</b> adds player alliances, invasions and PvP. There is no pay to win in it, and there never will be: the only things ever sold are cosmetics like picture frames.</p>'+
+    '<p>The high scores are split in two. Everyone starts on the <b>single-player</b> boards. Founding, applying to or joining an alliance, invasions and PvP move you to the <b>multiplayer</b> boards for good (the game warns you first). Chatting never counts.</p>'+
+    '<p class="hint">Switching multiplayer off only hides it. If you have ever done something multiplayer, your high scores stay on the multiplayer boards.</p>'+
+    '<label class="chk"><input type="checkbox" id="mpiwc"'+(S.wcOn===false?' checked':'')+'> With single player, hide the world chat too</label>'+
+    '<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn" data-act="mp-intro" data-v="on">Multiplayer on</button><button class="btn ghost" data-act="mp-intro" data-v="off">Single player only</button></div>';
+}
+function mpWarnSheet(act){
+  return '<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>Move to the multiplayer boards?</h2><div class="sub">'+esc(MP_ACTS[act]||"This")+' is multiplayer.</div></div></div>'+
+    '<p>Doing this moves your high scores to the <b>multiplayer boards</b>, and there is no going back. You will no longer be ranked with single-player realms.</p>'+
+    '<p class="hint">Nothing else changes: your realm, troops and items stay exactly as they are. Chatting never counts.</p>'+
+    '<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn" data-act="mp-warn-ok">Continue</button><button class="btn ghost" data-act="close">Cancel</button></div>';
+}
+function mpGraceSheet(){
+  var al=alMine(), founder=al && al.my.rank===0, alone=al && al.members.length<=1;
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>Single player or multiplayer?</h2><div class="sub">A one-time choice for players already in an alliance</div></div></div>'+
+    '<p>The high scores are now split into single-player and multiplayer boards. Being in an alliance counts as multiplayer, but since you joined '+(al?esc(al.name)+' ':'yours ')+'before the split, you get to choose:</p>'+
+    '<p><b>Go multiplayer</b>: stay in your alliance. Your high scores move to the multiplayer boards for good.</p>'+
+    '<p><b>Stay single player</b>: '+(founder?(alone?'disband the alliance (you are its only member).':'you\\u2019re the founder, so hand the alliance to another member first (Alliance, Members), then come back here to leave.'):'leave the alliance.')+' You stay on the single-player boards. Anything you did in invasions or PvP before the split doesn\\u2019t count.</p>';
+  if (!al) h+='<p class="hint">Checking your alliance\\u2026</p>';
+  h+='<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn" data-act="mp-grace-go">Go multiplayer</button><button class="btn ghost" data-act="mp-grace-leave"'+(!al||(founder&&!alone)?' disabled':'')+'>'+(founder?'Disband and stay single':'Leave and stay single')+'</button></div>';
+  return h+'<button class="closebtn" data-act="close">Decide later</button>';
 }
 function meImageFromFile(f){
   if (!f) return; if (f.type && !/^image\//.test(f.type) && !/\.(png|jpe?g|webp|gif|bmp|avif|heic|heif)$/i.test(f.name||"")){ toast("That file isn’t an image"); return; } if (f.size>40*1024*1024){ toast("That image is too big"); return; }
@@ -7470,6 +7568,7 @@ function renderView(force){
     if (lastView!=="war"){ v.innerHTML=viewWar(); lastView="war"; renderSimResult(); }
     setTabs(); return;
   }
+  if (tab==="guild" && !mpShown()) tab="city";
   if (tab==="guild"){ // chat keeps updating even while you type: it lives in its own box
     var gh="guild|"+viewGuild(), typing=v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (!typing && (gh!==lastView || force)){ var amo=document.getElementById("almap"), asl=amo?[amo.scrollLeft,amo.scrollTop]:null; v.innerHTML=gh.slice(6); lastView=gh; wireDetails(v);
@@ -7498,7 +7597,8 @@ function renderCityBar(){
   if (el.innerHTML!==h) el.innerHTML=h;
 }
 function queueVis(){ var qd=document.querySelector(".queue"); if (qd) qd.style.display=(tab==="city"||tab==="bldg")?"":"none"; }
-function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.tabs button, .chiprow [data-tab]").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab===tab?"true":"false"); }); }
+function setTabs(){ renderCityBar(); queueVis();
+  var gtb=document.querySelector('nav.tabs [data-tab="guild"]'); if (gtb && gtb.hidden!==!mpShown()) gtb.hidden=!mpShown(); document.querySelectorAll("nav.tabs button, .chiprow [data-tab]").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab===tab?"true":"false"); }); }
 
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
@@ -7529,7 +7629,7 @@ var lbSwipe=null;
 function lbHere(){ return sheetFor ? sheetFor.kind==="lb" : tab==="lb"; }
 function lbTS(e){ if (!lbHere() || e.target.closest("#lbtabs") || e.touches.length!==1) { lbSwipe=null; return; } lbSwipe={x:e.touches[0].clientX, y:e.touches[0].clientY}; }
 function lbTE(e){ if (!lbSwipe || !lbHere() || !lbOn()) return; var t=e.changedTouches[0], dx=t.clientX-lbSwipe.x, dy=t.clientY-lbSwipe.y; lbSwipe=null;
-  if (Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.5) return; var ks=LB_CATS.map(function(c){ return c[0]; }), i=ks.indexOf(lbCat); i=(i+(dx<0?1:-1)+ks.length)%ks.length; lbFetch(ks[i]); }
+  if (Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.5) return; var ks=lbCats().map(function(c){ return c[0]; }), i=ks.indexOf(lbCat); i=(i+(dx<0?1:-1)+ks.length)%ks.length; lbFetch(ks[i]); }
 [sheet, document.getElementById("view")].forEach(function(el){ el.addEventListener("touchstart",lbTS,{passive:true}); el.addEventListener("touchend",lbTE,{passive:true}); });
 sheet.addEventListener("cancel",function(e){ if (sheetFor && sheetFor.kind==="gearpick" && sheetFor.back!=null){ e.preventDefault(); sheetBack(); } });
 sheet.addEventListener("close",function(){ sheetFor=null; });
@@ -7590,6 +7690,9 @@ function renderSheetCore(){
       '<div class="sub">Ibory version <b>'+APP_VERSION+'</b></div>'+
       '<div class="btnrow"><button class="btn ghost small" data-act="force-update">Update now</button></div><div class="hint">Gets the newest version of the game and reloads. Your save is not touched.</div>'+
       '<div class="sub" id="storstat">'+storageStatus()+'</div>'+
+      '<div><div class="h3" style="margin-bottom:6px">Multiplayer</div><div class="speeds"><button data-act="mp-set" data-v="on" aria-pressed="'+mpShown()+'">On</button><button data-act="mp-set" data-v="off" aria-pressed="'+!mpShown()+'">Off: single player</button></div>'+
+        '<div class="hint">Off hides alliances, invasions and PvP. Your high scores: <b>'+(S.mp?'multiplayer boards (for good)':'single-player boards')+'</b>.</div></div>'+
+      '<div><div class="h3" style="margin-bottom:6px">World chat</div><div class="speeds"><button data-act="wc-set" data-v="on" aria-pressed="'+wcShown()+'">Shown</button><button data-act="wc-set" data-v="off" aria-pressed="'+!wcShown()+'">Hidden</button></div></div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="allyname" class="sub">Kingdom name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
       '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+
@@ -7643,6 +7746,12 @@ function renderSheetCore(){
     h=achSheet();
   } else if (sheetFor.kind==="me"){
     h=meSheet();
+  } else if (sheetFor.kind==="mpintro"){
+    h=mpIntroSheet();
+  } else if (sheetFor.kind==="mpwarn"){
+    h=mpWarnSheet(sheetFor.act);
+  } else if (sheetFor.kind==="mpgrace"){
+    h=mpGraceSheet();
   } else if (sheetFor.kind==="quests"){
     h=questSheet();
   } else if (sheetFor.kind==="threat"){
@@ -7959,6 +8068,23 @@ document.addEventListener("click",function(e){
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
   if (act.indexOf("dbg-")===0 && !devOn()) return;
+  if (MP_ACTS[act] && !S.mp){ mpPending=a; openSheet({kind:"mpwarn", act:act}); return; } // multiplayer actions move you to the multiplayer high scores: ask first
+  if (act==="mp-warn-ok"){ var mpa=mpPending, mpk=sheetFor&&sheetFor.act; mpPending=null; mpGo(MP_ACTS[mpk]||"chose"); closeSheet(); toast("You\u2019re on the multiplayer high scores now"); if (mpa && document.contains(mpa)) mpa.click(); return; }
+  if (act==="mp-intro"){ var mpwc=document.getElementById("mpiwc"); S.mpIntro=1; S.mpOn = a.dataset.v==="on"; if (!S.mpOn && mpwc) S.wcOn=!mpwc.checked; save(); closeSheet(); lastView=""; refresh(); renderDock();
+    toast(S.mpOn?"Multiplayer is on. You can switch any time in Settings":"Single player it is. You can switch any time in Settings");
+    if (mpNeedsGrace()) setTimeout(function(){ openSheet({kind:"mpgrace"}); },400); return; }
+  if (act==="mp-set"){ S.mpOn = a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); renderDock(); if (!S.mpOn && mpNeedsGrace()) openSheet({kind:"mpgrace"}); return; }
+  if (act==="wc-set"){ S.wcOn = a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); renderDock(); return; }
+  if (act==="mp-grace-go"){ S.mpGrace=1; mpGo("alliance"); closeSheet(); toast("You stay in your alliance, on the multiplayer high scores"); return; }
+  if (act==="mp-grace-leave"){ var ga=alMine(); if (!ga){ ALS.last=0; toast("Checking your alliance\u2026 try again in a moment"); return; }
+    var gdone=function(){ S.mpGrace=1; S.alMember=false; S.alFx={}; save(); closeSheet(); toast("You left the alliance and stay on the single-player high scores"); };
+    if (ga.my.rank===0){ if (ga.members.length>1){ toast("Hand the alliance to another member first (Alliance, Members), then come back"); return; } alDo("/al/disband",{},"Alliance disbanded",gdone); }
+    else alDo("/al/leave",{},"You left the alliance",gdone);
+    return; }
+  if (act==="chat-open"){ dockOpen=true; dockSave(); var chs=dockChans(); if (chs.indexOf(dockCh)<0 && chs.length) dockCh=chs[0]; renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb0=document.getElementById("dkmsgs"); if (dkb0) dkb0.scrollTop=dkb0.scrollHeight; return; }
+  if (act==="dock-ch"){ dockCh=a.dataset.ch; dockSave(); renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb1=document.getElementById("dkmsgs"); if (dkb1) dkb1.scrollTop=dkb1.scrollHeight; return; }
+  if (act==="dock-close"){ dockOpen=false; dockSave(); renderDock(); return; }
+  if (act==="dock-pin"){ dockPin=!dockPin; dockSave(); renderDock(); toast(dockPin?"Chat pinned to the bottom of every page":"Chat unpinned"); return; }
   if (act.indexOf("iv-")===0 && invAct(act,a)) return;
   if (act==="dev-unlock"){ var dpw=document.getElementById("devpw"), dv=dpw?dpw.value.trim():""; if (devHash(dv)===2422952517){ devSet(true); toast("Developer tools unlocked"); armed=null; lastSheet=""; renderSheet(); }
     else { var dm=document.getElementById("devmsg"), isGift=devHash(dv.toLowerCase())===4145256078 || devHash(dv.toLowerCase())===PV_TESTER; if (dm) dm.textContent=isGift?"That\u2019s a gift code. Use the Gift codes box above.":"Wrong password"; } return; }
@@ -8006,6 +8132,7 @@ document.addEventListener("click",function(e){
     lastSheet=""; renderSheet(); return; }
   if (act==="wc-run"){ var wx=wcById(sheetFor&&sheetFor.id); if (!wx) return; wcRun(wx); sheetBody.scrollTop=0; return; }
   if (act==="lb-cat"){ lbFetch(a.dataset.cat); return; }
+  if (act==="lb-mp"){ lbMpSel=+a.dataset.v; lbFetch(); return; }
   if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
   if (act==="lb-join"){ var jn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim();
     if (jn.length<2){ lbErr="Pick a name of 2 to 20 characters."; lastSheet=""; renderSheet(); return; }
@@ -8358,8 +8485,7 @@ document.addEventListener("click",function(e){
     simOut=null; closeSheet(); tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
   if (act==="dock-toggle"){ dockOpen=!dockOpen; dockSave(); renderDock(); if (dockOpen){ var dkb=document.getElementById("dkmsgs"); if (dkb) dkb.scrollTop=dkb.scrollHeight; ALS.last=0; } return; }
-  if (act==="dock-unpin"){ dockPin=false; dockOpen=false; dockSave(); renderDock(); toast("Chat unpinned. You can pin it again from the Alliance tab"); return; }
-  if (act==="dock-send"){ alSend("dockin"); return; }
+  if (act==="dock-send"){ if (dockCh==="world") wcSend(); else alSend("dockin"); return; }
   if (act==="march-repeat"){
     var rpm=S.marches.filter(function(x){ return x.id===+a.dataset.m; })[0]; if (!rpm) return;
     rpm.rep=!rpm.rep; if (rpm.rep){ rpm.t0=rpm.t0||rpm.t.slice(); rpm.hero0=rpm.hero0!=null?rpm.hero0:(rpm.hero||0); }
@@ -8698,7 +8824,7 @@ document.addEventListener("input",function(e){
     if (e.target.dataset.sim==="def" && sim.def.preset!=="custom"){ sim.def.preset="custom"; var sel=document.getElementById("npcsel"); if (sel) sel.value="custom"; }
   }
 });
-document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); alSend("dockin"); } });
+document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else alSend("dockin"); } });
 document.addEventListener("change",function(e){
   if (e.target.dataset && e.target.dataset.arlv!=null){ ARL[e.target.dataset.arlv]=+e.target.value; e.target.blur(); lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }
@@ -8789,6 +8915,8 @@ document.addEventListener("visibilitychange",function(){ if (document.hidden) lb
 if ("serviceWorker" in navigator && location.protocol==="https:" && !/claude\.ai|claudeusercontent/.test(location.hostname)){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
 wireDetails(document);
 setInterval(save,5000);
+setTimeout(function(){ if (!S.mpIntro && !sheetFor && !saveLocked) openSheet({kind:"mpintro"}); },1200); // first open: single player or multiplayer
+setInterval(function(){ if (sheetFor || saveLocked || !S.mpIntro || mpGraceAsked || !mpNeedsGrace() || !alMine()) return; mpGraceAsked=true; openSheet({kind:"mpgrace"}); },3000);
 setTimeout(function(){ bkSnapshot("auto"); },60000); setInterval(function(){ bkSnapshot("auto"); },120000);
 setInterval(function(){ if (saveLocked && !sheetFor) openSheet({kind:"recover"}); },15000);
 if (loadFail || recoverOffer) setTimeout(function(){ openSheet({kind:"recover"}); },800);
