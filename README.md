@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.33
+Version 0.1.37
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,18 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 44.
 
 ## Release notes
+### 0.1.37
+- Hiding troops reworked: the button sits at the top of the Map tab, every group is its own march with its troops listed, each takes a Rally Spot slot and the usual army size limit, and hidden troops hunt for their own food. (Folded into the 0.1.36 notes below.)
+### 0.1.36
+- Research with 5 minutes or less left can be finished free, like buildings.
+- The build and research queues now live in a "Queued" dropdown inside the running-work dropdown at the top, instead of on the City and Academy pages.
+- Hide troops in the woods (button at the top of the Map tab): send troops (and a hero) out of the city where attackers won't find them. Each group is its own march, listed with its troops, and "Recall now" brings it back instantly. Hidden troops hunt for their own food. Each group takes a Rally Spot slot and the usual army size limit.
+### 0.1.35
+- Camps reworked: an Occupy march now has a "Stay and make camp" box. If it wins, that army (and its hero) stays on the tile as a camp; nobody can join it later. Without the box, the army comes home as before. Pick the camp under "March from" to attack, scout or occupy from it; those marches return to the camp and send their plunder home. Camps show on the map as a red tent on the held tile, so others can spot them; attacks on camps come later, with invasions and player alliances. Station-troops marches from 0.1.34 are gone.
+### 0.1.34
+- Camps: station troops (and a hero) on a valley or flat you hold. When you attack, scout or occupy, pick the camp under "March from" and the march leaves from that tile: shorter trips to far targets. The army comes back to the camp, and its plunder goes straight home. The held tile's panel shows the camp, lets you station more troops, and packs it up (everyone marches home). Releasing the tile packs up its camp. A camp counts as one of your marches. Camps can't be attacked.
+- Share reports: a Share button on any full battle report sends a copy to the server and gives you a link anyone can open (no app needed). Links last 30 days; sharing the same report again keeps it 30 more days.
+- Needs the updated Worker (worker.js): it adds a table for shared reports by itself.
 ### 0.1.33
 - Fortification goals: the same line system as troop goals, in Walls and fortifications. Turn on Auto-build and the wall crews build from the first unfinished line whenever they're free, leftmost short fortification first, and go back to line 1 the moment an attack knocks it short. Each line has its own order and batch size (Auto is about 30 minutes of work). Lines can be typed like tp:100,ab:50,at:20 (tp traps, ab abatis, at archer towers, rl rolling logs, tb trebuchets). Locked kinds, or ones with no wall space left, are skipped. Respects the Warehouse reserve.
 ### 0.1.32
