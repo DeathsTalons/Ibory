@@ -163,9 +163,10 @@ details.rep summary{list-style-position:outside;line-height:1.35}
 .citybar:empty{display:none}
 .citybar button{flex:none;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 14px;cursor:pointer;font:500 .92rem var(--display)}
 .citybar button[aria-pressed="true"]{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
-nav.tabs{display:flex;gap:2px;margin:0;scroll-behavior:smooth;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
-nav.tabs::-webkit-scrollbar{display:none}
-nav.tabs button{border:0;background:none;padding:9px 11px 10px;cursor:pointer;color:var(--muted);font:500 1rem var(--display);letter-spacing:.03em;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;flex:none}
+nav.tabs{display:block;margin:0}
+nav.tabs .tabrow{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+nav.tabs button{border:0;background:none;padding:9px 6px 10px;cursor:pointer;color:var(--muted);font:500 1rem var(--display);letter-spacing:.03em;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;flex:1 1 auto;text-align:center}
+.speedchip[aria-selected="true"]{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
 nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brass)}
 
 /* The walled city */
@@ -523,7 +524,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 @media (prefers-reduced-motion: reduce){ #toast{transition:none} }
 @media (max-width:420px){
   .res b{font-size:.92rem} .res small{font-size:.7rem}
-  nav.tabs button{padding:9px 8px 10px;font-size:.92rem}
+  nav.tabs button{padding:9px 3px 10px;font-size:.9rem;letter-spacing:0}
   .plot .nm{font-size:.72rem}
 }
 </style>
@@ -535,8 +536,10 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <div class="chiprow">
     <button class="speedchip" data-act="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
-    <button class="speedchip" data-act="ach" aria-label="Achievements">Achievements<b id="abadge"></b></button>
+    <button class="speedchip iconchip" data-act="ach" aria-label="Achievements" title="Achievements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.2L7 21l5-3 5 3-1.6-7.8"/></svg><b id="abadge"></b></button>
     <button class="speedchip iconchip" data-act="lb-open" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
+    <button class="speedchip iconchip" data-act="tab" data-tab="items" aria-label="Items" title="Items"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 13h18M12 13v3M5 9a7 4 0 0 1 14 0"/></svg><b id="itembadge"></b></button>
+    <button class="speedchip iconchip" data-act="tab" data-tab="wheel" aria-label="Wheel" title="Wheel"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/></svg></button>
     <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
     <button class="speedchip iconchip helpchip" data-act="al-help" id="helpchip" style="display:none" aria-label="Help your alliance" title="Help your alliance"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V5.5a1.5 1.5 0 0 1 3 0V12M17 11.5V9a1.5 1.5 0 0 1 3 0v5c0 4-3 7-7 7-3 0-4.6-1.4-6.2-4l-2.2-3.6a1.5 1.5 0 0 1 2.6-1.5L8 14"/></svg><b id="helpn"></b></button>
     <button class="speedchip iconchip helpchip" data-act="al-arena-go" id="monchip" style="display:none" aria-label="A monster is waiting at your alliance's Arena" title="Monster Arena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19l4-14M10.5 20l3-15M16 19l3-12"/></svg><b id="monn"></b></button>
@@ -554,21 +557,23 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
   <div id="threats"></div>
   <div id="marchstrip"></div>
 
-  <div class="tabbar"><button class="tabarrow left" data-act="tabscroll" data-dir="-1" aria-label="Scroll tabs left" hidden>‹</button>
+  <div class="tabbar">
   <nav class="tabs" role="tablist" id="tabs">
+    <div class="tabrow">
     <button role="tab" data-act="tab" data-tab="city">City</button>
     <button role="tab" data-act="tab" data-tab="map">Map</button>
-    <button role="tab" data-act="tab" data-tab="reports">Reports</button>
     <button role="tab" data-act="tab" data-tab="army">Army</button>
     <button role="tab" data-act="tab" data-tab="farms">Farms</button>
     <button role="tab" data-act="tab" data-tab="heroes">Heroes</button>
-    <button role="tab" data-act="tab" data-tab="alliance">Kingdom</button>
+    <button role="tab" data-act="tab" data-tab="reports">Reports</button>
+    </div>
+    <div class="tabrow">
     <button role="tab" data-act="tab" data-tab="guild">Alliance</button>
+    <button role="tab" data-act="tab" data-tab="alliance">Kingdom</button>
     <button role="tab" data-act="tab" data-tab="war">War Room</button>
     <button role="tab" data-act="tab" data-tab="college">War College</button>
-    <button role="tab" data-act="tab" data-tab="items">Items</button>
-    <button role="tab" data-act="tab" data-tab="wheel">Wheel</button>
-  </nav><button class="tabarrow right" data-act="tabscroll" data-dir="1" aria-label="Scroll tabs right" hidden>›</button></div>
+    </div>
+  </nav></div>
 
   <details class="queue det" data-det="queue">
     <summary><b id="q-sum">Builders</b> <span class="dur" id="q-sum2"></span></summary>
@@ -585,7 +590,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.45";
+var APP_VERSION = "0.1.46";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2712,7 +2717,7 @@ function alTick(){
   var inAl=!!alMine(), due = tab==="guild" ? (inAl && ALS.sub==="chat" ? 4000 : 15000) : 60000;
   if (inAl && (arCur() || (S.alArena||[]).some(function(m){ return m.st==="out"; }))) due=Math.min(due, 5000); // a monster is up: keep close watch
   if (Date.now()-ALS.last>=due) alSync();
-  if (tab==="guild" && !inAl && Date.now()-ALS.listAt>=60000) alList();
+  if (tab==="guild" && (!inAl || ALS.sub==="list") && Date.now()-ALS.listAt>=60000) alList();
 }
 setInterval(alTick, 1000);
 function alRender(){ if (tab==="guild") renderView(); tickText(); }
@@ -2731,21 +2736,22 @@ function viewGuild(){
   var al=alMine();
   return al ? viewMyAlliance(al) : viewAllianceList();
 }
-function viewAllianceList(){
+function viewAllianceList(mineId){
   var d=ALS.d, h='<div class="section"><div class="shead"><h3>Alliances</h3><span class="dur">your honor '+fmt(d.honor||0)+'</span></div>'+
-    '<p class="hint">Join other players: chat, and soon help each other build, reinforce each other, research together and fight monsters as a group. Apply to an alliance below, or found your own. Honor is the prestige of enemy troops you kill in invasions (and alliance wars, later).</p></div>';
-  if (alBoxTot()>0) h+=alBoxHtml(0);
-  if (d.myApps && d.myApps.length) h+='<div class="section"><h3>Your applications</h3>'+d.myApps.map(function(a){ return '<div class="bq"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <span class="dur">sent '+alAgo(a.at)+'</span></span><div class="mbtns"><button class="link" data-act="al-unapply" data-aid="'+esc(a.aid)+'">Withdraw</button></div></div>'; }).join("")+'</div>';
+    (mineId?'<p class="hint">Every alliance, ranked. You can\u2019t apply while you are in one: leave yours first to join another.</p>':'<p class="hint">Join other players: chat, and soon help each other build, reinforce each other, research together and fight monsters as a group. Apply to an alliance below, or found your own. Honor is the prestige of enemy troops you kill in invasions (and alliance wars, later).</p>')+'</div>';
+  if (!mineId && alBoxTot()>0) h+=alBoxHtml(0);
+  if (!mineId && d.myApps && d.myApps.length) h+='<div class="section"><h3>Your applications</h3>'+d.myApps.map(function(a){ return '<div class="bq"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <span class="dur">sent '+alAgo(a.at)+'</span></span><div class="mbtns"><button class="link" data-act="al-unapply" data-aid="'+esc(a.aid)+'">Withdraw</button></div></div>'; }).join("")+'</div>';
   var L=(ALS.list||[]).slice(), sk=ALS.sort, applied={}; (d.myApps||[]).forEach(function(a){ applied[a.aid]=1; });
   L.sort(function(a,b){ return (a.rank[sk]||0)-(b.rank[sk]||0); });
   h+='<div class="section"><div class="shead"><h3>All alliances</h3><span class="dur">'+(ALS.list?L.length:'loading\u2026')+'</span></div>'+
     '<div class="farmadd"><span class="dur">Rank by:</span>'+[["prestige","Prestige"],["members","Members"],["cities","Cities"],["honor","Honor"]].map(function(x){ return '<button class="chipbtn'+(sk===x[0]?' on':'')+'" data-act="al-sort" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join("")+'</div>'+
-    (L.length?'<div style="margin-top:6px"><label class="sub" for="alappmsg">Message with your application (optional)</label><input id="alappmsg" type="text" maxlength="200" placeholder="Say hello"></div>':'');
+    (L.length&&!mineId?'<div style="margin-top:6px"><label class="sub" for="alappmsg">Message with your application (optional)</label><input id="alappmsg" type="text" maxlength="200" placeholder="Say hello"></div>':'');
   if (ALS.list && !L.length) h+='<p class="hint">No alliances yet. Found the first one.</p>';
   h+=L.map(function(a){ var full=a.members>=a.cap;
-    return '<div class="acity"><h4><span>#'+a.rank[sk]+' '+esc(a.name)+'</span><span class="dur">['+esc(a.tag)+']</span><span style="flex:1"></span>'+(applied[a.id]?'<span class="dur">applied</span>':full?'<span class="dur">full</span>':'<button class="link strong" data-act="al-apply" data-aid="'+esc(a.id)+'">Apply</button>')+'</h4>'+
+    return '<div class="acity"><h4><span>#'+a.rank[sk]+' '+esc(a.name)+'</span><span class="dur">['+esc(a.tag)+']</span><span style="flex:1"></span>'+(mineId===a.id?'<span class="badge">your alliance</span>':mineId?'':applied[a.id]?'<span class="dur">applied</span>':full?'<span class="dur">full</span>':'<button class="link strong" data-act="al-apply" data-aid="'+esc(a.id)+'">Apply</button>')+'</h4>'+
       (a.desc?'<p class="hint" style="margin:0 0 4px">'+esc(a.desc)+'</p>':'')+
       '<div class="rgrid"><span>Members <b>'+a.members+'</b> <span class="dur">/ '+a.cap+' \u00b7 #'+a.rank.members+'</span></span><span>Prestige <b>'+fmt(a.prestige)+'</b> <span class="dur">#'+a.rank.prestige+'</span></span><span>Cities <b>'+fmt(a.cities)+'</b> <span class="dur">#'+a.rank.cities+'</span></span><span>Honor <b>'+fmt(a.honor)+'</b> <span class="dur">#'+a.rank.honor+'</span></span></div></div>'; }).join("")+'</div>';
+  if (mineId) return h;
   h+='<details class="section det" data-det="alfound"'+(DET.alfound?' open':'')+'><summary><b>Found an alliance</b></summary>'+
     '<div><label class="sub" for="alname">Name</label><input id="alname" type="text" maxlength="24" placeholder="3 to 24 characters"></div>'+
     '<div><label class="sub" for="altag">Tag</label><input id="altag" type="text" maxlength="4" placeholder="2 to 4 letters, like IRN" autocapitalize="characters"></div>'+
@@ -2757,7 +2763,7 @@ function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
   if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
   var hp=ALS.d.help||{projects:[],canHelp:0};
-  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["map","Map"],["members","Members ("+al.members.length+")"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
@@ -2771,6 +2777,8 @@ function viewMyAlliance(al){
       (hp.projects.length?hp.projects.map(function(p){ return '<div class="bq"><span><b>'+esc(p.owner)+'</b>: '+esc(p.label)+'<br><span class="dur">'+(p.end>Date.now()?fmtT(p.end-Date.now())+' left':'finishing')+' \u00b7 helped '+p.helps+' of '+others+'</span></span><span class="dur">'+(p.mine?'yours':p.helped?'\u2713 helped':'')+'</span></div>'; }).join(""):'<p class="hint">No projects running.</p>')+'</div>';
   } else if (sub==="city"){
     h+=alCityHtml(al);
+  } else if (sub==="list"){
+    h+=viewAllianceList(al.id);
   } else if (sub==="arena"){
     h+=alArenaHtml(al);
   } else if (sub==="map"){
@@ -3895,7 +3903,7 @@ function migrate(s){
 }
 var CITY_PLOTS=28; // 7 rows of 4
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
-var CITY_KEYS = ["alAcad","alBld","tg","fg","autoFort","trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
+var CITY_KEYS = ["autoHeal","alAcad","alBld","tg","fg","autoFort","trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
 function C(){ return S.cities[S.cur]; }
 var techVer=0, techCache={key:"",o:null};
 // Research is empire-wide: levels live in S.techG. A city only enjoys a level its own Academy can support.
@@ -3917,7 +3925,7 @@ function newCity(id,name,x,y){
   for (i=0;i<CITY_PLOTS;i++) inside.push(null); for (i=0;i<44;i++) fields.push(null);
   Object.keys(TECH).forEach(function(k){ tech[k]=0; });
   return {id:id,name:name,x:x,y:y,res:{food:10000,lumber:10000,stone:10000,iron:10000,gold:10000},pop:100,tax:20,th:1,inside:inside,fields:fields,tech:tech,
-    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],tg:[],fg:[],autoFort:false,alAcad:false,alBld:0,mayor:null,trainer:null,researcher:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],tg:[],fg:[],autoFort:false,autoHeal:false,alAcad:false,alBld:0,mayor:null,trainer:null,researcher:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
 }
 var NPRESETS=10;
 function newPresets(){ var a=[]; for (var i=0;i<NPRESETS;i++) a.push({name:"Preset "+(i+1), t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0, farm:[], auto:false, idx:0, stopOnLoss:true}); return a; }
@@ -4261,11 +4269,11 @@ function tickText(){
   var mcp=document.getElementById("monchip"); if (mcp){ var mc=arCur(), md=mc?"":"none"; if (mcp.style.display!==md) mcp.style.display=md; if (mc){ var mln=arLive().length; setText(document.getElementById("monn"), (mln>1?mln+" \u00b7 ":"")+fmtT(Math.max(0,mc.ends-Date.now()))); } }
   document.querySelectorAll(".arleft").forEach(function(el){ var le=+el.dataset.ends-Date.now(); setText(el, le>0?fmtT(le):"closing"); });
   var gbt=document.querySelector('nav.tabs [data-tab="guild"]'); if (gbt){ var gun=alUnread(), gtx=gun?"Alliance "+gun:"Alliance"; if (gbt.textContent!==gtx) gbt.textContent=gtx; }
-  var ibt=document.querySelector('nav.tabs [data-tab="items"]'); if (ibt){ var inn=pkgsReady(), itx=inn?"Items "+inn:"Items"; if (ibt.textContent!==itx) ibt.textContent=itx; }
+  var ibt=document.getElementById("itembadge"); if (ibt){ var inn=pkgsReady(); setText(ibt, inn?String(inn):""); }
   var sa=document.getElementById("saveage"); if (sa){ var sat=saveAge(); if (sa.textContent!==sat) sa.textContent=sat; }
   var stg=document.getElementById("speedtag"); if (stg){ var on=S.speed>1, txt="\u23e9 "+S.speed+"\u00d7"; if (stg.style.display!==(on?"":"none")) stg.style.display=on?"":"none"; if (on && stg.textContent!==txt) stg.textContent=txt; }
   achCheck();
-  var abd=document.getElementById("abadge"); if (abd){ var at=" "+achTotal(); if (abd.textContent!==at) abd.textContent=at; }
+  var abd=document.getElementById("abadge"); if (abd){ var at=String(achTotal()); if (abd.textContent!==at) abd.textContent=at; }
   var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt; }
   if (tab==="army"){ U.forEach(function(u,i){ updateTrainRow(i); }); setText(document.getElementById("idlepop"), fmt(idlePop())); }
   if (tab==="city") FORTS.forEach(function(f,i){ updateFortRow(i); });
@@ -5502,6 +5510,20 @@ function woundCost(t){ var g=0; t.forEach(function(n,i){ g+=n*HEAL_GOLD[i]; }); 
 function woundExpire(){ S.cities.forEach(function(c){ if (!c.wounded||!c.wounded.length) return; var died=0;
   c.wounded=c.wounded.filter(function(b){ if (S.gt-b.at>=WOUND_LIFE){ died+=sumT(b.t); return false; } return true; });
   if (died) note("attack",fmt(died)+" wounded troops in "+c.name+"\u2019s Medic Camp died untreated."); }); }
+// Auto-heal (per city): heals the Medic Camp as gold allows, oldest first, never dipping into gold held back by the Warehouse reserve
+function autoHealStep(){
+  if (!S.autoHeal) return; var c=C(); if (!c.wounded || !c.wounded.length) return;
+  var gold=Math.floor(S.res.gold-((S.reserve&&S.reserve.gold)||0)); if (gold<Math.min.apply(null,HEAL_GOLD)) return;
+  var healed=0, spent=0;
+  c.wounded.forEach(function(b){ for (var i=0;i<12;i++){ var n=b.t[i]; if (!n) continue;
+    var can=Math.min(n, Math.floor((gold-spent)/HEAL_GOLD[i])); if (can<=0) continue;
+    spent+=can*HEAL_GOLD[i]; b.t[i]-=can; S.troops[i]+=can; healed+=can; } });
+  if (!healed) return;
+  S.res.gold-=spent; c.wounded=c.wounded.filter(function(b){ return sumT(b.t)>0; });
+  note("attack","Auto-heal: "+fmt(healed)+" wounded troops healed in "+c.name+" for "+fmt(spent)+" gold.");
+}
+function autoHealAll(){ if (!S.cities.some(function(c){ return c.autoHeal && c.wounded && c.wounded.length; })) return; var keep=S.cur;
+  for (var ci=0; ci<S.cities.length; ci++){ var c=S.cities[ci]; if (!c.autoHeal || !c.wounded || !c.wounded.length) continue; S.cur=ci; autoHealStep(); } S.cur=keep; }
 function healWounded(){ // oldest first, as far as this city's gold reaches
   var c=C(), healed=0, spent=0; woundExpire();
   (c.wounded||[]).forEach(function(b){ for (var i=0;i<12;i++){ var n=b.t[i]; if (!n) continue;
@@ -5514,7 +5536,8 @@ function woundLine(r){ return r.wounded ? '<p class="hint">'+fmt(r.wounded)+' of
 function medicSection(){
   woundExpire();
   var c=C(), t=woundTotal(c), n=sumT(t), cost=woundCost(t), pct=Math.round(woundRate(c.id)*100);
-  var h='<div class="section"><div class="shead"><h3>Medic Camp</h3><span class="dur">'+(n?fmt(n)+' wounded':'empty')+'</span></div>'+
+  var h='<div class="section"><div class="shead"><h3>Medic Camp</h3><span class="dur">'+(n?fmt(n)+' wounded':'empty')+'</span><label class="chk"><input type="checkbox" id="autoheal"'+(S.autoHeal?' checked':'')+'> Auto-heal</label></div>'+
+    (S.autoHeal?'<p class="hint" style="margin:0 0 6px">Auto-heal is on for '+esc(S.name)+': the wounded are healed as soon as there is gold for them, oldest first, leaving any gold you hold back in your Warehouse reserve alone.</p>':'')+
     '<p class="hint">After every battle, '+pct+'% of '+esc(S.name)+'\u2019s fallen are only wounded (20% plus 2% per level of Medicine, up to 50%). They wait here for 24 hours: heal them for gold before they die. Healed troops still count as lost in reports and war points.</p>';
   if (n){
     var first=Math.min.apply(null, c.wounded.map(function(b){ return b.at; }));
@@ -7301,7 +7324,7 @@ function renderView(force){
 }
 function updateTabArrows(){
   var n=document.getElementById("tabs"); if (!n) return;
-  var l=document.querySelector(".tabarrow.left"), r=document.querySelector(".tabarrow.right");
+  var l=document.querySelector(".tabarrow.left"), r=document.querySelector(".tabarrow.right"); if (!l || !r) return; // the tabs fit on two rows now
   l.hidden = n.scrollLeft<=2; r.hidden = n.scrollLeft+n.clientWidth >= n.scrollWidth-2;
 }
 function renderCityBar(){
@@ -7310,7 +7333,7 @@ function renderCityBar(){
   if (el.innerHTML!==h) el.innerHTML=h;
 }
 function queueVis(){ var qd=document.querySelector(".queue"); if (qd) qd.style.display=(tab==="city"||tab==="bldg")?"":"none"; }
-function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.tabs button").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab===tab?"true":"false"); }); }
+function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.tabs button, .chiprow [data-tab]").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab===tab?"true":"false"); }); }
 
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
@@ -7712,7 +7735,7 @@ function idleWhy(slot){
   return "idle: line "+(li+1)+" only needs units a level "+lv+" Barracks can\u2019t train";
 }
 function processQueues(){
-  autoTrainStep(); autoFortStep();
+  autoTrainStep(); autoFortStep(); autoHealStep();
   for (var k=0; k<S.bq.length && builderFree(); ){
     var st=bqState(S.bq[k]);
     if (st==="drop"){ S.bq.splice(k,1); continue; }
@@ -7776,7 +7799,7 @@ document.addEventListener("click",function(e){
   if (advance(Date.now())) flushFinished();
   if (act==="tab" && a.dataset.tab==="guild"){ ALS.last=0; ALS.listAt=0; setTimeout(function(){ alTick(); },0); }
   if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
-    var tb=document.querySelector('nav.tabs [data-tab="'+tab+'"]'); if (tb && tb.scrollIntoView) tb.scrollIntoView({block:"nearest",inline:"center"}); setTimeout(updateTabArrows,350); return; }
+    return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
   if (act==="city-go"){ closeSheet(); farmArmed=false; S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
   if (act==="close"){ sheetBack(); return; }
@@ -7893,7 +7916,7 @@ document.addEventListener("click",function(e){
   }
   if (act.indexOf("al-")===0){
     if (act==="al-cloud"){ DET.cloud=true; openSheet({kind:"settings"}); return; }
-    if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); return; }
+    if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); if (ALS.sub==="list") alList(); return; }
     if (act==="al-sort"){ ALS.sort=a.dataset.v; lastView=""; renderView(true); return; }
     if (act==="al-box-in"){ alBoxMove(1); return; }
     if (act==="al-box-out"){ alBoxMove(-1); return; }
@@ -8490,6 +8513,7 @@ document.addEventListener("change",function(e){
   if (e.target.dataset && e.target.dataset.wch!=null && sheetFor && sheetFor.kind==="wc"){ var wcp3=wcById(sheetFor.id); if (wcp3){ wcDraftOf(wcp3).waves[+e.target.dataset.wch].hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.dataset && e.target.dataset.wdh!=null && sheetFor && sheetFor.kind==="wc"){ var wdp2=wcById(sheetFor.id); if (wdp2 && wdp2.kind==="defense"){ wcdDraftOf(wdp2).hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
+  if (e.target.id==="autoheal"){ S.autoHeal=e.target.checked; if (S.autoHeal) autoHealStep(); save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="autofort"){ S.autoFort=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
@@ -8529,7 +8553,7 @@ setInterval(function(){
   if (bfOn()) bfTick();
   if (pvOn()) pvTick();
   if (invOk()){ invPoll(false); if (IV.st) invRescue(); }
-  woundExpire();
+  woundExpire(); autoHealAll();
   var changed=advance(Date.now());
   if (finished.length || changed){ flushFinished(); renderQueue(); renderView(tab==="map"); renderSheet(); tickText(); save(); }
   else { tickText(); renderView(false); renderSheet(); }
