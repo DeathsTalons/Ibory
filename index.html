@@ -591,7 +591,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.47";
+var APP_VERSION = "0.1.48";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1557,6 +1557,7 @@ function resolveMarch(m){
   if (!hq || !(hq.k in VTYPES || hq.k==="npc" || hq.k==="ai" || hq.k==="hc" || hq.k==="monster" || hq.k==="flat")){ // nothing left to fight there: turn round
     m.phase="back"; m.bs=S.gt; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; note("march","Your army found nothing to fight and is heading home"); return true; }
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
+  var fullGar = q.k!=="npc" || baseOf(q).t.every(function(v,i){ return cur.t[i]>=v; }); // an NPC drops nothing but resources unless its troop garrison was full when the fight began
   var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
   var gateClosed=false;
@@ -1576,15 +1577,15 @@ function resolveMarch(m){
   S.map.hit[q.id]={t:r.defender, f:r.forts, res:left, at:S.gt};
   var medal=-1;
   if (won && q.k==="npc") qmax("npcWin", q.L);
-  var boxKey = won ? rollMedalBox(q) : null;
+  var boxKey = won && fullGar ? rollMedalBox(q) : null;
   var drops=[];
   if (boxKey){ S.items[boxKey]=(S.items[boxKey]||0)+1; drops.push("a "+ITEMS[boxKey].name); }
-  else if (won && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
-  if (won && q.k!=="home"){
+  else if (won && fullGar && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
+  if (won && q.k!=="home" && fullGar){
     var dl=q.L||1;
-    if (Math.random()<0.35+bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
-    if (dl>=5 && Math.random()<(0.04+0.01*(dl-5))+bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
-    if (q.k!=="monster"){ var bm=Math.random(), mk=null, gt=achLv("gear"), ga=0.0001*gt, gb=0.001*gt; // crafting materials: very rare, better ones only from tougher targets. Starforged adds +0.01 points a tier to mithril and starmetal, +0.1 to ingots and ore
+    if (!VTYPES[q.k] && Math.random()<0.35+bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
+    if (!VTYPES[q.k] && dl>=5 && Math.random()<(0.04+0.01*(dl-5))+bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
+    if (q.k!=="monster" && !VTYPES[q.k]){ var bm=Math.random(), mk=null, gt=achLv("gear"), ga=0.0001*gt, gb=0.001*gt; // crafting materials: very rare, better ones only from tougher targets. Starforged adds +0.01 points a tier to mithril and starmetal, +0.1 to ingots and ore
       var tS=0.0005+ga, tM=0.0015+(dl>=10?ga:0)+(dl>=7?ga:0), tI=0.004+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0), tO=0.008+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0)+gb;
       if (dl>=10 && bm<tS) mk="starmetal"; else if (dl>=7 && bm<tM) mk="mithril"; else if (dl>=4 && bm<tI) mk="ingot"; else if (bm<tO) mk="ore";
       if (mk){ S.items[mk]=(S.items[mk]||0)+1; drops.push(ITEMS[mk].name); } }
@@ -1637,7 +1638,7 @@ function resolveMarch(m){
   if (histHero){ rep.historic=histHero.name; note("heroes",histHero.name+" was captured and joins you!"); }
   if (founded){ rep.founded=founded; note("march",(m.mission!=="found"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
   if (m.mission==="found" && won){ RES.forEach(function(k){ loot[k]=(loot[k]||0)+10000; }); m.foundFail=true; }
-  var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
+  var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(won && !fullGar?". Garrison wasn’t full, so no drops, only resources":"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
   note("march",msg+loyNote);
   var saved=surgeonHeal(m.t, r.attacker), alive = saved.some(function(n){ return n>0; });
   woundFrom(m.city, m.t, saved, true);
@@ -2219,6 +2220,7 @@ function renderTileInfo(){
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
   if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
+  if (q.k==="npc") h+='<p class="hint">An NPC only drops medals and items if its troop garrison is full when you hit it; otherwise you get just its resources. Let it recover before you hit it again.</p>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
   if (q.k==="flat" && (S.items.teleport||0)>0 && (!C().fieldCap || hasHC(16))) h+='<div class="btnrow" style="margin:6px 0"><button class="btn" data-act="teleport" data-tile="'+q.id+'">'+(armedTile==="tp"+q.id?"Tap again to move "+esc(S.name)+" here":"Teleport "+esc(S.name)+" here ("+S.items.teleport+" left)")+'</button></div><p class="hint">The whole city moves: buildings, troops, heroes and held valleys. Its old tile becomes a flat.</p>';
   if (VTYPES[q.k]) h+='<p class="hint">Unheld valleys and flats gain a level every day at midnight Eastern time, and drop back to level 1 after level 10 (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';

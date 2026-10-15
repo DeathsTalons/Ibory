@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.47
+Version 0.1.48
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,10 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 46.
 
 ## Release notes
+### 0.1.48
+- Valleys and flats no longer drop Delicate or Flawless Gems or gear crafting materials (Rough Ore, Fine Ingot, Mithril, Star Metal). Their medals, books and other items are unchanged.
+- NPC cities only drop medals, medal boxes and items when their troop garrison is full when the fight begins (every troop type back at its full count; fortifications don't count). Otherwise you still get the resources, and the march message says why nothing dropped. The NPC tile carries a hint about it.
+- No Worker change.
 ### 0.1.47
 - High scores, Quests, Achievements and Settings now open as tabs (like Items and Wheel) instead of pop-ups or a full-screen window. Their header buttons highlight while you are on them, and any normal tab takes you back out. On the Battlefield they still open as pop-ups.
 - No Worker change.
