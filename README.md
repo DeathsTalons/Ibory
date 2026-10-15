@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.37
+Version 0.1.38
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 44.
 
 ## Release notes
+### 0.1.38
+- March presets can be loaded in the Hide troops in the woods menu (troops and the preset's hero).
 ### 0.1.37
 - Hiding troops reworked: the button sits at the top of the Map tab, every group is its own march with its troops listed, each takes a Rally Spot slot and the usual army size limit, and hidden troops hunt for their own food. (Folded into the 0.1.36 notes below.)
 ### 0.1.36

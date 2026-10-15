@@ -561,7 +561,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.37";
+var APP_VERSION = "0.1.38";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2316,7 +2316,7 @@ function marchSheet(){
   if (camps.length) h+='<div><label class="sub" for="marchfrom">March from</label><select id="marchfrom"><option value="">'+esc(S.name)+' (the city)</option>'+camps.map(function(c){ var cq=TILE_BY[c.tile]; return '<option value="'+c.tile+'"'+(d.from===c.tile?' selected':'')+'>Camp at '+esc(cq?tileName(cq):c.tile)+' ('+fmt(sumT(c.t))+' troops)</option>'; }).join("")+'</select></div>';
   if (d.mission==="hide") h+='<p class="hint">They slip out into the woods around the city: attackers won\u2019t find them, and Recall brings them back instantly. They hunt for their own food. Each group takes a Rally Spot slot, like any march.</p>';
   if (d.mission==="scout") h+='<p class="hint">Only scouts go. They win if your scouts outnumber the defender\u2019s (each Informatics level counts for 10% more on either side). Success shows its army, fortifications and stockpile: rough counts below Informatics 3, exact from 3, plus research and hero from 6. Many targets keep no scouts at all.</p>';
-  if (d.mission!=="transport" && d.mission!=="scout" && d.mission!=="hide") h+='<div class="farmadd"><span class="dur">Load preset:</span>'+S.presets.map(function(pr,pi){ return '<button class="chipbtn" data-act="march-preset" data-p="'+pi+'" title="'+esc(pr.name)+'"'+(presetTotal(pr)?'':' disabled')+'>'+(pi+1)+'</button>'; }).join("")+'</div>';
+  if (d.mission!=="transport" && d.mission!=="scout") h+='<div class="farmadd"><span class="dur">Load preset:</span>'+S.presets.map(function(pr,pi){ return '<button class="chipbtn" data-act="march-preset" data-p="'+pi+'" title="'+esc(pr.name)+'"'+(presetTotal(pr)?'':' disabled')+'>'+(pi+1)+'</button>'; }).join("")+'</div>';
   h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>';
   U.forEach(function(u,i){ if (d.mission==="scout" && i!==2) return; if (!av[i] && (d.from || missing(u.req).length) && !(d.mission==="scout")) return; if (av[i]) any=true;
     h+='<tr><td>'+u.name+' <span class="dur">('+fmt(av[i])+')</span></td><td><input type="number" min="0" data-march="'+i+'" value="'+(d.t[i]||"")+'" placeholder="0"></td><td><button class="link" data-act="march-max" data-unit="'+i+'">All</button></td></tr>'; });
