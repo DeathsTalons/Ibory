@@ -635,7 +635,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.52";
+var APP_VERSION = "0.1.53";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -6553,7 +6553,7 @@ function meSheet(){
   var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
   var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>Me</h2><div class="sub">'+esc(TITLES[S.title]?TITLES[S.title].name:"")+(S.lord?' '+esc(S.lord):'')+'</div></div></div>';
   h+='<div class="mehead"><span data-act="me-cycle" role="button" title="Tap to switch frame" style="cursor:pointer">'+avatarHtml(me,nm)+'</span>'+'<div style="display:grid;gap:6px;min-width:0"><b style="font:700 1.1rem var(--display);overflow-wrap:anywhere">'+esc(nm)+'</b><div class="btnrow"><button class="btn small" data-act="me-img-pick">'+(me.img?'Change image':'Upload image')+'</button>'+(me.img?'<button class="btn ghost small" data-act="me-img-clear">Remove</button>':'')+'</div></div></div>';
-  h+='<input type="file" id="meimg" accept="image/*" hidden>';
+  h+='<input type="file" id="meimg" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif,.heic,.heif" hidden>';
   h+='<p class="hint">Your picture is cropped to a small square and kept in your save. With a cloud save, the members of your alliance see it and your frame on the Members list.</p>';
   var owned=S.frames||[];
   h+='<div class="h3" style="margin-top:8px">Frame</div><div class="farmadd"><button class="chipbtn wide'+(!me.frame?' on':'')+'" data-act="me-frame" data-v="">None</button>'+Object.keys(FRAMES).map(function(k){ var has=owned.indexOf(k)>=0; return '<button class="chipbtn wide'+(me.frame===k?' on':'')+'" data-act="me-frame" data-v="'+k+'"'+(has?'':' disabled')+' title="'+esc(FRAMES[k].desc)+'">'+esc(FRAMES[k].name)+(has?'':' (locked)')+'</button>'; }).join("")+'</div>';
@@ -6568,7 +6568,7 @@ function meSheet(){
   return h+'<button class="closebtn" data-act="close">Close</button>';
 }
 function meImageFromFile(f){
-  if (!f) return; if (!/^image\//.test(f.type||"")){ toast("That file isn’t an image"); return; } if (f.size>25*1024*1024){ toast("That image is too big"); return; }
+  if (!f) return; if (f.type && !/^image\//.test(f.type) && !/\.(png|jpe?g|webp|gif|bmp|avif|heic|heif)$/i.test(f.name||"")){ toast("That file isn’t an image"); return; } if (f.size>40*1024*1024){ toast("That image is too big"); return; }
   var url=URL.createObjectURL(f), img=new Image();
   img.onload=function(){
     try { var c=document.createElement("canvas"); c.width=c.height=128; var g=c.getContext("2d"), s=Math.min(img.width,img.height), sx=(img.width-s)/2, sy=(img.height-s)/2;
@@ -6576,7 +6576,7 @@ function meImageFromFile(f){
       S.me=S.me||{img:"",frame:""}; S.me.img=c.toDataURL("image/jpeg",0.82); save(); profSync(); lastSheet=""; renderSheet(); toast("Image saved"); }
     catch(e){ toast("Couldn’t use that image"); }
     URL.revokeObjectURL(url); };
-  img.onerror=function(){ URL.revokeObjectURL(url); toast("Couldn’t open that image"); };
+  img.onerror=function(){ URL.revokeObjectURL(url); toast("Couldn’t read that image. PNG, JPG, WebP and GIF work; for other kinds, screenshot it first"); };
   img.src=url;
 }
 if (S._questInit){ QUESTS.forEach(function(q){ try { if (q.check()) S.qdone[q.id]=-1; } catch(e){} }); delete S._questInit; } // milestones reached before quests existed count as done
