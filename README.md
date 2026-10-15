@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.39
+Version 0.1.42
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,17 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 44.
 
 ## Release notes
+### 0.1.42
+- The alliance map is now 15 x 15, with the Alliance City as a 3 x 3 block in the middle (alliance buildings will be 3 x 3 too unless noted). Maps made with 0.1.41 start over with everyone placed around the city. To move the city, tap it, Move the city, then tap where its middle should go: the whole 3 x 3 block must be free.
+### 0.1.41
+- Alliance map (Alliance tab, Map): a 20 x 20 grid shared by the whole alliance. The Alliance City takes one square in the middle; every member has one square for their kingdom (all their cities together). New members are placed on the free square nearest the city, and existing alliances get everyone placed automatically.
+- Tap any square to see who's there, their prestige and cities, and how far it is from your kingdom. Move your own kingdom to any free square (tap your square, Move my kingdom, then tap where; or tap a free square and Move my kingdom here). Moving the Alliance City or other members' kingdoms needs the map permission.
+- Map distance will set how long reinforcements take (next update). Donations and alliance buildings come after that.
+- Needs the updated Worker (worker.js): it adds the map table by itself.
+### 0.1.40
+- Alliance help: every build and research you start (in any city) is posted to your alliance as a project, and closes when it finishes or is cancelled. A Help button (raised hand, with a count) appears right of Settings whenever there's something you can help with: one tap helps every open project. Each member helps each project once; each help takes 1 minute off. Help you receive is applied to your timers on the next sync (within a minute), with a message saying what was helped.
+- New Projects page in the Alliance tab: everyone's running projects, time left, how many have helped, and a Help all button.
+- Needs the updated Worker (worker.js): it adds the projects table by itself.
 ### 0.1.39
 - Player alliances, part 1 (new Alliance tab; needs a cloud save):
   - Browse every alliance, ranked by prestige, members, cities and honor. Apply with an optional message, withdraw, or found your own (name, 2-4 letter tag, description). Room for 10 members to start.
