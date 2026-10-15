@@ -392,7 +392,7 @@ dialog.full{width:100%;max-width:none;height:100%;max-height:none;margin:0;borde
 dialog.full .sheet{height:100dvh;max-height:none;border-radius:0;border:0;align-content:start;padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .lbtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;position:sticky;top:-16px;background:var(--panel);z-index:1;margin:0 -2px} .lbtabs::-webkit-scrollbar{display:none} .lbtabs .chipbtn{flex:none;white-space:nowrap}
 table.gt.wct{min-width:0} table.gt.wct td{white-space:normal;padding:3px 4px} table.gt.wct td:first-child{text-align:left} table.gt.wct input{width:7.5em}
-table.gt.lbt{min-width:0;table-layout:fixed} table.gt.lbt td:first-child{width:1.7em;padding-right:0;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:break-word;word-break:normal} table.gt.lbt td.lbh{width:5em;padding:4px 2px;line-height:1.2;white-space:normal;overflow-wrap:break-word;font-size:.9em} table.gt.lbt td:last-child{width:5.6em;white-space:nowrap} table.gt.lbt .lbn{display:flex;align-items:center;gap:6px;text-align:left;min-width:0} table.gt.lbt .lbn>span:last-child{min-width:0;overflow-wrap:break-word} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
+table.gt.lbt{min-width:0;table-layout:fixed} table.gt.lbt td:first-child{width:1.7em;padding-right:0;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:break-word;word-break:normal} table.gt.lbt .hnm,table.gt.lbt .hst{display:block;font-size:.8em;font-weight:400;line-height:1.25;margin-top:2px} table.gt.lbt .hnm{color:var(--ink)} table.gt.lbt .hst{color:var(--muted)} table.gt.lbt td.lbh{width:8em;padding:4px 2px;line-height:1.2;white-space:normal;overflow-wrap:break-word;font-size:.9em} table.gt.lbt td:last-child{width:5.6em;white-space:nowrap} table.gt.lbt .lbn{display:flex;align-items:center;gap:6px;text-align:left;min-width:0} table.gt.lbt .lbn>span:last-child{min-width:0;overflow-wrap:break-word} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
 .upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
 .upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
@@ -577,11 +577,11 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
   <header>
     <div class="hdl"><button class="hdav" id="hdav" data-act="me" aria-label="Me: your character and account" title="Me"></button><div style="min-width:0"><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div></div>
     <div class="chiprow">
-    <button class="speedchip" data-act="quests" data-tab="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
     <button class="speedchip iconchip chatchip" id="chatchip" data-act="chat-open" aria-label="Chat" title="Chat" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="cbadge" id="chatbadge"></span></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
     <button class="speedchip iconchip" data-act="ach" data-tab="ach" aria-label="Achievements" title="Achievements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.2L7 21l5-3 5 3-1.6-7.8"/></svg><b id="abadge"></b></button>
     <button class="speedchip iconchip" data-act="lb-open" data-tab="lb" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
+    <button class="speedchip iconchip" data-act="quests" data-tab="quests" aria-label="Quests" title="Quests"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h11a2 2 0 0 1 2 2v13a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V4a1 1 0 0 1 1-1z"/><path d="M9 8h7M9 12h7M9 16h4"/></svg><b id="qbadge"></b></button>
     <button class="speedchip iconchip" data-act="tab" data-tab="items" aria-label="Items" title="Items"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 13h18M12 13v3M5 9a7 4 0 0 1 14 0"/></svg><b id="itembadge"></b></button>
     <button class="speedchip iconchip" data-act="tab" data-tab="wheel" aria-label="Wheel" title="Wheel"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/></svg></button>
     <button class="speedchip" data-act="settings" data-tab="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
@@ -641,7 +641,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.59";
+var APP_VERSION = "0.1.62";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2512,7 +2512,7 @@ var GEAR_TIERS=["common","rare","epic","legendary","mythic"], GEAR_BASE=[3,6,10,
 // Each gem fewer than four takes off one step (Flawless 15 points, Delicate 25/3), never below 1%: one Flawless is 45% at 5 stars, one Delicate 40%.
 var GEM_4={D:[90,85,80,75,70,65,60,55,50,45,40,35,30,25,20], F:[95,94,93,92,91,90,83,77,70,63,57,50,43,37,30]}, GEM_STEP={D:25/3,F:15};
 var FAIL_TO=[0,0,1,1,2,3,4,4,5,0,0,0,0,0,0]; // star count after a failed attempt from each level
-var SET_TIERS=[[15,3.0],[14,2.75],[12,2.5],[9,2.0],[5,1.5]];
+var SET_TIERS=[[15,2.5],[12,2.0],[9,1.5]];
 function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return g.on===h.id; }), low=99; if (on.length<GEAR_POS.length) return -1; on.forEach(function(g){ low=Math.min(low,g.stars); }); return low; }
 function setLife(h){ var st=starSet(h), m=1; for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]){ m=SET_TIERS[i][1]; break; } return m*(1+alFx("life")); }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
@@ -2720,13 +2720,16 @@ function lbAutoJoin(){
   setTimeout(function(){ toast("You\u2019re on the Ibory high scores as "+S.lb.name+". Tap the trophy to see them, or to leave."); },1200);
 }
 function lbStats(){
-  var hero=0, heroName=""; function seeHero(h){ if ((h.level||0)>hero){ hero=h.level||0; heroName=h.name||""; } }
+  var hero=0, heroName="", heroStats=[]; function seeHero(h){ if ((h.level||0)>hero || ((h.level||0)===hero && hero>0 && hs(h,"atk")>heroStats[1])){ hero=h.level||0; heroName=h.name||""; heroStats=[Math.floor(hs(h,"pol")||0),Math.floor(hs(h,"atk")||0),Math.floor(hs(h,"int")||0)]; } }
   S.cities.forEach(function(c){ (c.heroes||[]).forEach(seeHero); }); (S.waiting||[]).forEach(seeHero);
   S.hcSeen=S.hcSeen||{}; S.cities.forEach(function(c){ if (c.fieldCap && LB_HC.indexOf(c.fieldCap)>=0) S.hcSeen[c.fieldCap]=1; }); // once taken, it counts even if given away later
   var hc={}; LB_HC.forEach(function(L){ if (S.hcSeen[L]) hc[L]=true; });
   return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
-    hero:hero, heroName:heroName, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
+    hero:hero, heroName:heroName, heroStats:heroStats, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
 }
+function lbHeroSt(r){ // the top hero's stats under its name: yours from the save, others as sent to the server
+  var a = r.me ? lbStats().heroStats : String(r.hst||"").split(",").map(Number); if (!a || a.length<3 || a.some(function(x){ return !isFinite(x); })) return "";
+  return '<span class="hst">Atk '+fmt(a[1])+' \u00b7 Int '+fmt(a[2])+' \u00b7 Pol '+fmt(a[0])+'</span>'; }
 function lbAvatar(r){ // a small picture for each high scores row: yours straight from the save, others loaded one at a time from the server (the browser keeps them)
   var pf = r.me ? S.me : (r.pu||r.fr) ? {img: r.pu ? LB_URL+"/me/img?k="+encodeURIComponent(r.ck)+"&v="+r.pu : "", frame:r.fr} : {};
   return avatarHtml(pf||{}, r.name, true);
@@ -3446,7 +3449,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+'</span></span></td>'+(d.cat==="hero"?'<td class="lbh">'+(r.hero?esc(r.hero):'\u2014')+'</td>':'')+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
@@ -4642,7 +4645,7 @@ function armorySection(){
   var list=S.gear.slice().sort(function(a,b){ return b.tier-a.tier || b.stars-a.stars; });
   if (armoryFilter!=="all") list=list.filter(function(g){ return g.slot===armoryFilter; });
   var h='<div class="section"><div class="shead"><h3>Armory</h3><span class="dur">'+S.gear.length+' pieces, '+fmt(S.items.gemD||0)+' Delicate, '+fmt(S.items.gemF||0)+' Flawless gems</span></div>'+
-    '<p class="hint">Gear is crafted in the Workshop from materials. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 5 stars \u00d71.5, 9 \u00d72, 12 \u00d72.5, 14 \u00d72.75, 15 \u00d73.</p>'+
+    '<p class="hint">Gear is crafted in the Workshop from materials. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 9 stars \u00d71.5, 12 \u00d72, 15 \u00d72.5. Below 9 stars there is no bonus.</p>'+
     '<div class="farmadd"><button class="chipbtn'+(armoryFilter==="all"?' on':'')+'" data-act="armory-filter" data-slot="all">All</button>'+GEAR_SLOTS.map(function(sl){ return '<button class="chipbtn'+(armoryFilter===sl.k?' on':'')+'" data-act="armory-filter" data-slot="'+sl.k+'">'+sl.name+'</button>'; }).join("")+'</div>';
   if (!list.length) h+='<p class="hint" style="margin-top:8px">Nothing here yet.</p>';
   h+='<div class="gearlist">'+list.slice(0,60).map(gearRow).join("")+'</div>'+(list.length>60?'<p class="hint">Showing the best 60.</p>':'');
