@@ -545,7 +545,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.30";
+var APP_VERSION = "0.1.31";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1249,10 +1249,21 @@ function syncDayClock(now){
   S.dayOff = day*DAY_MS + ph - S.gt;
 }
 // unheld valleys and flats climb one level each day at midnight; after level 10 they fall back to 1 and climb again
-function dayLevel(q){ var L0=lvlFrom(hash3(q.x,q.y,S.map.seed^0x5bd1e995)); return ((L0-1+gameDay())%10+10)%10+1; }
+// a valley or flat attacked in the 5 hours before the reset (or with an army still on the road across it) skips that night's level-up, so a preset farming it doesn't wake up to a tougher garrison
+var LVL_HOLD_MS=5*3600e3, HOLD_MISSIONS={attack:1,conquer:1,occupy:1,found:1};
+function holdLag(id){ var m=S.map, b=(m.lag&&m.lag[id])||0, sk=m.skip&&m.skip[id]; if (sk){ var g=gameDay(); for (var i=0;i<sk.length;i++) if (sk[i]<=g) b++; } return b; }
+function holdTile(id, at, arr){
+  var q=TILE_BY[id]; if (!q || !VTYPES[q.k] || S.map.owned[id]) return;
+  var off=S.dayOff||0, d=Math.floor((at+off)/DAY_MS), T=(d+1)*DAY_MS-off;
+  if (!(T-at<=LVL_HOLD_MS || (arr!=null && arr>T))) return;
+  var m=S.map; m.skip=m.skip||{}; var a=m.skip[id]=m.skip[id]||[]; if (a.indexOf(d+1)<0) a.push(d+1);
+}
+function foldHolds(){ var m=S.map; if (!m.skip) return; var g=gameDay(); m.lag=m.lag||{};
+  for (var id in m.skip){ var keep=[]; m.skip[id].forEach(function(d){ if (d<=g) m.lag[id]=((m.lag[id]||0)+1)%10; else keep.push(d); }); if (keep.length) m.skip[id]=keep; else delete m.skip[id]; if (!m.lag[id]) delete m.lag[id]; } }
+function dayLevel(q){ var L0=lvlFrom(hash3(q.x,q.y,S.map.seed^0x5bd1e995)); return ((L0-1+gameDay()-holdLag(q.id))%10+10)%10+1; }
 function applyDailyLevels(initial){
   var day=gameDay();
-  if (!initial && S.map.day!==day){ for (var id in S.map.hit){ var hq=TILE_BY[id]; if (hq && VTYPES[hq.k]) delete S.map.hit[id]; } }
+  if (!initial && S.map.day!==day){ foldHolds(); for (var id in S.map.hit){ var hq=TILE_BY[id]; if (hq && VTYPES[hq.k]) delete S.map.hit[id]; } }
   S.map.day=day;
   if (TILES) ensureMonsters();
 }
@@ -1581,7 +1592,7 @@ function nextMarchEvent(){ var best=null; S.marches.forEach(function(m){ var t=m
 function handleMarch(m){
   withCity(cityIndex(m.city), function(){
     if (m.phase==="wait"){ m.phase="out"; return; }
-    if (m.phase==="out"){ if (!resolveMarch(m)) S.marches=S.marches.filter(function(x){ return x!==m; }); }
+    if (m.phase==="out"){ if (HOLD_MISSIONS[m.mission]) holdTile(m.tile, S.gt); if (!resolveMarch(m)) S.marches=S.marches.filter(function(x){ return x!==m; }); }
     else { marchHome(m); S.marches=S.marches.filter(function(x){ return x!==m; }); }
   });
 }
@@ -1773,7 +1784,7 @@ function wavePlan(){
 function updateWaveInfo(){
   var el=document.getElementById("waveinfo"), b=document.getElementById("wavego"); if (!el) return;
   var pl=wavePlan();
-  el.textContent = pl.list.length ? pl.list.length+" wave"+(pl.list.length>1?"s":"")+". First lands in "+fmtT(realMs(pl.first-S.gt))+(pl.list.length>1?", last "+fmtT(realMs(pl.list[pl.list.length-1].arr-S.gt)):"")+"." : "";
+  el.textContent = pl.list.length ? pl.list.length+" wave"+(pl.list.length>1?"s":"")+". First lands in "+fmtT(realMs(pl.first-S.gt))+(pl.list.length>1?", last "+fmtT(realMs(pl.list[pl.list.length-1].arr-S.gt)):"")+". Leading: "+pl.list.slice(0,8).map(function(w){ var wh=w.hero?heroById(w.hero):null; return wh?wh.name:"no hero"; }).join(", ")+(pl.list.length>8?"\u2026":"")+"." : "";
   b.disabled=!!pl.why; b.textContent=pl.why||"Launch "+pl.list.length+" wave"+(pl.list.length>1?"s":"");
 }
 
@@ -2243,6 +2254,7 @@ function updateMarchInfo(){
   if (tm){ var fd=marchFood(marchDraft.t,marchDraft.mission,tm); if (fd) el.textContent+=" Rations: "+fmt(fd)+" food."; }
   el.textContent+=" Army size "+fmt(marchDraft.t.reduce(function(x,y){return x+y;},0))+" of "+fmt(armyCap(marchDraft.ensign))+".";
   if (hs(marchDraft.hero?heroById(marchDraft.hero):null,"int")) el.textContent+=" Your hero\u2019s Intelligence speeds the march "+hs(heroById(marchDraft.hero),"int")+"%.";
+  if (marchDraft.mission!=="transport" && marchDraft.mission!=="scout"){ var mhd=marchDraft.hero?heroById(marchDraft.hero):null; el.textContent+=" "+(mhd?"Led by "+mhd.name+" (Attack "+hs(mhd,"atk")+", Intelligence "+hs(mhd,"int")+").":"No hero leading."); }
   var why=marchWhy(); b.disabled=!!why; b.textContent= why || (marchDraft.mission==="allyguard"?"Send guards":marchDraft.mission==="scout"?"Send scouts":marchDraft.mission==="conquer"?"March to conquer":marchDraft.mission==="transport"?"Send resources":marchDraft.mission==="reinforce"?"Send reinforcements":marchDraft.mission==="occupy"?"March to occupy":marchDraft.mission==="found"?"March to found city (10k each)":"March to attack");
   var pv=document.getElementById("marchprev"); if (pv) pv.innerHTML=marchDraft.preview;
 }
@@ -2291,6 +2303,7 @@ function launchMarch(tileId, mission, t, heroId, opt){
   var hero=heroId?heroById(heroId):null; if (hero) hero.away=true;
   var m={id:S.nextMarchId++, city:C().id, food:food, tile:q.id, mission:mission, cargo:opt.cargo||{}, t:t.slice(), hero:hero?hero.id:0, dep:dep, arr:dep+tm, travel:tm, phase:dep>S.gt?"wait":"out", loot:{}};
   if (opt.preset!=null) m.preset=opt.preset;
+  if (HOLD_MISSIONS[mission]) holdTile(q.id, dep, dep+tm);
   if (opt.label!=null) m.label=opt.label;
   S.marches.push(m); return m;
 }
@@ -2304,6 +2317,7 @@ function sendMarch(){
   if (d.mission==="found") RES.forEach(function(k){ S.res[k]-=10000; });
   var cargo={}; if (d.mission==="transport") RES.forEach(function(k){ cargo[k]=d.cargo[k]||0; S.res[k]-=cargo[k]; });
   S.marches.push({id:S.nextMarchId++, city:C().id, food:food, ensign:!!d.ensign, tile:q.id, mission:d.mission, cargo:cargo, t:d.t.slice(), hero:hero?hero.id:0, dep:S.gt, arr:S.gt+tm, travel:tm, phase:"out", loot:{}});
+  if (HOLD_MISSIONS[d.mission]) holdTile(q.id, S.gt, S.gt+tm);
   toast((d.mission==="transport"?"Caravan heading to ":d.mission==="reinforce"?"Reinforcements heading to ":"Army marching on ")+tileName(q)+", arrives in "+fmtT(realMs(tm)));
   closeSheet(); refresh();
 }
@@ -2529,11 +2543,12 @@ function lbAutoJoin(){
   setTimeout(function(){ toast("You\u2019re on the Ibory high scores as "+S.lb.name+". Tap the trophy to see them, or to leave."); },1200);
 }
 function lbStats(){
-  var hero=0; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ hero=Math.max(hero,h.level||0); }); }); (S.waiting||[]).forEach(function(h){ hero=Math.max(hero,h.level||0); });
+  var hero=0, heroName=""; function seeHero(h){ if ((h.level||0)>hero){ hero=h.level||0; heroName=h.name||""; } }
+  S.cities.forEach(function(c){ (c.heroes||[]).forEach(seeHero); }); (S.waiting||[]).forEach(seeHero);
   S.hcSeen=S.hcSeen||{}; S.cities.forEach(function(c){ if (c.fieldCap && LB_HC.indexOf(c.fieldCap)>=0) S.hcSeen[c.fieldCap]=1; }); // once taken, it counts even if given away later
   var hc={}; LB_HC.forEach(function(L){ if (S.hcSeen[L]) hc[L]=true; });
   return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
-    hero:hero, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
+    hero:hero, heroName:heroName, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
 }
 function lbSync(force){
   lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
@@ -2554,6 +2569,7 @@ var CB_UNDO="ibory-pre-sync"; // this device's game as it was just before a newe
 function cbKeepUndo(){ try { var at=Date.now(); return cbPack(JSON.stringify(S)).then(function(pk){ try { localStorage.setItem(CB_UNDO, JSON.stringify({at:at, enc:pk.enc, body:pk.body})); } catch(e){} }); } catch(e){ return Promise.resolve(); } }
 function cbUndoInfo(){ try { var u=JSON.parse(localStorage.getItem(CB_UNDO)||"null"); return u && Date.now()-u.at<7*86400e3 ? u : null; } catch(e){ return null; } }
 function cbLoadState(obj, cloud, at, rev){ // swap the running game for a downloaded one
+  bkSnapshot("pre",true);
   obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; obj.cloud={name:cloud.name, token:cloud.token, last:at||Date.now(), rev:rev||0, info:cloud.info};
   S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
   document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh();
@@ -2573,7 +2589,7 @@ function cbStats(){
     ci.push([c.name, c.x, c.y, S.th, S.wall||0, sumT(t), bl]);
   }); });
   return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:devOn()?1:0, pr:Math.floor(S.prestige||0), tth:totalTH(), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
-    pg:Math.round(pg), hA:hA, hI:hI, ci:ci, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
+    pg:Math.round(pg), lo:Math.round((S.stats&&S.stats.loot)||0), hA:hA, hI:hI, ci:ci, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
 }
 // is there a newer save from another device? Then it wins: load it (this device's copy is kept for Undo)
 function cbCheck(){
@@ -2656,6 +2672,23 @@ function cbConflictSheet(){
     '<button class="closebtn" data-act="close">Decide later</button>';
 }
 // everyone without a cloud save is asked once in a while to make one
+function bkRows(){
+  var l=bkList(); if (!l.length) return '<p class="hint">No copies on this device yet.</p>';
+  return l.map(function(e){ var m=e.m, lab=e.k===BK_BEST?"Strongest game":m.why==="pre"?"Kept before it was replaced":"Automatic copy";
+    return '<div class="bq"><span><b>'+lab+'</b> <span class="dur">'+cbWhen(m.at)+'</span></span><span class="dur" style="grid-column:1/-1">'+m.cities+' cit'+(m.cities===1?'y':'ies')+', prestige '+fmt(m.prestige)+', version '+esc(m.ver||"?")+'</span><div class="mbtns"><button class="link strong" data-act="bk-restore" data-v="'+e.k+'">'+(armed==="bkr-"+e.k?"Tap again to restore":"Restore this copy")+'</button></div></div>'; }).join("");
+}
+function recoverSheet(){
+  var why=loadFail&&loadFail.why, h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>'+(saveLocked?'Your saved game couldn\u2019t be opened':'A saved game is waiting')+'</h2><div class="sub">'+(saveLocked?(why==="newer"?'It was saved by a newer version of Ibory than this one. Close the app and reopen it with an internet connection to update it.':'Something in it didn\u2019t load, so Ibory has left it untouched.'):'This device has safety copies of a game, but no current one.')+'</div></div></div>';
+  if (saveLocked) h+='<p class="hint">Nothing is being saved until you choose. The original is kept safe on this device either way.</p>';
+  h+=bkRows();
+  if (saveLocked){
+    h+='<div class="btnrow" style="margin-top:8px"><button class="btn ghost small" data-act="bk-rescue-copy">Copy the unopened save</button><button class="btn ghost small danger" data-act="bk-fresh">'+(armed==="bkfresh"?"Tap again: start a new city":"Start a new city instead")+'</button></div>';
+  } else h+='<button class="closebtn" data-act="close">Not now</button>';
+  return h;
+}
+function bkSection(){
+  return '<details class="det" data-det="bk"'+(DET.bk?' open':'')+'><summary><b>Safety copies</b> <span class="dur">'+bkList().length+' on this device</span></summary><p class="hint">Ibory keeps copies of your game on this device: one every half hour while you play, and one right before anything replaces your game (a new city, loading a save, a cloud restore). If your game ever opens empty, restore one here. They live in the same browser as your game, so a cloud backup is still the best protection.</p>'+bkRows()+'</details>';
+}
 function cbAskSheet(){
   return '<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Keep your game safe</h2><div class="sub">Turn on cloud saves</div></div></div>'+
     '<p class="hint">Right now your whole game lives on this device. Lose the phone, clear the browser or reinstall the computer, and it\u2019s gone. A cloud save keeps it online: it saves every hour while you play, and you can pick it up on any device with a name and a password.</p>'+
@@ -2708,7 +2741,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td><td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td>'+(d.cat==="hero"?'<td>'+(r.hero?esc(r.hero):'\u2014')+'</td>':'')+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
@@ -3349,8 +3382,32 @@ function buildOn(w,i){ for (var k=0;k<S.builds.length;k++){ var b=S.builds[k]; i
 function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
+/* ---------- safety copies: the game never goes empty without a way back ---------- */
+var BK_RING=["ibory-bk-a","ibory-bk-b","ibory-bk-c"], BK_PRE=["ibory-bk-pre1","ibory-bk-pre2"], BK_BEST="ibory-bk-best", BK_RESCUE="ibory-rescue", BK_EVERY=30*60e3;
+var saveLocked=false, loadFail=null, recoverOffer=false, bkLast=0;
+function bkMeta(k){ try { return JSON.parse(localStorage.getItem(k+"-m")||"null"); } catch(e){ return null; } }
+function bkPut(k,json,m){ try { localStorage.setItem(k,json); localStorage.setItem(k+"-m",JSON.stringify(m)); return true; } catch(e){ try { localStorage.removeItem(k); localStorage.removeItem(k+"-m"); } catch(e2){} return false; } }
+function bkOldest(keys){ var best=keys[0], bt=Infinity; keys.forEach(function(k){ var m=bkMeta(k), t=(m&&localStorage.getItem(k))?m.at:0; if (t<bt){ bt=t; best=k; } }); return best; }
+function bkScoreOf(o){ return Math.floor(o.prestige||0)+200*((o.cities&&o.cities.length)||1)+(o.spins||0); }
+// a copy of the running game: automatic ones every half hour, "pre" ones right before something replaces the game. A fresh start never pushes real copies out.
+function bkSnapshot(why, force){
+  if (saveLocked || typeof S==="undefined" || !S) return;
+  var now=Date.now(); if (!force && now-bkLast<BK_EVERY) return;
+  var json; try { json=JSON.stringify(S); } catch(e){ return; }
+  var m={at:now, why:why, score:bkScoreOf(S), cities:S.cities.length, prestige:Math.floor(S.prestige||0), ver:APP_VERSION}, bm=bkMeta(BK_BEST);
+  if (!bm || m.score>=bm.score) bkPut(BK_BEST,json,m);
+  if (bm && m.score<0.05*bm.score) return;
+  if (bm && why!=="pre" && m.score<0.25*bm.score) return;
+  var keys=why==="pre"?BK_PRE:BK_RING, k=bkOldest(keys), ok=bkPut(k,json,m);
+  if (!ok){ var o=bkOldest(BK_RING); try { localStorage.removeItem(o); localStorage.removeItem(o+"-m"); } catch(e){} ok=bkPut(k,json,m); }
+  if (ok && why!=="pre") bkLast=now;
+}
+function bkList(){ var out=[]; [BK_BEST].concat(BK_RING,BK_PRE).forEach(function(k){ var m=bkMeta(k); try { if (m && localStorage.getItem(k)) out.push({k:k,m:m}); } catch(e){} }); out.sort(function(a,b){ return b.m.at-a.m.at; }); return out; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=42) S = migrate(p); } } catch(e){}
+var loadRaw=null;
+try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=42) S = migrate(p); else loadFail={why:(p&&p.v>42)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
+if (loadFail){ try { localStorage.setItem(BK_RESCUE, loadRaw); } catch(e){} saveLocked=true; } // a save that won't open is never written over
+else if (!loadRaw){ var bkb=bkMeta(BK_BEST); if (bkb && bkb.score>=1000) recoverOffer=true; }
 if (!S) S = newState();
 S.speed=devOn()?(S.testSpeed||1):1; // real time unless a testing speed is set
 installProxies(S);
@@ -3378,7 +3435,7 @@ function applyTheme(){
   var mt=document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute("content", dark?"#252a27":"#d8dbd2");
 }
 function exportCode(){ return btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }
-function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
+function save(){ if (saveLocked) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
 
 function getSlot(w,i){ return w==="wall" ? {type:"walls",level:S.wall||0} : w==="th" ? {type:"townhall",level:S.th} : (w==="in" ? S.inside[i] : S.fields[i]); }
 function costFor(type,L){ var b=DEF[type].cost,o={}; for (var k in b) o[k]=Math.round(b[k]*Math.pow(2,L-1)); if (L===10) o.script=1; return o; } // the climb to level 10 also takes one Michelangelo’s Script
@@ -3499,7 +3556,7 @@ function advance(now){
   for (var cj=0; cj<S.cities.length; cj++){ S.cur=cj; if (innLv() && S.gt >= S.innRefreshAt){ rollInn(); if (cj===viewing) changed=true; } }
   S.cur=viewing;
   if (TILES && S.map.monsters && S.map.monsters.day!==gameDay() && gameDay()===S.map.day) ensureMonsters();
-  if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); note("day","A new day dawns: unheld valleys and flats have gained a level, and historic garrisons have changed."); changed=true; }
+  if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); note("day","A new day dawns: unheld valleys and flats have gained a level (except ones you attacked in the last 5 hours), and historic garrisons have changed."); changed=true; }
   return changed;
 }
 
@@ -3553,7 +3610,7 @@ function troopList(t){ var p=[]; for (var i=0;i<12;i++) if (t[i]>0) p.push(fmt(t
 function marchHeroName(m){ if (!m.hero) return ""; var c=S.cities[cityIndex(m.city)], hs=(c&&c.heroes)||[]; for (var i=0;i<hs.length;i++) if (hs[i].id===m.hero) return hs[i].name; var h=heroById(m.hero); return h?h.name:""; }
 function marchSummary(m){
   var bits=[fmt(sumT(m.t))+" troops: "+troopList(m.t)], hn=marchHeroName(m), carry={};
-  if (hn) bits.push("led by "+hn);
+  if (hn) bits.push("led by "+hn); else if (m.mission!=="transport" && m.mission!=="scout" && m.mission!=="reinforce" && m.mission!=="allyguard") bits.push("no hero");
   RES.forEach(function(k){ var n=((m.cargo&&m.cargo[k])||0)+((m.loot&&m.loot[k])||0); if (n>0) carry[k]=n; });
   var cs=RES.filter(function(k){ return carry[k]; }).map(function(k){ return fmt(carry[k])+" "+RNAME[k].toLowerCase(); });
   if (cs.length) bits.push((m.phase==="back"?"bringing home ":"carrying ")+cs.join(", "));
@@ -6723,12 +6780,12 @@ function renderSheet(){
         NOTE_TYPES.map(function(t){ return '<label class="ntrow"><input type="checkbox" data-note="'+t[0]+'"'+(noteOn(t[0])?' checked':'')+'> '+t[1]+'</label>'; }).join("")+
         '<div class="h3" style="margin-top:10px">Phone notifications</div><label class="ntrow"><input type="checkbox" id="nt-phone"'+(S.phoneNotif?' checked':'')+'> Also send these as phone notifications</label>'+
         '<p class="hint">'+(!("Notification" in window)?'This browser can\u2019t show notifications.':Notification.permission==="denied"?'Notifications are blocked for Ibory. Allow them in your phone\u2019s settings for this app, then turn this on.':'They arrive while Ibory is open or was just switched away from. Phones freeze background apps after a few minutes, so a build finishing hours later won\u2019t notify you yet.')+'</p></details>'+
-      cbSection()+
+      cbSection()+bkSection()+
       '<div><div class="h3" style="margin-bottom:6px">Move your save</div><p class="hint">Save a backup file to your phone, or copy a save code and paste it into the game on another device. The code holds everything: every city, hero, gear piece and the whole map.</p>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="save-file">Save to file</button><button class="btn ghost small" data-act="load-file">Load from file</button><button class="btn ghost small" data-act="save-export">Show save code</button><button class="btn ghost small" data-act="save-import-open">Load a save code</button></div>'+
       (saveUi==="export"?'<textarea id="savecode" readonly rows="4">'+esc(exportCode())+'</textarea><div class="btnrow"><button class="btn small" data-act="save-copy">Copy code</button><span class="dur" id="copymsg"></span></div>':'')+
       (saveUi==="import"?'<textarea id="saveinput" rows="4" placeholder="Paste a save code"></textarea><div class="btnrow"><button class="btn small danger" data-act="save-import">'+(armed==="import"?"Tap again to replace this game":"Load this save")+'</button><span class="why" id="importmsg"></span></div>':'')+'</div>'+
-      (!devOn()?'<details class="det" data-det="dev"'+(DET.dev?' open':'')+'><summary><b>Developer</b> <span class="dur">password needed</span></summary><div class="farmadd"><input id="devpw" type="password" autocomplete="off" placeholder="Dev password" style="width:auto;flex:1"><button class="btn ghost small" data-act="dev-unlock">Unlock</button></div><span class="why" id="devmsg"></span></details>':
+      '<details class="det" data-det="gift"'+(DET.gift?' open':'')+'><summary><b>Gift codes</b> <span class="dur">packages and early access</span></summary><div class="farmadd"><input id="giftcode" type="text" autocomplete="off" autocapitalize="off" placeholder="Gift code" style="width:auto;flex:1"><button class="btn ghost small" data-act="gift-redeem">Redeem</button></div><span class="why" id="giftmsg"></span></details>'+(!devOn()?'<details class="det" data-det="dev"'+(DET.dev?' open':'')+'><summary><b>Developer</b> <span class="dur">password needed</span></summary><div class="farmadd"><input id="devpw" type="password" autocomplete="off" placeholder="Dev password" style="width:auto;flex:1"><button class="btn ghost small" data-act="dev-unlock">Unlock</button></div><span class="why" id="devmsg"></span></details>':
       '<details class="det" data-det="testing"'+(DET.testing?' open':'')+'><summary><b>Testing tools</b> <span class="dur">for trying late-game features early</span></summary><p class="hint">These change your save directly.</p>'+
         '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="dbg-rep" data-v="50">Rep to 50%</button><button class="btn ghost small" data-act="dbg-rep" data-v="100">Rep to 100%</button><button class="btn ghost small" data-act="dbg-warcd">Clear war cooldown</button><button class="btn ghost small" data-act="dbg-warend">End war now</button></div>'+
         '<div class="h3" style="margin-top:10px">Game speed</div><p class="hint">Everything runs this many times faster: builds, research, training, marches, AI and events. Timers show real time left. Stays on until you set it back to 1\u00d7.</p>'+
@@ -6736,7 +6793,7 @@ function renderSheet(){
         '<div class="h3" style="margin-top:10px">Troops in '+esc(S.name)+'</div><p class="hint">Instant and free. Doesn\u2019t count toward prestige, quests or achievements. Remember they still eat food.</p>'+
         '<div class="btnrow"><button class="btn ghost small" data-act="dbg-goals">Fill troop goals now</button><button class="btn ghost small" data-act="dbg-troops" data-v="10000">+10k of every unlocked troop</button><button class="btn ghost small" data-act="dbg-troops" data-v="100000">+100k</button></div>'+
         dbgToolsHtml()+'<div class="btnrow" style="margin-top:10px"><button class="btn ghost small" data-act="dev-lock">Lock developer tools</button></div></details>')+
-      '<div class="act"><button class="btn ghost danger" data-act="reset">'+(armed==="reset"?"Tap again to erase your city":"Start a new city")+'</button><button class="closebtn" data-act="close">Done</button></div>';
+      '<div class="act">'+(armed==="reset"?'<div class="resetbox" style="flex:1"><p class="why">This erases your game on this device. A safety copy is kept first. Type RESET to confirm.</p><input id="resetword" type="text" autocomplete="off" autocapitalize="characters" placeholder="Type RESET"><div class="btnrow" style="margin-top:6px"><button class="btn danger" data-act="reset">Erase my city</button><button class="btn ghost" data-act="reset-cancel">Cancel</button></div></div>':'<button class="btn ghost danger" data-act="reset">Start a new city</button>')+'<button class="closebtn" data-act="close">Done</button></div>';
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=marchSheet();
@@ -6746,6 +6803,8 @@ function renderSheet(){
     h=cbConflictSheet();
   } else if (sheetFor.kind==="cbask"){
     h=cbAskSheet();
+  } else if (sheetFor.kind==="recover"){
+    h=recoverSheet();
   } else if (sheetFor.kind==="ivboard"){
     h=invBoardSheet();
   } else if (sheetFor.kind==="pvboard"){
@@ -7010,12 +7069,25 @@ document.addEventListener("click",function(e){
   if (act.indexOf("dbg-")===0 && !devOn()) return;
   if (act.indexOf("iv-")===0 && invAct(act,a)) return;
   if (act==="dev-unlock"){ var dpw=document.getElementById("devpw"), dv=dpw?dpw.value.trim():""; if (devHash(dv)===2422952517){ devSet(true); toast("Developer tools unlocked"); armed=null; lastSheet=""; renderSheet(); }
-    else if (devHash(dv.toLowerCase())===4145256078){ /* secret package: once per save */ var dm2=document.getElementById("devmsg"); S.secrets=S.secrets||{};
-      if (S.secrets.p1){ if (dm2) dm2.textContent="That package was already claimed on this save."; return; }
+    else { var dm=document.getElementById("devmsg"), isGift=devHash(dv.toLowerCase())===4145256078 || devHash(dv.toLowerCase())===PV_TESTER; if (dm) dm.textContent=isGift?"That\u2019s a gift code. Use the Gift codes box above.":"Wrong password"; } return; }
+  if (act==="gift-redeem"){ var gi=document.getElementById("giftcode"), gv=gi?gi.value.trim().toLowerCase():"", gm=document.getElementById("giftmsg");
+    if (!gv){ if (gm) gm.textContent="Type a gift code first."; return; }
+    if (devHash(gv)===4145256078){ /* secret package: once per save */ S.secrets=S.secrets||{};
+      if (S.secrets.p1){ if (gm) gm.textContent="That package was already claimed on this save."; return; }
       S.secrets.p1=1; RES.forEach(function(k){ S.res[k]+=200000; }); S.items.s15=(S.items.s15||0)+80;
-      if (dpw) dpw.value=""; if (dm2) dm2.textContent=""; save(); toast("Secret package! +200,000 of every resource in "+S.name+" and 80 15-minute speed-ups"); lastView=""; refresh(); }
-    else if (devHash(dv.toLowerCase())===PV_TESTER){ S.pvpTester=1; if (dpw) dpw.value=""; var dm3=document.getElementById("devmsg"); if (dm3) dm3.textContent=""; save(); toast("PvP Battlefield unlocked: find it in the Alliance tab"); lastView=""; refresh(); }
-    else { var dm=document.getElementById("devmsg"); if (dm) dm.textContent="Wrong password"; } return; }
+      if (gi) gi.value=""; if (gm) gm.textContent=""; save(); toast("Secret package! +200,000 of every resource in "+S.name+" and 80 15-minute speed-ups"); lastView=""; refresh(); }
+    else if (devHash(gv)===PV_TESTER){ S.pvpTester=1; if (gi) gi.value=""; if (gm) gm.textContent=""; save(); toast("PvP Battlefield unlocked: find it in the Alliance tab"); lastView=""; refresh(); }
+    else if (gm) gm.textContent="That code isn\u2019t valid.";
+    return; }
+  if (act==="bk-restore"){ var bk=a.dataset.v; if (armed!=="bkr-"+bk){ armed="bkr-"+bk; lastSheet=""; renderSheet(); return; } armed=null;
+    var bob=null; try { bob=JSON.parse(localStorage.getItem(bk)); } catch(e){}
+    if (!bob || !bob.v || !(bob.cities||bob.res)){ toast("That copy can\u2019t be read."); return; }
+    var bns=null; try { bob.real=Date.now(); bob.speed=1; bob.testSpeed=0; bns=migrate(bob); } catch(e){ toast("That copy can\u2019t be opened in this version."); return; }
+    bkSnapshot("pre",true); S=bns; saveLocked=false; loadFail=null; recoverOffer=false; installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+    document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Safety copy restored. Welcome back, "+TITLES[S.title].name+"."); return; }
+  if (act==="bk-rescue-copy"){ var rr=""; try { rr=localStorage.getItem(BK_RESCUE)||""; } catch(e){}
+    try { navigator.clipboard.writeText(rr).then(function(){ toast("Copied. Send it to the developer."); },function(){ toast("This browser blocked copying."); }); } catch(e){ toast("This browser blocked copying."); } return; }
+  if (act==="bk-fresh"){ if (armed!=="bkfresh"){ armed="bkfresh"; lastSheet=""; renderSheet(); return; } armed=null; saveLocked=false; loadFail=null; save(); closeSheet(); toast("A new city begins. The unopened save is still kept on this device."); return; }
   if (act==="dev-lock"){ advance(Date.now()); devSet(false); S.speed=1; S.testSpeed=1; save(); toast("Developer tools locked"); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (advance(Date.now())) flushFinished();
   if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
@@ -7071,7 +7143,7 @@ document.addEventListener("click",function(e){
           fi.value="";
           if (!ob || !ob.v || !(ob.cities||ob.res)){ toast("That file isn\u2019t an Ibory save."); return; }
           if (!window.confirm("Replace your current game with this save file?")) return;
-          ob.real=Date.now(); ob.speed=1; ob.testSpeed=0; S=migrate(ob); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+          bkSnapshot("pre",true); ob.real=Date.now(); ob.speed=1; ob.testSpeed=0; S=migrate(ob); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
           document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded from file."); };
         rd.readAsText(f); }); }
     fi.click(); return; }
@@ -7090,10 +7162,13 @@ document.addEventListener("click",function(e){
     try { obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,""))))); } catch(e){ obj=null; }
     if (!obj || !obj.v || !(obj.cities||obj.res)){ document.getElementById("importmsg").textContent="That doesn\u2019t look like a save code."; return; }
     if (armed!=="import"){ armed="import"; var keep=code; lastSheet=""; renderSheet(); var ni=document.getElementById("saveinput"); if (ni) ni.value=keep; return; }
-    armed=null; saveUi=""; obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
+    armed=null; saveUi=""; bkSnapshot("pre",true); obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
     document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded. Welcome back, "+TITLES[S.title].name+"."); return; }
+  if (act==="reset-cancel"){ armed=null; lastSheet=""; renderSheet(); return; }
   if (act==="reset"){
     if (armed!=="reset"){ armed="reset"; lastSheet=""; renderSheet(); return; }
+    var rwd=document.getElementById("resetword"); if (!rwd || rwd.value.trim().toUpperCase()!=="RESET"){ toast("Type RESET to confirm"); return; }
+    bkSnapshot("pre",true);
     S=newState(); installProxies(S); genMap(); sim=null; simOut=null; selTile=null; armed=null; lastPrize=null; document.getElementById("cityname").textContent=S.name; closeSheet(); refresh(); toast("A new city begins."); return;
   }
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
@@ -7718,6 +7793,9 @@ document.addEventListener("visibilitychange",function(){ if (document.hidden) lb
 if ("serviceWorker" in navigator && location.protocol==="https:" && !/claude\.ai|claudeusercontent/.test(location.hostname)){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
 wireDetails(document);
 setInterval(save,5000);
+setTimeout(function(){ bkSnapshot("auto"); },60000); setInterval(function(){ bkSnapshot("auto"); },120000);
+setInterval(function(){ if (saveLocked && !sheetFor) openSheet({kind:"recover"}); },15000);
+if (loadFail || recoverOffer) setTimeout(function(){ openSheet({kind:"recover"}); },800);
 document.addEventListener("visibilitychange",function(){ if (document.hidden){ advance(Date.now()); save(); } });
 window.addEventListener("pagehide",function(){ advance(Date.now()); save(); });
 })();

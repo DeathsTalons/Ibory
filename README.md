@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.30
+Version 0.1.31
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,16 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 42.
 
 ## Release notes
+### 0.1.31
+- Saves can't silently reset any more. If your saved game fails to open, Ibory keeps the original untouched, stops saving, and shows a recovery screen: restore a safety copy, copy the unopened save for the developer, or start fresh on purpose.
+- Safety copies: the game keeps copies on the device (one every half hour while you play, your strongest game, and one right before a new city, a save load or a cloud restore replaces your game). Settings > Safety copies restores any of them. If a game is missing but copies exist, Ibory offers to restore one.
+- Starting a new city now needs you to type RESET.
+- Settings has a separate Gift codes box. The Developer box takes only the developer password.
+- March info shows which hero is leading, including heroes picked automatically by a preset ("No hero" when none). Wave plans list the leaders.
+- High scores: the Top hero board shows each player's hero name next to the level.
+- The server's cheat checks count plunder from attacks as income, so NPC farming no longer trips the resource flag. Flags only ever show on the admin page; nothing is blocked.
+- Valleys and flats you attack in the 5 hours before the daily reset (or with an army still marching to them across it) skip that night's level-up, so a farming preset doesn't meet a tougher garrison while you're away. They level up normally from the next reset. Keep hitting one every day in that window and it stays put.
+- Needs the updated Worker (worker.js): it adds a hero name column to the players table by itself.
 ### 0.1.30
 - The daily reset (valleys and flats gaining a level, daily alliance tasks) now happens at midnight Eastern time (New York, with daylight saving) for everyone, instead of at each phone's own midnight. Nothing jumps when you update: every valley and flat keeps its current level and the day number is kept; only the time of the next rollover moves.
 ### 0.1.29
