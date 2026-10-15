@@ -635,7 +635,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.56";
+var APP_VERSION = "0.1.57";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -6895,7 +6895,12 @@ function trainWhy(i,n,mode){
   if (idlePop() < u.pop*n) return "Not enough idle people ("+fmt(idlePop())+")";
   return "";
 }
+function trainCostHtml(i){ // what the amount typed in the box will cost in total (red chips are what you can't cover)
+  var n=Math.floor(trainAmt[i]||0); if (n<1) return ""; var u=U[i], c={}; for (var k in u.cost) c[k]=u.cost[k]*n;
+  return '<span class="dur">Cost for '+fmt(n)+':</span> '+chips(c);
+}
 function updateTrainRow(i){
+  var tc=document.getElementById("tr-cost-"+i); if (tc){ var tch=trainCostHtml(i); if (tc.innerHTML!==tch) tc.innerHTML=tch; }
   var b=document.getElementById("tr-btn-"+i), inf=document.getElementById("tr-info-"+i); if (!b) return;
   var n=trainAmt[i]||0, why=trainWhy(i,n,"one");
   b.disabled=!!why; setText(b, "Train"+(n>0?" "+fmt(n):""));
@@ -6948,7 +6953,7 @@ function viewArmy(){
       '<div class="us"><span>Atk <b>'+st.atk+'</b></span><span>Def <b>'+st.def+'</b></span><span>Life <b>'+st.life+'</b></span><span>Speed <b>'+st.speed+'</b></span><span>Range <b>'+st.range+'</b></span><span>Eats <b>'+u.up+'</b>/h</span><span>Pop <b>'+u.pop+'</b></span></div>';
     if (miss.length) h+='<div class="reqs">Needs '+miss.map(reqName).join(", ")+'</div>';
     else {
-      h+='<div style="grid-column:1/-1">'+chips(u.cost)+'</div><div class="trainrow"><input type="number" min="0" step="1" id="tr-amt-'+i+'" data-unit="'+i+'" value="'+(trainAmt[i]||"")+'" placeholder="Amount" aria-label="How many '+u.name+'s">'+
+      h+='<div style="grid-column:1/-1">'+chips(u.cost)+'</div><div id="tr-cost-'+i+'" class="trcost" style="grid-column:1/-1">'+trainCostHtml(i)+'</div><div class="trainrow"><input type="number" min="0" step="1" id="tr-amt-'+i+'" data-unit="'+i+'" value="'+(trainAmt[i]||"")+'" placeholder="Amount" aria-label="How many '+u.name+'s">'+
         '<button class="btn ghost small" data-act="train-max" data-unit="'+i+'" id="tr-max-'+i+'">Max</button><button class="btn small" data-act="train" data-unit="'+i+'" id="tr-btn-'+i+'">Train</button><button class="btn ghost small" data-act="train-split" data-mode="idle" data-unit="'+i+'" id="tr-idle-'+i+'">All idle</button><button class="btn ghost small" data-act="train-split" data-mode="all" data-unit="'+i+'" id="tr-all-'+i+'">All</button><span id="tr-info-'+i+'" class="dur"></span><span id="tr-sinfo-'+i+'" class="dur" style="flex-basis:100%"></span></div>';
     }
     h+='</div>';
