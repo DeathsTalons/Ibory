@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.58
+Version 0.1.59
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,9 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.59
+- High scores: names no longer wrap one letter per line. The rank, hero and score columns have fixed widths, so player names get the rest of the row. No Worker or save changes.
+
 ### 0.1.58
 - World chat: a chat button in the header opens the chat bar with World and Alliance channels (Pin keeps it on every page). Needs a cloud save to talk. Settings: World chat Shown / Hidden.
 - Single player / multiplayer: Settings > Multiplayer On / Off. Off hides alliances, invasions and PvP (and alliance chat); the rest of the game is unchanged. A first-open popup explains the choice.

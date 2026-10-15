@@ -392,7 +392,7 @@ dialog.full{width:100%;max-width:none;height:100%;max-height:none;margin:0;borde
 dialog.full .sheet{height:100dvh;max-height:none;border-radius:0;border:0;align-content:start;padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .lbtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;position:sticky;top:-16px;background:var(--panel);z-index:1;margin:0 -2px} .lbtabs::-webkit-scrollbar{display:none} .lbtabs .chipbtn{flex:none;white-space:nowrap}
 table.gt.wct{min-width:0} table.gt.wct td{white-space:normal;padding:3px 4px} table.gt.wct td:first-child{text-align:left} table.gt.wct input{width:7.5em}
-table.gt.lbt{min-width:0} table.gt.lbt td:first-child{width:2.5em;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:anywhere} table.gt.lbt .lbn{display:inline-flex;align-items:center;gap:8px;text-align:left} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
+table.gt.lbt{min-width:0;table-layout:fixed} table.gt.lbt td:first-child{width:1.7em;padding-right:0;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:break-word;word-break:normal} table.gt.lbt td.lbh{width:5em;padding:4px 2px;line-height:1.2;white-space:normal;overflow-wrap:break-word;font-size:.9em} table.gt.lbt td:last-child{width:5.6em;white-space:nowrap} table.gt.lbt .lbn{display:flex;align-items:center;gap:6px;text-align:left;min-width:0} table.gt.lbt .lbn>span:last-child{min-width:0;overflow-wrap:break-word} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
 .upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
 .upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
@@ -641,7 +641,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.58";
+var APP_VERSION = "0.1.59";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -3446,7 +3446,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+'</span></span></td>'+(d.cat==="hero"?'<td>'+(r.hero?esc(r.hero):'\u2014')+'</td>':'')+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+'</span></span></td>'+(d.cat==="hero"?'<td class="lbh">'+(r.hero?esc(r.hero):'\u2014')+'</td>':'')+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
