@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.42
+Version 0.1.43
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,19 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 44.
+Settings has save codes and Save to file / Load from file. Current save version: 45.
 
 ## Release notes
+### 0.1.43
+- Alliance City (Alliance tab, Alliance City): the alliance bank, construction and the University's research tree.
+  - Donate resources from any city to the bank (every 1,000 is a contribution point).
+  - Lend a city's Academy to the alliance (research points: Academy level x 100 an hour, faster with Scholarship and your researcher; it can't research for its city meanwhile) and 0, 1 or 2 of its builders (construction points: Town Hall level x 100 an hour each, faster with Construction and your mayor; they can't build at home). Points keep coming while the game is closed, and every 100 is a contribution point.
+  - Construction points build the University and upgrade the Alliance City (levels 1-10; buildings can't pass the city's level). The University appears on the alliance map as a 3 x 3 block.
+  - Research points go into the University's research: four trees (Production, Construction, Alliance, Army), each in tiers. Tier N needs University level N and every tier N-1 research of that tree finished. One research at a time (Second Desk adds another). Starting research needs the research permission; building needs the bank permission.
+  - Bonuses that already work: production per resource and overall, gold, Warehouse protection, build and research speed, march speed, hero experience, troop attack, defense and life, carrying load, troops per march, +1 city, help time, member cap, research and construction point boosts. The rest (Alliance Vault, Swift Allies, Shield Wall, Monster Lore, Hall of Envoys) are researchable now and start working with the Warehouse, reinforcements and monsters.
+  - Contribution ranking and a list of what finished.
+  - Pace: a tier-1 level-1 research is 500k points (about a day for 10 members lending one Academy each); each level costs 1.35x more and each tier 2.5x. University level 1 is 120k construction points; each building or city level costs 1.8x more.
+- Needs the updated Worker (worker.js).
 ### 0.1.42
 - The alliance map is now 15 x 15, with the Alliance City as a 3 x 3 block in the middle (alliance buildings will be 3 x 3 too unless noted). Maps made with 0.1.41 start over with everyone placed around the city. To move the city, tap it, Move the city, then tap where its middle should go: the whole 3 x 3 block must be free.
 ### 0.1.41
