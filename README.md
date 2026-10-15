@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.29
+Version 0.1.30
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 42.
 
 ## Release notes
+### 0.1.30
+- The daily reset (valleys and flats gaining a level, daily alliance tasks) now happens at midnight Eastern time (New York, with daylight saving) for everyone, instead of at each phone's own midnight. Nothing jumps when you update: every valley and flat keeps its current level and the day number is kept; only the time of the next rollover moves.
 ### 0.1.29
 - Invasions: after you've been invaded you choose how long you stay safe: 24 hours, 72 hours, 7 days or 14 days (a setting in the Invasions section; 72 hours until you pick). Short means more invasions and more War Marks.
 - The invader can leave an invasion at any time. If they haven't attacked anything it is cancelled and nothing counts; if they have, they must wait an hour after their latest attack (scouting doesn't count). A cancelled invasion that was already fighting still charges any March Speed-ups used.

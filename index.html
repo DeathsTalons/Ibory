@@ -545,7 +545,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.29";
+var APP_VERSION = "0.1.30";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1225,14 +1225,23 @@ function monsterBase(q){
   return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:10,medicine:10,iron_working:10,horseback_riding:10,compass:10}, res:{food:0,lumber:0,stone:0,iron:0,gold:200000*m}, am:1.5+0.5*q.L};
 }
 function genMap(){ initHC(); LEGACY=legacyGen(); TILES=true; applyDailyLevels(true); miniDirty=true; }
-// Days roll over at local midnight on the phone. S.dayOff shifts game time so (S.gt+S.dayOff) mod 24h = the phone's wall-clock time.
+// Days roll over at midnight Eastern time (New York, with daylight saving) for everyone. S.dayOff shifts game time so (S.gt+S.dayOff) mod 24h = the Eastern wall-clock time.
 var DAY_MS=86400000;
 function gameDay(){ return Math.floor((S.gt+(S.dayOff||0))/DAY_MS); }
 function msToNewDay(){ return (gameDay()+1)*DAY_MS-(S.gt+(S.dayOff||0)); }
-function wallPhase(now){ var d=new Date(now); return ((d.getHours()*60+d.getMinutes())*60+d.getSeconds())*1000+d.getMilliseconds(); }
+var ET_FMT=null;
+function wallPhase(now){
+  var ms=((now%1000)+1000)%1000;
+  try { if (!ET_FMT) ET_FMT=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hourCycle:"h23",hour:"numeric",minute:"numeric",second:"numeric"});
+    var h=0,m=0,sc=0; ET_FMT.formatToParts(new Date(now)).forEach(function(x){ if (x.type==="hour") h=(+x.value)%24; else if (x.type==="minute") m=+x.value; else if (x.type==="second") sc=+x.value; });
+    return ((h*60+m)*60+sc)*1000+ms;
+  } catch(e){ var d=new Date(now); return ((d.getHours()*60+d.getMinutes())*60+d.getSeconds())*1000+d.getMilliseconds(); } // no Intl: the phone's own midnight
+}
 function syncDayClock(now){
   if (S.speed!==1) return; // testing speeds run their own fast days
   var ph=wallPhase(now);
+  if (!S.dayEt){ // switching to Eastern midnight: keep today's day number, so every valley and flat stays at its current level; only the rollover time moves
+    S.dayOff = S.dayOff==null ? ((ph-S.gt)%DAY_MS+DAY_MS)%DAY_MS : gameDay()*DAY_MS + ph - S.gt; S.dayEt=1; return; }
   if (S.dayOff==null){ S.dayOff=((ph-S.gt)%DAY_MS+DAY_MS)%DAY_MS; return; } // first sync for older saves: at most one early rollover
   var cur=gameDay(), old=((S.gt+S.dayOff)%DAY_MS+DAY_MS)%DAY_MS;
   // clock jumped past midnight (time zone east, DST, back from a testing speed): start the new day now; never step a day backwards
@@ -2121,7 +2130,7 @@ function renderTileInfo(){
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
   if (q.k==="flat" && (S.items.teleport||0)>0 && (!C().fieldCap || hasHC(16))) h+='<div class="btnrow" style="margin:6px 0"><button class="btn" data-act="teleport" data-tile="'+q.id+'">'+(armedTile==="tp"+q.id?"Tap again to move "+esc(S.name)+" here":"Teleport "+esc(S.name)+" here ("+S.items.teleport+" left)")+'</button></div><p class="hint">The whole city moves: buildings, troops, heroes and held valleys. Its old tile becomes a flat.</p>';
-  if (VTYPES[q.k]) h+='<p class="hint">Unheld valleys and flats gain a level every day at midnight, and drop back to level 1 after level 10 (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
+  if (VTYPES[q.k]) h+='<p class="hint">Unheld valleys and flats gain a level every day at midnight Eastern time, and drop back to level 1 after level 10 (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
   var hh=S.map.hit[q.id], since=hh?S.gt-hh.at:Infinity;
   if (hh && VTYPES[q.k] && since<REGEN_R) h+='<p class="hint">Its troops are back at full strength. Loot refilling: <b>'+Math.floor(since/REGEN_R*100)+'%</b>, full in '+fmtT(realMs(REGEN_R-since))+'.</p>';
   else if (hh && q.k==="npc" && since<REGEN_R) h+='<p class="hint">Recovering from your last attack. Troops '+(since<REGEN_T?'<b>'+Math.floor(since/REGEN_T*100)+'%</b> back, full in '+fmtT(realMs(REGEN_T-since)):'<b>fully back</b>')+'. Loot <b>'+Math.floor(since/REGEN_R*100)+'%</b>, full in '+fmtT(realMs(REGEN_R-since))+'.</p>';
