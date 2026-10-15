@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.62
+Version 0.1.63
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,9 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.63
+- The number on the Achievements icon now only counts achievements earned since you last opened that page, and disappears once you open it. No save version or Worker change.
+
 ### 0.1.62
 - Star set rebalance: troop life bonus now starts at 9 stars (x1.5), 12 stars x2, 15 stars x2.5 (was 5 stars x1.5 up to 15 stars x3). Below 9 stars there is no bonus. No save change, no Worker change.
 

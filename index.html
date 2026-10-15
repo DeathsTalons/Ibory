@@ -641,7 +641,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.62";
+var APP_VERSION = "0.1.63";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -4455,7 +4455,7 @@ function tickText(){
   var sa=document.getElementById("saveage"); if (sa){ var sat=saveAge(); if (sa.textContent!==sat) sa.textContent=sat; }
   var stg=document.getElementById("speedtag"); if (stg){ var on=S.speed>1, txt="\u23e9 "+S.speed+"\u00d7"; if (stg.style.display!==(on?"":"none")) stg.style.display=on?"":"none"; if (on && stg.textContent!==txt) stg.textContent=txt; }
   achCheck();
-  var abd=document.getElementById("abadge"); if (abd){ var at=String(achTotal()); if (abd.textContent!==at) abd.textContent=at; }
+  var abd=document.getElementById("abadge"); if (abd){ var atn=achTotal(); if (S.achSeen==null || tab==="ach" || (typeof sheetFor!=="undefined" && sheetFor && sheetFor.kind==="ach")) S.achSeen=atn; var at=atn>S.achSeen?String(atn-S.achSeen):""; if (abd.textContent!==at) abd.textContent=at; } // the number is only what is new since you last opened Achievements
   renderDock();
   var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt;
     var qbtn=qbd.parentNode, qgone=QUESTS.length>0 && QUESTS.every(function(q){ return S.qdone&&S.qdone[q.id]; }), qdisp=qgone?"none":""; if (qbtn && qbtn.style.display!==qdisp) qbtn.style.display=qdisp; } // every quest claimed: the button goes away
