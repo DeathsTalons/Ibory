@@ -591,7 +591,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.48";
+var APP_VERSION = "0.1.49";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2441,16 +2441,16 @@ function posInfo(k){ for (var i=0;i<GEAR_POS.length;i++) if (GEAR_POS[i].k===k) 
 function wornAt(h,k){ return S.gear.filter(function(x){ return x.on===h.id && posOf(x)===k; })[0]; }
 function mountSpd(h){ if (!h || !S.gear) return 0; var g=wornAt(h,"mount"); return g ? MOUNT_SPD[g.tier] : 0; }
 var GEAR_TIERS=["common","rare","epic","legendary","mythic"], GEAR_BASE=[3,6,10,16,24], GEAR_MAX=[9,12,14,15,15], GEAR_SCRAP=[2,5,10,20,40];
-// success % with ONE gem, indexed by the current star count; each extra gem (up to 4) adds a step
-var GEM_P={D:[70,65,60,55,50,45,40,35,30,25,22,18,14,10,7], F:[95,93,90,88,85,85,85,82,80,70,60,50,40,30,22]}, GEM_STEP={D:5,F:3};
+// success % with FOUR gems, indexed by the current star count (Age 2 anchors: Flawless 95 at 0, 90 at 5, 50 at 11; Delicate 70 at 4, 65 at 5, 60 at 6; the rest continues the same drop per star).
+// Each gem fewer than four takes off one step (Flawless 15 points, Delicate 25/3), never below 1%: one Flawless is 45% at 5 stars, one Delicate 40%.
+var GEM_4={D:[90,85,80,75,70,65,60,55,50,45,40,35,30,25,20], F:[95,94,93,92,91,90,83,77,70,63,57,50,43,37,30]}, GEM_STEP={D:25/3,F:15};
 var FAIL_TO=[0,0,1,1,2,3,4,4,5,0,0,0,0,0,0]; // star count after a failed attempt from each level
 var SET_TIERS=[[15,3.0],[14,2.75],[12,2.5],[9,2.0],[5,1.5]];
 function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return g.on===h.id; }), low=99; if (on.length<GEAR_POS.length) return -1; on.forEach(function(g){ low=Math.min(low,g.stars); }); return low; }
 function setLife(h){ var st=starSet(h), m=1; for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]){ m=SET_TIERS[i][1]; break; } return m*(1+alFx("life")); }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
 function gemChance(g,type,n){ var stat=gearStat(g), m=bestFor(stat), mb=m?Math.min(10,hs(m,stat)/40):0;
-  return Math.min(99, GEM_P[type][g.stars]+GEM_STEP[type]*(n-1)+mb); }
-var STAR_P=[0.95,0.85,0.70,0.55,0.42,0.32,0.24,0.17,0.12,0.08];
+  return Math.min(99, Math.max(1, GEM_4[type][g.stars]-GEM_STEP[type]*(4-n))+mb); }
 var STATN={pol:"Politics",atk:"Attack",int:"Intelligence"};
 function slotOf(g){ for (var i=0;i<GEAR_SLOTS.length;i++) if (GEAR_SLOTS[i].k===g.slot) return GEAR_SLOTS[i]; return GEAR_SLOTS[0]; }
 // every piece adds one stat. Pieces crafted from 0.1.5 on carry their own (g.stat, chosen at the Workshop); older pieces keep their slot's stat
@@ -3902,6 +3902,7 @@ function migrate(s){
   if (s.v===43){ s.cities.forEach(function(cc){ cc.fg=cc.fg||[]; cc.autoFort=!!cc.autoFort; }); s.v=44; }
   if (s.v===44){ s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); s.alGive={r:0,c:0}; s.alFx={}; s.alMember=false; s.v=45; }
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
+  if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -3960,7 +3961,7 @@ function bkSnapshot(why, force){
 function bkList(){ var out=[]; [BK_BEST].concat(BK_RING,BK_PRE).forEach(function(k){ var m=bkMeta(k); try { if (m && localStorage.getItem(k)) out.push({k:k,m:m}); } catch(e){} }); out.sort(function(a,b){ return b.m.at-a.m.at; }); return out; }
 var S;
 var loadRaw=null;
-try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=46) S = migrate(p); else loadFail={why:(p&&p.v>46)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
+try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=47) S = migrate(p); else loadFail={why:(p&&p.v>47)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
 if (loadFail){ try { localStorage.setItem(BK_RESCUE, loadRaw); } catch(e){} saveLocked=true; } // a save that won't open is never written over
 else if (!loadRaw){ var bkb=bkMeta(BK_BEST); if (bkb && bkb.score>=1000) recoverOffer=true; }
 if (!S) S = newState();

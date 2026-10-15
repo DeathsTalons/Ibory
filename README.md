@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.48
+Version 0.1.49
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,13 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 46.
+Settings has save codes and Save to file / Load from file. Current save version: 47.
 
 ## Release notes
+### 0.1.49
+- Star upgrade odds reworked to follow Age 2: a steeper curve, and the number of gems per try now matters a lot. Four Flawless gems are 95% at 0 stars, 90% at 5 and 50% at 11, then keep falling about 6 or 7 points a star. Each gem fewer than four takes off 15 points (one Flawless is 45% at 5 stars). Four Delicate gems are 90% at 0 stars and lose 5 points a star (65% at 5, 60% at 6); each gem fewer takes off about 8 points (one Delicate is 40% at 5 stars). Never below 1%. The hero stat bonus (up to +10 points) still applies. What a failure drops you to is unchanged.
+- Existing saves: every piece of gear above 5 stars goes back to 5 stars on load (save version 47). Other gear stats are untouched.
+- No Worker change.
 ### 0.1.48
 - Valleys and flats no longer drop Delicate or Flawless Gems or gear crafting materials (Rough Ore, Fine Ingot, Mithril, Star Metal). Their medals, books and other items are unchanged.
 - NPC cities only drop medals, medal boxes and items when their troop garrison is full when the fight begins (every troop type back at its full count; fortifications don't count). Otherwise you still get the resources, and the march message says why nothing dropped. The NPC tile carries a hint about it.
