@@ -392,7 +392,7 @@ dialog.full{width:100%;max-width:none;height:100%;max-height:none;margin:0;borde
 dialog.full .sheet{height:100dvh;max-height:none;border-radius:0;border:0;align-content:start;padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .lbtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;position:sticky;top:-16px;background:var(--panel);z-index:1;margin:0 -2px} .lbtabs::-webkit-scrollbar{display:none} .lbtabs .chipbtn{flex:none;white-space:nowrap}
 table.gt.wct{min-width:0} table.gt.wct td{white-space:normal;padding:3px 4px} table.gt.wct td:first-child{text-align:left} table.gt.wct input{width:7.5em}
-table.gt.lbt{min-width:0} table.gt.lbt td:first-child{width:2.5em;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:anywhere} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
+table.gt.lbt{min-width:0} table.gt.lbt td:first-child{width:2.5em;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:anywhere} table.gt.lbt .lbn{display:inline-flex;align-items:center;gap:8px;text-align:left} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
 .upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
 .upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
@@ -635,7 +635,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.53";
+var APP_VERSION = "0.1.54";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2717,6 +2717,10 @@ function lbStats(){
   return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
     hero:hero, heroName:heroName, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
 }
+function lbAvatar(r){ // a small picture for each high scores row: yours straight from the save, others loaded one at a time from the server (the browser keeps them)
+  var pf = r.me ? S.me : (r.pu||r.fr) ? {img: r.pu ? LB_URL+"/me/img?k="+encodeURIComponent(r.ck)+"&v="+r.pu : "", frame:r.fr} : {};
+  return avatarHtml(pf||{}, r.name, true);
+}
 function lbSync(force){
   profSync(); lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
   try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
@@ -3369,7 +3373,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td>'+(d.cat==="hero"?'<td>'+(r.hero?esc(r.hero):'\u2014')+'</td>':'')+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+'</span></span></td>'+(d.cat==="hero"?'<td>'+(r.hero?esc(r.hero):'\u2014')+'</td>':'')+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
@@ -6545,7 +6549,7 @@ function profSync(){ // sends your image and frame to the server so alliance mat
 var FRAMES={bughunter:{name:"Bug Hunter", desc:"For the beta testers who hunted bugs", icon:"bug"}}; // cosmetic frames around the character image; more will come
 function avatarHtml(me, name, sm){
   me=me||{}; var fr=me.frame && FRAMES[me.frame] ? me.frame : "";
-  return '<div class="avatar'+(sm?' '+(sm===true?'sm':sm):'')+(fr?' f-'+fr:'')+'">'+(me.img ? '<img alt="" src="'+me.img+'">' : '<span>'+esc((name||"?").trim().charAt(0).toUpperCase()||"?")+'</span>')+(fr?'<span class="fbadge" title="'+esc(FRAMES[fr].name)+'">'+ICON[FRAMES[fr].icon]+'</span>':'')+'</div>';
+  return '<div class="avatar'+(sm?' '+(sm===true?'sm':sm):'')+(fr?' f-'+fr:'')+'">'+(me.img ? '<img alt="" loading="lazy" src="'+esc(me.img)+'">' : '<span>'+esc((name||"?").trim().charAt(0).toUpperCase()||"?")+'</span>')+(fr?'<span class="fbadge" title="'+esc(FRAMES[fr].name)+'">'+ICON[FRAMES[fr].icon]+'</span>':'')+'</div>';
 }
 function meSheet(){
   S.me=S.me||{img:"",frame:""}; var me=S.me, st=lbStats(), al=alMine(), nm=S.lord||(S.lb&&S.lb.name)||S.name;

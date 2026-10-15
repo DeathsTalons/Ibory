@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.53
+Version 0.1.54
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.54
+- High scores show each player's picture and frame next to their name (yours instantly, others from the server, loaded only for the rows on screen). Needs the matching Worker (scores-worker 0.1.54): board rows now carry the player's cloud account link and a new GET /me/img serves pictures as plain images. Players appear with a picture after their game next syncs with a cloud save.
 ### 0.1.53
 - Character image: any picture works, including phone screenshots (PNG), WebP, GIF and others. Whatever you pick is converted to a small JPEG, so the file type never matters. Files whose type the phone doesn't report are accepted too.
 ### 0.1.52
