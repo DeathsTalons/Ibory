@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.43
+Version 0.1.45
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,29 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 45.
+Settings has save codes and Save to file / Load from file. Current save version: 46.
 
 ## Release notes
+### 0.1.45
+- Monster Arena: an alliance can have as many monsters up at once as it has Arena slots (5, up to 10 with Arena Marshals). Each has its own 5-minute window and card on the Arena page; your Arena slots are shared across all of them. The chip next to Help shows how many are up and the soonest countdown.
+- Monsters rebalanced for top heroes (attack in the 800s, high star sets): level 10 now takes roughly 10 to 15 full marches of the right troops with heroes like that.
+- Iron Titan extra drops lowered: Fine Ingot 3% + 4% per level, Mithril 1% + 1.5% per level, Star Metal 0.5% + 0.5% per level (level 10: 43%, 16%, 5.5%).
+- Needs the updated Worker (worker.js).
+### 0.1.44
+- Alliance Warehouse (built in the Alliance City): every member gets a private box in their own save, safe from plunder. Level 1 takes 100 million resources a day in any mix (resets at midnight UTC), doubling with each level; Alliance Vault adds 10% per level. Take things out any time, into any city, even after leaving the alliance.
+- Monster Arena (built in the Alliance City; new Arena page in the Alliance tab):
+  - Five monsters, levels 1 to 10. Level N needs the Arena at level N and a kill of level N-1 of that monster.
+  - Goblin (food): weak to mounted troops, decimates archers. Drops Delicate Gems.
+  - Ent (lumber): weak to foot soldiers, decimates mounted troops. Drops Annals of Conquest (level squared) and some of each resource.
+  - Golem (stone): weak to foot soldiers, decimates siege engines. Drops 15-minute speed-ups (1, 2, 4, 8...).
+  - Iron Titan (iron): only siege really hurts it (everything else does 15%), stomps foot soldiers. Drops 1 Rough Ore plus chances of Fine Ingot, Mithril and Star Metal that grow with level.
+  - Dragon (gold): weak to archers, decimates mounted troops. Drops Flawless Gems.
+  - Weak-to class does 2.5x damage, others 50%; the class a monster decimates takes 2.5x losses.
+  - 10 free summons a day per alliance (Monster Lore adds 1 per level). After that a summon costs its resource from the bank: 10M at level 1, x10 each level. Members with the bank permission can keep back an amount paid summons can't touch. Summoning needs the monster permission.
+  - A summoned monster waits 5 minutes. Send marches from the Arena page (the usual march sheet, presets work): they need a hero, use Arena slots (5, plus Arena Marshals, a new Alliance-tree research) instead of the Rally Spot, and travel 1 minute plus 15 seconds per map square, faster with march speed bonuses and Swift Allies.
+  - When the window closes, every march fights together. Nobody dies: losses come home wounded to the city's Medic Camp. If it falls, everyone who joined gets the same reward.
+  - A chip next to Help shows the countdown while a monster is up.
+- Needs the updated Worker (worker.js). Save version 46.
 ### 0.1.43
 - Alliance City (Alliance tab, Alliance City): the alliance bank, construction and the University's research tree.
   - Donate resources from any city to the bank (every 1,000 is a contribution point).

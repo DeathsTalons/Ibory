@@ -539,6 +539,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button class="speedchip iconchip" data-act="lb-open" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
     <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
     <button class="speedchip iconchip helpchip" data-act="al-help" id="helpchip" style="display:none" aria-label="Help your alliance" title="Help your alliance"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V5.5a1.5 1.5 0 0 1 3 0V12M17 11.5V9a1.5 1.5 0 0 1 3 0v5c0 4-3 7-7 7-3 0-4.6-1.4-6.2-4l-2.2-3.6a1.5 1.5 0 0 1 2.6-1.5L8 14"/></svg><b id="helpn"></b></button>
+    <button class="speedchip iconchip helpchip" data-act="al-arena-go" id="monchip" style="display:none" aria-label="A monster is waiting at your alliance's Arena" title="Monster Arena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19l4-14M10.5 20l3-15M16 19l3-12"/></svg><b id="monn"></b></button>
     </div>
   </header>
 
@@ -584,7 +585,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.43";
+var APP_VERSION = "0.1.45";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2285,9 +2286,10 @@ function renderReports(){
 function mapDynamic(){ renderTileInfo(); renderMarchBox(); drawMap(); }
 function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && !isOfficer(h); }); }
 function marchHeroes(){ return freeHeroes().sort(function(a,b){ return hs(b,"atk")-hs(a,"atk") || b.level-a.level; }); }
-function openMarch(tile, mission){
+function openMarch(tile, mission, mid){
   var friendly = mission==="transport" || mission==="reinforce" || mission==="hide";
   marchDraft={tile:tile, mission:mission, t:[0,0,0,0,0,0,0,0,0,0,0,0], hero: friendly ? 0 : ((marchHeroes()[0]||{}).id||0), preview:"", cargo:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+  if (mission==="arena") marchDraft.mid=mid||0;
   openSheet({kind:"march"});
 }
 function marchCap(t){ var cap=0; t.forEach(function(n,i){ cap+=n*LOAD[i]*loadMul(); }); return Math.floor(cap); }
@@ -2297,6 +2299,7 @@ function armyCap(ens){ return Math.floor((10000*rallyLv()+alFx("marchsize"))*(en
 function scoutWhy(d){ if (!(d.t[2]>0)) return "Send at least one scout"; if (d.t.some(function(n,i){ return i!==2 && n>0; })) return "Scout missions take scouts only"; return ""; }
 function marchWhy(){
   var d=marchDraft, n=d.t.reduce(function(a,b){return a+b;},0);
+  if (d.mission==="arena") return arWhy(n);
   if (!rallyLv()) return "Build a Rally Spot first";
   if (rallyUsed()>=rallyLv()) return "Rally Spot is full ("+rallyLv()+" marches)";
   if (!n) return "Choose some troops";
@@ -2323,6 +2326,8 @@ function marchWhy(){
 function updateMarchInfo(){
   var el=document.getElementById("marchinfo"), b=document.getElementById("marchgo"); if (!el) return;
   var q=TILE_BY[marchDraft.tile], tm=draftTravel(), cap=0;
+  if (marchDraft.mission==="arena"){ var acur=arById(marchDraft.mid); el.textContent="Travel about "+fmtT(arTravelEst())+" from your kingdom square to the Arena"+(acur?"; the window closes in "+fmtT(Math.max(0,acur.ends-Date.now())):"")+". Army size "+fmt(sumT(marchDraft.t))+" of "+fmt(armyCap(marchDraft.ensign))+"."; var amh=marchDraft.hero?heroById(marchDraft.hero):null; if (amh) el.textContent+=" Led by "+amh.name+" (Attack "+hs(amh,"atk")+", Intelligence "+hs(amh,"int")+").";
+    var awhy=marchWhy(); b.disabled=!!awhy||!!ALS.arSending; b.textContent=awhy||"March to the Arena"; return; }
   marchDraft.t.forEach(function(n,i){ cap+=n*LOAD[i]*loadMul(); });
   el.textContent = marchDraft.mission==="hide" ? "They leave at once and come back the moment you recall them." : !tm ? "" : (marchDraft.mission==="reinforce"||marchDraft.mission==="station") ? "Travel "+fmtT(realMs(tm))+". These troops will stay there"+(marchDraft.mission==="station"?" as a camp you can attack from":"")+"." :
     marchDraft.mission==="transport" ? "Travel "+fmtT(realMs(tm))+" each way. Carrying "+fmt(cargoTotal())+" of "+fmt(cap)+" capacity." : "Travel "+fmtT(realMs(tm))+" each way. Carries "+fmt(cap)+" loot.";
@@ -2335,6 +2340,7 @@ function updateMarchInfo(){
 }
 function marchSheet(){
   var d=marchDraft, q=TILE_BY[d.tile], h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>'+({hide:"Hide troops in the woods around ",station:"Station troops at ",occupy:"Occupy ",found:"Found a city at ",transport:"Send resources to ",reinforce:"Reinforce ",attack:"Attack ",conquer:"Conquer ",scout:"Scout ",allyguard:"Guard "}[d.mission])+esc(tileName(q))+'</h2><div class="sub">('+q.x+', '+q.y+'), '+(function(){ var k=TRAVEL_FROM; TRAVEL_FROM=d.from?campXY(d.from):null; var v=tdist(q).toFixed(1); TRAVEL_FROM=k; return v; })()+' tiles away'+(d.from?' from your camp':'')+'</div></div></div>';
+  if (d.mission==="arena"){ var acM=arById(d.mid)||{}, acT=arT(acM.type); h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Fight the level '+(acM.lv||"?")+' '+esc(acT.n)+'</h2><div class="sub">at the Monster Arena, from your kingdom square</div></div></div><p class="hint">'+arWeakTxt(acT)+' Losses come home wounded to '+esc(S.name)+'\u2019s Medic Camp. This march uses one of your '+arSlots()+' Arena slots, not the Rally Spot.</p>'; }
   var any=false, av=draftAvail(), camps=CAMP_MISSIONS[d.mission]?cityCamps().filter(function(c){ return c.tile!==d.tile; }):[];
   if (camps.length) h+='<div><label class="sub" for="marchfrom">March from</label><select id="marchfrom"><option value="">'+esc(S.name)+' (the city)</option>'+camps.map(function(c){ var cq=TILE_BY[c.tile]; return '<option value="'+c.tile+'"'+(d.from===c.tile?' selected':'')+'>Camp at '+esc(cq?tileName(cq):c.tile)+' ('+fmt(sumT(c.t))+' troops)</option>'; }).join("")+'</select></div>';
   if (d.mission==="hide") h+='<p class="hint">They slip out into the woods around the city: attackers won\u2019t find them, and Recall brings them back instantly. They hunt for their own food. Each group takes a Rally Spot slot, like any march.</p>';
@@ -2357,7 +2363,7 @@ function marchSheet(){
   if (d.mission==="occupy") h+='<label class="chk"><input type="checkbox" id="mcamp"'+(d.camp?' checked':'')+'> Stay and make camp: if it wins, this army stays on the tile as a hidden base to attack from. Nobody can join it later.</label>';
   if (d.mission!=="hide" && ((S.items.ensign||0)>0 || d.ensign)) h+='<label class="chk"><input type="checkbox" id="mensign"'+(d.ensign?' checked':'')+'> Raise a War Ensign: +25% army size for this march ('+(S.items.ensign||0)+' left)</label>';
   h+='<p class="sub" id="marchinfo"></p><div id="marchprev"></div>';
-  var friendlyM = d.mission==="transport" || d.mission==="reinforce" || d.mission==="scout" || d.mission==="allyguard" || d.mission==="hide";
+  var friendlyM = d.mission==="transport" || d.mission==="reinforce" || d.mission==="scout" || d.mission==="allyguard" || d.mission==="hide" || d.mission==="arena";
   if (d.mission==="allyguard") h=h.replace('<p class="sub" id="marchinfo">','<p class="hint">Your troops stay with your ally and fight beside them when a bully attacks, until you recall them.</p><p class="sub" id="marchinfo">');
   h+='<div class="act">'+(friendlyM?'<span></span>':'<button class="btn ghost" data-act="march-preview">Preview battle</button>')+'<button class="btn" data-act="march-go" id="marchgo">March</button></div><button class="closebtn" data-act="close">Cancel</button>';
   return h;
@@ -2389,6 +2395,7 @@ function launchMarch(tileId, mission, t, heroId, opt){
   S.marches.push(m); return m;
 }
 function sendMarch(){
+  if (marchDraft.mission==="arena"){ arSend(); return; }
   if (marchWhy()) return;
   if (marchDraft.mission==="hide"){ var hd=marchDraft, hh=hd.hero?heroById(hd.hero):null;
     for (var hi=0;hi<12;hi++) S.troops[hi]-=hd.t[hi];
@@ -2670,7 +2677,7 @@ function alSync(){
     if (aid && d.al && d.al.econ){ S.alMember=true; S.alFx=d.al.econ.fx||{}; }
     else if (!aid && S.alMember){ S.alMember=false; S.alFx={}; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); } // left: bonuses and lending end
     if (aid!==ALS.aid){ ALS.aid=aid; ALS.chat=[]; ALS.top=0; ALS.d=d; if (aid){ ALS.last=0; } alRender(); if (aid) setTimeout(alSync,50); return; }
-    ALS.d=d; if (d.help) alApplyHelps(d.help);
+    ALS.d=d; if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon);
     (d.chat||[]).forEach(function(c){ var at=-1; for (var i=ALS.chat.length-1;i>=0;i--) if (ALS.chat[i].id===c.id){ at=i; break; } if (at>=0) ALS.chat[at]=c; else ALS.chat.push(c); if (c.id>ALS.top) ALS.top=c.id; });
     if (ALS.chat.length>300) ALS.chat=ALS.chat.slice(-300);
     if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
@@ -2698,9 +2705,12 @@ function alApplyHelps(hp){
   if (got){ toast("Your alliance helped "+got+" time"+(got>1?"s":"")+": "+what.slice(0,3).join(", ")+(what.length>3?"\u2026":"")); if (advance(Date.now())) flushFinished(); save(); refresh(); }
 }
 function alTick(){
-  if (!alOn() || document.hidden) return;
+  if (document.hidden) return;
+  arTick();
+  if (!alOn()) return;
   if (alMine()){ var sig=alMyJobs().map(function(j){ return j.ref; }).join("|"); if (sig!==ALS.jobSig && Date.now()-ALS.last>3000) ALS.last=0; } // a new build or research: tell the alliance soon
   var inAl=!!alMine(), due = tab==="guild" ? (inAl && ALS.sub==="chat" ? 4000 : 15000) : 60000;
+  if (inAl && (arCur() || (S.alArena||[]).some(function(m){ return m.st==="out"; }))) due=Math.min(due, 5000); // a monster is up: keep close watch
   if (Date.now()-ALS.last>=due) alSync();
   if (tab==="guild" && !inAl && Date.now()-ALS.listAt>=60000) alList();
 }
@@ -2724,6 +2734,7 @@ function viewGuild(){
 function viewAllianceList(){
   var d=ALS.d, h='<div class="section"><div class="shead"><h3>Alliances</h3><span class="dur">your honor '+fmt(d.honor||0)+'</span></div>'+
     '<p class="hint">Join other players: chat, and soon help each other build, reinforce each other, research together and fight monsters as a group. Apply to an alliance below, or found your own. Honor is the prestige of enemy troops you kill in invasions (and alliance wars, later).</p></div>';
+  if (alBoxTot()>0) h+=alBoxHtml(0);
   if (d.myApps && d.myApps.length) h+='<div class="section"><h3>Your applications</h3>'+d.myApps.map(function(a){ return '<div class="bq"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <span class="dur">sent '+alAgo(a.at)+'</span></span><div class="mbtns"><button class="link" data-act="al-unapply" data-aid="'+esc(a.aid)+'">Withdraw</button></div></div>'; }).join("")+'</div>';
   var L=(ALS.list||[]).slice(), sk=ALS.sort, applied={}; (d.myApps||[]).forEach(function(a){ applied[a.aid]=1; });
   L.sort(function(a,b){ return (a.rank[sk]||0)-(b.rank[sk]||0); });
@@ -2746,7 +2757,7 @@ function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
   if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
   var hp=ALS.d.help||{projects:[],canHelp:0};
-  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["map","Map"],["members","Members ("+al.members.length+")"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["map","Map"],["members","Members ("+al.members.length+")"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
@@ -2760,6 +2771,8 @@ function viewMyAlliance(al){
       (hp.projects.length?hp.projects.map(function(p){ return '<div class="bq"><span><b>'+esc(p.owner)+'</b>: '+esc(p.label)+'<br><span class="dur">'+(p.end>Date.now()?fmtT(p.end-Date.now())+' left':'finishing')+' \u00b7 helped '+p.helps+' of '+others+'</span></span><span class="dur">'+(p.mine?'yours':p.helped?'\u2713 helped':'')+'</span></div>'; }).join(""):'<p class="hint">No projects running.</p>')+'</div>';
   } else if (sub==="city"){
     h+=alCityHtml(al);
+  } else if (sub==="arena"){
+    h+=alArenaHtml(al);
   } else if (sub==="map"){
     h+=alMapHtml(al);
   } else if (sub==="members"){
@@ -2802,14 +2815,15 @@ function alCityHtml(al){
   else if (my.can.bank){
     var opts=[];
     if (cl<C0.city.max) opts.push(['city','Upgrade the Alliance City to level '+(cl+1), C0.city.need[cl]]);
-    if (ul<univ.max) opts.push(['univ',(ul?'Upgrade the University to level ':'Build the University (level ')+(ul+1)+(ul?'':')'), univ.need[ul], ul+1>cl]);
-    h+=opts.map(function(o){ return '<div class="bq"><span>'+o[1]+'<br><span class="dur">'+fmt(o[2])+' construction points, '+alCostTxt(o[2])+'</span>'+(o[3]?'<br><span class="why">Needs Alliance City level '+(ul+1)+'</span>':'')+'</span><div class="mbtns"><button class="link strong" data-act="al-start" data-kind="build" data-key="'+o[0]+'"'+(o[3]?' disabled':'')+'>Start</button></div></div>'; }).join("");
+    C0.bldg.forEach(function(B){ var bl=E.lv[B.k]||0; if (bl<B.max) opts.push([B.k,(bl?'Upgrade the '+B.n+' to level ':'Build the '+B.n+' (level ')+(bl+1)+(bl?'':')'), B.need[bl], bl+1>cl, B.d]); });
+    h+=opts.map(function(o){ return '<div class="bq"><span>'+o[1]+(o[4]?'<br><span class="hint">'+esc(o[4])+'</span>':'')+'<br><span class="dur">'+fmt(o[2])+' construction points, '+alCostTxt(o[2])+'</span>'+(o[3]?'<br><span class="why">Needs Alliance City level '+(cl+1)+'</span>':'')+'</span><div class="mbtns"><button class="link strong" data-act="al-start" data-kind="build" data-key="'+o[0]+'"'+(o[3]?' disabled':'')+'>Start</button></div></div>'; }).join("");
   } else h+='<p class="dur">Nothing is being built. Members with the bank permission start construction.</p>';
-  h+='<div class="rgrid" style="margin-top:6px"><span>University <b>level '+ul+'</b></span><span>Research slots <b>'+E.slots+'</b></span><span>Construction pool <b>'+fmt(E.cp)+'</b></span><span>Research pool <b>'+fmt(E.rp)+'</b></span><span>Help <b>'+Math.round(E.help)+' s</b></span><span>Member cap <b>'+E.cap+'</b></span></div></div>';
+  h+='<div class="rgrid" style="margin-top:6px">'+C0.bldg.map(function(B){ return '<span>'+esc(B.n)+' <b>level '+(E.lv[B.k]||0)+'</b></span>'; }).join("")+'<span>Research slots <b>'+E.slots+'</b></span><span>Construction pool <b>'+fmt(E.cp)+'</b></span><span>Research pool <b>'+fmt(E.rp)+'</b></span><span>Help <b>'+Math.round(E.help)+' s</b></span><span>Member cap <b>'+E.cap+'</b></span></div></div>';
   // bank and donations
   h+='<div class="section"><div class="shead"><h3>Bank</h3></div><div class="rgrid">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(Math.floor(E.bank[k]||0))+'</b></span>'; }).join("")+'</div>'+
     '<div class="h3" style="margin-top:8px">Donate from '+esc(S.name)+'</div><div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+RES.map(function(k){ return '<tr><td>'+RNAME[k]+' <span class="dur">('+fmt(Math.floor(S.res[k]))+')</span></td><td><input type="number" min="0" data-aldon="'+k+'" value="'+(ALD[k]||"")+'" placeholder="0" style="width:110px"></td></tr>'; }).join("")+'</tbody></table></div>'+
     '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-donate">Donate</button></div><p class="hint">Every 1,000 resources donated is 1 contribution point.</p></div>';
+  h+=alBoxHtml(E.box||0);
   // lending
   h+='<div class="section"><div class="shead"><h3>Your cities</h3></div><p class="hint">An Academy working for the alliance makes research points (Academy level \u00d7 100 an hour, faster with Scholarship and your researcher), and can\u2019t research for its city meanwhile. Each builder lent makes construction points (Town Hall level \u00d7 100 an hour, faster with Construction and your mayor) and can\u2019t build at home. Every 100 points is 1 contribution point.</p>';
   S.cities.forEach(function(c,ci){ withCity(ci,function(){ var rt=alRates(), acadBusy=!!S.research && !S.alAcad, maxB=BUILDERS-S.builds.length+(S.alBld||0);
@@ -2843,6 +2857,142 @@ function alCityHtml(al){
     (E.log.length?'<div class="h3" style="margin-top:8px">Finished</div>'+E.log.map(function(l){ return '<p class="dur" style="margin:2px 0">'+alTime(l.at)+' '+esc(l.t)+'</p>'; }).join(""):'')+'</div>';
   return h;
 }
+/* the Alliance Warehouse: a private box kept in your own save, safe from plunder. The alliance's Warehouse level sets how much can go in per day (midnight UTC). */
+var ALB={food:"",lumber:"",stone:"",iron:"",gold:""};
+function alDayNo(){ return Math.floor(Date.now()/864e5); }
+function alBoxUsed(){ var d=S.alBoxDay; return d && d.d===alDayNo() ? d.used : 0; }
+function alBoxTot(){ var b=S.alBox||{}, t=0; RES.forEach(function(k){ t+=b[k]||0; }); return t; }
+function alBoxHtml(lim){
+  var b=S.alBox||{}, left=Math.max(0,lim-alBoxUsed());
+  var h='<div class="section"><div class="shead"><h3>Your Warehouse box</h3><span class="dur">private</span></div>'+
+    '<div class="rgrid">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(Math.floor(b[k]||0))+'</b></span>'; }).join("")+'</div>'+
+    '<p class="hint">Only you can see or touch this box, and attackers can’t plunder it. '+(lim?'Today you can put in <b>'+fmt(left)+'</b> more of the '+fmt(lim)+' a day (any mix; resets at midnight UTC). Take it out any time, into any city.':'Your alliance needs an Alliance Warehouse before anything new can go in. Taking out always works, even outside an alliance.')+'</p>'+
+    '<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+RES.map(function(k){ return '<tr><td>'+RNAME[k]+' <span class="dur">('+esc(S.name)+' '+fmt(Math.floor(S.res[k]))+')</span></td><td><input type="number" min="0" data-albox="'+k+'" value="'+(ALB[k]||"")+'" placeholder="0" style="width:110px"></td></tr>'; }).join("")+'</tbody></table></div>'+
+    '<div class="btnrow" style="margin-top:6px">'+(lim?'<button class="btn small" data-act="al-box-in">Store from '+esc(S.name)+'</button>':'')+'<button class="btn ghost small" data-act="al-box-out">Take out to '+esc(S.name)+'</button></div></div>';
+  return h;
+}
+function alBoxMove(dir){
+  var lim=(alMine()&&alMine().econ&&alMine().econ.box)||0, amt={}, tot=0; S.alBox=S.alBox||{food:0,lumber:0,stone:0,iron:0,gold:0};
+  for (var k in ALB){ var v=Math.max(0,Math.floor(+ALB[k]||0)); if (!v) continue;
+    if (dir>0 && v>Math.floor(S.res[k])){ toast("You don’t have that much "+RNAME[k].toLowerCase()); return; }
+    if (dir<0 && v>Math.floor(S.alBox[k]||0)){ toast("Your box doesn’t hold that much "+RNAME[k].toLowerCase()); return; }
+    amt[k]=v; tot+=v; }
+  if (!tot){ toast("Type how much"); return; }
+  if (dir>0){ if (!lim){ toast("Your alliance needs an Alliance Warehouse"); return; } var left=lim-alBoxUsed(); if (tot>left){ toast("Only "+fmt(Math.max(0,left))+" more can go in today"); return; }
+    S.alBoxDay={d:alDayNo(), used:alBoxUsed()+tot}; }
+  for (var k2 in amt){ S.res[k2]-=dir*amt[k2]; S.alBox[k2]=(S.alBox[k2]||0)+dir*amt[k2]; }
+  ALB={food:"",lumber:"",stone:"",iron:"",gold:""}; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  save(); toast(dir>0?"Stored "+fmt(tot)+" in your Warehouse box":"Took "+fmt(tot)+" out to "+S.name); lastView=""; refresh();
+}
+/* the Monster Arena: summon a monster, everyone marches from their kingdom square, one fight when the 5-minute window closes.
+   Arena marches don't use a city's Rally Spot; losses all come home wounded (to the sending city's Medic Camp). */
+var ARL={}, ARG=null, AR_CLS_NAME={ground:"foot soldiers",ranged:"archers",mounted:"mounted troops",siege:"siege engines"};
+function arCat(){ return ALS.cat && ALS.cat.arena; }
+function arT(k){ var c=arCat(); return (c && c.types.filter(function(t){ return t.k===k; })[0]) || {k:k, n:k, lv:[]}; }
+function arMon(){ var al=alMine(); return al && al.econ && al.econ.mon; }
+function arLive(){ var m=arMon(), now=Date.now(); return m && m.live ? m.live.filter(function(c){ return now<c.ends; }).sort(function(a,b){ return a.ends-b.ends; }) : []; }
+function arCur(){ return arLive()[0] || null; } // the one closing soonest
+function arById(id){ return arLive().filter(function(c){ return c.id===id; })[0] || null; }
+function arWeakTxt(T){ var c=arCat(); if (!c||!T.weak) return ""; return 'Weak to <b>'+AR_CLS_NAME[T.weak]+'</b> ('+c.weakX+'× damage'+(T.only?'; everything else does only '+Math.round(c.onlyX*100)+'%':'; everything else does '+Math.round(c.otherX*100)+'%')+'). It decimates <b>'+AR_CLS_NAME[T.hits]+'</b> ('+c.hitsX+'× losses).'; }
+function arTravelEst(){ var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M) return 60000; var me=alMyTile(M), b=(M.b||[]).filter(function(x){ return x.k==="arena"; })[0], bs=M.bs||3;
+  var d=me&&b?Math.hypot(me.x-(b.x+(bs-1)/2), me.y-(b.y+(bs-1)/2)):0; return (c.travel0+c.travelTile*d)*1000/Math.min(4,Math.max(1,bMarch())); }
+function arSlots(){ var m=arMon(); return m?m.slots:5; }
+function arStatus(m){ var now=Date.now(); return m.st==="back" ? 'coming home, '+fmtT(Math.max(0,m.home-now)) : now<m.arrive ? 'arrives in '+fmtT(m.arrive-now) : 'at the Arena, waiting for the fight'; }
+function arRewardList(rw){ if (!rw) return ""; var out=[]; for (var k in rw.items) out.push(fmt(rw.items[k])+" "+((ITEMS[k]&&ITEMS[k].name)||k)); var rs=0; for (var r in rw.res) rs+=rw.res[r]; if (rs) out.push(fmt(rw.res.food||0)+" of each resource"); return out.join(", "); }
+function alArenaHtml(al){
+  var E=al.econ, A=arCat(); if (!E || !A || !E.mon) return '<div class="section"><p class="hint">Loading the Arena…</p></div>';
+  var mon=E.mon, lv=E.lv.arena||0, my=al.my, now=Date.now(), mine=S.alArena||[], h='', nLive=(mon.live||[]).length;
+  h+='<div class="section"><div class="shead"><h3>Monster Arena</h3><span class="dur">'+(lv?'level '+lv:'not built')+'</span></div>'+
+    '<p class="hint">Summon a monster and the whole alliance has '+Math.round(A.window/60000)+' minutes to march here from their kingdom squares. When the window closes, every army that made it fights together. Nobody dies: losses come home wounded to their city’s Medic Camp. If it falls, everyone who joined gets the same reward. Arena marches need a hero but don’t use your Rally Spot: you have <b>'+arSlots()+'</b> Arena slots (Arena Marshals adds more).</p>'+
+    (lv?'':'<p class="why">Build the Monster Arena in the Alliance City first.</p>')+'</div>';
+  var live=arLive(), full=mine.length>=arSlots();
+  live.forEach(function(cur){ var T=arT(cur.type);
+    h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>Level '+cur.lv+' '+esc(T.n)+'</h3><span class="dur">closes in <b class="arleft" data-ends="'+cur.ends+'">'+fmtT(cur.ends-now)+'</b></span></div>'+
+      '<p class="hint" style="margin:0 0 4px">Summoned by '+esc(cur.by)+'. '+esc(T.d||"")+'</p><p class="dur" style="margin:0 0 4px">'+arWeakTxt(T)+'</p>'+
+      ((T.lv[cur.lv-1])?'<p class="dur" style="margin:0 0 6px">Reward if it falls: '+esc(T.lv[cur.lv-1].reward)+'.</p>':'')+
+      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst())+' from your kingdom')+'</span></div>'+
+      (cur.joins.length?'<div class="h3" style="margin-top:8px">On the way ('+cur.joins.length+')</div>'+cur.joins.map(function(j){ return '<p class="dur" style="margin:2px 0"><b>'+esc(j.name)+'</b>: '+fmt(j.n)+' troops'+(j.arrive>now?', arriving in '+fmtT(j.arrive-now):', arrived')+'</p>'; }).join(""):'<p class="dur">Nobody has marched yet.</p>')+'</div>'; });
+  if ((mon.live||[]).some(function(c){ return now>=c.ends; })) h+='<div class="section"><p class="hint">A window has closed: that fight is being decided\u2026</p></div>';
+  if (mine.length) h+='<div class="section"><div class="shead"><h3>Your Arena marches</h3><span class="dur">'+mine.length+' / '+arSlots()+' slots</span></div>'+mine.map(function(m){ var hh=m.hero?heroById(m.hero):null, ci=cityIndex(m.city);
+    return '<div class="bq"><span><b>'+fmt(sumT(m.t))+' troops</b> from '+esc(ci>=0?S.cities[ci].name:"?")+(hh?' led by '+esc(hh.name):'')+'<br><span class="dur">'+arStatus(m)+'</span></span></div>'; }).join("")+'</div>';
+  if (lv){
+    h+='<div class="section"><div class="shead"><h3>Summon</h3><span class="dur">'+nLive+' / '+mon.slots+' up \u00b7 '+mon.free+' of '+mon.freeMax+' free today</span></div>'+
+      '<p class="hint">'+(mon.free?'Free summons left today: <b>'+mon.free+'</b>. ':'The free summons are used up. ')+'They come back in '+fmtT(Math.max(0,mon.resetAt-now))+' (midnight UTC; Monster Lore adds more). After that, each summon costs its resource from the bank: 10 million at level 1, ten times more each level. A monster\u2019s level can\u2019t pass the Arena\u2019s, and each level needs a kill of the one before. The Arena holds one monster per Arena slot at a time.</p>'+
+      (my.can.monster?'':'<p class="why">Your rank can’t summon monsters.</p>');
+    A.types.forEach(function(T){ var best=mon.best[T.k]||0, top=Math.min(lv, best+1), pick=Math.min(top, ARL[T.k]||top), L=T.lv[pick-1];
+      h+='<div class="unit"><h4>'+esc(T.n)+'</h4><span class="own">'+(best?'killed up to level '+best:'not killed yet')+'</span><div class="us"><span>'+esc(T.d)+'</span><span>'+arWeakTxt(T)+'</span></div>'+
+        '<div style="grid-column:1/-1"><span class="dur">Level '+pick+' reward: '+esc(L.reward)+'. '+(mon.free?'Free today.':'Costs '+fmt(L.cost)+' '+RNAME[T.res].toLowerCase()+' from the bank.')+'</span></div>'+
+        (my.can.monster?'<div class="trainrow"><select data-arlv="'+T.k+'" aria-label="'+esc(T.n)+' level">'+Array.from({length:top},function(_,i){ return '<option value="'+(i+1)+'"'+(i+1===pick?' selected':'')+'>Level '+(i+1)+'</option>'; }).join("")+'</select>'+
+          '<button class="btn small" data-act="al-summon" data-type="'+T.k+'"'+(nLive>=mon.slots?' disabled':'')+'>Summon</button>'+(nLive>=mon.slots?'<span class="why">The Arena is full</span>':'')+'</div>':'')+'</div>'; });
+    h+='</div>';
+    if (my.can.bank){ if (!ARG){ ARG={}; RES.forEach(function(k){ ARG[k]=String(Math.floor((E.guard&&E.guard[k])||0)); }); }
+      h+='<details class="section det" data-det="arguard"'+(DET.arguard?' open':'')+'><summary><b>Keep back from paid summons</b></summary><p class="hint">Paid summons can’t take the bank below these amounts. Free summons and research aren’t affected.</p>'+
+        '<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+RES.map(function(k){ return '<tr><td>'+RNAME[k]+' <span class="dur">(bank '+fmt(Math.floor(E.bank[k]||0))+')</span></td><td><input type="number" min="0" data-arguard="'+k+'" value="'+esc(ARG[k])+'" style="width:130px"></td></tr>'; }).join("")+'</tbody></table></div>'+
+        '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-guard">Save</button></div></details>'; }
+  }
+  if (mon.recent.length){ h+='<div class="section"><h3>Recent fights</h3>'+mon.recent.map(function(r){ var T=arT(r.type), w=0, b=0; for (var ref in r.mine){ w+=sumT(r.mine[ref].wounded); b+=sumT(r.mine[ref].back); }
+      return '<div class="acity"><h4><span class="'+(r.win?'okc':'badc')+'">Level '+r.lv+' '+esc(T.n)+(r.win?' fell':' survived')+'</span><span class="dur">'+alTime(r.at)+'</span></h4>'+
+        '<p class="dur" style="margin:0">'+(r.marches?r.marches+' march'+(r.marches>1?'es':'')+' from '+r.players.map(esc).join(", ")+', '+r.rounds+' round'+(r.rounds>1?'s':'')+(r.win?'':' ('+Math.round(r.hpLeft/Math.max(1,r.hp0)*100)+'% of it left)'):'Nobody arrived in time.')+'</p>'+
+        (r.win?'<p class="dur" style="margin:2px 0 0">Each player’s reward: '+esc(arRewardList(r.reward))+'</p>':'')+
+        (b+w?'<p class="dur" style="margin:2px 0 0">Your troops: '+fmt(b)+' unhurt, '+fmt(w)+' wounded.</p>':'')+'</div>'; }).join("")+'</div>'; }
+  return h;
+}
+// results from the server: send each march home with what survived, and hand out the reward once per fight
+function arResults(mon){
+  var L=S.alArena||[], ch=false; S.alArenaDone=S.alArenaDone||{};
+  (mon.recent||[]).forEach(function(r){ var refs=Object.keys(r.mine||{}); if (!refs.length) return;
+    refs.forEach(function(ref){ var m=L.filter(function(x){ return x.ref===ref; })[0]; if (!m || m.st!=="out") return;
+      m.st="back"; m.back=r.mine[ref].back.slice(); m.wounded=r.mine[ref].wounded.slice(); m.home=Date.now()+(m.travel||60000); ch=true; });
+    var key=ALS.aid+":"+r.id; if (S.alArenaDone[key]) return; S.alArenaDone[key]=r.at; ch=true; arReward(r, L.filter(function(x){ return r.mine[x.ref]; })[0]); });
+  var cut=Date.now()-3*864e5; for (var k in S.alArenaDone) if (S.alArenaDone[k]<cut) delete S.alArenaDone[k];
+  if (ch){ save(); flushFinished(); refresh(); }
+}
+function arReward(r, m){
+  var T=arT(r.type), nm="level "+r.lv+" "+T.n;
+  if (!r.win){ note("alliance","The "+nm+" survived the Arena fight. Your troops are coming home wounded."); return; }
+  var rw=r.reward||{items:{},res:{}}; for (var k in rw.items) S.items[k]=(S.items[k]||0)+rw.items[k];
+  var ci=m?cityIndex(m.city):S.cur, rs=0; if (ci<0) ci=S.cur; withCity(ci,function(){ for (var k2 in rw.res){ S.res[k2]+=rw.res[k2]; rs+=rw.res[k2]; } });
+  if (rs){ S.stats=S.stats||{}; S.stats.loot=(S.stats.loot||0)+rs; }
+  note("alliance","The "+nm+" fell at the Arena! Your share: "+arRewardList(rw)+".");
+}
+// every second: marches that came home; a march whose result never came back returns whole after 15 minutes
+function arTick(){
+  var L=S.alArena; if (!L || !L.length) return; var now=Date.now(), ch=false;
+  L.forEach(function(m){ if (m.st==="out" && now>m.ends+15*60000){ m.st="back"; m.back=m.t.slice(); m.wounded=m.t.map(function(){ return 0; }); m.home=now; m.lost=1; ch=true; } });
+  for (var i=L.length-1;i>=0;i--){ var m=L[i]; if (m.st==="back" && now>=m.home){ arHome(m); L.splice(i,1); ch=true; } }
+  if (ch){ reconcileHeroes(); save(); flushFinished(); refresh(); }
+}
+function arHome(m){
+  var ci=cityIndex(m.city); if (ci<0) return; var c=S.cities[ci], back=0, wd=0, wb=null;
+  withCity(ci,function(){ for (var i=0;i<12;i++){ S.troops[i]+=m.back[i]||0; back+=m.back[i]||0; } });
+  for (var j=0;j<12;j++){ var n=m.wounded[j]||0; if (n){ if (!wb) wb=woundBucket(c); wb.t[j]+=n; wd+=n; } }
+  note("alliance","Your Arena march is back in "+c.name+": "+fmt(back)+" troops"+(wd?", and "+fmt(wd)+" wounded in the Medic Camp (heal them within 24 hours)":"")+(m.lost?". The fight’s result never arrived, so everyone came home":"")+".");
+}
+function arWhy(n){
+  var d=marchDraft, cur=arById(d.mid); if (!cur) return "The monster\u2019s window has closed";
+  if ((S.alArena||[]).length>=arSlots()) return "Every Arena slot is in use ("+arSlots()+")";
+  if (!n) return "Choose some troops";
+  if (n>armyCap(d.ensign)) return "Army limit is "+fmt(armyCap(d.ensign))+" troops"+(d.ensign?" (with the War Ensign)":"");
+  var av=draftAvail(); for (var i=0;i<12;i++) if (d.t[i]>av[i]) return "Not enough "+U[i].name+"s";
+  if (!d.hero) return "Arena marches need a hero to lead them";
+  if (Date.now()+arTravelEst()>cur.ends) return "Too far to make it before the window closes";
+  return "";
+}
+function arSend(){
+  var d=marchDraft; if (arWhy(sumT(d.t)) || ALS.arSending) return;
+  var hero=d.hero?heroById(d.hero):null, cid=C().id, t=d.t.slice(), ens=!!d.ensign;
+  var side={research:simResearch(), hero:{intel:hs(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hs(hero,"atk")/100+bAttack())};
+  var ref="m"+cid+"-"+Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36);
+  ALS.arSending=true; var gb=document.getElementById("marchgo"); if (gb) gb.disabled=true;
+  alPost("/al/arena/join",{mid:d.mid, ref:ref, t:t, side:side, speed:Math.min(4,bMarch())}).then(function(r){ ALS.arSending=false;
+    if (r.error){ toast(r.error); if (gb) gb.disabled=false; return; }
+    var ci=cityIndex(cid); if (ci<0) return;
+    withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]=Math.max(0,S.troops[i]-t[i]); if (ens && S.items.ensign>0) S.items.ensign--; });
+    if (hero) hero.away=true;
+    S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:ALS.aid, mid:r.mid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, ends:r.ends, st:"out"});
+    save(); toast("Marching to the Arena: arrives in "+fmtT(r.arrive-Date.now())); closeSheet(); lastView=""; refresh(); ALS.last=0; alSync(); })
+    .catch(function(){ ALS.arSending=false; if (gb) gb.disabled=false; toast("Couldn’t reach the server. Check your connection."); });
+}
 /* the alliance map: the Alliance City and one square per member's kingdom */
 function alCs(M){ return M.cs||1; }
 function alInCity(M, x, y){ var c=alCs(M); return x>=M.city[0] && y>=M.city[1] && x<M.city[0]+c && y<M.city[1]+c; }
@@ -2865,7 +3015,7 @@ function alMapHtml(al){
     if (t && t.city && !cityTop) continue; // the city is drawn once, as one big block
     if (t && t.b && !bTop) continue;
     if (bTop){ var bnm=((ALS.cat&&ALS.cat.bldg.filter(function(z){ return z.k===t.b.k; })[0])||{n:t.b.k}).n, bon=sel&&alBldgAt(M,sel.x,sel.y)===t.b;
-      h+='<button class="alt bldg'+(bon?' sel':'')+'" style="grid-row:'+(y+1)+' / span '+(M.bs||3)+';grid-column:'+(x+1)+' / span '+(M.bs||3)+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+esc(bnm)+'">'+ICON.academy+'<span class="altl">'+esc(bnm)+'</span></button>'; continue; }
+      h+='<button class="alt bldg'+(bon?' sel':'')+'" style="grid-row:'+(y+1)+' / span '+(M.bs||3)+';grid-column:'+(x+1)+' / span '+(M.bs||3)+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+esc(bnm)+'">'+(t.b.k==="wh"?ICON.warehouse:t.b.k==="arena"?ICON.rally:ICON.academy)+'<span class="altl">'+esc(bnm)+'</span></button>'; continue; }
     var on=sel&&(t&&t.city ? alInCity(M,sel.x,sel.y) : sel.x===x&&sel.y===y), cls='alt'+(on?' sel':'')+(t&&t.city?' city':t&&t.k?(t.k.name===S.cloud.name?' mine':' kd'):'')+(mv&&!t?' free':'');
     var inner = t&&t.city ? ICON.townhall+'<span class="altl">Alliance City</span>' : t&&t.k ? '<span>'+esc(alInitials(t.k.name))+'</span>' : '';
     var area = 'grid-row:'+(y+1)+(cityTop?' / span '+alCs(M):'')+';grid-column:'+(x+1)+(cityTop?' / span '+alCs(M):'');
@@ -2917,6 +3067,7 @@ function cbStats(){
     var t=S.troops.slice(); // the army: home, marching or stationed away, and waiting in the Medic Camp
     (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,j){ t[j]+=n; }); });
     S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,j){ t[j]+=n; }); });
+    (S.alArena||[]).forEach(function(m){ if (m.city!==c.id) return; if (m.st==="out") m.t.forEach(function(n,j){ t[j]+=n; }); else for (var j=0;j<12;j++) t[j]+=(m.back[j]||0)+(m.wounded[j]||0); });
     t.forEach(function(n,j){ ar[j]+=n; });
     RES.forEach(function(k,j){ re[j]+=S.res[k]||0; });
     var r=rates(); pg+=Math.max(0,(r.food||0)+upkeep())+Math.max(0,r.lumber||0)+Math.max(0,r.stone||0)+Math.max(0,r.iron||0)+Math.max(0,r.gold||0);
@@ -2924,6 +3075,7 @@ function cbStats(){
     var bl=0; S.inside.forEach(function(b){ if (b) bl+=b.level||0; }); S.fields.forEach(function(b){ if (b) bl+=b.level||0; });
     ci.push([c.name, c.x, c.y, S.th, S.wall||0, sumT(t), bl]);
   }); });
+  RES.forEach(function(k,j){ re[j]+=(S.alBox&&S.alBox[k])||0; }); // the private Warehouse box is still the player's
   return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:devOn()?1:0, pr:Math.floor(S.prestige||0), tth:totalTH(), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
     pg:Math.round(pg), lo:Math.round((S.stats&&S.stats.loot)||0), hA:hA, hI:hI, ci:ci, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
 }
@@ -3511,7 +3663,7 @@ function respecHero(h){
   return n;
 }
 // a hero is "marching" only while one of your marches carries them: anything else (an old save, a march that ended oddly) is put right every tick
-function reconcileHeroes(){ var busy={}; S.marches.forEach(function(m){ if (m.hero) busy[m.hero]=1; });
+function reconcileHeroes(){ var busy={}; S.marches.forEach(function(m){ if (m.hero) busy[m.hero]=1; }); (S.alArena||[]).forEach(function(m){ if (m.hero) busy[m.hero]=1; });
   S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ var b=!!busy[h.id]; if (!!h.away!==b) h.away=b; }); });
   (S.waiting||[]).forEach(function(h){ if (h.away) h.away=false; }); }
 function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].heroes; for (var i=0;i<hs.length;i++) if (hs[i].id===id) return hs[i]; } return null; }
@@ -3738,6 +3890,7 @@ function migrate(s){
     s.v=43; }
   if (s.v===43){ s.cities.forEach(function(cc){ cc.fg=cc.fg||[]; cc.autoFort=!!cc.autoFort; }); s.v=44; }
   if (s.v===44){ s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); s.alGive={r:0,c:0}; s.alFx={}; s.alMember=false; s.v=45; }
+  if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -3796,7 +3949,7 @@ function bkSnapshot(why, force){
 function bkList(){ var out=[]; [BK_BEST].concat(BK_RING,BK_PRE).forEach(function(k){ var m=bkMeta(k); try { if (m && localStorage.getItem(k)) out.push({k:k,m:m}); } catch(e){} }); out.sort(function(a,b){ return b.m.at-a.m.at; }); return out; }
 var S;
 var loadRaw=null;
-try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=45) S = migrate(p); else loadFail={why:(p&&p.v>45)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
+try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=46) S = migrate(p); else loadFail={why:(p&&p.v>46)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
 if (loadFail){ try { localStorage.setItem(BK_RESCUE, loadRaw); } catch(e){} saveLocked=true; } // a save that won't open is never written over
 else if (!loadRaw){ var bkb=bkMeta(BK_BEST); if (bkb && bkb.score>=1000) recoverOffer=true; }
 if (!S) S = newState();
@@ -4105,6 +4258,8 @@ function tickText(){
     var rsp=document.getElementById("qr-sp"); if (rsp){ var rfree=realMs(S.research.end-S.gt)<=FREE_MS; setText(rsp, rfree ? "Finish free" : "Speed up"); var rdisp=(rfree||hasSpeedups(true))?"":"none"; if (rsp.style.display!==rdisp) rsp.style.display=rdisp; } }
   if (document.getElementById("m-have")) updateMarket();
   var hcp=document.getElementById("helpchip"); if (hcp){ var hn=(alMine()&&ALS.d.help)?ALS.d.help.canHelp:0, hd=hn?"":"none"; if (hcp.style.display!==hd) hcp.style.display=hd; setText(document.getElementById("helpn"), hn?String(hn):""); }
+  var mcp=document.getElementById("monchip"); if (mcp){ var mc=arCur(), md=mc?"":"none"; if (mcp.style.display!==md) mcp.style.display=md; if (mc){ var mln=arLive().length; setText(document.getElementById("monn"), (mln>1?mln+" \u00b7 ":"")+fmtT(Math.max(0,mc.ends-Date.now()))); } }
+  document.querySelectorAll(".arleft").forEach(function(el){ var le=+el.dataset.ends-Date.now(); setText(el, le>0?fmtT(le):"closing"); });
   var gbt=document.querySelector('nav.tabs [data-tab="guild"]'); if (gbt){ var gun=alUnread(), gtx=gun?"Alliance "+gun:"Alliance"; if (gbt.textContent!==gtx) gbt.textContent=gtx; }
   var ibt=document.querySelector('nav.tabs [data-tab="items"]'); if (ibt){ var inn=pkgsReady(), itx=inn?"Items "+inn:"Items"; if (ibt.textContent!==itx) ibt.textContent=itx; }
   var sa=document.getElementById("saveage"); if (sa){ var sat=saveAge(); if (sa.textContent!==sat) sa.textContent=sat; }
@@ -7740,6 +7895,12 @@ document.addEventListener("click",function(e){
     if (act==="al-cloud"){ DET.cloud=true; openSheet({kind:"settings"}); return; }
     if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); return; }
     if (act==="al-sort"){ ALS.sort=a.dataset.v; lastView=""; renderView(true); return; }
+    if (act==="al-box-in"){ alBoxMove(1); return; }
+    if (act==="al-box-out"){ alBoxMove(-1); return; }
+    if (act==="al-arena-go"){ tab="guild"; ALS.sub="arena"; lastView=""; refresh(); ALS.last=0; alSync(); return; }
+    if (act==="al-arena-send"){ var smid=+a.dataset.mid; if (!arById(smid)){ toast("The window has closed"); return; } openMarch(homeTileId(),"arena",smid); return; }
+    if (act==="al-summon"){ var smt=a.dataset.type, sml=Math.max(1, +(ARL[smt]||0) || Math.min((alMine().econ.lv.arena||1), ((arMon().best[smt]||0)+1))); alDo("/al/summon",{type:smt, lv:sml},"Summoned! 5 minutes to march"); return; }
+    if (act==="al-guard"){ var gd={}; RES.forEach(function(k){ gd[k]=Math.max(0,Math.floor(+(ARG&&ARG[k])||0)); }); alDo("/al/guard",{res:gd},"Saved",function(){ ARG=null; }); return; }
     if (act==="al-send"){ alSend(); return; }
     if (act==="al-start"){ alDo("/al/start",{kind:a.dataset.kind, key:a.dataset.key},"Started"); return; }
     if (act==="al-donate"){ var dg={}, any=false; for (var dk in ALD){ var dv=Math.max(0,Math.floor(+ALD[dk]||0)); if (dv>Math.floor(S.res[dk])){ toast("You don\u2019t have that much "+RNAME[dk].toLowerCase()); return; } dg[dk]=dv; if (dv) any=true; }
@@ -8293,6 +8454,8 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.reserve!=null){ S.reserve[e.target.dataset.reserve]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.goal!=null){ S.goals[+e.target.dataset.goal]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.aldon!=null){ ALD[e.target.dataset.aldon]=e.target.value; }
+  if (e.target.dataset.albox!=null){ ALB[e.target.dataset.albox]=e.target.value; }
+  if (e.target.dataset.arguard!=null){ ARG=ARG||{}; ARG[e.target.dataset.arguard]=e.target.value; }
   if (e.target.dataset.tg!=null && sheetFor && sheetFor.kind==="tgline" && sheetFor.city===S.cur){ var tgk2=sheetFor.gk||"tg", tgl=gLines(tgk2)[sheetFor.l]; if (tgl){ tgl.t[+e.target.dataset.tg]=Math.max(0,Math.min(1e9,Math.floor(+e.target.value||0))); var tsx=document.getElementById("tgstr"); if (tsx) tsx.value=gStr(tgk2,tgl,true); save(); lastView=""; } }
   if (e.target.id==="tgbatch" && sheetFor && sheetFor.kind==="tgline" && sheetFor.city===S.cur){ var tgb=gLines(sheetFor.gk||"tg")[sheetFor.l]; if (tgb){ tgb.b=Math.max(0,Math.min(1e9,Math.floor(+e.target.value||0))); save(); lastView=""; } }
   if (e.target.dataset.fort!=null){ var fx=+e.target.dataset.fort; fortAmt[fx]=Math.max(0,Math.floor(+e.target.value||0)); updateFortRow(fx); }
@@ -8306,6 +8469,7 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } });
 document.addEventListener("change",function(e){
+  if (e.target.dataset && e.target.dataset.arlv!=null){ ARL[e.target.dataset.arlv]=+e.target.value; e.target.blur(); lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }
   if (e.target.id==="ivcity"){ IV.pickCity=+e.target.value; return; }
   if (e.target.id==="ivhero"){ IV.hero=+e.target.value; return; }
