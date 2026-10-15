@@ -428,6 +428,37 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .alt.sel{outline:3px solid var(--red);outline-offset:-2px}
 .alt.free{border-style:dashed;border-color:var(--brass)}
 .alchat{max-height:55vh;min-height:160px;overflow-y:auto;background:var(--panel2);border-radius:10px;padding:8px 10px;font-size:.92rem;overflow-wrap:anywhere}
+/* the Me page: character image in a frame (frames are cosmetic only) */
+.avatar{position:relative;width:96px;height:96px;border-radius:14px;background:var(--panel2);display:flex;align-items:center;justify-content:center;font:700 2.2rem var(--display);color:var(--brass);flex:none;box-shadow:0 0 0 2px var(--line)}
+.avatar img{width:100%;height:100%;object-fit:cover;border-radius:13px;display:block}
+.avatar.f-bughunter{box-shadow:0 0 0 3px var(--grass),0 0 0 6px var(--brass),0 0 16px rgba(215,176,88,.45)}
+.avatar .fbadge{position:absolute;right:-9px;bottom:-9px;width:30px;height:30px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--brass);color:var(--grass)}
+.avatar .fbadge svg{width:18px;height:18px}
+.avatar.sm{width:38px;height:38px;border-radius:9px;font-size:1rem;box-shadow:0 0 0 1px var(--line)}
+.avatar.sm img{border-radius:8px}
+.avatar.sm.f-bughunter{box-shadow:0 0 0 2px var(--grass),0 0 0 3px var(--brass)}
+.avatar.sm .fbadge{display:none}
+.mehead{display:flex;gap:18px;align-items:center;padding:6px 8px 4px}
+.merows{display:grid;gap:0;margin-top:8px}
+.merow{display:flex;justify-content:space-between;gap:12px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:.95rem}
+.merow b{color:var(--ink);text-align:right}
+/* pinned chat: a slim bar at the bottom of every page that opens into a chat panel */
+#chatdock{position:fixed;left:0;right:0;bottom:0;z-index:9;display:none;pointer-events:none}
+#chatdock .dkin{pointer-events:auto;max-width:720px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;box-shadow:0 -4px 14px rgba(0,0,0,.2);padding-bottom:env(safe-area-inset-bottom,0px)}
+.dkbar{display:flex;width:100%;align-items:center;gap:8px;border:0;background:none;padding:10px 14px;text-align:left;cursor:pointer;min-width:0;font-size:.93rem}
+.dkbar b{font:700 .85rem var(--display);color:var(--brass);flex:none}
+.dkbar .dklast{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.dkbar .dkn{flex:none;background:var(--brass);color:var(--bg);border-radius:999px;padding:0 8px;font-size:.78rem;font-weight:700}
+.dkbar .dkn:empty{display:none}
+.dkpanel{display:none;padding:8px 12px 10px}
+#chatdock.open .dkpanel{display:block}
+#chatdock.open .dkbar{display:none}
+.dkhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.dkhead b{font:700 .9rem var(--display)}
+#dkmsgs{max-height:36vh;min-height:90px}
+body.dock .wrap{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+body.dock #toast{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+body.bfmode #chatdock{display:none!important}
 .alm{padding:3px 0;border-bottom:1px solid var(--line)}
 .alm:last-child{border-bottom:0}
 .alm.sys{color:var(--muted);font-style:italic}
@@ -573,6 +604,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button role="tab" data-act="tab" data-tab="alliance">Kingdom</button>
     <button role="tab" data-act="tab" data-tab="war">War Room</button>
     <button role="tab" data-act="tab" data-tab="college">War College</button>
+    <button role="tab" data-act="me" data-tab="me">Me</button>
     </div>
   </nav></div>
 
@@ -586,12 +618,18 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 </div>
 
 <dialog id="sheet"><div class="sheet" id="sheetbody"></div></dialog>
+<div id="chatdock"><div class="dkin">
+  <button class="dkbar" data-act="dock-toggle" aria-label="Open alliance chat"><b>Alliance</b><span class="dklast" id="dklast"></span><span class="dkn" id="dkn"></span><span aria-hidden="true">&#9650;</span></button>
+  <div class="dkpanel"><div class="dkhead"><b>Alliance chat</b><span><button class="link" data-act="dock-toggle">Collapse</button> <button class="link" data-act="dock-unpin">Unpin</button></span></div>
+    <div id="dkmsgs" class="alchat"></div>
+    <div class="farmadd" id="dkform" style="margin-top:8px"><input id="dockin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn small" data-act="dock-send">Send</button></div></div>
+</div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.49";
+var APP_VERSION = "0.1.50";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -631,7 +669,8 @@ var INNER = {
   portal:'<ellipse cx="12" cy="12" rx="6" ry="9"/><ellipse cx="12" cy="12" rx="3" ry="5.5"/><path d="M12 3v2M12 19v2"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
   lock:'<rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
-  hammer:'<path d="M14 6l4 4"/><path d="M11 3l6 6-2 2-6-6z"/><path d="M12 10L4 18l2 2 8-8"/>'
+  hammer:'<path d="M14 6l4 4"/><path d="M11 3l6 6-2 2-6-6z"/><path d="M12 10L4 18l2 2 8-8"/>',
+  bug:'<ellipse cx="12" cy="14" rx="4" ry="5.5"/><circle cx="12" cy="7" r="2"/><path d="M10.6 5.4L9 3M13.4 5.4L15 3M8 11L4 9M8 14H3M8 17l-4 2M16 11l4-2M16 14h5M16 17l4 2M12 9v10"/>'
 };
 INNER.farm=INNER.food; INNER.sawmill=INNER.lumber; INNER.quarry=INNER.stone; INNER.ironmine=INNER.iron;
 var ICON = {}; for (var ik in INNER) ICON[ik] = '<svg viewBox="0 0 24 24" '+P+' aria-hidden="true">'+INNER[ik]+'</svg>';
@@ -1631,6 +1670,7 @@ function resolveMarch(m){
     if (hero){ var hi=C().heroes.indexOf(hero); if (hi>=0){ C().heroes.splice(hi,1); hero.away=false; nc.heroes.push(hero); } }
   }
   var lost=0; for (i=0;i<12;i++) lost += m.t[i]-r.attacker[i];
+  if (m.rep && (lost>0 || !won)){ m.rep=false; note("march","Repeat stopped at "+tileName(q)+": "+(won?"lost "+fmt(lost)+" troops":"the attack failed")); }
   if (m.preset!=null){ var pr=C().presets[m.preset]; if (pr && pr.auto && pr.stopOnLoss && (lost>0 || !won)){ pr.auto=false; note("march",pr.name+" auto-farm paused: "+(won?"lost "+fmt(lost)+" troops":"the attack failed")+" at "+tileName(q)); } }
   var rep={id:S.nextMarchId++, at:S.gt, tile:q.id, name:tileName(q), result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(),
     had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
@@ -1669,8 +1709,20 @@ function handleMarch(m){
   withCity(cityIndex(m.city), function(){
     if (m.phase==="wait"){ m.phase="out"; return; }
     if (m.phase==="out"){ if (HOLD_MISSIONS[m.mission]) holdTile(m.tile, S.gt); if (!resolveMarch(m)) S.marches=S.marches.filter(function(x){ return x!==m; }); }
-    else { marchHome(m); S.marches=S.marches.filter(function(x){ return x!==m; }); }
+    else { marchHome(m); S.marches=S.marches.filter(function(x){ return x!==m; }); if (m.rep) repeatMarch(m); }
   });
+}
+// A repeating march (attack or conquer, sent from the city) goes out again the moment the army is home, with the same troops and hero.
+// It stops with a note if the last fight lost troops or failed, or if anything needed for the next trip is missing.
+function repeatMarch(m){
+  var q=TILE_BY[m.tile], t0=m.t0||m.t, hid=m.hero0||0, why="";
+  if (!q || !farmTarget(m.tile)) why="that target is gone";
+  else if (!rallyLv() || rallyUsed()>=rallyLv()) why="no free march slot";
+  else { for (var i=0;i<12;i++) if (S.troops[i]<t0[i]){ why="not all the troops are home"; break; } }
+  if (!why && hid){ var rh=heroById(hid); if (!rh || C().heroes.indexOf(rh)<0 || rh.away || isOfficer(rh)) why="the leading hero isn’t free"; }
+  if (!why && S.res.food<marchFood(t0,m.mission,travelMs(t0,q,hid,m.mission))) why="not enough food for rations";
+  if (why){ note("march","Repeat stopped at "+tileName(q)+": "+why); return; }
+  var nm=launchMarch(m.tile,m.mission,t0,hid,{}); nm.rep=true; nm.t0=t0.slice(); nm.hero0=hid;
 }
 
 /* ---------- presets, auto-farm, timed waves ---------- */
@@ -1701,14 +1753,15 @@ function processAuto(){
   });
 }
 function presetSummary(pr){ var parts=[]; pr.t.forEach(function(n,i){ if (n) parts.push(fmt(n)+" "+U[i].name); }); return parts.length?parts.join(", "):"No troops set"; }
+var presetClip=null; // a copied preset: troops, hero choice and the pause-on-loss setting (never the farm list, since an NPC only sits on one list). Kept until you reload, so it can go to another city too.
 function presetsSection(){
-  var h='<div class="section"><div class="shead"><h3>March presets</h3><span class="dur">'+esc(S.name)+'</span></div><p class="hint">Ten per city, each with its own farm list. Save armies to launch in one tap, run them on an auto-farm rotation, or stack them into timed waves from a target on the Map.</p><div class="unitlist">';
+  var h='<div class="section"><div class="shead"><h3>March presets</h3><span class="dur">'+esc(S.name)+'</span></div><p class="hint">Ten per city, each with its own farm list. Save armies to launch in one tap, run them on an auto-farm rotation, or stack them into timed waves from a target on the Map. Copy a preset, then Paste it onto another to duplicate its troops and hero'+(presetClip?' (copied: '+esc(presetClip.name)+')':'')+'.</p><div class="unitlist">';
   S.presets.forEach(function(pr,pi){
     var hh=presetHero(pr), running=S.marches.some(function(m){ return m.city===C().id && m.preset===pi; });
     var rot=0; if (presetTotal(pr)) pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq) rot+=2*travelMs(pr.t,fq,hh?hh.id:0); });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
       '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+((pr.hero===HERO_BEST||pr.hero===HERO_ANY)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
-      '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit</button>'+(pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+
+      '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit</button><button class="btn ghost small" data-act="preset-copy" data-p="'+pi+'"'+(presetTotal(pr)?'':' disabled')+'>Copy</button>'+(presetClip?'<button class="btn ghost small" data-act="preset-paste" data-p="'+pi+'">Paste</button>':'')+(pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+
       (presetTotal(pr)>armyCap()?'<span class="why">Over the '+fmt(armyCap())+'-troop march limit</span>':pr.auto && !presetReady(pr) && !running?'<span class="why">Waiting for troops</span>':'')+'</div></div>';
   });
   return h+'</div></div>';
@@ -2368,6 +2421,7 @@ function marchSheet(){
   if (d.mission!=="transport" && d.mission!=="scout") h+='<div><label class="sub" for="marchhero">'+(d.mission==="reinforce"?"Hero to move there (needs room in its Feasting Hall)":"Leading hero")+'</label><select id="marchhero"><option value="0">No hero</option>'+fh.map(function(x){ return '<option value="'+x.id+'"'+(x.id===d.hero?' selected':'')+'>'+esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+'</option>'; }).join("")+'</select>'+
     (S.mayor||S.trainer||S.researcher?'<p class="hint" style="margin-top:4px">Your mayor, trainer and researcher stay home to do their jobs.</p>':'')+'</div>';
   if (d.mission==="transport") h=h.replace('<select id="marchhero">','<select id="marchhero" hidden>');
+  if ((d.mission==="attack"||d.mission==="conquer") && !d.from) h+='<label class="chk"><input type="checkbox" id="mrep"'+(d.rep?' checked':'')+'> Repeat this march: it goes out again with the same troops and hero as soon as it’s home. It stops if it loses any troops, fails, or can’t be fed or crewed.</label>';
   if (d.mission==="occupy") h+='<label class="chk"><input type="checkbox" id="mcamp"'+(d.camp?' checked':'')+'> Stay and make camp: if it wins, this army stays on the tile as a hidden base to attack from. Nobody can join it later.</label>';
   if (d.mission!=="hide" && ((S.items.ensign||0)>0 || d.ensign)) h+='<label class="chk"><input type="checkbox" id="mensign"'+(d.ensign?' checked':'')+'> Raise a War Ensign: +25% army size for this march ('+(S.items.ensign||0)+' left)</label>';
   h+='<p class="sub" id="marchinfo"></p><div id="marchprev"></div>';
@@ -2420,6 +2474,7 @@ function sendMarch(){
   S.marches.push({id:S.nextMarchId++, city:C().id, food:food, ensign:!!d.ensign, tile:q.id, mission:d.mission, cargo:cargo, t:d.t.slice(), hero:hero?hero.id:0, dep:S.gt, arr:S.gt+tm, travel:tm, phase:"out", loot:{}});
   if (dcamp) S.marches[S.marches.length-1].from=dcamp.tile;
   if (d.mission==="occupy" && d.camp) S.marches[S.marches.length-1].camp=1;
+  if (d.rep && !dcamp && (d.mission==="attack"||d.mission==="conquer")){ var rm=S.marches[S.marches.length-1]; rm.rep=true; rm.t0=d.t.slice(); rm.hero0=hero?hero.id:0; }
   if (HOLD_MISSIONS[d.mission]) holdTile(q.id, S.gt, S.gt+tm);
   toast((d.mission==="transport"?"Caravan heading to ":d.mission==="reinforce"?"Reinforcements heading to ":d.mission==="station"?"Troops heading to camp at ":"Army marching on ")+(dcamp?"":"")+tileName(q)+", arrives in "+fmtT(realMs(tm)));
   closeSheet(); refresh();
@@ -2657,8 +2712,8 @@ function lbStats(){
     hero:hero, heroName:heroName, stars:bestGearSet(), college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
 }
 function lbSync(force){
-  lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
-  try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats()})})
+  profSync(); lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
+  try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
     .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); } }).catch(function(){}); } catch(e){}
 }
 function lbFetch(cat){
@@ -2719,6 +2774,7 @@ function alTick(){
   if (alMine()){ var sig=alMyJobs().map(function(j){ return j.ref; }).join("|"); if (sig!==ALS.jobSig && Date.now()-ALS.last>3000) ALS.last=0; } // a new build or research: tell the alliance soon
   var inAl=!!alMine(), due = tab==="guild" ? (inAl && ALS.sub==="chat" ? 4000 : 15000) : 60000;
   if (inAl && (arCur() || (S.alArena||[]).some(function(m){ return m.st==="out"; }))) due=Math.min(due, 5000); // a monster is up: keep close watch
+  if (inAl && dockPin && !(tab==="guild" && ALS.sub==="chat")) due=Math.min(due, dockOpen?4000:10000); // pinned chat: keep it fresh
   if (Date.now()-ALS.last>=due) alSync();
   if (tab==="guild" && (!inAl || ALS.sub==="list") && Date.now()-ALS.listAt>=60000) alList();
 }
@@ -2771,7 +2827,7 @@ function viewMyAlliance(al){
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
   if (sub==="chat"){
-    h+='<div class="section"><div id="alchat" class="alchat"></div>'+
+    h+='<div class="section"><label class="chk" style="margin-bottom:8px"><input type="checkbox" id="dockpin"'+(dockPin?' checked':'')+'> Pin the chat to the bottom of every page</label><div id="alchat" class="alchat"></div>'+
       (my.mutedUntil>Date.now()?'<p class="why">You\u2019re muted until '+alTime(my.mutedUntil)+'.</p>':'<div class="farmadd" style="margin-top:8px"><input id="alchatin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn small" data-act="al-send">Send</button></div>')+'</div>';
   } else if (sub==="projects"){
     var others=al.members.length-1;
@@ -2787,13 +2843,15 @@ function viewMyAlliance(al){
   } else if (sub==="map"){
     h+=alMapHtml(al);
   } else if (sub==="members"){
+    if (Date.now()-profAt>60000) profFetch(al.members.map(function(m){ return m.name; }));
     h+='<div class="section">'+al.members.map(function(m){ var me=m.name===S.cloud.name, below=m.rank>my.rank;
       var acts='';
       if (!me && below && my.can.promote){ acts+='<select data-alrank="'+esc(m.name)+'" aria-label="Rank for '+esc(m.name)+'">'+rk.map(function(r,i){ return i>my.rank && i>0 ? '<option value="'+i+'"'+(i===m.rank?' selected':'')+'>'+esc(r.n)+'</option>' : ''; }).join("")+'</select>'; }
       if (!me && below && my.can.chat) acts+= m.muted ? '<button class="link" data-act="al-mute" data-who="'+esc(m.name)+'" data-min="0">Unmute</button>' : '<button class="link" data-act="al-mute" data-who="'+esc(m.name)+'" data-min="60">Mute 1 h</button>';
       if (!me && below && my.can.kick) acts+='<button class="link" data-act="al-kick" data-who="'+esc(m.name)+'">'+(ALS.armed==="kick"+m.name?'Tap again to remove':'Remove')+'</button>';
       if (!me && my.rank===0) acts+='<button class="link" data-act="al-handover" data-who="'+esc(m.name)+'">'+(ALS.armed==="hand"+m.name?'Tap again: make founder':'Make founder')+'</button>';
-      return '<div class="acity"><h4><span>'+esc(m.name)+(me?' <span class="dur">(you)</span>':'')+'</span><span class="badge">'+esc(rk[m.rank].n)+'</span>'+(m.muted?'<span class="why">muted</span>':'')+'<span style="flex:1"></span><span class="dur">'+alAgo(m.seen)+'</span></h4>'+
+      var pf=me ? S.me : PROF[m.name.toLowerCase()];
+      return '<div class="acity"><h4>'+(pf && (pf.img||pf.frame) ? avatarHtml(pf,m.name,true) : '')+'<span style="margin-left:6px">'+esc(m.name)+(me?' <span class="dur">(you)</span>':'')+'</span><span class="badge">'+esc(rk[m.rank].n)+'</span>'+(m.muted?'<span class="why">muted</span>':'')+'<span style="flex:1"></span><span class="dur">'+alAgo(m.seen)+'</span></h4>'+
         '<div class="rgrid"><span>Prestige <b>'+fmt(m.prestige)+'</b></span><span>Cities <b>'+m.cities+'</b></span><span>Honor <b>'+fmt(m.honor)+'</b></span><span class="dur">joined '+alTime(m.joined)+'</span></div>'+
         (acts?'<div class="btnrow" style="margin-top:4px;align-items:center">'+acts+'</div>':'')+'</div>'; }).join("")+'</div>';
   } else if (sub==="apps"){
@@ -3057,7 +3115,28 @@ function fillAlChat(){
   el.innerHTML=hh; el._sig=hh; if (atBottom) el.scrollTop=el.scrollHeight;
   if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
 }
-function alSend(){ var i=document.getElementById("alchatin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value=""; alPost("/al/chat",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { ALS.last=0; alSync(); } }).catch(function(){ toast("Couldn\u2019t reach the server"); i.value=t; }); }
+/* pinned chat dock: a bar at the bottom of every page (only for alliance members who pinned it); it opens into the chat */
+var dockPin=false, dockOpen=false;
+try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorage.getItem("ibory-dock-open")==="1"; } catch(e){}
+function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); } catch(e){} }
+function renderDock(){
+  var el=document.getElementById("chatdock"); if (!el) return;
+  var show = dockPin && alOn() && !!alMine() && !(tab==="guild" && ALS.sub==="chat") && !document.body.classList.contains("bfmode");
+  if (!show){ if (el.style.display!=="none"){ el.style.display="none"; document.body.classList.remove("dock"); } return; }
+  if (el.style.display!=="block"){ el.style.display="block"; document.body.classList.add("dock"); }
+  el.classList.toggle("open", dockOpen);
+  var al=alMine(), my=al.my||{}, msgs=ALS.chat.filter(function(c){ return !c.del; });
+  var last=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ last=msgs[i]; break; }
+  setText(document.getElementById("dklast"), last ? last.name+": "+last.text : "No messages yet");
+  if (dockOpen){
+    if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
+    var box=document.getElementById("dkmsgs"), hh=msgs.length ? msgs.slice(-60).map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+esc(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    if (box && box._sig!==hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig; box.innerHTML=hh; box._sig=hh; if (atBottom) box.scrollTop=box.scrollHeight; }
+    var fm=document.getElementById("dkform"), muted=my.mutedUntil>Date.now(), fd=muted?"none":""; if (fm && fm.style.display!==fd) fm.style.display=fd;
+    setText(document.getElementById("dkn"), "");
+  } else { var un=alUnread(); setText(document.getElementById("dkn"), un?String(un):""); }
+}
+function alSend(id){ var i=document.getElementById(id||"alchatin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value=""; alPost("/al/chat",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { ALS.last=0; alSync(); } }).catch(function(){ toast("Couldn\u2019t reach the server"); i.value=t; }); }
 /* ---------- cloud backup: name + password, kept on the high-scores Worker ---------- */
 var CB={busy:false, msg:"", found:null, conflict:null}, CB_EVERY=3600e3; // the cloud copy is refreshed every hour while you play
 // this device's id (kept outside the save, which travels between devices), so the server can say which device saved last
@@ -3792,6 +3871,7 @@ function newState(){
     tech:{agriculture:0,lumbering:0,masonry:0,mining:0,construction:0},
     build:null,research:null});
 }
+var FRAMES_FOR_ALL=["bughunter"]; // frames every account owns for now (beta). When the beta cutoff comes, empty this list and give the frame to the testers by hand.
 function migrate(s){
   if (s.v===1){
     s.heroes=[]; s.nextHeroId=1; s.mayor=null; s.innOffers=[]; s.innRefreshAt=0;
@@ -3903,6 +3983,8 @@ function migrate(s){
   if (s.v===44){ s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); s.alGive={r:0,c:0}; s.alFx={}; s.alMember=false; s.v=45; }
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
+  if (s.v===47){ s.me=s.me||{img:"",frame:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  s.me=s.me||{img:"",frame:""}; s.frames=s.frames||[]; FRAMES_FOR_ALL.forEach(function(f){ if (s.frames.indexOf(f)<0) s.frames.push(f); });
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -3961,7 +4043,7 @@ function bkSnapshot(why, force){
 function bkList(){ var out=[]; [BK_BEST].concat(BK_RING,BK_PRE).forEach(function(k){ var m=bkMeta(k); try { if (m && localStorage.getItem(k)) out.push({k:k,m:m}); } catch(e){} }); out.sort(function(a,b){ return b.m.at-a.m.at; }); return out; }
 var S;
 var loadRaw=null;
-try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=47) S = migrate(p); else loadFail={why:(p&&p.v>47)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
+try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=48) S = migrate(p); else loadFail={why:(p&&p.v>48)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
 if (loadFail){ try { localStorage.setItem(BK_RESCUE, loadRaw); } catch(e){} saveLocked=true; } // a save that won't open is never written over
 else if (!loadRaw){ var bkb=bkMeta(BK_BEST); if (bkb && bkb.score>=1000) recoverOffer=true; }
 if (!S) S = newState();
@@ -4171,7 +4253,7 @@ ledger.innerHTML = RES.map(function(k){ return '<div class="res" title="'+RNAME[
 function troopList(t){ var p=[]; for (var i=0;i<12;i++) if (t[i]>0) p.push(fmt(t[i])+" "+uname(i,t[i])); return p.join(", ")||"no troops"; }
 function marchHeroName(m){ if (!m.hero) return ""; var c=S.cities[cityIndex(m.city)], hs=(c&&c.heroes)||[]; for (var i=0;i<hs.length;i++) if (hs[i].id===m.hero) return hs[i].name; var h=heroById(m.hero); return h?h.name:""; }
 function marchSummary(m){
-  var bits=[fmt(sumT(m.t))+" troops: "+troopList(m.t)], hn=marchHeroName(m), carry={};
+  var bits=[fmt(sumT(m.t))+" troops: "+troopList(m.t)], hn=marchHeroName(m), carry={}; if (m.rep) bits.push("repeating");
   if (hn) bits.push("led by "+hn); else if (m.mission!=="transport" && m.mission!=="scout" && m.mission!=="reinforce" && m.mission!=="allyguard" && m.mission!=="hide") bits.push("no hero");
   RES.forEach(function(k){ var n=((m.cargo&&m.cargo[k])||0)+((m.loot&&m.loot[k])||0); if (n>0) carry[k]=n; });
   var cs=RES.filter(function(k){ return carry[k]; }).map(function(k){ return fmt(carry[k])+" "+RNAME[k].toLowerCase(); });
@@ -4188,6 +4270,7 @@ function marchBtns(m){
   var b='';
   if (m.phase!=="back") b+='<button class="link'+(m.mission==="hide"?' strong':'')+'" data-act="march-recall" data-m="'+m.id+'">'+(m.phase==="wait"?"Cancel":m.mission==="hide"?"Recall now":"Recall")+'</button>';
   if (m.phase!=="wait" && (S.items.marchsp||0)>0) b+='<button class="link strong" data-act="march-hasten" data-m="'+m.id+'">Speed up ('+S.items.marchsp+')</button>';
+  if ((m.mission==="attack"||m.mission==="conquer") && m.preset==null && m.label==null && !m.from && m.phase!=="wait") b+='<button class="link'+(m.rep?' strong':'')+'" data-act="march-repeat" data-m="'+m.id+'">Repeat: '+(m.rep?'on':'off')+'</button>';
   return b ? '<div class="mbtns">'+b+'</div>' : '';
 }
 function renderMarchStrip(){
@@ -4278,7 +4361,9 @@ function tickText(){
   var stg=document.getElementById("speedtag"); if (stg){ var on=S.speed>1, txt="\u23e9 "+S.speed+"\u00d7"; if (stg.style.display!==(on?"":"none")) stg.style.display=on?"":"none"; if (on && stg.textContent!==txt) stg.textContent=txt; }
   achCheck();
   var abd=document.getElementById("abadge"); if (abd){ var at=String(achTotal()); if (abd.textContent!==at) abd.textContent=at; }
-  var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt; }
+  renderDock();
+  var qbd=document.getElementById("qbadge"); if (qbd){ var qn=questsReady(); var qt=qn?" "+qn:""; if (qbd.textContent!==qt) qbd.textContent=qt;
+    var qbtn=qbd.parentNode, qgone=QUESTS.length>0 && QUESTS.every(function(q){ return S.qdone&&S.qdone[q.id]; }), qdisp=qgone?"none":""; if (qbtn && qbtn.style.display!==qdisp) qbtn.style.display=qdisp; } // every quest claimed: the button goes away
   if (tab==="army"){ U.forEach(function(u,i){ updateTrainRow(i); }); setText(document.getElementById("idlepop"), fmt(idlePop())); }
   if (tab==="city") FORTS.forEach(function(f,i){ updateFortRow(i); });
   if (S.fortQ){ var fe=document.getElementById("fq-t"), fb=document.getElementById("fq-bar"); if (fe){ fe.textContent=fmtT(realMs(S.fortQ.end-S.gt)); fb.style.width=Math.min(100,(S.gt-S.fortQ.start)/Math.max(1,S.fortQ.end-S.fortQ.start)*100)+"%"; } }
@@ -6439,6 +6524,54 @@ function questSheet(){
   if (fin.length) h+='<p class="hint" style="margin-top:8px">Finished lines: '+fin.join(", ")+'.</p>';
   return h+'<button class="closebtn" data-act="close">Close</button>';
 }
+/* ---------- the Me page: account stats, alliance, and your character image ---------- */
+var PROF={}, profAt=0, profSig="", profBusy=false; // other players' images and frames (by lower-case cloud name), and what we last sent for ours
+function profFetch(names){
+  if (!cbOn() || profBusy || !names.length) return; profBusy=true; profAt=Date.now();
+  alPost("/me/get",{names:names.slice(0,80)}).then(function(d){ profBusy=false; if (d && d.profiles){ for (var k in d.profiles) PROF[k]=d.profiles[k]; lastSheet=""; renderSheet(); } }).catch(function(){ profBusy=false; });
+}
+function profSync(){ // sends your image and frame to the server so alliance mates can see them; retried on the next sync if it fails or is too soon
+  if (!cbOn() || profBusy) return; var me=S.me||{img:"",frame:""}, sig=(me.img||"").length+"|"+(me.img||"").slice(-24)+"|"+(me.frame||"");
+  if (sig===profSig || (!me.img && !me.frame && !profSig)) return; profBusy=true;
+  alPost("/me/set",{img:me.img||"",frame:me.frame||""}).then(function(d){ profBusy=false; if (d && d.ok) profSig=sig; }).catch(function(){ profBusy=false; });
+}
+var FRAMES={bughunter:{name:"Bug Hunter", desc:"For the beta testers who hunted bugs", icon:"bug"}}; // cosmetic frames around the character image; more will come
+function avatarHtml(me, name, sm){
+  me=me||{}; var fr=me.frame && FRAMES[me.frame] ? me.frame : "";
+  return '<div class="avatar'+(sm?' sm':'')+(fr?' f-'+fr:'')+'">'+(me.img ? '<img alt="" src="'+me.img+'">' : '<span>'+esc((name||"?").trim().charAt(0).toUpperCase()||"?")+'</span>')+(fr?'<span class="fbadge" title="'+esc(FRAMES[fr].name)+'">'+ICON[FRAMES[fr].icon]+'</span>':'')+'</div>';
+}
+function meSheet(){
+  S.me=S.me||{img:"",frame:""}; var me=S.me, st=lbStats(), al=alMine(), nm=S.lord||(S.lb&&S.lb.name)||S.name;
+  var kills=achStore().kills.reduce(function(a,b){ return a+(b||0); },0), honor=(ALS.d && ALS.d.honor!=null) ? fmt(ALS.d.honor) : "—";
+  var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>Me</h2><div class="sub">'+esc(TITLES[S.title]?TITLES[S.title].name:"")+(S.lord?' '+esc(S.lord):'')+'</div></div></div>';
+  h+='<div class="mehead"><span data-act="me-cycle" role="button" title="Tap to switch frame" style="cursor:pointer">'+avatarHtml(me,nm)+'</span>'+'<div style="display:grid;gap:6px;min-width:0"><b style="font:700 1.1rem var(--display);overflow-wrap:anywhere">'+esc(nm)+'</b><div class="btnrow"><button class="btn small" data-act="me-img-pick">'+(me.img?'Change image':'Upload image')+'</button>'+(me.img?'<button class="btn ghost small" data-act="me-img-clear">Remove</button>':'')+'</div></div></div>';
+  h+='<input type="file" id="meimg" accept="image/*" hidden>';
+  h+='<p class="hint">Your picture is cropped to a small square and kept in your save. With a cloud save, the members of your alliance see it and your frame on the Members list.</p>';
+  var owned=S.frames||[];
+  h+='<div class="h3" style="margin-top:8px">Frame</div><div class="farmadd"><button class="chipbtn wide'+(!me.frame?' on':'')+'" data-act="me-frame" data-v="">None</button>'+Object.keys(FRAMES).map(function(k){ var has=owned.indexOf(k)>=0; return '<button class="chipbtn wide'+(me.frame===k?' on':'')+'" data-act="me-frame" data-v="'+k+'"'+(has?'':' disabled')+' title="'+esc(FRAMES[k].desc)+'">'+esc(FRAMES[k].name)+(has?'':' (locked)')+'</button>'; }).join("")+'</div>';
+  h+='<p class="hint">'+(owned.length?'Tap a frame, or tap your picture, to switch. Frames you don\u2019t own stay locked. ':'You don’t own any frames yet. ')+'Frames are cosmetic only and never change how the game plays.</p>';
+  h+='<div class="h3" style="margin-top:10px">Alliance</div><div class="merows">'+(al ? row("Alliance",esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span>')+row("Your rank",esc(al.ranks[al.my.rank].n))+row("Members",al.members.length+' / '+al.cap)+row("Your honor",honor) :
+    '<div class="merow"><span>'+(alOn()?'You’re not in an alliance.':'Alliances need a cloud save (Settings).')+'</span>'+(alOn()?'<button class="btn ghost small" data-act="tab" data-tab="guild">Alliances</button>':'')+'</div>'+row("Honor",honor))+'</div>';
+  h+='<div class="h3" style="margin-top:10px">Account</div><div class="merows">'+
+    row("Realm",esc(S.name))+row("Prestige",fmt(st.prestige))+row("Rank",esc(RANKS[S.rank]?RANKS[S.rank].name:""))+row("Cities",st.cities)+row("Total Town Hall levels",fmt(totalTH()))+
+    row("Troops killed",fmt(kills))+row("Troops lost",fmt(st.deaths))+row("Top hero",st.hero?esc(st.heroName)+' <span class="dur">level '+st.hero+'</span>':"none yet")+row("Best star set",st.stars)+
+    row("Achievements",achTotal())+row("War College stars",st.college)+row("Kingdom rep",fmt(st.rep))+row("War Marks",fmt(S.warMarks||0))+row("Days played",fmt(Math.floor((S.gt||0)/86400000)))+
+    row("Cloud save",(S.cloud&&S.cloud.name)?esc(S.cloud.name):"not set up")+'</div>';
+  return h+'<button class="closebtn" data-act="close">Close</button>';
+}
+function meImageFromFile(f){
+  if (!f) return; if (!/^image\//.test(f.type||"")){ toast("That file isn’t an image"); return; } if (f.size>25*1024*1024){ toast("That image is too big"); return; }
+  var url=URL.createObjectURL(f), img=new Image();
+  img.onload=function(){
+    try { var c=document.createElement("canvas"); c.width=c.height=128; var g=c.getContext("2d"), s=Math.min(img.width,img.height), sx=(img.width-s)/2, sy=(img.height-s)/2;
+      g.fillStyle="#fff"; g.fillRect(0,0,128,128); g.drawImage(img,sx,sy,s,s,0,0,128,128);
+      S.me=S.me||{img:"",frame:""}; S.me.img=c.toDataURL("image/jpeg",0.82); save(); profSync(); lastSheet=""; renderSheet(); toast("Image saved"); }
+    catch(e){ toast("Couldn’t use that image"); }
+    URL.revokeObjectURL(url); };
+  img.onerror=function(){ URL.revokeObjectURL(url); toast("Couldn’t open that image"); };
+  img.src=url;
+}
 if (S._questInit){ QUESTS.forEach(function(q){ try { if (q.check()) S.qdone[q.id]=-1; } catch(e){} }); delete S._questInit; } // milestones reached before quests existed count as done
 function claimQuest(id){
   var q=QUESTS.filter(function(x){ return x.id===id; })[0]; if (!q || questState(q)!=="ready") return;
@@ -7345,7 +7478,7 @@ function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.
 
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
-var PAGES={settings:1,ach:1,quests:1,lb:1}, pageLast=""; // these four open as tabs; the same builders also work as pop-ups (used on the battlefield)
+var PAGES={settings:1,ach:1,quests:1,lb:1,me:1}, pageLast=""; // these four open as tabs; the same builders also work as pop-ups (used on the battlefield)
 function onPage(k){ return sheetFor ? sheetFor.kind===k : tab===k; }
 function goPage(k){ if (bfOn()||pvOn()){ openSheet({kind:k}); return; } closeSheet(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; itemsNote=""; armed=null; tab=k; lastView=""; renderView(true); window.scrollTo({top:0}); }
 function openSheet(kind){ var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal();
@@ -7482,6 +7615,8 @@ function renderSheetCore(){
     h=bfSendSheet();
   } else if (sheetFor.kind==="ach"){
     h=achSheet();
+  } else if (sheetFor.kind==="me"){
+    h=meSheet();
   } else if (sheetFor.kind==="quests"){
     h=questSheet();
   } else if (sheetFor.kind==="threat"){
@@ -7906,6 +8041,11 @@ document.addEventListener("click",function(e){
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
   if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
   if (act==="quests"){ goPage("quests"); return; }
+  if (act==="me"){ ALS.last=0; goPage("me"); return; }
+  if (act==="me-cycle"){ S.me=S.me||{img:"",frame:""}; var cyc=[""].concat((S.frames||[]).filter(function(k){ return FRAMES[k]; })); if (cyc.length>1){ S.me.frame=cyc[(cyc.indexOf(S.me.frame||"")+1)%cyc.length]; save(); profSync(); lastSheet=""; renderSheet(); } return; }
+  if (act==="me-frame"){ S.me=S.me||{img:"",frame:""}; var mfv=a.dataset.v||""; if (!mfv || (S.frames||[]).indexOf(mfv)>=0) S.me.frame=mfv; save(); profSync(); lastSheet=""; renderSheet(); return; }
+  if (act==="me-img-clear"){ S.me=S.me||{img:"",frame:""}; S.me.img=""; save(); profSync(); lastSheet=""; renderSheet(); toast("Image removed"); return; }
+  if (act==="me-img-pick"){ var mfi=document.getElementById("meimg"); if (mfi) mfi.click(); return; }
   if (act==="ach"){ goPage("ach"); return; }
   if (act==="quest-claim"){ claimQuest(a.dataset.q); save(); lastSheet=""; renderSheet(); tickText(); return; }
   if (act==="ally-invite"){
@@ -8191,6 +8331,13 @@ document.addEventListener("click",function(e){
     sim.def={preset:"custom", t:S.troops.slice(), f:S.forts.slice(), wall:S.wall||0, r:simResearch(), hatk:hs(dm,"atk"), hint:hs(dm,"int"), life:setLife(dm), eng:S.tech.engineering||0};
     simOut=null; closeSheet(); tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
+  if (act==="dock-toggle"){ dockOpen=!dockOpen; dockSave(); renderDock(); if (dockOpen){ var dkb=document.getElementById("dkmsgs"); if (dkb) dkb.scrollTop=dkb.scrollHeight; ALS.last=0; } return; }
+  if (act==="dock-unpin"){ dockPin=false; dockOpen=false; dockSave(); renderDock(); toast("Chat unpinned. You can pin it again from the Alliance tab"); return; }
+  if (act==="dock-send"){ alSend("dockin"); return; }
+  if (act==="march-repeat"){
+    var rpm=S.marches.filter(function(x){ return x.id===+a.dataset.m; })[0]; if (!rpm) return;
+    rpm.rep=!rpm.rep; if (rpm.rep){ rpm.t0=rpm.t0||rpm.t.slice(); rpm.hero0=rpm.hero0!=null?rpm.hero0:(rpm.hero||0); }
+    toast(rpm.rep?"This march will repeat":"Repeat off"); save(); renderMarchStrip(); lastView=""; refresh(); return; }
   if (act==="march-recall" || act==="march-hasten"){
     var mm=S.marches.filter(function(x){ return x.id===+a.dataset.m; })[0]; if (!mm) return;
     withCity(cityIndex(mm.city), function(){
@@ -8199,6 +8346,7 @@ document.addEventListener("click",function(e){
         S.items.marchsp--; if (mm.phase==="out") mm.arr=S.gt+(mm.arr-S.gt)/2; else mm.ret=S.gt+(mm.ret-S.gt)/2;
         toast("March hastened: half the remaining time"); return;
       }
+      mm.rep=false; // recalling a repeating march ends the repeat
       var refund={}; RES.forEach(function(k){ refund[k]=(mm.cargo&&mm.cargo[k])||0; }); if (mm.mission==="found") RES.forEach(function(k){ refund[k]+=10000; });
       if (mm.phase==="wait"){
         for (var i=0;i<12;i++) S.troops[i]+=mm.t[i]; RES.forEach(function(k){ S.res[k]+=refund[k]; }); S.res.food+=mm.food||0;
@@ -8308,6 +8456,10 @@ document.addEventListener("click",function(e){
   if (act==="rep-page"){ repPage=Math.max(0,repPage+(+a.dataset.d)); fillRepList(); window.scrollTo({top:0}); return; }
   if (act==="arrange"){ arrange = (arrange && arrange.w===a.dataset.aw) ? null : {w:a.dataset.aw, sel:null}; lastView=""; renderView(true); return; }
   if (act==="preset-edit"){ openSheet({kind:"preset",p:+a.dataset.p}); return; }
+  if (act==="preset-copy"){ var cpp=S.presets[+a.dataset.p]; if (!cpp || !presetTotal(cpp)) return; presetClip={name:cpp.name, t:cpp.t.slice(), hero:cpp.hero, stopOnLoss:cpp.stopOnLoss}; toast("Copied "+cpp.name+"; Paste it onto another preset"); lastView=""; refresh(); return; }
+  if (act==="preset-paste"){ var ppp=S.presets[+a.dataset.p]; if (!ppp || !presetClip) return;
+    ppp.t=presetClip.t.slice(); ppp.stopOnLoss=presetClip.stopOnLoss; ppp.hero=(presetClip.hero>0 && !C().heroes.some(function(x){ return x.id===presetClip.hero; })) ? 0 : presetClip.hero;
+    toast("Pasted "+presetClip.name+" onto "+ppp.name); save(); lastView=""; refresh(); return; }
   if (act==="preset-auto"){ var pa=S.presets[+a.dataset.p]; pa.auto=!pa.auto; toast(pa.name+(pa.auto?" is auto-farming":" stopped")); processAuto(); refresh(); return; }
   if (act==="farm-toggle"){ var fp=S.presets[+a.dataset.p], ft=a.dataset.tile, fi=fp.farm.indexOf(ft);
     if (fi>=0){ fp.farm.splice(fi,1); toast("Removed from "+fp.name); } else { fp.farm.push(ft); toast("Added to "+fp.name+"\u2019s farm list ("+fp.farm.length+")"); }
@@ -8514,7 +8666,7 @@ document.addEventListener("input",function(e){
     if (e.target.dataset.sim==="def" && sim.def.preset!=="custom"){ sim.def.preset="custom"; var sel=document.getElementById("npcsel"); if (sel) sel.value="custom"; }
   }
 });
-document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } });
+document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); alSend("dockin"); } });
 document.addEventListener("change",function(e){
   if (e.target.dataset && e.target.dataset.arlv!=null){ ARL[e.target.dataset.arlv]=+e.target.value; e.target.blur(); lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }
@@ -8547,6 +8699,9 @@ document.addEventListener("change",function(e){
   if (e.target.id==="mensign"){ marchDraft.ensign=e.target.checked && (S.items.ensign||0)>0; updateMarchInfo(); }
   if (e.target.id==="marchhero"){ marchDraft.hero=+e.target.value; marchDraft.preview=""; updateMarchInfo(); }
   if (e.target.id==="mcamp"){ marchDraft.camp=e.target.checked; }
+  if (e.target.id==="mrep"){ marchDraft.rep=e.target.checked; }
+  if (e.target.id==="meimg"){ var mf0=e.target.files&&e.target.files[0]; e.target.value=""; meImageFromFile(mf0); return; }
+  if (e.target.id==="dockpin"){ dockPin=e.target.checked; dockSave(); renderDock(); toast(dockPin?"Chat pinned: it shows as a bar at the bottom on other pages":"Chat unpinned"); }
   if (e.target.id==="marchfrom"){ marchDraft.from=e.target.value||""; marchDraft.t=[0,0,0,0,0,0,0,0,0,0,0,0]; var mfc=draftCamp(); marchDraft.hero = mfc ? (mfc.hero||0) : ((marchHeroes()[0]||{}).id||0); marchDraft.preview=""; e.target.blur(); lastSheet=""; renderSheet(); }
   if (e.target.id==="npcsel"){ setPreset(e.target.value); lastView=""; renderView(true); }
 });

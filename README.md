@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.49
+Version 0.1.50
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,19 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 47.
+Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.50
+- New Me tab: your account stats (prestige, cities, troops killed and lost, top hero, best star set, achievements, War College stars, Kingdom rep, War Marks, days played), your alliance and honor, and your character image.
+- Character image: upload a picture, it is cropped to a small 128x128 square and kept in your save. With a cloud save it is sent to the Worker, and alliance mates see it with your frame on the Members list.
+- Frames: cosmetic borders around the character image, optional (None is the default). Tap a frame, or tap your picture, to switch between the ones you own. The first is Bug Hunter, which every account owns for now (FRAMES_FOR_ALL in index.html; empty it at the beta cutoff). Save version 48.
+- Alliance chat can be pinned to the bottom of every page (tick Pin chat to bottom on the Alliance chat page).
+- March presets: Copy and Paste buttons move troops, hero and stop-on-loss between presets.
+- Repeat marches: tick Repeat on an attack or conquer march (or tap Repeat on a march in progress) and the same army relaunches each time it is home. It stops on any loss, a failed fight, a busy hero, a missing army or not enough food.
+- The Quests button hides once every quest is done.
+- High scores has a new Invasion honor board. The server reads honor from your verified cloud account, so it can't be faked.
+- Worker update needed (scores-worker 0.1.50): new profiles table, POST /me/set and /me/get, honor column on players, POST /admin/api/avatar {key,name,ban} to remove a picture.
 ### 0.1.49
 - Star upgrade odds reworked to follow Age 2: a steeper curve, and the number of gems per try now matters a lot. Four Flawless gems are 95% at 0 stars, 90% at 5 and 50% at 11, then keep falling about 6 or 7 points a star. Each gem fewer than four takes off 15 points (one Flawless is 45% at 5 stars). Four Delicate gems are 90% at 0 stars and lose 5 points a star (65% at 5, 60% at 6); each gem fewer takes off about 8 points (one Delicate is 40% at 5 stars). Never below 1%. The hero stat bonus (up to +10 points) still applies. What a failure drops you to is unchanged.
 - Existing saves: every piece of gear above 5 stars goes back to 5 stars on load (save version 47). Other gear stats are untouched.
