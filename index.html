@@ -449,6 +449,7 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .merows{display:grid;gap:0;margin-top:8px}
 .merow{display:flex;justify-content:space-between;gap:12px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:.95rem}
 .merow b{color:var(--ink);text-align:right}
+.pln{cursor:pointer;text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px}.pln:hover{color:var(--brass)} .lbn[data-act="pl-open"]{cursor:pointer}
 /* pinned chat: a slim bar at the bottom of every page that opens into a chat panel */
 #chatdock{position:fixed;left:0;right:0;bottom:0;z-index:9;display:none;pointer-events:none}
 #chatdock .dkin{pointer-events:auto;max-width:720px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;box-shadow:0 -4px 14px rgba(0,0,0,.2);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -641,7 +642,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.63";
+var APP_VERSION = "0.1.66";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2700,7 +2701,7 @@ function grantBeta(){
   S.waiting.push(b); return "Beta is waiting at the gate: free a place in your Feasting Hall.";
 }
 /* ---------- high scores (Cloudflare Worker) ---------- */
-var LB_URL = "https://ibory-scores.codylspaulding.workers.dev"; // the Worker address, e.g. "https://ibory-scores.yourname.workers.dev" (empty hides syncing)
+var LB_URL = "https://ibory-scores.ibory-reports.workers.dev"; // the Worker address, e.g. "https://ibory-scores.yourname.workers.dev" (empty hides syncing)
 var LB_HC=[12,14,16,18], lbData={}, lbCat="prestige", lbBusy=false, lbErr="", lbLastSync=0;
 var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Kingdom rep"],["college","War College"]]
   .concat(LB_HC.map(function(L){ return ["hc"+L,"First L"+L+" historic"]; }));
@@ -2758,7 +2759,11 @@ function mpShown(){ return S.mpOn!==false; }
 function wcShown(){ return S.wcOn!==false; }
 var MP_ACTS={"al-create":"Founding an alliance", "al-apply":"Applying to an alliance", "iv-optin":"Joining invasions", "iv-find":"Launching an invasion", "pv-create":"Starting a PvP match", "pv-join":"Joining a PvP match"};
 var mpPending=null, mpGraceAsked=false;
-function mpGo(why){ if (!S.mp){ S.mp=true; S.mpWhy=why||"chose"; S.mpAt=Date.now(); save(); lbData={}; lbLastSync=0; } mpTell(); }
+function mpGo(why){ if (!S.mp){ S.mp=true; S.mpWhy=why||"chose"; S.mpAt=Date.now(); save(); lbData={}; lbLastSync=0; mpListMe(); } mpTell(); }
+function mpListMe(){ // going multiplayer puts you on the multiplayer high scores (unless an admin removed you)
+  if (!LB_URL || navigator.webdriver) return;
+  if (!S.lb){ lbAutoJoin(); } else if (S.lb.on===false && !S.lb.removed){ S.lb.on=true; S.lb.optedOut=false; save(); toast("You\u2019re on the multiplayer high scores"); }
+  lbSync(true); }
 function mpTell(){ if (S.mp && !S.mpSent && cbOn()) alPost("/me/mp",{why:S.mpWhy||"chose"}).then(function(d){ if (d && d.ok){ S.mpSent=1; save(); } }).catch(function(){}); }
 function mpInAlliance(){ return !!(alMine() || S.alMember); }
 function mpNeedsGrace(){ return !S.mp && !S.mpGrace && mpInAlliance(); }
@@ -2888,11 +2893,11 @@ function viewMyAlliance(al){
       if (!me && below && my.can.kick) acts+='<button class="link" data-act="al-kick" data-who="'+esc(m.name)+'">'+(ALS.armed==="kick"+m.name?'Tap again to remove':'Remove')+'</button>';
       if (!me && my.rank===0) acts+='<button class="link" data-act="al-handover" data-who="'+esc(m.name)+'">'+(ALS.armed==="hand"+m.name?'Tap again: make founder':'Make founder')+'</button>';
       var pf=me ? S.me : PROF[m.name.toLowerCase()];
-      return '<div class="acity"><h4>'+(pf && (pf.img||pf.frame) ? avatarHtml(pf,m.name,true) : '')+'<span style="margin-left:6px">'+esc(m.name)+(me?' <span class="dur">(you)</span>':'')+'</span><span class="badge">'+esc(rk[m.rank].n)+'</span>'+(m.muted?'<span class="why">muted</span>':'')+'<span style="flex:1"></span><span class="dur">'+alAgo(m.seen)+'</span></h4>'+
+      return '<div class="acity"><h4>'+(pf && (pf.img||pf.frame) ? avatarHtml(pf,m.name,true) : '')+'<span style="margin-left:6px">'+plName(m.name,0,me)+(me?' <span class="dur">(you)</span>':'')+'</span><span class="badge">'+esc(rk[m.rank].n)+'</span>'+(m.muted?'<span class="why">muted</span>':'')+'<span style="flex:1"></span><span class="dur">'+alAgo(m.seen)+'</span></h4>'+
         '<div class="rgrid"><span>Prestige <b>'+fmt(m.prestige)+'</b></span><span>Cities <b>'+m.cities+'</b></span><span>Honor <b>'+fmt(m.honor)+'</b></span><span class="dur">joined '+alTime(m.joined)+'</span></div>'+
         (acts?'<div class="btnrow" style="margin-top:4px;align-items:center">'+acts+'</div>':'')+'</div>'; }).join("")+'</div>';
   } else if (sub==="apps"){
-    h+='<div class="section"><h3>Applications</h3>'+(apps.length?apps.map(function(p){ return '<div class="bq"><span><b>'+esc(p.name)+'</b> <span class="dur">'+alAgo(p.at)+'</span>'+(p.msg?'<br><span class="hint">'+esc(p.msg)+'</span>':'')+'</span><div class="mbtns"><button class="link strong" data-act="al-accept" data-who="'+esc(p.name)+'">Accept</button><button class="link" data-act="al-reject" data-who="'+esc(p.name)+'">Turn down</button></div></div>'; }).join(""):'<p class="hint">Nobody is waiting.</p>')+
+    h+='<div class="section"><h3>Applications</h3>'+(apps.length?apps.map(function(p){ return '<div class="bq"><span><b>'+plName(p.name)+'</b> <span class="dur">'+alAgo(p.at)+'</span>'+(p.msg?'<br><span class="hint">'+esc(p.msg)+'</span>':'')+'</span><div class="mbtns"><button class="link strong" data-act="al-accept" data-who="'+esc(p.name)+'">Accept</button><button class="link" data-act="al-reject" data-who="'+esc(p.name)+'">Turn down</button></div></div>'; }).join(""):'<p class="hint">Nobody is waiting.</p>')+
       (al.members.length>=al.cap?'<p class="why">The alliance is full ('+al.cap+' members).</p>':'')+'</div>';
   } else if (sub==="ranks"){
     h+='<div class="section"><h3>Ranks</h3><p class="hint">Name the five ranks and choose what each can do. The founder can always do everything. Members can only act on ranks below their own.</p>'+
@@ -3146,7 +3151,7 @@ function fillAlChat(){
   var al=alMine(), my=al&&al.my, hh=ALS.chat.length?ALS.chat.map(function(c){
     if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
     var canDel=!c.del && (c.name===S.cloud.name || (my&&my.can.chat));
-    return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+esc(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+plName(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
   if (el._sig===hh) return;
   var atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40 || !el._sig;
   el.innerHTML=hh; el._sig=hh; if (atBottom) el.scrollTop=el.scrollHeight;
@@ -3202,13 +3207,13 @@ function renderDock(){
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
     msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?lw.name+": "+lw.text:(cbOn()?"No messages yet":"Sign in to chat");
-    hh=msgs.length ? msgs.slice(-80).map(function(c){ return '<div class="alm"><b>'+esc(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    hh=msgs.length ? msgs.slice(-80).map(function(c){ return '<div class="alm"><b>'+plName(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
     setText(document.getElementById("dkch"), "World");
   } else {
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
     lastTxt=la?la.name+": "+la.text:"No messages yet";
-    hh=msgs.length ? msgs.slice(-60).map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+esc(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    hh=msgs.length ? msgs.slice(-60).map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+plName(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
   setText(document.getElementById("dklast"), lastTxt);
@@ -3449,7 +3454,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn" data-act="pl-open" role="button" data-k="'+esc(r.ck||"")+'" data-pid="'+(r.pid||0)+'"'+(r.me?' data-me="1"':'')+' data-nm="'+esc(r.name)+'">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
@@ -6088,7 +6093,7 @@ function invBoardSheet(){
   var B=IV.board, h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Invasion score board</h2><div class="sub">Score = enemy troops killed (by prestige value) plus plunder ÷ 20,000.</div></div></div>';
   if (!B) h+='<p class="hint">Loading…</p>';
   else if (!B.rows.length) h+='<p class="hint">No invasions finished yet.</p>';
-  else h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>#</th><th>Lord</th><th>Score</th><th>Out / in</th></tr></thead><tbody>'+B.rows.map(function(r){ return '<tr><td>'+r.rank+'</td><td>'+esc(r.name)+'</td><td>'+fmt(r.score)+'</td><td>'+r.launched+' / '+r.invaded+'</td></tr>'; }).join("")+'</tbody></table></div>';
+  else h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>#</th><th>Lord</th><th>Score</th><th>Out / in</th></tr></thead><tbody>'+B.rows.map(function(r){ return '<tr><td>'+r.rank+'</td><td>'+plName(r.name,0,r.me)+'</td><td>'+fmt(r.score)+'</td><td>'+r.launched+' / '+r.invaded+'</td></tr>'; }).join("")+'</tbody></table></div>';
   return h+'<button class="closebtn" data-act="close">Close</button>';
 }
 function invLog(v){
@@ -6237,7 +6242,7 @@ function pvBoardSheet(){
   else {
     if (!d.rows.length) h+='<p class="hint">No rated matches yet. Be the first.</p>';
     else h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>#</th><th>Lord</th><th>Rating</th><th>Record</th></tr></thead><tbody>'+d.rows.map(function(r){
-      return '<tr'+(r.me?' style="font-weight:700;color:var(--brass)"':'')+'><td>'+r.rank+'</td><td>'+esc(r.name)+(r.me?' (you)':'')+'</td><td>'+r.rating+'</td><td>'+pvRec(r)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+      return '<tr'+(r.me?' style="font-weight:700;color:var(--brass)"':'')+'><td>'+r.rank+'</td><td>'+plName(r.name,0,r.me)+(r.me?' (you)':'')+'</td><td>'+r.rating+'</td><td>'+pvRec(r)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     var me=d.me;
     if (me && me.games && !d.rows.some(function(r){ return r.me; })) h+='<p class="hint">You: '+(me.rank?'#'+me.rank+' ':'')+'with '+me.rating+' ('+pvRec(me)+').</p>';
     if (me && me.off) h+='<p class="why">You\u2019ve been taken off the rating board.</p>';
@@ -6379,7 +6384,7 @@ function pvLobby(){
     '<p class="hint">Send this code to your opponent. Once you’re both ready, the battle starts 10 seconds later and lasts 25 minutes. An unused code expires after 30 minutes.</p></div>';
   h+='<div class="section"><h3>Players</h3><div class="gearlist">'+[0,1].map(function(i){ var p=v.players[i];
     if (!p) return '<div class="gearrow"><span class="gn">Waiting for an opponent…</span></div>';
-    return '<div class="gearrow'+(p.ready?' t3':'')+'"><span class="gn">'+esc(p.name)+(i===me?' (you)':'')+'</span><span class="gb">'+(p.ready?'Ready':'Not ready')+'</span><span class="dur" style="grid-column:1/-1">'+esc(p.city)+', about '+fmt(p.army||0)+' troops.'+(p.rating!=null?' Rating '+p.rating+'.':' No rating.')+'</span></div>'; }).join("")+'</div><p class="hint">The match counts for ratings if you both have one and haven\u2019t already played 3 rated matches together today.</p></div>';
+    return '<div class="gearrow'+(p.ready?' t3':'')+'"><span class="gn">'+plName(p.name,0,i===me)+(i===me?' (you)':'')+'</span><span class="gb">'+(p.ready?'Ready':'Not ready')+'</span><span class="dur" style="grid-column:1/-1">'+esc(p.city)+', about '+fmt(p.army||0)+' troops.'+(p.rating!=null?' Rating '+p.rating+'.':' No rating.')+'</span></div>'; }).join("")+'</div><p class="hint">The match counts for ratings if you both have one and haven\u2019t already played 3 rated matches together today.</p></div>';
   h+='<div class="section"><h3>Your army</h3><p class="hint">Changing city unreadies you. Your troops, research, heroes, Rally Spot and Beacon Tower are copied the moment you pick.</p>'+pvCitySel("pvcity2", S.pvp.ci!=null?S.pvp.ci:S.cur)+
     (PV.err?'<p class="why">'+esc(PV.err)+'</p>':'')+
     '<div class="act"><button class="btn ghost danger" data-act="pv-leave">'+(PV_LEAVE_ARMED?'Tap again: leave':'Leave')+'</button><button class="btn'+(mine.ready?' ghost':'')+'" data-act="pv-ready">'+(mine.ready?'Not ready':'Ready')+'</button></div></div>';
@@ -6631,6 +6636,35 @@ function profSync(){ // sends your image and frame to the server so alliance mat
   alPost("/me/set",{img:me.img||"",frame:me.frame||""}).then(function(d){ profBusy=false; if (d && d.ok) profSig=sig; }).catch(function(){ profBusy=false; });
 }
 var FRAMES={bughunter:{name:"Bug Hunter", desc:"For the beta testers who hunted bugs", icon:"bug"}}; // cosmetic frames around the character image; more will come
+/* ---------- player profiles: tap a name (high scores, chat, alliance lists) to see that player ---------- */
+var PLC={}, plBusy=false;
+function plName(name, pid, me){ return '<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(String(name||"").toLowerCase())+'"'+(pid?' data-pid="'+pid+'"':'')+(me?' data-me="1"':'')+' data-nm="'+esc(name)+'">'+esc(name)+'</span>'; }
+function plKey(k,pid){ return pid ? "p"+pid : "k"+k; }
+function plOpen(k,pid,nm){
+  openSheet({kind:"player", k:k, pid:pid, nm:nm}); var key=plKey(k,pid), c=PLC[key];
+  if (!LB_URL || plBusy || (c && Date.now()-c.at<60000)) return; plBusy=true;
+  fetch(LB_URL+"/player?"+(pid?"pid="+pid:"k="+encodeURIComponent(k)),{cache:"no-store"}).then(function(r){ return r.json(); })
+    .then(function(d){ plBusy=false; PLC[key]={d:d,at:Date.now()}; lastSheet=""; renderSheet(); }).catch(function(){ plBusy=false; PLC[key]={d:{error:"Couldn’t reach the server"},at:Date.now()}; lastSheet=""; renderSheet(); });
+}
+function playerSheet(){
+  var sf=sheetFor, c=PLC[plKey(sf.k,sf.pid)], d=c&&c.d, nm=(d&&d.name)||sf.nm||"Player";
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1;min-width:0"><h2 style="overflow-wrap:anywhere">'+esc(nm)+'</h2><div class="sub">Player profile</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  if (!d) return h+'<p class="hint">Loading…</p>';
+  if (d.error) return h+'<p class="hint">'+esc(d.error)+'</p>';
+  if (d.gone) return h+'<p class="hint">This player isn’t on Ibory’s boards any more.</p>';
+  var pf=(d.pu||d.fr)&&d.ck ? {img: d.pu ? LB_URL+"/me/img?k="+encodeURIComponent(d.ck)+"&v="+d.pu : "", frame:d.fr} : {};
+  var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
+  h+='<div class="mehead">'+avatarHtml(pf,nm)+'<div style="display:grid;gap:4px;min-width:0"><b style="font:700 1.1rem var(--display);overflow-wrap:anywhere">'+esc(nm)+'</b>'+(d.alliance?'<span class="dur">['+esc(d.alliance.tag)+'] '+esc(d.alliance.name)+(d.alliance.rank?' · '+esc(d.alliance.rank):'')+'</span>':'<span class="dur">No alliance</span>')+'</div></div>';
+  if (!d.found){ return h+'<p class="hint">This player hasn’t sent any scores to the high scores yet, so there’s nothing more to show.</p>'; }
+  var rows='';
+  if (d.hero){ var st=String(d.hero.st||"").split(",").map(Number); rows+=row("Top hero",esc(d.hero.name)+' <span class="dur">level '+d.hero.lv+'</span>'); if (st.length>=3 && st.every(isFinite)) rows+=row("Hero stats",'Attack '+fmt(st[1])+' · Intelligence '+fmt(st[2])+' · Politics '+fmt(st[0])); }
+  else rows+=row("Top hero","none yet");
+  rows+=row("Prestige",fmt(d.prestige))+row("Troops killed",fmt(d.kills))+row("Troops lost",fmt(d.deaths))+row("Cities",d.cities)+row("Best star set",d.stars)+row("War College stars",fmt(d.college||0));
+  rows+=row("Historic cities taken",d.hc&&d.hc.length?d.hc.map(function(L){ return "Level "+L; }).join(", "):"none");
+  if (d.mp) rows+=row("Invasion honor",fmt(d.honor||0));
+  rows+=row("Board",d.mp?"Multiplayer":"Single player")+row("Last synced",alAgo(d.seen))+(d.joined?row("On the boards since",new Date(d.joined).toLocaleDateString()):"");
+  return h+'<div class="merows">'+rows+'</div>';
+}
 function avatarHtml(me, name, sm){
   me=me||{}; var fr=me.frame && FRAMES[me.frame] ? me.frame : "";
   return '<div class="avatar'+(sm?' '+(sm===true?'sm':sm):'')+(fr?' f-'+fr:'')+'">'+(me.img ? '<img alt="" loading="lazy" src="'+esc(me.img)+'">' : '<span>'+esc((name||"?").trim().charAt(0).toUpperCase()||"?")+'</span>')+(fr?'<span class="fbadge" title="'+esc(FRAMES[fr].name)+'">'+ICON[FRAMES[fr].icon]+'</span>':'')+'</div>';
@@ -6666,7 +6700,7 @@ function mpIntroSheet(){
 }
 function mpWarnSheet(act){
   return '<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>Move to the multiplayer boards?</h2><div class="sub">'+esc(MP_ACTS[act]||"This")+' is multiplayer.</div></div></div>'+
-    '<p>Doing this moves your high scores to the <b>multiplayer boards</b>, and there is no going back. You will no longer be ranked with single-player realms.</p>'+
+    '<p>Doing this moves your high scores to the <b>multiplayer boards</b>, and there is no going back. You will no longer be ranked with single-player realms, and you will be listed on the multiplayer high scores automatically.</p>'+
     '<p class="hint">Nothing else changes: your realm, troops and items stay exactly as they are. Chatting never counts.</p>'+
     '<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn" data-act="mp-warn-ok">Continue</button><button class="btn ghost" data-act="close">Cancel</button></div>';
 }
@@ -7747,6 +7781,8 @@ function renderSheetCore(){
     h=bfSendSheet();
   } else if (sheetFor.kind==="ach"){
     h=achSheet();
+  } else if (sheetFor.kind==="player"){
+    h=playerSheet();
   } else if (sheetFor.kind==="me"){
     h=meSheet();
   } else if (sheetFor.kind==="mpintro"){
@@ -8197,6 +8233,7 @@ document.addEventListener("click",function(e){
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
   if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
   if (act==="quests"){ goPage("quests"); return; }
+  if (act==="pl-open"){ var pe=a; if (pe.getAttribute("data-me")==="1" || (S.cloud && S.cloud.name && String(S.cloud.name).toLowerCase()===pe.getAttribute("data-k") && !pe.getAttribute("data-pid"))){ closeSheet(); ALS.last=0; goPage("me"); return; } plOpen(pe.getAttribute("data-k")||"", +pe.getAttribute("data-pid")||0, pe.getAttribute("data-nm")||""); return; }
   if (act==="me"){ ALS.last=0; goPage("me"); return; }
   if (act==="me-cycle"){ S.me=S.me||{img:"",frame:""}; var cyc=[""].concat((S.frames||[]).filter(function(k){ return FRAMES[k]; })); if (cyc.length>1){ S.me.frame=cyc[(cyc.indexOf(S.me.frame||"")+1)%cyc.length]; save(); profSync(); lastSheet=""; renderSheet(); } return; }
   if (act==="me-frame"){ S.me=S.me||{img:"",frame:""}; var mfv=a.dataset.v||""; if (!mfv || (S.frames||[]).indexOf(mfv)>=0) S.me.frame=mfv; save(); profSync(); lastSheet=""; renderSheet(); return; }

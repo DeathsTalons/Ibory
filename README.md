@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.63
+Version 0.1.66
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,16 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.66
+- The game now talks to the Worker at ibory-scores.ibory-reports.workers.dev (the account subdomain changed). Change the Cloudflare account subdomain to ibory-reports at the same time as uploading this build; older versions stop reaching scores, chat and cloud saves until they update. No save or Worker change.
+
+### 0.1.65
+- Going multiplayer now puts you on the multiplayer high scores automatically, including if you had left the high scores before. (Players an admin removed stay removed.) No save or Worker change.
+
+### 0.1.64
+- Tap a player's name to see their profile: in the high scores, world and alliance chat, the Members and Applications lists, the invasion board and PvP lists. It shows their picture and frame, alliance and rank, top hero with stats, prestige, kills, losses, cities, star set, War College stars, historic cities, honor (multiplayer) and when they last synced. Tapping your own name opens your Me page.
+- Needs the matching Worker (scores-worker 0.1.64): new public GET /player, and high scores rows now carry a row id. No save change.
+
 ### 0.1.63
 - The number on the Achievements icon now only counts achievements earned since you last opened that page, and disappears once you open it. No save version or Worker change.
 
