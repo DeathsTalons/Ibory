@@ -387,6 +387,7 @@ table.gt.reqt{min-width:0;table-layout:fixed} table.gt.reqt th,table.gt.reqt td{
 table.gt.reqt th:nth-child(1),table.gt.reqt td:nth-child(1){width:34%} table.gt.reqt th:nth-child(2),table.gt.reqt td:nth-child(2){width:14%;text-align:center}
 table.gt.reqt td:nth-child(3){font-size:.85em;line-height:1.3}
 .ntrow{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)} .ntrow input{width:20px;height:20px;flex:none}
+#pagehost{display:grid;gap:12px;align-content:start}
 dialog.full{width:100%;max-width:none;height:100%;max-height:none;margin:0;border-radius:0}
 dialog.full .sheet{height:100dvh;max-height:none;border-radius:0;border:0;align-content:start;padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .lbtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;position:sticky;top:-16px;background:var(--panel);z-index:1;margin:0 -2px} .lbtabs::-webkit-scrollbar{display:none} .lbtabs .chipbtn{flex:none;white-space:nowrap}
@@ -495,12 +496,12 @@ dialog.fit{max-height:98vh;margin:auto} dialog.fit .sheet{max-height:98vh}
 #repwrap.fit .tscroll{overflow:visible}
 dialog::backdrop{background:rgba(10,12,10,.5)}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;overflow:auto;max-height:85vh}
-.sheet .head{display:flex;gap:12px;align-items:center}
-.sheet .head .ico{width:40px;height:40px;color:var(--brass);flex:none}
-.sheet h2{margin:0;font:700 1.25rem/1.15 var(--display)}
-.sheet .sub{color:var(--muted);font-size:.92rem}
+.sheet .head,#pagehost .head{display:flex;gap:12px;align-items:center}
+.sheet .head .ico,#pagehost .head .ico{width:40px;height:40px;color:var(--brass);flex:none}
+.sheet h2,#pagehost h2{margin:0;font:700 1.25rem/1.15 var(--display)}
+.sheet .sub,#pagehost .sub{color:var(--muted);font-size:.92rem}
 .renrow{display:grid;gap:4px;margin:6px 0 10px}.renrow .sub{color:var(--muted);font-size:.92rem}
-.sheet p{margin:0}
+.sheet p,#pagehost p{margin:0}
 .effect{background:var(--panel2);border-radius:8px;padding:8px 12px;font-size:.95rem}
 .choices{display:grid;gap:8px}
 .choice{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;text-align:left;background:var(--panel2);border:1px solid transparent;border-radius:10px;padding:10px 12px;cursor:pointer}
@@ -534,13 +535,13 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
   <header>
     <div><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div>
     <div class="chiprow">
-    <button class="speedchip" data-act="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
+    <button class="speedchip" data-act="quests" data-tab="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
-    <button class="speedchip iconchip" data-act="ach" aria-label="Achievements" title="Achievements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.2L7 21l5-3 5 3-1.6-7.8"/></svg><b id="abadge"></b></button>
-    <button class="speedchip iconchip" data-act="lb-open" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
+    <button class="speedchip iconchip" data-act="ach" data-tab="ach" aria-label="Achievements" title="Achievements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.2L7 21l5-3 5 3-1.6-7.8"/></svg><b id="abadge"></b></button>
+    <button class="speedchip iconchip" data-act="lb-open" data-tab="lb" aria-label="High scores" title="High scores"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4"/></svg></button>
     <button class="speedchip iconchip" data-act="tab" data-tab="items" aria-label="Items" title="Items"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 13h18M12 13v3M5 9a7 4 0 0 1 14 0"/></svg><b id="itembadge"></b></button>
     <button class="speedchip iconchip" data-act="tab" data-tab="wheel" aria-label="Wheel" title="Wheel"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/></svg></button>
-    <button class="speedchip" data-act="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
+    <button class="speedchip" data-act="settings" data-tab="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
     <button class="speedchip iconchip helpchip" data-act="al-help" id="helpchip" style="display:none" aria-label="Help your alliance" title="Help your alliance"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V5.5a1.5 1.5 0 0 1 3 0V12M17 11.5V9a1.5 1.5 0 0 1 3 0v5c0 4-3 7-7 7-3 0-4.6-1.4-6.2-4l-2.2-3.6a1.5 1.5 0 0 1 2.6-1.5L8 14"/></svg><b id="helpn"></b></button>
     <button class="speedchip iconchip helpchip" data-act="al-arena-go" id="monchip" style="display:none" aria-label="A monster is waiting at your alliance's Arena" title="Monster Arena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19l4-14M10.5 20l3-15M16 19l3-12"/></svg><b id="monn"></b></button>
     </div>
@@ -590,7 +591,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.46";
+var APP_VERSION = "0.1.47";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -3130,7 +3131,7 @@ function cbSave(auto, opt){
     CB.busy=false;
     if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
     if (o.st===409 && o.d && o.d.conflict){ // another device saved since: don't overwrite it, ask which game to keep
-      CB.conflict=o.d.info; cbUi(""); if (!sheetFor || sheetFor.kind==="settings") openSheet({kind:"cbconflict"}); return; }
+      CB.conflict=o.d.info; cbUi(""); if (!sheetFor || onPage("settings")) openSheet({kind:"cbconflict"}); return; }
     if (o.st===403){ S.cloud.token=null; save(); }
     if (o.st===429 && auto) S.cloud.last=Date.now()-CB_EVERY+3600e3; // try again in an hour
     if (!auto) cbUi((o.d&&o.d.error)||"Backup failed"); else cbUi("Last automatic backup failed: "+((o.d&&o.d.error)||"no connection"));
@@ -7292,6 +7293,10 @@ function renderView(force){
     if (lastView!=="wheel" && !spinning){ v.innerHTML=viewWheel(); lastView="wheel"; }
     updateWheelSide(); setTabs(); return;
   }
+  if (PAGES[tab]){
+    var fresh0=lastView!==tab; if (fresh0){ v.innerHTML='<div class="section" id="pagehost"></div>'; lastView=tab; pageLast=""; }
+    renderPage(fresh0); setTabs(); return;
+  }
   if (tab==="reports"){
     if (lastView!=="reports"){ v.innerHTML=viewReports(); lastView="reports"; }
     fillRepList(); setTabs(); return;
@@ -7337,6 +7342,9 @@ function setTabs(){ renderCityBar(); queueVis(); document.querySelectorAll("nav.
 
 /* ---------- sheet ---------- */
 var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("sheetbody"), sheetFor=null, lastSheet="", armed=null;
+var PAGES={settings:1,ach:1,quests:1,lb:1}, pageLast=""; // these four open as tabs; the same builders also work as pop-ups (used on the battlefield)
+function onPage(k){ return sheetFor ? sheetFor.kind===k : tab===k; }
+function goPage(k){ if (bfOn()||pvOn()){ openSheet({kind:k}); return; } closeSheet(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; itemsNote=""; armed=null; tab=k; lastView=""; renderView(true); window.scrollTo({top:0}); }
 function openSheet(kind){ var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal();
   if (kind && kind.kind==="report"){ fitReport(); requestAnimationFrame(function(){ if (sheetFor===kind) fitReport(); }); } /* measure after the window is open */
   if (keep!=null) sheetBody.scrollTop=keep; else if (kind && !foc && sheetBody.scrollTop) sheetBody.scrollTop=0; }
@@ -7358,9 +7366,11 @@ function sheetBack(){ // a menu opened from a hero's gear returns to that hero's
 }
 sheet.addEventListener("click",function(e){ if (e.target===sheet) sheetBack(); });
 var lbSwipe=null;
-sheet.addEventListener("touchstart",function(e){ if (!sheetFor || sheetFor.kind!=="lb" || e.target.closest("#lbtabs") || e.touches.length!==1) { lbSwipe=null; return; } lbSwipe={x:e.touches[0].clientX, y:e.touches[0].clientY}; },{passive:true});
-sheet.addEventListener("touchend",function(e){ if (!lbSwipe || !sheetFor || sheetFor.kind!=="lb" || !lbOn()) return; var t=e.changedTouches[0], dx=t.clientX-lbSwipe.x, dy=t.clientY-lbSwipe.y; lbSwipe=null;
-  if (Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.5) return; var ks=LB_CATS.map(function(c){ return c[0]; }), i=ks.indexOf(lbCat); i=(i+(dx<0?1:-1)+ks.length)%ks.length; lbFetch(ks[i]); },{passive:true});
+function lbHere(){ return sheetFor ? sheetFor.kind==="lb" : tab==="lb"; }
+function lbTS(e){ if (!lbHere() || e.target.closest("#lbtabs") || e.touches.length!==1) { lbSwipe=null; return; } lbSwipe={x:e.touches[0].clientX, y:e.touches[0].clientY}; }
+function lbTE(e){ if (!lbSwipe || !lbHere() || !lbOn()) return; var t=e.changedTouches[0], dx=t.clientX-lbSwipe.x, dy=t.clientY-lbSwipe.y; lbSwipe=null;
+  if (Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.5) return; var ks=LB_CATS.map(function(c){ return c[0]; }), i=ks.indexOf(lbCat); i=(i+(dx<0?1:-1)+ks.length)%ks.length; lbFetch(ks[i]); }
+[sheet, document.getElementById("view")].forEach(function(el){ el.addEventListener("touchstart",lbTS,{passive:true}); el.addEventListener("touchend",lbTE,{passive:true}); });
 sheet.addEventListener("cancel",function(e){ if (sheetFor && sheetFor.kind==="gearpick" && sheetFor.back!=null){ e.preventDefault(); sheetBack(); } });
 sheet.addEventListener("close",function(){ sheetFor=null; });
 
@@ -7398,6 +7408,16 @@ function upgradeWhy(type,L){
   return "";
 }
 function renderSheet(){
+  var force=(lastSheet===""); if (PAGES[tab]) renderPage(force);
+  if (sheetFor) renderSheetCore(); else if (force) lastSheet="~";
+}
+function renderPage(force){
+  var host=document.getElementById("pagehost"); if (!host) return;
+  var sv=[sheetFor,lastSheet,sheetBody];
+  sheetFor={kind:tab,page:true}; lastSheet=force?"":pageLast; sheetBody=host;
+  try { renderSheetCore(); } finally { pageLast=lastSheet; sheetFor=sv[0]; lastSheet=sv[1]; sheetBody=sv[2]; }
+}
+function renderSheetCore(){
   if (!sheetFor) return;
   var ae=document.activeElement; if (lastSheet && ae && sheetBody.contains(ae) && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && ae.type!=="checkbox") return;
   var h="";
@@ -7567,10 +7587,11 @@ function renderSheet(){
       h+='<button class="closebtn" data-act="close">Close</button>';
     }
   }
+  if (sheetFor.page) h=h.replace(/<button class="closebtn" data-act="close">[^<]*<\/button>/g,"").replace(/<button class="btn ghost small" data-act="close" aria-label="Close">[^<]*<\/button>/g,"");
   if (h===lastSheet) return;
   lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
-  sheet.classList.toggle("full", sheetFor.kind==="lb" || sheetFor.kind==="wc" || sheetFor.kind==="replay"); if (sheetFor.kind==="lb"){ var lbt=document.querySelector("#lbtabs .on"); if (lbt) lbt.scrollIntoView({block:"nearest",inline:"center"}); }
-  var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn && sheet.open) fitReport();
+  if (!sheetFor.page) sheet.classList.toggle("full", sheetFor.kind==="lb" || sheetFor.kind==="wc" || sheetFor.kind==="replay"); if (sheetFor.kind==="lb"){ var lbt=document.querySelector("#lbtabs .on"); if (lbt) lbt.scrollIntoView({block:"nearest",inline:"center"}); }
+  if (!sheetFor.page){ var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn && sheet.open) fitReport(); }
   if (sheetFor && sheetFor.focus){ var fe=document.getElementById(sheetFor.focus==="gear"?"herogear":sheetFor.focus); sheetFor.focus=null; if (fe && fe.scrollIntoView) fe.scrollIntoView({block:"start"}); }
   var sa0=document.getElementById("saveage"); if (sa0) sa0.textContent=saveAge();
   if (sheetFor && sheetFor.kind==="march") updateMarchInfo();
@@ -7798,13 +7819,13 @@ document.addEventListener("click",function(e){
   if (act==="dev-lock"){ advance(Date.now()); devSet(false); S.speed=1; S.testSpeed=1; save(); toast("Developer tools locked"); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (advance(Date.now())) flushFinished();
   if (act==="tab" && a.dataset.tab==="guild"){ ALS.last=0; ALS.listAt=0; setTimeout(function(){ alTick(); },0); }
-  if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
+  if (act==="tab"){ if (bfOn()) return; closeSheet(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
   if (act==="city-go"){ closeSheet(); farmArmed=false; S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
   if (act==="close"){ sheetBack(); return; }
-  if (act==="settings"){ openSheet({kind:"settings"}); return; }
-  if (act==="lb-open"){ var fresh=!S.lb; lbAutoJoin(); if (fresh && lbOn()) lbSync(true); openSheet({kind:"lb"}); setTimeout(function(){ lbFetch(); }, fresh&&lbOn()?1200:0); return; }
+  if (act==="settings"){ goPage("settings"); return; }
+  if (act==="lb-open"){ var fresh=!S.lb; lbAutoJoin(); if (fresh && lbOn()) lbSync(true); goPage("lb"); setTimeout(function(){ lbFetch(); }, fresh&&lbOn()?1200:0); return; }
   if (act==="lb-refresh"){ lbFetch(); return; }
   if (act==="wc-open"){ openSheet({kind:"wc", id:a.dataset.id}); return; }
   if (act==="wc-addwave"){ var wa=wcById(sheetFor&&sheetFor.id); if (!wa) return; var wd=wcDraftOf(wa); if (wd.waves.length<wa.waves) wd.waves.push({t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0}); lastSheet=""; renderSheet(); return; }
@@ -7858,10 +7879,10 @@ document.addEventListener("click",function(e){
   if (act==="cb-signin"){ var cn=((document.getElementById("cbname")||{}).value||"").replace(/\s+/g," ").trim(), cp=(document.getElementById("cbpass")||{}).value||"";
     CB.nameDraft=cn; if (cn.length<2){ cbUi("Backup names need 2 to 20 characters"); return; } if (cp.length<4){ cbUi("Passwords need at least 4 characters"); return; } cbSignIn(cn, cp); return; }
   if (act==="cb-save"){ armed=null; cbSave(false); return; }
-  if (act==="cb-force"){ if (sheetFor && sheetFor.kind==="settings" && armed!=="cbforce"){ armed="cbforce"; lastSheet=""; renderSheet(); return; } armed=null; CB.conflict=null; if (sheetFor && sheetFor.kind==="cbconflict") closeSheet(); cbSave(false, {force:true}); return; }
+  if (act==="cb-force"){ if (onPage("settings") && armed!=="cbforce"){ armed="cbforce"; lastSheet=""; renderSheet(); return; } armed=null; CB.conflict=null; if (sheetFor && sheetFor.kind==="cbconflict") closeSheet(); cbSave(false, {force:true}); return; }
   if (act==="cb-pull"){ armed=null; if (sheetFor && sheetFor.kind==="cbconflict") closeSheet(); cbRestore("latest", {auto:true}); return; }
   if (act==="cb-undo"){ if (armed!=="cbundo"){ armed="cbundo"; lastSheet=""; renderSheet(); return; } armed=null; cbUndo(); return; }
-  if (act==="cb-ask-yes"){ DET.cloud=true; openSheet({kind:"settings"}); setTimeout(function(){ var d=document.querySelector('details[data-det="cloud"]'); if (d){ d.open=true; d.scrollIntoView({block:"start"}); } var n=document.getElementById("cbname"); if (n) n.focus(); }, 120); return; }
+  if (act==="cb-ask-yes"){ DET.cloud=true; goPage("settings"); setTimeout(function(){ var d=document.querySelector('details[data-det="cloud"]'); if (d){ d.open=true; d.scrollIntoView({block:"start"}); } var n=document.getElementById("cbname"); if (n) n.focus(); }, 120); return; }
   if (act==="cb-ask-later"){ S.cloudAsk=Date.now()+3*86400e3; save(); closeSheet(); toast("You can turn on cloud saves any time in Settings"); return; }
   if (act==="cb-restore"){ var slot=a.dataset.v; if (armed!=="cbr-"+slot){ armed="cbr-"+slot; lastSheet=""; renderSheet(); return; } armed=null; cbRestore(slot); return; }
   if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; var keepName=S.cloud&&S.cloud.name; S.cloud={name:keepName}; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
@@ -7881,8 +7902,8 @@ document.addEventListener("click",function(e){
   }
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
   if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
-  if (act==="quests"){ openSheet({kind:"quests"}); return; }
-  if (act==="ach"){ openSheet({kind:"ach"}); return; }
+  if (act==="quests"){ goPage("quests"); return; }
+  if (act==="ach"){ goPage("ach"); return; }
   if (act==="quest-claim"){ claimQuest(a.dataset.q); save(); lastSheet=""; renderSheet(); tickText(); return; }
   if (act==="ally-invite"){
     var iq=TILE_BY[a.dataset.tile], A=S.alliance; if (!iq || iq.k!=="ai") return;
@@ -7915,7 +7936,7 @@ document.addEventListener("click",function(e){
     tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
   if (act.indexOf("al-")===0){
-    if (act==="al-cloud"){ DET.cloud=true; openSheet({kind:"settings"}); return; }
+    if (act==="al-cloud"){ DET.cloud=true; goPage("settings"); return; }
     if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); if (ALS.sub==="list") alList(); return; }
     if (act==="al-sort"){ ALS.sort=a.dataset.v; lastView=""; renderView(true); return; }
     if (act==="al-box-in"){ alBoxMove(1); return; }

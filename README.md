@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.46
+Version 0.1.47
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,9 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 46.
 
 ## Release notes
+### 0.1.47
+- High scores, Quests, Achievements and Settings now open as tabs (like Items and Wheel) instead of pop-ups or a full-screen window. Their header buttons highlight while you are on them, and any normal tab takes you back out. On the Battlefield they still open as pop-ups.
+- No Worker change.
 ### 0.1.46
 - Medic Camp: an Auto-heal toggle (per city). While it is on, the wounded are healed as soon as there is gold for them, oldest first, and gold you hold back in the Warehouse reserve is left alone.
 - Tabs are now two rows that fit the screen without scrolling. Row 1: City, Map, Army, Farms, Heroes, Reports. Row 2: Alliance, Kingdom, War Room, War College. Items (with its ready count) and the Wheel are buttons in the top right; Achievements is now an icon with its count so the row fits.
