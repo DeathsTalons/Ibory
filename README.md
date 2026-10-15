@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.54
+Version 0.1.55
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.55
+- Repeat marches now keep going through losses. Each relaunch sends whatever of the original army is home, and stops only if the attack fails, fewer than half the original troops are home, or food, a hero or a slot is missing. A new checkbox, Stop repeating if it loses any troops, brings the old behavior back. No save or Worker change.
 ### 0.1.54
 - High scores show each player's picture and frame next to their name (yours instantly, others from the server, loaded only for the rows on screen). Needs the matching Worker (scores-worker 0.1.54): board rows now carry the player's cloud account link and a new GET /me/img serves pictures as plain images. Players appear with a picture after their game next syncs with a cloud save.
 ### 0.1.53
