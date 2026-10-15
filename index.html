@@ -409,6 +409,11 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .reqs{grid-column:1/-1;font-size:.86rem;color:var(--red)}
 .unitlist{display:grid;gap:8px;margin-top:10px}
 .qnest{margin-top:6px}
+.alchat{max-height:55vh;min-height:160px;overflow-y:auto;background:var(--panel2);border-radius:10px;padding:8px 10px;font-size:.92rem;overflow-wrap:anywhere}
+.alm{padding:3px 0;border-bottom:1px solid var(--line)}
+.alm:last-child{border-bottom:0}
+.alm.sys{color:var(--muted);font-style:italic}
+.alm .link{padding:0 4px}
 .tgline{background:var(--panel2);border-radius:10px;padding:8px 12px;margin-top:6px;border-left:4px solid transparent}
 .tgline.on{border-left-color:var(--brass)}
 .tgline.done{opacity:.75}
@@ -539,7 +544,8 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button role="tab" data-act="tab" data-tab="army">Army</button>
     <button role="tab" data-act="tab" data-tab="farms">Farms</button>
     <button role="tab" data-act="tab" data-tab="heroes">Heroes</button>
-    <button role="tab" data-act="tab" data-tab="alliance">Alliance</button>
+    <button role="tab" data-act="tab" data-tab="alliance">Kingdom</button>
+    <button role="tab" data-act="tab" data-tab="guild">Alliance</button>
     <button role="tab" data-act="tab" data-tab="war">War Room</button>
     <button role="tab" data-act="tab" data-tab="college">War College</button>
     <button role="tab" data-act="tab" data-tab="items">Items</button>
@@ -561,7 +567,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.38";
+var APP_VERSION = "0.1.39";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -632,7 +638,7 @@ var DEF = {
   rally:{name:"Rally Spot",cost:{food:400,lumber:1200,stone:800,iron:400},t:180,unique:true,
     desc:"Where armies muster. Each level allows one more march out at a time and 10,000 more troops per march, and caps Logistics, Compass and Cartography research."},
   embassy:{name:"Embassy",cost:{food:300,lumber:2000,stone:1500,iron:400},t:300,unique:true,
-    desc:"Seat of your alliance. Each level makes room for one more ally (up to 10) and lets each ally station up to 10,000 more troops here when you ask for help."},
+    desc:"Seat of your kingdom. Each level makes room for one more AI ally (up to 10) and lets each ally station up to 10,000 more troops here when you ask for help."},
   beacon:{name:"Beacon Tower",cost:{food:600,lumber:2500,stone:3000,iron:600},t:300,unique:true,
     desc:"Watches the roads. Without one, enemy armies arrive unannounced. Each level reveals more about incoming attacks: when they land, who\u2019s coming, which troops and how many, and at the top levels their plan. Your best Beacon also reads bully attacks on your allies."},
   warehouse:{name:"Warehouse",cost:{food:400,lumber:1000,stone:1000,iron:200},t:120,
@@ -2163,14 +2169,14 @@ function renderTileInfo(){
   if (q.k==="allycity"){ var pq2=TILE_BY[q.ally]; el.innerHTML=h+'<p class="hint">A city founded by your ally '+esc(pq2&&pq2.ai?pq2.ai.name:"")+'. Allies grow faster, found new cities and set up their own NPC farms.</p><div class="btnrow"><button class="btn ghost" data-act="goto-tile" data-tile="'+q.ally+'">Show '+esc(pq2&&pq2.ai?pq2.ai.name:"the ally")+'</button></div></div>'; return; }
   if (q.k==="ai" && isAlly(q.id)){ var acur=current(q);
     el.innerHTML=h+'<p><span class="okc">Your ally.</span> Town Hall '+q.ai.th+', '+fmt(sumT(acur.t))+' troops, research around level '+q.ai.tech+'.</p>'+troopRows(acur.t, acur.f, acur.wall)+
-      '<div class="btnrow" style="margin-top:8px"><button class="btn" data-act="march-open" data-tile="'+q.id+'" data-mission="allyguard">Reinforce</button><button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="transport">Send resources</button><button class="btn ghost" data-act="tab" data-tab="alliance">Alliance</button></div></div>'; return; }
+      '<div class="btnrow" style="margin-top:8px"><button class="btn" data-act="march-open" data-tile="'+q.id+'" data-mission="allyguard">Reinforce</button><button class="btn ghost" data-act="march-open" data-tile="'+q.id+'" data-mission="transport">Send resources</button><button class="btn ghost" data-act="tab" data-tab="alliance">Kingdom</button></div></div>'; return; }
   if (q.k==="npc" && S.alliance && S.alliance.farms[q.id]){ var fq=TILE_BY[S.alliance.farms[q.id]]; el.innerHTML=h+'<p class="hint">A level '+q.L+' NPC farm kept by your ally '+esc(fq&&fq.ai?fq.ai.name:"")+'. Hands off.</p></div>'; return; }
   var cur=current(q);
   if (q.k==="chal"){ var cC=chalById(q.cid), cB=cC&&rosterById(cC.rid), cF=cB&&friendOf(cB);
     if (cC) h+='<p class="hint">'+(q.seat ? esc(cB.name)+' took this historic city and holds it harder than its old garrison did: more troops, heavier fortifications, a fiercer hero. Break the garrison to defeat them, then conquer the empty city.' :
       'Part of '+esc(cB.name)+'\u2019s host, massing to march on the historic city at ('+cC.target.replace(",",", ")+') in '+fmtT(realMs(cC.siegeAt-S.gt))+'. Every troop you kill here is one fewer in the siege. Raze the city and its troops are gone for good.')+(cF?' <span style="color:var(--brass)">'+esc(cF.note)+'</span>':'')+'</p>'; }
   if (q.k==="war"){ var wE=W().enemies[q.eid], wb2=rosterById(wE.rid), wf=friendOf(wb2); h+='<p class="hint">'+esc(wb2.name)+'\u2019s war camp: level '+wE.wall+' walls, full fortifications, a hero with '+wE.hero[0]+' Attack. Its field army is out raiding; the garrison rebuilds a little each day. Take the camp to knock '+esc(wb2.name)+' out of the war. Every troop you kill here scores.'+(wf?' <span style="color:var(--brass)">'+esc(wf.note)+'</span>':'')+'</p>'; }
-  if (q.k==="bully"){ var bb2=bullyOf(), B2=S.alliance.bully; h+='<p class="hint">'+(bb2?esc(bb2.name)+'\u2019s stronghold: a fortified city with level '+B2.wall+' walls, a full set of fortifications and a hero with '+B2.hero[0]+' Attack. Its field army is out raiding your allies; the garrison stays home and nothing rebuilds while the bully is here, so you can wear it down over several attacks. Taking it ends the event for a large chunk of alliance rep, its treasury, rare books and materials.':'')+'</p>'; }
+  if (q.k==="bully"){ var bb2=bullyOf(), B2=S.alliance.bully; h+='<p class="hint">'+(bb2?esc(bb2.name)+'\u2019s stronghold: a fortified city with level '+B2.wall+' walls, a full set of fortifications and a hero with '+B2.hero[0]+' Attack. Its field army is out raiding your allies; the garrison stays home and nothing rebuilds while the bully is here, so you can wear it down over several attacks. Taking it ends the event for a large chunk of kingdom rep, its treasury, rare books and materials.':'')+'</p>'; }
   if (q.k==="hc") h+='<p class="hint">Today\u2019s garrison mix: '+comboText(q)+'. It changes daily. Historic cities recover within an hour, and are led by a powerful hero ('+HC_SET[q.L].hero[0]+' Attack, '+HC_SET[q.L].hero[1]+' Intelligence).'+
     (S.map.heroTaken[q.id]?'':' The historic hero '+HISTORIC[q.hero]+' is said to be here.')+'</p>';
   var intel=needScout(q)?intelOf(q):null, shown=cur;
@@ -2183,7 +2189,7 @@ function renderTileInfo(){
     if (intel && intel.inf>=6) h+='<p class="hint">Research: '+["archery","horseback_riding","iron_working","medicine","compass"].map(function(k){ return k.replace("_"," ")+" "+(intel.r[k]||0); }).join(", ")+'. Leading hero adds +'+Math.round(((intel.am||1)-1)*100)+'% attack and '+(intel.hint||0)+' Intelligence.</p>';
   }
   if (q.k==="ai"){ var iq=aiIQ(q), angry=S.aiWar.some(function(w){ return w.ai===q.id; });
-    h+='<div class="taunt"><span>IQ <b>'+iq+'</b> ('+({low:"dim",mid:"sharp enough",high:"dangerous"})[iqBand(iq)]+')</span>'+(angry?'<span class="badc">Already coming for you</span>':'<span class="btnrow"><button class="btn ghost small" data-act="ally-invite" data-tile="'+q.id+'">Invite to alliance</button><button class="btn ghost small danger" data-act="taunt" data-tile="'+q.id+'"'+(tauntsLeft()?'':' disabled')+'>Talk trash ('+tauntsLeft()+' left today)</button></span>')+'</div>'; }
+    h+='<div class="taunt"><span>IQ <b>'+iq+'</b> ('+({low:"dim",mid:"sharp enough",high:"dangerous"})[iqBand(iq)]+')</span>'+(angry?'<span class="badc">Already coming for you</span>':'<span class="btnrow"><button class="btn ghost small" data-act="ally-invite" data-tile="'+q.id+'">Invite to kingdom</button><button class="btn ghost small danger" data-act="taunt" data-tile="'+q.id+'"'+(tauntsLeft()?'':' disabled')+'>Talk trash ('+tauntsLeft()+' left today)</button></span>')+'</div>'; }
   if (q.k==="ai") h+='<p class="hint">A '+q.ai.pers.n.toLowerCase()+' with Town Hall '+q.ai.th+' and research around level '+q.ai.tech+'. Growing '+(q.ai.rate<0.7?'slowly':q.ai.rate<1.1?'steadily':'quickly')+'. AI lords never attack unless you provoke them; they slowly grow, train and hoard. Troops you kill return over a game day, and their stockpile refills over two.</p>';
   if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. Every attack you win knocks off 10. It holds for an hour after your last win, then recovers 10 per hour, so 10 wins in quick succession takes the city, if your title has room for another.'+
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
@@ -2594,7 +2600,7 @@ function grantBeta(){
 /* ---------- high scores (Cloudflare Worker) ---------- */
 var LB_URL = "https://ibory-scores.codylspaulding.workers.dev"; // the Worker address, e.g. "https://ibory-scores.yourname.workers.dev" (empty hides syncing)
 var LB_HC=[12,14,16,18], lbData={}, lbCat="prestige", lbBusy=false, lbErr="", lbLastSync=0;
-var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Alliance rep"],["college","War College"]]
+var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Kingdom rep"],["college","War College"]]
   .concat(LB_HC.map(function(L){ return ["hc"+L,"First L"+L+" historic"]; }));
 function lbHex(n){ var a=new Uint8Array(n); (window.crypto||window.msCrypto).getRandomValues(a); return [].map.call(a,function(b){ return ("0"+b.toString(16)).slice(-2); }).join(""); }
 function lbOn(){ return !!(LB_URL && S.lb && S.lb.on && !S.lb.removed); }
@@ -2626,6 +2632,122 @@ function lbFetch(cat){
     .then(function(r){ return r.json(); }).then(function(d){ lbBusy=false; if (d && d.rows){ lbData[lbCat]=d; } else lbErr=(d&&d.error)||"Couldn\u2019t load the high scores"; lastSheet=""; renderSheet(); })
     .catch(function(){ lbBusy=false; lbErr="Couldn\u2019t reach the high scores. Check your connection."; lastSheet=""; renderSheet(); });
 }
+/* ---------- player alliances (need a cloud save; the server keeps everything) ---------- */
+var ALS={d:null, list:null, chat:[], top:0, busy:false, err:"", msg:"", sub:"chat", last:0, listAt:0, listBusy:false, sort:"prestige", armed:null, aid:null};
+var AL_PERM_NAMES={accept:"Answer applications", kick:"Remove members", promote:"Change ranks", desc:"Edit the description", chat:"Moderate chat", bank:"Spend the alliance bank", map:"Move things on the alliance map", monster:"Summon monsters", research:"Start alliance research"};
+function alOn(){ return cbOn(); }
+function alMine(){ return ALS.d && ALS.d.member && ALS.d.al ? ALS.d.al : null; }
+function alPost(path, body){ var b={name:S.cloud.name, token:S.cloud.token}; for (var k in body) b[k]=body[k];
+  return cbPost(path,b).then(function(r){ return r.json().then(function(d){ if (!r.ok && !d.error) d.error="Server error"; return d; }); }); }
+function alUnread(){ var al=alMine(); if (!al) return 0; var seen=S.alSeen||0, n=0; ALS.chat.forEach(function(c){ if (c.id>seen && !c.sys && c.name!==S.cloud.name) n++; }); return n; }
+function alSync(){
+  if (!alOn() || ALS.busy) return; ALS.busy=true; ALS.last=Date.now();
+  alPost("/al/sync",{since:ALS.top}).then(function(d){ ALS.busy=false;
+    if (d.error){ ALS.err=d.error; alRender(); return; }
+    ALS.err=""; var aid=d.member?d.member.aid:null;
+    if (aid!==ALS.aid){ ALS.aid=aid; ALS.chat=[]; ALS.top=0; ALS.d=d; if (aid){ ALS.last=0; } alRender(); if (aid) setTimeout(alSync,50); return; }
+    ALS.d=d;
+    (d.chat||[]).forEach(function(c){ var at=-1; for (var i=ALS.chat.length-1;i>=0;i--) if (ALS.chat[i].id===c.id){ at=i; break; } if (at>=0) ALS.chat[at]=c; else ALS.chat.push(c); if (c.id>ALS.top) ALS.top=c.id; });
+    if (ALS.chat.length>300) ALS.chat=ALS.chat.slice(-300);
+    if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
+    alRender();
+  }).catch(function(){ ALS.busy=false; ALS.err="Couldn\u2019t reach the server. Check your connection."; alRender(); });
+}
+function alList(){
+  if (!alOn() || ALS.listBusy) return; ALS.listBusy=true; ALS.listAt=Date.now();
+  alPost("/al/list",{}).then(function(d){ ALS.listBusy=false; if (!d.error) ALS.list=d.list; alRender(); }).catch(function(){ ALS.listBusy=false; });
+}
+function alTick(){
+  if (!alOn() || document.hidden) return;
+  var inAl=!!alMine(), due = tab==="guild" ? (inAl && ALS.sub==="chat" ? 4000 : 15000) : 60000;
+  if (Date.now()-ALS.last>=due) alSync();
+  if (tab==="guild" && !inAl && Date.now()-ALS.listAt>=60000) alList();
+}
+setInterval(alTick, 1000);
+function alRender(){ if (tab==="guild") renderView(); tickText(); }
+function alDo(path, body, okMsg, after){
+  alPost(path, body||{}).then(function(d){ if (d.error){ ALS.msg=""; toast(d.error); return; } if (okMsg) toast(okMsg); ALS.armed=null; if (after) after(d);
+    var fe=document.activeElement; if (fe && fe.id!=="alchatin" && fe.blur) fe.blur(); lastView=""; ALS.last=0; alSync(); if (path==="/al/create"||path==="/al/apply"||path==="/al/unapply"||path==="/al/leave"||path==="/al/disband") alList(); })
+    .catch(function(){ toast("Couldn\u2019t reach the server. Check your connection."); });
+}
+function alTime(t){ var d=new Date(t), n=new Date(); return (d.toDateString()===n.toDateString()?"":d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" ")+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+function alAgo(t){ if (!t) return "never"; var m=Math.floor((Date.now()-t)/60000); return m<2?"online":m<60?m+" min ago":m<1440?Math.floor(m/60)+" h ago":Math.floor(m/1440)+" days ago"; }
+function viewGuild(){
+  var h='';
+  if (!LB_URL) return '<p class="hint">Alliances aren\u2019t switched on in this version.</p>';
+  if (!alOn()) return '<div class="section"><h3>Alliances</h3><p class="hint">Alliances are played with other people, so they need a cloud save: it\u2019s how the server knows who you are and keeps the game fair. Set one up in Settings, then come back here.</p><div class="btnrow"><button class="btn" data-act="al-cloud">Set up a cloud save</button></div></div>';
+  if (!ALS.d) return '<div class="section"><h3>Alliances</h3><p class="hint">'+(ALS.err?esc(ALS.err):'Loading\u2026')+'</p></div>';
+  var al=alMine();
+  return al ? viewMyAlliance(al) : viewAllianceList();
+}
+function viewAllianceList(){
+  var d=ALS.d, h='<div class="section"><div class="shead"><h3>Alliances</h3><span class="dur">your honor '+fmt(d.honor||0)+'</span></div>'+
+    '<p class="hint">Join other players: chat, and soon help each other build, reinforce each other, research together and fight monsters as a group. Apply to an alliance below, or found your own. Honor is the prestige of enemy troops you kill in invasions (and alliance wars, later).</p></div>';
+  if (d.myApps && d.myApps.length) h+='<div class="section"><h3>Your applications</h3>'+d.myApps.map(function(a){ return '<div class="bq"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <span class="dur">sent '+alAgo(a.at)+'</span></span><div class="mbtns"><button class="link" data-act="al-unapply" data-aid="'+esc(a.aid)+'">Withdraw</button></div></div>'; }).join("")+'</div>';
+  var L=(ALS.list||[]).slice(), sk=ALS.sort, applied={}; (d.myApps||[]).forEach(function(a){ applied[a.aid]=1; });
+  L.sort(function(a,b){ return (a.rank[sk]||0)-(b.rank[sk]||0); });
+  h+='<div class="section"><div class="shead"><h3>All alliances</h3><span class="dur">'+(ALS.list?L.length:'loading\u2026')+'</span></div>'+
+    '<div class="farmadd"><span class="dur">Rank by:</span>'+[["prestige","Prestige"],["members","Members"],["cities","Cities"],["honor","Honor"]].map(function(x){ return '<button class="chipbtn'+(sk===x[0]?' on':'')+'" data-act="al-sort" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join("")+'</div>'+
+    (L.length?'<div style="margin-top:6px"><label class="sub" for="alappmsg">Message with your application (optional)</label><input id="alappmsg" type="text" maxlength="200" placeholder="Say hello"></div>':'');
+  if (ALS.list && !L.length) h+='<p class="hint">No alliances yet. Found the first one.</p>';
+  h+=L.map(function(a){ var full=a.members>=a.cap;
+    return '<div class="acity"><h4><span>#'+a.rank[sk]+' '+esc(a.name)+'</span><span class="dur">['+esc(a.tag)+']</span><span style="flex:1"></span>'+(applied[a.id]?'<span class="dur">applied</span>':full?'<span class="dur">full</span>':'<button class="link strong" data-act="al-apply" data-aid="'+esc(a.id)+'">Apply</button>')+'</h4>'+
+      (a.desc?'<p class="hint" style="margin:0 0 4px">'+esc(a.desc)+'</p>':'')+
+      '<div class="rgrid"><span>Members <b>'+a.members+'</b> <span class="dur">/ '+a.cap+' \u00b7 #'+a.rank.members+'</span></span><span>Prestige <b>'+fmt(a.prestige)+'</b> <span class="dur">#'+a.rank.prestige+'</span></span><span>Cities <b>'+fmt(a.cities)+'</b> <span class="dur">#'+a.rank.cities+'</span></span><span>Honor <b>'+fmt(a.honor)+'</b> <span class="dur">#'+a.rank.honor+'</span></span></div></div>'; }).join("")+'</div>';
+  h+='<details class="section det" data-det="alfound"'+(DET.alfound?' open':'')+'><summary><b>Found an alliance</b></summary>'+
+    '<div><label class="sub" for="alname">Name</label><input id="alname" type="text" maxlength="24" placeholder="3 to 24 characters"></div>'+
+    '<div><label class="sub" for="altag">Tag</label><input id="altag" type="text" maxlength="4" placeholder="2 to 4 letters, like IRN" autocapitalize="characters"></div>'+
+    '<div><label class="sub" for="aldesc">Description</label><input id="aldesc" type="text" maxlength="500" placeholder="What your alliance is about"></div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-create">Found it</button></div><p class="hint">You start with room for 10 members. Alliance research will raise that later.</p></details>';
+  return h;
+}
+function viewMyAlliance(al){
+  var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
+  if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
+  var tabs=[["chat","Chat"],["members","Members ("+al.members.length+")"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
+    '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
+    '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
+  if (sub==="chat"){
+    h+='<div class="section"><div id="alchat" class="alchat"></div>'+
+      (my.mutedUntil>Date.now()?'<p class="why">You\u2019re muted until '+alTime(my.mutedUntil)+'.</p>':'<div class="farmadd" style="margin-top:8px"><input id="alchatin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn small" data-act="al-send">Send</button></div>')+'</div>';
+  } else if (sub==="members"){
+    h+='<div class="section">'+al.members.map(function(m){ var me=m.name===S.cloud.name, below=m.rank>my.rank;
+      var acts='';
+      if (!me && below && my.can.promote){ acts+='<select data-alrank="'+esc(m.name)+'" aria-label="Rank for '+esc(m.name)+'">'+rk.map(function(r,i){ return i>my.rank && i>0 ? '<option value="'+i+'"'+(i===m.rank?' selected':'')+'>'+esc(r.n)+'</option>' : ''; }).join("")+'</select>'; }
+      if (!me && below && my.can.chat) acts+= m.muted ? '<button class="link" data-act="al-mute" data-who="'+esc(m.name)+'" data-min="0">Unmute</button>' : '<button class="link" data-act="al-mute" data-who="'+esc(m.name)+'" data-min="60">Mute 1 h</button>';
+      if (!me && below && my.can.kick) acts+='<button class="link" data-act="al-kick" data-who="'+esc(m.name)+'">'+(ALS.armed==="kick"+m.name?'Tap again to remove':'Remove')+'</button>';
+      if (!me && my.rank===0) acts+='<button class="link" data-act="al-handover" data-who="'+esc(m.name)+'">'+(ALS.armed==="hand"+m.name?'Tap again: make founder':'Make founder')+'</button>';
+      return '<div class="acity"><h4><span>'+esc(m.name)+(me?' <span class="dur">(you)</span>':'')+'</span><span class="badge">'+esc(rk[m.rank].n)+'</span>'+(m.muted?'<span class="why">muted</span>':'')+'<span style="flex:1"></span><span class="dur">'+alAgo(m.seen)+'</span></h4>'+
+        '<div class="rgrid"><span>Prestige <b>'+fmt(m.prestige)+'</b></span><span>Cities <b>'+m.cities+'</b></span><span>Honor <b>'+fmt(m.honor)+'</b></span><span class="dur">joined '+alTime(m.joined)+'</span></div>'+
+        (acts?'<div class="btnrow" style="margin-top:4px;align-items:center">'+acts+'</div>':'')+'</div>'; }).join("")+'</div>';
+  } else if (sub==="apps"){
+    h+='<div class="section"><h3>Applications</h3>'+(apps.length?apps.map(function(p){ return '<div class="bq"><span><b>'+esc(p.name)+'</b> <span class="dur">'+alAgo(p.at)+'</span>'+(p.msg?'<br><span class="hint">'+esc(p.msg)+'</span>':'')+'</span><div class="mbtns"><button class="link strong" data-act="al-accept" data-who="'+esc(p.name)+'">Accept</button><button class="link" data-act="al-reject" data-who="'+esc(p.name)+'">Turn down</button></div></div>'; }).join(""):'<p class="hint">Nobody is waiting.</p>')+
+      (al.members.length>=al.cap?'<p class="why">The alliance is full ('+al.cap+' members).</p>':'')+'</div>';
+  } else if (sub==="ranks"){
+    h+='<div class="section"><h3>Ranks</h3><p class="hint">Name the five ranks and choose what each can do. The founder can always do everything. Members can only act on ranks below their own.</p>'+
+      rk.map(function(r,i){ return '<div class="acity"><div><label class="sub" for="alrn'+i+'">Rank '+(i+1)+(i===0?' (founder)':'')+'</label><input id="alrn'+i+'" type="text" maxlength="20" value="'+esc(r.n)+'"></div>'+
+        (i===0?'':'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 10px;margin-top:4px">'+al.perms.map(function(p){ return '<label class="ntrow"><input type="checkbox" data-alperm="'+i+':'+p+'"'+(r.p&&r.p[p]?' checked':'')+'> '+AL_PERM_NAMES[p]+'</label>'; }).join("")+'</div>')+'</div>'; }).join("")+
+      '<div class="btnrow" style="margin-top:8px"><button class="btn small" data-act="al-ranks-save">Save ranks</button></div></div>';
+  } else {
+    h+='<div class="section"><h3>About</h3>'+(my.can.desc?'<div><label class="sub" for="aldesc2">Description</label><input id="aldesc2" type="text" maxlength="500" value="'+esc(al.desc)+'"></div><div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="al-desc-save">Save description</button></div>':'<p>'+(al.desc?esc(al.desc):'<span class="dur">No description.</span>')+'</p>')+
+      '<p class="dur">Founded by '+esc(al.founder)+' on '+new Date(al.created).toLocaleDateString()+'. Room for '+al.cap+' members.</p>'+
+      '<div class="btnrow" style="margin-top:10px">'+(my.rank===0 ? (al.members.length===1?'<button class="btn ghost danger small" data-act="al-disband">'+(ALS.armed==="disband"?'Tap again to disband':'Disband the alliance')+'</button>':'<span class="hint">To leave, make someone else founder first (Members).</span>') : '<button class="btn ghost danger small" data-act="al-leave">'+(ALS.armed==="leave"?'Tap again to leave':'Leave the alliance')+'</button>')+'</div></div>';
+  }
+  return h;
+}
+function fillAlChat(){
+  var el=document.getElementById("alchat"); if (!el) return;
+  var al=alMine(), my=al&&al.my, hh=ALS.chat.length?ALS.chat.map(function(c){
+    if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
+    var canDel=!c.del && (c.name===S.cloud.name || (my&&my.can.chat));
+    return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+esc(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+  if (el._sig===hh) return;
+  var atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40 || !el._sig;
+  el.innerHTML=hh; el._sig=hh; if (atBottom) el.scrollTop=el.scrollHeight;
+  if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
+}
+function alSend(){ var i=document.getElementById("alchatin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value=""; alPost("/al/chat",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { ALS.last=0; alSync(); } }).catch(function(){ toast("Couldn\u2019t reach the server"); i.value=t; }); }
 /* ---------- cloud backup: name + password, kept on the high-scores Worker ---------- */
 var CB={busy:false, msg:"", found:null, conflict:null}, CB_EVERY=3600e3; // the cloud copy is refreshed every hour while you play
 // this device's id (kept outside the save, which travels between devices), so the server can say which device saved last
@@ -2839,7 +2961,7 @@ function lbSheet(){
   var listed=lbOn();
   if (S.lb && S.lb.removed) h+='<p class="hint">This save was removed from the high scores, so it isn\u2019t listed. You can still browse the boards.</p>';
   else if (!listed){
-    h+='<details class="det" data-det="lbjoin"'+(DET.lbjoin?' open':'')+'><summary><b>'+(S.lb&&S.lb.optedOut?'You left the high scores':'You\u2019re not on the boards')+'</b> <span class="dur">tap to '+(S.lb&&S.lb.optedOut?'rejoin':'join')+'</span></summary>'+'<p class="hint">'+(S.lb&&S.lb.optedOut?'You left the high scores. Rejoin any time.':'Join to put your realm on the boards.')+' Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, alliance reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
+    h+='<details class="det" data-det="lbjoin"'+(DET.lbjoin?' open':'')+'><summary><b>'+(S.lb&&S.lb.optedOut?'You left the high scores':'You\u2019re not on the boards')+'</b> <span class="dur">tap to '+(S.lb&&S.lb.optedOut?'rejoin':'join')+'</span></summary>'+'<p class="hint">'+(S.lb&&S.lb.optedOut?'You left the high scores. Rejoin any time.':'Join to put your realm on the boards.')+' Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, kingdom reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
       '<div><label for="lbname" class="sub">Name on the boards (2 to 20 characters)</label><input id="lbname" type="text" maxlength="20" value="'+esc((S.lb&&S.lb.name)||S.lord||"")+'" placeholder="Your name"></div>'+
       '<div class="upbtns"><button class="btn" data-act="lb-join">'+(S.lb&&S.lb.optedOut?'Rejoin the high scores':'Join the high scores')+'</button></div></details>';
   }
@@ -3585,7 +3707,7 @@ function rates(){
 /* ---------- time ---------- */
 var finished = [], finCats = []; // messages from the game loop, and each one's notification type
 var NOTE_TYPES=[["build","Buildings and fortifications finished"],["research","Research finished"],["train","Troops trained"],["heroes","Heroes (level ups, captures, arrivals)"],
-  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Alliance, wars and events"],["day","New day"]];
+  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Kingdom, wars and events"],["day","New day"]];
 function note(cat,msg){ finished.push(msg); finCats[finished.length-1]=cat; }
 function noteOn(cat){ return !(S.notifOff&&S.notifOff[cat||"other"]); }
 function shownFinished(){ var out=[]; finished.forEach(function(m,i){ if (noteOn(finCats[i])) out.push(m); }); finished=[]; finCats=[]; return out; }
@@ -3826,6 +3948,7 @@ function tickText(){
     if (t2){ t2.textContent=fmtT(realMs(S.research.end-S.gt)); bar2.style.width = Math.min(100,(S.gt-S.research.start)/(S.research.end-S.research.start)*100)+"%"; }
     var rsp=document.getElementById("qr-sp"); if (rsp){ var rfree=realMs(S.research.end-S.gt)<=FREE_MS; setText(rsp, rfree ? "Finish free" : "Speed up"); var rdisp=(rfree||hasSpeedups(true))?"":"none"; if (rsp.style.display!==rdisp) rsp.style.display=rdisp; } }
   if (document.getElementById("m-have")) updateMarket();
+  var gbt=document.querySelector('nav.tabs [data-tab="guild"]'); if (gbt){ var gun=alUnread(), gtx=gun?"Alliance "+gun:"Alliance"; if (gbt.textContent!==gtx) gbt.textContent=gtx; }
   var ibt=document.querySelector('nav.tabs [data-tab="items"]'); if (ibt){ var inn=pkgsReady(), itx=inn?"Items "+inn:"Items"; if (ibt.textContent!==itx) ibt.textContent=itx; }
   var sa=document.getElementById("saveage"); if (sa){ var sat=saveAge(); if (sa.textContent!==sat) sa.textContent=sat; }
   var stg=document.getElementById("speedtag"); if (stg){ var on=S.speed>1, txt="\u23e9 "+S.speed+"\u00d7"; if (stg.style.display!==(on?"":"none")) stg.style.display=on?"":"none"; if (on && stg.textContent!==txt) stg.textContent=txt; }
@@ -4212,7 +4335,7 @@ function spawnBully(){
   buildCamp(A.bully, b, tt);
   planWave();
   var fr=friendOf(b);
-  note("alliance",(fr?"An old name is back: "+b.name+". "+fr.tag+". ":b.name+" has come to "+realmName()+" and ")+"is threatening your ally "+target.ai.name+". See the Alliance tab.");
+  note("alliance",(fr?"An old name is back: "+b.name+". "+fr.tag+". ":b.name+" has come to "+realmName()+" and ")+"is threatening your ally "+target.ai.name+". See the Kingdom tab.");
   miniDirty=true;
 }
 // a bully's camp is a real fortified city: big defensive garrison, full fortifications, high walls and a strong hero
@@ -4241,7 +4364,7 @@ function planWave(){
   if (S.gt+lead > B.until){ B.next=null; return; }
   B.target=tgt.id; B.next={target:tgt.id, t:t, arr:S.gt+lead};
   A.log.unshift({at:S.gt, t:b.name+" is sending "+fmt(sumT(t))+" troops at "+tgt.ai.name+", landing in "+fmtT(realMs(lead))});
-  note("alliance",b.name+" will hit "+tgt.ai.name+" in "+fmtT(realMs(lead))+". Reinforce them from the Alliance tab.");
+  note("alliance",b.name+" will hit "+tgt.ai.name+" in "+fmtT(realMs(lead))+". Reinforce them from the Kingdom tab.");
 }
 function endBully(why){
   var A=AL(), b=bullyOf(); if (!A.bully) return;
@@ -4269,13 +4392,13 @@ function bullyWave(){
   if (sumT(mine)>0){ gain=(150+650*Math.min(1,share*2)+(held?400:0))*(0.6+b.iq/200); addRep(gain, (held?"helped "+q.ai.name+" hold against ":"stood with "+q.ai.name+" against ")+b.name); }
   addReport({id:S.nextMarchId++, at:S.gt, def:true, ally:true, name:b.name+" vs "+q.ai.name+(sumT(mine)?" (your guards)":""), result:held?2:1, rounds:r.rounds, kb:r.kb,
     sent:mine, left:mine.map(function(n,k){ return dt[k]?Math.round(n*r.defender[k]/dt[k]):0; }), had:w.t.slice(), eleft:r.attacker.slice(), forts:[0,0,0,0,0], fleft:[0,0,0,0,0], loot:{food:0,lumber:0,stone:0,iron:0,gold:0}, lost:myLost, medal:-1, drops:[]});
-  note("alliance",q.ai.name+(held?" held off ":" was overrun by ")+b.name+(gain?". +"+fmt(Math.round(gain))+" alliance rep":"")+(myLost?". You lost "+fmt(myLost)+" troops":""));
+  note("alliance",q.ai.name+(held?" held off ":" was overrun by ")+b.name+(gain?". +"+fmt(Math.round(gain))+" kingdom rep":"")+(myLost?". You lost "+fmt(myLost)+" troops":""));
   if (held && !sumT(r.attacker)) b.losses++; else if (!held) b.wins++;
   if (sumT(B.army)<200){ b.losses++; addRep(300*(0.6+b.iq/200), "drove off "+b.name); endBully("was broken and fled"); return; }
   planWave();
 }
 /* ---------- alliance war ---------- */
-// Declared from the Alliance tab at 50% reputation, once every two weeks. Three to five rivals pitch war camps
+// Declared from the Kingdom tab at 50% reputation, once every two weeks. Three to five rivals pitch war camps
 // in North March for seven days and raid you and your allies. Points are prestige: every enemy troop you kill
 // earns, every one of yours lost costs. Rep only ever rises. Win (earned > lost) for a Banishment Order.
 var WAR_DAYS=7, WAR_COOLDOWN_DAYS=14, WAR_REP_FULL=15000, WAR_ALLY_MUL=1.5, WAR_PTS=100, WAR_SOFT=0.6;
@@ -4388,7 +4511,7 @@ function warLaunch(i){
     var q=allies[Math.floor(Math.random()*allies.length)];
     w.pending.push({eid:i, target:q.id, t:t, arr:S.gt+lead});
     A_log(b.name+" sent "+fmt(sumT(t))+" troops at "+q.ai.name+", landing in "+fmtT(realMs(lead))+".");
-    note("alliance",b.name+" is marching on your ally "+q.ai.name+". Reinforce them from the Alliance tab.");
+    note("alliance",b.name+" is marching on your ally "+q.ai.name+". Reinforce them from the Kingdom tab.");
   }
 }
 // a war party reaches one of your allies; only your guards make it count
@@ -4493,7 +4616,7 @@ function warSection(){
   var A=AL(), w=W();
   if (warOn()){
     var pct=warPct(), nt=WAR_LADDER[w.tier], ahead=w.earned>w.lost;
-    var h='<div class="section bullybox"><div class="shead"><h3>Alliance War</h3><span class="dur">ends in '+fmtT(realMs(w.until-S.gt))+'</span></div>'+
+    var h='<div class="section bullybox"><div class="shead"><h3>Kingdom War</h3><span class="dur">ends in '+fmtT(realMs(w.until-S.gt))+'</span></div>'+
       '<div class="act"><div><div class="bigstat">'+fmt(Math.round(w.earned))+'</div><span class="dur">points earned</span></div><div style="text-align:right"><div class="bigstat">'+fmt(Math.round(w.lost))+'</div><span class="dur">points lost</span></div></div>'+
       '<p class="hint">'+(ahead?'You are <b>winning</b>: hold this lead to the end for a Banishment Order.':'You are <b>behind</b>: you need more kills than losses by the end to win.')+' Kills at their camps count in full, beside allies you\u2019ve reinforced up to 1.5\u00d7, and at your own walls half (a fifth with the gate closed). Your allies\u2019 own fights don\u2019t count.</p>'+
       '<div class="repbar" style="margin-top:6px"><i style="width:'+pct.toFixed(2)+'%"></i></div>'+
@@ -4509,7 +4632,7 @@ function warSection(){
     return h+'</div>';
   }
   var why=warWhy(), last=A.warLast;
-  var h2='<div class="section"><div class="shead"><h3>Alliance War</h3><span class="dur">'+(repPct()<50?'unlocks at 50% rep':'once every 2 weeks')+'</span></div>'+
+  var h2='<div class="section"><div class="shead"><h3>Kingdom War</h3><span class="dur">'+(repPct()<50?'unlocks at 50% rep':'once every 2 weeks')+'</span></div>'+
     '<p class="hint">Declare war and three to five rivals pitch war camps in '+esc(realmName())+' for seven days, raiding you and your allies two to four times a day each. Every enemy troop you kill earns points and reputation, and a ladder of spoils pays out as you destroy more of them. Your losses cost points but never reputation. Take a camp to knock that rival out. End ahead on points for a <b>Banishment Order</b>, which clears '+esc(realmName())+' of bullies for a week. No bully events start while a war is on.</p>';
   if (last) h2+='<p class="hint">Last war: '+(last.win?'<b>won</b>':'lost')+', '+fmt(last.earned)+' points to '+fmt(last.lost)+', '+last.pct.toFixed(0)+'% of their strength destroyed.</p>';
   h2+='<div class="act"><span class="why">'+why+'</span><button class="btn'+(warArmed?' danger':'')+'" data-act="war-declare"'+(why?' disabled':'')+'>'+(warArmed?'Tap again: declare war':'Declare war')+'</button></div>';
@@ -5380,7 +5503,7 @@ function invApplyOne(r){
   if (S.invLog.length>12) S.invLog.length=12;
   var txt=r.cancelled ? "The invasion with "+esc(r.opp)+" was cancelled"+(r.why?": "+esc(r.why):".")+" Nothing was lost."
     : (r.role==="invader"?"Your invasion of "+esc(r.opp)+" is over: ":esc(r.opp)+"’s invasion of "+esc(r.city||"your city")+" is over: ")+(r.winner===(r.role==="invader"?0:1)?"you came out ahead":"you came out behind")+". You lost "+fmt(lostN)+" troops, and earned "+fmt(r.marks||0)+" War Marks.";
-  note("inv", txt); toast(r.cancelled?"Invasion cancelled":"Invasion finished: see Alliance");
+  note("inv", txt); toast(r.cancelled?"Invasion cancelled":"Invasion finished: see the Kingdom tab");
 }
 // safety net: a city marked away with no invasion and no result for a long time (server reset, ledger lost) comes home
 function invRescue(){
@@ -5828,7 +5951,7 @@ function bullyCampBattle(m){
     var mt = Math.random()<0.25 ? "starmetal" : "mithril"; S.items[mt]=(S.items[mt]||0)+1; drops.push(ITEMS[mt].name);
     gain=Math.min(8000, 2500*(0.6+b.iq/200)*(1+0.25*b.wins)); b.losses++;
     addRep(gain, "took "+b.name+"'s stronghold"); endBully("lost the stronghold and fled "+realmName()+"");
-    note("alliance","You took "+b.name+"'s stronghold! +"+fmt(Math.round(gain))+" alliance rep.");
+    note("alliance","You took "+b.name+"'s stronghold! +"+fmt(Math.round(gain))+" kingdom rep.");
   } else {
     gain=Math.min(600, 1500*dmg); if (gain>=10) addRep(gain, "battered "+b.name+"'s stronghold");
     note("alliance",b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
@@ -5856,14 +5979,14 @@ function requestHelp(allyId){
 function viewAlliance(){
   var A=AL(), b=bullyOf(), B=A.bully, d=dailyRec();
   var h='<div class="section"><div class="shead"><h3 id="allyh">'+esc(allyName())+'</h3><span class="dur">'+A.allies.length+' / '+Math.min(ALLY_MAX,maxB("embassy"))+' allies (Embassy level '+maxB("embassy")+')</span></div>'+
-    '<div class="renrow"><label for="allyname2" class="sub">Rename alliance</label><input id="allyname2" data-ren="ally" type="text" value="'+esc(A.name||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
+    '<div class="renrow"><label for="allyname2" class="sub">Rename kingdom</label><input id="allyname2" data-ren="ally" type="text" value="'+esc(A.name||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
     '<div class="repbar"><i style="width:'+repPct().toFixed(2)+'%"></i></div><p class="hint">Reputation <b>'+fmt(A.rep)+'</b> '+(A.rep>=REP_MAX?'(100%: maxed, and every point past '+fmt(REP_MAX)+' still counts on the high scores).':'of '+fmt(REP_MAX)+' ('+repPct().toFixed(1)+'%).')+' Allies answer a call for reinforcements '+Math.round(helpChance()*100)+'% of the time, and are likelier to accept an invitation as your standing grows.</p>'+
     '<div class="h3" style="margin-top:8px">Today</div><div class="gearlist">'+
     '<div class="gearrow'+(d.res?' t3':'')+'"><span class="gn">Send 10k+ resources to an ally</span><span class="gb">'+(d.res?'Done':'+50 rep')+'</span></div>'+
     '<div class="gearrow'+(d.guard?' t3':'')+'"><span class="gn">Station troops with an ally</span><span class="gb">'+(d.guard?'Done':'+60 rep')+'</span></div>'+
     '<div class="gearrow"><span class="gn">Defend an ally from a bully</span><span class="gb">+150 to +1,200 rep per wave</span></div></div></div>';
   h+='<div class="section"><h3>Allies</h3>';
-  if (!A.allies.length) h+='<p class="hint">No allies yet. Tap an AI lord on the map and choose Invite to alliance.</p>';
+  if (!A.allies.length) h+='<p class="hint">No allies yet. Tap an AI lord on the map and choose Invite to your kingdom.</p>';
   allyTiles().forEach(function(q){
     var g=sumT(guardsAt(q.id).reduce(function(x,m){ return x.concat(m.t); },[])), sats=Object.keys(A.sat).filter(function(id){ return A.sat[id].ally===q.id; }).length, farms=Object.keys(A.farms).filter(function(id){ return A.farms[id]===q.id && S.map.npc[id]!=null; }).length;
     var asked=A.lastReq&&A.lastReq[q.id]===gameDay();
@@ -5887,15 +6010,15 @@ function viewAlliance(){
         '<div class="btnrow"><button class="btn" data-act="march-open" data-tile="'+nq.id+'" data-mission="allyguard">Reinforce '+esc(nq.ai.name)+'</button>'+(bestBeacon()>=7?'<button class="btn ghost" data-act="ally-sim">Simulate the wave</button>':'')+'<button class="btn ghost" data-act="goto-tile" data-tile="'+B.tile+'">Show the stronghold</button></div>';
     } else h+='<p class="hint">No more waves planned before '+esc(b.name)+' leaves.</p>';
     h+='</div>';
-  } else h+='<div class="section"><h3>Bullies</h3><p class="hint">'+(A.allies.length?'All quiet. Each day there\'s a chance a bully moves into '+esc(realmName())+' for 1 to 3 days and goes after your allies.':'Bullies only come after alliances. Invite an AI lord from its map tile to get started.')+'</p></div>';
+  } else h+='<div class="section"><h3>Bullies</h3><p class="hint">'+(A.allies.length?'All quiet. Each day there\'s a chance a bully moves into '+esc(realmName())+' for 1 to 3 days and goes after your allies.':'Bullies only come after kingdoms. Invite an AI lord from its map tile to get started.')+'</p></div>';
   if (A.roster.length) h+='<details class="section det" data-det="known"'+(DET.known?' open':'')+'><summary><b>Known bullies</b> <span class="dur">'+A.roster.length+'</span></summary><div class="gearlist">'+A.roster.map(function(x){ var xf=friendOf(x);
-    return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future alliance events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></details>';
+    return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future kingdom events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></details>';
   h+=collapsify("ev_war", warSection(), repPct()>=50);
   h+=collapsify("ev_bf", bfSection(), repPct()>=75);
   if (invShown()) h+=collapsify("ev_inv", invSection(), true);
   if (pvShown()) h+=collapsify("ev_pvp", pvSection(), true); // PvP: testers only for now (dev tools or the tester code)
   h+=collapsify("ev_chal", chalSection(), A.rep>=REP_MAX);
-  if (A.log.length) h+='<details class="section det" data-det="alog"'+(DET.alog?' open':'')+'><summary><b>Alliance log</b></summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
+  if (A.log.length) h+='<details class="section det" data-det="alog"'+(DET.alog?' open':'')+'><summary><b>Kingdom log</b></summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
   return h;
 }
 
@@ -5957,9 +6080,9 @@ var QUESTS=[];
   add("Craftsmanship","workshop","Workshop","Build a Workshop",function(){ return maxB("workshop")>=1; },{res:QR(1000,3000,1000,3000),items:{ore:1}});
   add("Craftsmanship","gear","Armorer","Own a piece of gear",function(){ return S.gear.length>=1; },{res:QR(2000,2000,2000,2000),items:{gemD:4}});
   add("Craftsmanship","star","Polished","Add a star to any gear",function(){ return S.gear.some(function(g){ return g.stars>=1; }); },{items:{gemD:8,gemF:1}});
-  add("Alliance","embassy","Alliance","Embassy reaches level 1",function(){ return maxB("embassy")>=1; },{res:QR(500,2000,1000,500)});
-  add("Alliance","ally1","Friends in High Places","Bring an AI lord into your alliance",function(){ return S.alliance && S.alliance.allies.length>=1; },{res:QR(5000,5000,5000,5000),items:{s60:1}});
-  add("Alliance","allydef","Shoulder to Shoulder","Help an ally hold against a bully",function(){ return qs("allyDef")>=1; },{res:QR(20000,20000,20000,20000),items:{s480:1}});
+  add("Kingdom","embassy","Kingdom","Embassy reaches level 1",function(){ return maxB("embassy")>=1; },{res:QR(500,2000,1000,500)});
+  add("Kingdom","ally1","Friends in High Places","Bring an AI lord into your kingdom",function(){ return S.alliance && S.alliance.allies.length>=1; },{res:QR(5000,5000,5000,5000),items:{s60:1}});
+  add("Kingdom","allydef","Shoulder to Shoulder","Help an ally hold against a bully",function(){ return qs("allyDef")>=1; },{res:QR(20000,20000,20000,20000),items:{s480:1}});
 })();
 function questState(q){ var cl=S.qdone&&S.qdone[q.id]; return cl ? "claimed" : q.check() ? "ready" : "open"; }
 function questsReady(){ var n=0; questCats().forEach(function(c){ var q=nextQuest(c); if (q && questState(q)==="ready") n++; }); return n; }
@@ -6632,7 +6755,7 @@ var ITEM_INFO={
   warhorn:"Sounds the charge: every troop you command attacks 20% harder for 24 hours, attacking or defending. A rare find in level 5+ NPC cities.",
   corselet:"Armor for the whole army: every troop you command defends 20% better for 24 hours, attacking or defending. A rare find in level 5+ NPC cities.",
   surgeon:"For the next hour, half of every troop you lose in battle is saved, attacking or defending. Losses still count against you in war points. Won on the battlefield.",
-  get banish(){ return "Ends any bully event in progress and keeps every bully out of "+realmName()+" for 7 days. Won by finishing an Alliance War ahead on points."; },
+  get banish(){ return "Ends any bully event in progress and keeps every bully out of "+realmName()+" for 7 days. Won by finishing a Kingdom War ahead on points."; },
   medalbox2:"Holds 2 Honor, 2 Courage and 2 Wisdom medals. Level 10 NPC cities drop it.",
   medalbox3:"Holds 1 Freedom, 1 Justice and 1 Nation medal. The rarest drop from a level 10 NPC city.",
   teleport:"Moves a whole city to an open flat. Use it from the Map.",
@@ -6847,6 +6970,11 @@ function renderView(force){
     if (lastView!=="war"){ v.innerHTML=viewWar(); lastView="war"; renderSimResult(); }
     setTabs(); return;
   }
+  if (tab==="guild"){ // chat keeps updating even while you type: it lives in its own box
+    var gh="guild|"+viewGuild(), typing=v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if (!typing && (gh!==lastView || force)){ v.innerHTML=gh.slice(6); lastView=gh; wireDetails(v); }
+    fillAlChat(); setTabs(); return;
+  }
   if (v.contains(document.activeElement) && document.activeElement.tagName!=="BUTTON") return;
   if (tab==="fields") tab="city"; // fields now live under the city, not in the tab bar
   document.body.classList.toggle("bfmode", bfOn()||pvOn());
@@ -6945,7 +7073,7 @@ function renderSheet(){
       '<div class="sub">This realm has stood <b id="saveage"></b>.</div>'+
       '<div class="sub">Ibory version <b>'+APP_VERSION+'</b></div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
-      '<div><label for="allyname" class="sub">Alliance name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
+      '<div><label for="allyname" class="sub">Kingdom name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
       '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
       '<details class="det" data-det="notif"'+(DET.notif?' open':'')+'><summary><b>Notifications</b> <span class="dur">'+NOTE_TYPES.filter(function(t){ return noteOn(t[0]); }).length+' of '+NOTE_TYPES.length+' on'+(S.phoneNotif?', phone on':'')+'</span></summary>'+
@@ -7319,7 +7447,7 @@ document.addEventListener("click",function(e){
       if (S.secrets.p1){ if (gm) gm.textContent="That package was already claimed on this save."; return; }
       S.secrets.p1=1; RES.forEach(function(k){ S.res[k]+=200000; }); S.items.s15=(S.items.s15||0)+80;
       if (gi) gi.value=""; if (gm) gm.textContent=""; save(); toast("Secret package! +200,000 of every resource in "+S.name+" and 80 15-minute speed-ups"); lastView=""; refresh(); }
-    else if (devHash(gv)===PV_TESTER){ S.pvpTester=1; if (gi) gi.value=""; if (gm) gm.textContent=""; save(); toast("PvP Battlefield unlocked: find it in the Alliance tab"); lastView=""; refresh(); }
+    else if (devHash(gv)===PV_TESTER){ S.pvpTester=1; if (gi) gi.value=""; if (gm) gm.textContent=""; save(); toast("PvP Battlefield unlocked: find it in the Kingdom tab"); lastView=""; refresh(); }
     else if (gm) gm.textContent="That code isn\u2019t valid.";
     return; }
   if (act==="bk-restore"){ var bk=a.dataset.v; if (armed!=="bkr-"+bk){ armed="bkr-"+bk; lastSheet=""; renderSheet(); return; } armed=null;
@@ -7333,6 +7461,7 @@ document.addEventListener("click",function(e){
   if (act==="bk-fresh"){ if (armed!=="bkfresh"){ armed="bkfresh"; lastSheet=""; renderSheet(); return; } armed=null; saveLocked=false; loadFail=null; save(); closeSheet(); toast("A new city begins. The unopened save is still kept on this device."); return; }
   if (act==="dev-lock"){ advance(Date.now()); devSet(false); S.speed=1; S.testSpeed=1; save(); toast("Developer tools locked"); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
   if (advance(Date.now())) flushFinished();
+  if (act==="tab" && a.dataset.tab==="guild"){ ALS.last=0; ALS.listAt=0; setTimeout(function(){ alTick(); },0); }
   if (act==="tab"){ if (bfOn()) return; closeSheet(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     var tb=document.querySelector('nav.tabs [data-tab="'+tab+'"]'); if (tb && tb.scrollIntoView) tb.scrollIntoView({block:"nearest",inline:"center"}); setTimeout(updateTabArrows,350); return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
@@ -7421,12 +7550,12 @@ document.addEventListener("click",function(e){
   if (act==="quest-claim"){ claimQuest(a.dataset.q); save(); lastSheet=""; renderSheet(); tickText(); return; }
   if (act==="ally-invite"){
     var iq=TILE_BY[a.dataset.tile], A=S.alliance; if (!iq || iq.k!=="ai") return;
-    var emb=maxB("embassy"); if (!emb){ toast("Build an Embassy first: it\u2019s the seat of your alliance"); return; }
+    var emb=maxB("embassy"); if (!emb){ toast("Build an Embassy first: it\u2019s the seat of your kingdom"); return; }
     if (A.allies.length>=Math.min(ALLY_MAX,emb)){ toast("Your Embassy has room for "+Math.min(ALLY_MAX,emb)+" all"+(emb===1?"y":"ies")+". Upgrade it for more."); return; }
     if (A.lastInvite[iq.id]===gameDay()){ toast(iq.ai.name+" already gave you an answer today"); return; }
     A.lastInvite[iq.id]=gameDay();
     if (S.aiWar.some(function(w){ return w.ai===iq.id; })){ toast(iq.ai.name+" laughs: they\u2019re busy marching on you"); return; }
-    if (Math.random() < 0.5+0.4*A.rep/REP_MAX){ A.allies.push({id:iq.id, joined:S.gt}); A.log.unshift({at:S.gt,t:iq.ai.name+" joined the alliance"}); toast(iq.ai.name+" joins your alliance!"); miniDirty=true; }
+    if (Math.random() < 0.5+0.4*A.rep/REP_MAX){ A.allies.push({id:iq.id, joined:S.gt}); A.log.unshift({at:S.gt,t:iq.ai.name+" joined the kingdom"}); toast(iq.ai.name+" joins your kingdom!"); miniDirty=true; }
     else toast(iq.ai.name+" turns you down. Try again tomorrow.");
     save(); refresh(); return;
   }
@@ -7435,7 +7564,7 @@ document.addEventListener("click",function(e){
     armedTile=null; var A2=S.alliance, li=allyIdx(lt); if (li<0) return; var lq=TILE_BY[lt];
     A2.allies.splice(li,1); Object.keys(A2.sat).forEach(function(id){ if (A2.sat[id].ally===lt) delete A2.sat[id]; }); Object.keys(A2.farms).forEach(function(id){ if (A2.farms[id]===lt) delete A2.farms[id]; });
     S.marches.forEach(function(m){ if (m.mission==="allyguard" && m.tile===lt && m.phase==="stay"){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; } });
-    A2.log.unshift({at:S.gt,t:(lq&&lq.ai?lq.ai.name:"An ally")+" left the alliance"}); miniDirty=true; save(); lastView=""; refresh(); return;
+    A2.log.unshift({at:S.gt,t:(lq&&lq.ai?lq.ai.name:"An ally")+" left the kingdom"}); miniDirty=true; save(); lastView=""; refresh(); return;
   }
   if (act==="ally-request"){
     var rq=TILE_BY[a.dataset.tile]; if (!rq) return; var res=requestHelp(rq.id);
@@ -7448,6 +7577,29 @@ document.addEventListener("click",function(e){
     if (!sim) initSim(); sim.atk.t=B.next.t.slice(); sim.atk.r={military_tradition:0,iron_working:B.tech,medicine:B.tech,compass:B.tech,horseback_riding:B.tech,archery:B.tech}; sim.atk.hatk=Math.round(5*B.tech+bb.iq/2); sim.atk.hint=0;
     sim.def.preset="custom"; sim.def.t=tc.t.map(function(n,i){ return n+mine[i]; }); sim.def.f=tc.f.slice(); sim.def.wall=tc.wall; sim.def.r={military_tradition:0,iron_working:tc.r.iron_working||0,medicine:tc.r.medicine||0,compass:0,horseback_riding:0,archery:tc.r.archery||0}; sim.def.hatk=Math.round(((tc.am||1)-1)*100); sim.def.eng=0; sim.def.hint=0; simOut=null;
     tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
+  }
+  if (act.indexOf("al-")===0){
+    if (act==="al-cloud"){ DET.cloud=true; openSheet({kind:"settings"}); return; }
+    if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); return; }
+    if (act==="al-sort"){ ALS.sort=a.dataset.v; lastView=""; renderView(true); return; }
+    if (act==="al-send"){ alSend(); return; }
+    if (act==="al-create"){ var an=document.getElementById("alname"), at2=document.getElementById("altag"), ad=document.getElementById("aldesc");
+      alDo("/al/create",{alName:an?an.value:"", tag:at2?at2.value:"", desc:ad?ad.value:""},"Alliance founded"); return; }
+    if (act==="al-apply"){ var am=document.getElementById("alappmsg"); alDo("/al/apply",{aid:a.dataset.aid, msg:am?am.value:""},"Application sent"); return; }
+    if (act==="al-unapply"){ alDo("/al/unapply",{aid:a.dataset.aid},"Application withdrawn"); return; }
+    if (act==="al-accept"){ alDo("/al/accept",{who:a.dataset.who},a.dataset.who+" joined"); return; }
+    if (act==="al-reject"){ alDo("/al/reject",{who:a.dataset.who},"Application turned down"); return; }
+    if (act==="al-mute"){ alDo("/al/mute",{who:a.dataset.who, minutes:+a.dataset.min}, +a.dataset.min?a.dataset.who+" muted for an hour":a.dataset.who+" unmuted"); return; }
+    if (act==="al-del"){ var did=+a.dataset.id; alPost("/al/chatdel",{id:did}).then(function(d){ if (d.error) toast(d.error); else { ALS.chat.forEach(function(c){ if (c.id===did){ c.del=1; c.text=""; } }); fillAlChat(); } }); return; }
+    var arm=function(key){ if (ALS.armed!==key){ ALS.armed=key; lastView=""; renderView(true); return true; } return false; };
+    if (act==="al-kick"){ if (arm("kick"+a.dataset.who)) return; alDo("/al/kick",{who:a.dataset.who},a.dataset.who+" removed"); return; }
+    if (act==="al-handover"){ if (arm("hand"+a.dataset.who)) return; alDo("/al/handover",{who:a.dataset.who},a.dataset.who+" is now the founder"); return; }
+    if (act==="al-leave"){ if (arm("leave")) return; alDo("/al/leave",{},"You left the alliance"); return; }
+    if (act==="al-disband"){ if (arm("disband")) return; alDo("/al/disband",{},"Alliance disbanded"); return; }
+    if (act==="al-desc-save"){ var dd=document.getElementById("aldesc2"); alDo("/al/desc",{desc:dd?dd.value:""},"Description saved"); return; }
+    if (act==="al-ranks-save"){ var al0=alMine(); if (!al0) return; var rr=al0.ranks.map(function(r,i){ var ni=document.getElementById("alrn"+i), p={}; al0.perms.forEach(function(pk){ var cb=document.querySelector('[data-alperm="'+i+':'+pk+'"]'); if (cb && cb.checked) p[pk]=1; }); return {n:ni?ni.value:r.n, p:p}; });
+      alDo("/al/ranks",{ranks:rr},"Ranks saved"); return; }
+    return;
   }
   if (act==="allcities"){ openSheet({kind:"allcities"}); return; }
   if (act==="tg-add"){ var gka=GK[a.dataset.k]?a.dataset.k:"tg"; gLines(gka).push(gNew(gka)); save(); lastView=""; renderView(true); openSheet({kind:"tgline", gk:gka, l:gLines(gka).length-1, city:S.cur}); return; }
@@ -7977,7 +8129,9 @@ document.addEventListener("input",function(e){
     if (e.target.dataset.sim==="def" && sim.def.preset!=="custom"){ sim.def.preset="custom"; var sel=document.getElementById("npcsel"); if (sel) sel.value="custom"; }
   }
 });
+document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } });
 document.addEventListener("change",function(e){
+  if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }
   if (e.target.id==="ivcity"){ IV.pickCity=+e.target.value; return; }
   if (e.target.id==="ivhero"){ IV.hero=+e.target.value; return; }
   if (e.target.id==="ivsafe"){ var sv=+e.target.value; e.target.blur(); invPost("setsafe",{hours:sv}).then(function(j){ if (!j.error) toast("Cooldown after being invaded: "+(sv>=168?sv/24+" days":sv+" hours")); invTake(j); }); return; }

@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.38
+Version 0.1.39
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,15 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 44.
 
 ## Release notes
+### 0.1.39
+- Player alliances, part 1 (new Alliance tab; needs a cloud save):
+  - Browse every alliance, ranked by prestige, members, cities and honor. Apply with an optional message, withdraw, or found your own (name, 2-4 letter tag, description). Room for 10 members to start.
+  - Five ranks (Founder, Officer, Veteran, Member, Recruit by default). The founder renames them and picks what each rank can do: answer applications, remove members, change ranks, edit the description, moderate chat, and (for later parts) spend the alliance bank, move things on the alliance map, summon monsters, start alliance research. Everyone can only act on ranks below their own. The founder hands the alliance on before leaving, or disbands it when alone.
+  - Alliance chat: updates every few seconds while open (even while you type), with an unread count on the tab. Remove your own messages; moderators remove any and can mute members.
+  - Member prestige and cities come from each member's latest cloud save, so they update about hourly.
+- Honor: a new stat, the prestige of enemy troops you kill in invasions (alliance wars will add to it later). Battlefield doesn't count.
+- The old alliance with AI lords is now called your Kingdom (Kingdom tab, Kingdom War, kingdom rep).
+- Needs the updated Worker (worker.js): it adds the alliance tables and an honor column by itself.
 ### 0.1.38
 - March presets can be loaded in the Hide troops in the woods menu (troops and the preset's hero).
 ### 0.1.37
