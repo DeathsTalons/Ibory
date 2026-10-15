@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.31
+Version 0.1.33
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,17 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 42.
+Settings has save codes and Save to file / Load from file. Current save version: 44.
 
 ## Release notes
+### 0.1.33
+- Fortification goals: the same line system as troop goals, in Walls and fortifications. Turn on Auto-build and the wall crews build from the first unfinished line whenever they're free, leftmost short fortification first, and go back to line 1 the moment an attack knocks it short. Each line has its own order and batch size (Auto is about 30 minutes of work). Lines can be typed like tp:100,ab:50,at:20 (tp traps, ab abatis, at archer towers, rl rolling logs, tb trebuchets). Locked kinds, or ones with no wall space left, are skipped. Respects the Warehouse reserve.
+### 0.1.32
+- Troop goals are now lines, worked top to bottom (Army tab). Auto-train finishes line 1 before starting line 2, and goes straight back to the first line that falls short, after a battle say. Within the active line, idle Barracks take the leftmost short unit. Counts include troops training and out on marches.
+- Each line has its own unit order and its own batch size (how many one Barracks trains at a time; Auto is about 30 minutes of work). Make line 1 one of every layer at batch 1 to rebuild layered defenses first, then bigger lines below.
+- Lines can be typed or pasted as text, like wa:1,pi:1,sw:1,ar:1 (wo, wa, sc, pi, sw, ar, tr, cav, cata, ba, ra, cp; bot-style w, s, p, a, t, c, b, r work too). Units the city can't train yet are skipped so they never stall a line. Lines can be moved, copied and deleted.
+- Old goals and priority order become line 1 automatically.
+- All cities: a read-only overview (first button on the city bar) with every city's resources and rates, population, marches out, troops (tap for the breakdown: out, training, wounded) and every running timer, with a Go button to switch.
 ### 0.1.31
 - Saves can't silently reset any more. If your saved game fails to open, Ibory keeps the original untouched, stops saving, and shows a recovery screen: restore a safety copy, copy the unopened save for the developer, or start fresh on purpose.
 - Safety copies: the game keeps copies on the device (one every half hour while you play, your strongest game, and one right before a new city, a save load or a cloud restore replaces your game). Settings > Safety copies restores any of them. If a game is missing but copies exist, Ibory offers to restore one.

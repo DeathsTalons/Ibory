@@ -408,6 +408,20 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .trainrow input{width:110px}
 .reqs{grid-column:1/-1;font-size:.86rem;color:var(--red)}
 .unitlist{display:grid;gap:8px;margin-top:10px}
+.tgline{background:var(--panel2);border-radius:10px;padding:8px 12px;margin-top:6px;border-left:4px solid transparent}
+.tgline.on{border-left-color:var(--brass)}
+.tgline.done{opacity:.75}
+.tgh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tgh .sp{flex:1}
+.tgu{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:6px;font-size:.84rem;font-variant-numeric:tabular-nums}
+.tgc{padding:1px 7px;border-radius:999px;border:1px solid var(--line)}
+.tgc.ok{color:var(--grass);border-color:var(--grass)}
+.tgc.short{color:var(--red);border-color:var(--red)}
+.tgc.skip{color:var(--muted);text-decoration:line-through}
+.acity{background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:8px}
+.acity h4{margin:0 0 4px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.acity .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:2px 12px;font-size:.86rem;font-variant-numeric:tabular-nums}
+.acity ul{margin:4px 0 0;padding-left:18px;font-size:.86rem}
 .bq{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:var(--panel2);border-radius:8px;padding:8px 12px;margin-top:6px}
 .bq .bar{grid-column:1/-1}
 .verdict{font:700 1.3rem var(--display)}
@@ -545,7 +559,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.31";
+var APP_VERSION = "0.1.33";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2689,6 +2703,50 @@ function recoverSheet(){
 function bkSection(){
   return '<details class="det" data-det="bk"'+(DET.bk?' open':'')+'><summary><b>Safety copies</b> <span class="dur">'+bkList().length+' on this device</span></summary><p class="hint">Ibory keeps copies of your game on this device: one every half hour while you play, and one right before anything replaces your game (a new city, loading a save, a cloud restore). If your game ever opens empty, restore one here. They live in the same browser as your game, so a cloud backup is still the best protection.</p>'+bkRows()+'</details>';
 }
+function tgSheet(){
+  var k=sheetFor.gk||"tg", G=GK[k], li=sheetFor.l, L=gLines(k)[li]; if (!L){ closeSheet(); return ""; }
+  var have=G.have(), n=gLines(k).length;
+  var h='<div class="head"><span class="ico">'+(k==="fg"?ICON.crest:ICON.rally)+'</span><div style="flex:1"><h2>'+G.title+': line '+(li+1)+'</h2><div class="sub">'+esc(S.name)+'. '+(k==="fg"?'Built':'Trained')+' left to right: top of the list first.</div></div></div>'+
+    '<div><label class="sub" for="tgstr">The whole line</label><div class="farmadd"><input id="tgstr" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(gStr(k,L,true))+'" style="width:auto;flex:1"><button class="btn ghost small" data-act="tg-apply">Apply</button></div><span class="why" id="tgmsg"></span></div>'+
+    '<div style="margin-top:6px"><label class="sub" for="tgbatch">Batch size: how many '+(k==="fg"?'the wall crews build':'one Barracks trains')+' at a time on this line (blank = Auto, about 30 minutes of work)</label><input id="tgbatch" type="number" min="0" value="'+(L.b>0?L.b:"")+'" placeholder="Auto"></div>'+
+    '<div class="tscroll" style="margin-top:8px"><table class="gt" style="min-width:0"><thead><tr><th>'+(k==="fg"?'Kind':'Unit')+'</th><th>Have</th><th>Goal</th><th>Order</th></tr></thead><tbody>';
+  L.o.forEach(function(i,pos){ var sk=G.cant(i);
+    h+='<tr><td style="white-space:normal">'+esc(G.name(i))+' <span class="dur">'+G.codes[i]+'</span>'+(sk?'<br><span class="dur">skipped: '+G.cantWhy+'</span>':'')+'</td><td class="'+((L.t[i]||0)>0&&have[i]>=L.t[i]?'ok':'')+'">'+fmt(have[i])+'</td><td><input type="number" min="0" data-tg="'+i+'" value="'+((L.t[i]||0)||"")+'" placeholder="0" style="width:72px"></td>'+
+      '<td class="pri"><button class="link" data-act="tg-move" data-u="'+i+'" data-d="-1"'+(pos===0?' disabled':'')+' aria-label="'+esc(G.name(i))+' earlier">\u25b2</button><button class="link" data-act="tg-move" data-u="'+i+'" data-d="1"'+(pos===L.o.length-1?' disabled':'')+' aria-label="'+esc(G.name(i))+' later">\u25bc</button></td></tr>'; });
+  h+='</tbody></table></div>'+
+    '<div class="btnrow" style="margin-top:8px"><button class="btn ghost small" data-act="tg-lmove" data-d="-1"'+(li===0?' disabled':'')+'>Move line up</button><button class="btn ghost small" data-act="tg-lmove" data-d="1"'+(li===n-1?' disabled':'')+'>Move line down</button><button class="btn ghost small" data-act="tg-dup">Copy line</button><button class="btn ghost small danger" data-act="tg-del">'+(armed==="tgdel"?'Tap again to delete':'Delete line')+'</button></div>'+
+    '<button class="closebtn" data-act="close">Done</button>';
+  return h;
+}
+function allCitiesSheet(){
+  var tot={food:0,lumber:0,stone:0,iron:0,gold:0}, totT=0, h='', keep=S.cur;
+  S.cities.forEach(function(c,ci){ withCity(ci,function(){
+    var r=rates(), t=S.troops.slice(), out=[0,0,0,0,0,0,0,0,0,0,0,0];
+    S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,i){ out[i]+=n; }); });
+    var tr=[0,0,0,0,0,0,0,0,0,0,0,0]; S.train.forEach(function(x){ tr[x.u]+=x.n; });
+    var wd=[0,0,0,0,0,0,0,0,0,0,0,0]; (S.wounded||[]).forEach(function(b){ b.t.forEach(function(n,i){ wd[i]+=n; }); });
+    var home=sumT(t), away=sumT(out), inTr=sumT(tr), hurt=sumT(wd); totT+=home+away;
+    RES.forEach(function(k){ tot[k]+=S.res[k]||0; });
+    var nm=S.marches.filter(function(m){ return m.city===c.id; }).length, rl=rallyLv(), bar=barracksList(), busy=bar.filter(function(sl){ return trainingAt(sl); }).length;
+    var jobs=[];
+    S.builds.forEach(function(b){ jobs.push([b.end, (b.type==="townhall"?"Town Hall":DEF[b.type].name)+" to "+b.to]); });
+    if (S.research) jobs.push([S.research.end, TECH[S.research.tech].name+" "+S.research.to]);
+    if (S.fortQ) jobs.push([S.fortQ.end, "Fortifications"]);
+    var tEnd=null; S.train.forEach(function(x){ if (tEnd==null || x.end<tEnd) tEnd=x.end; });
+    if (tEnd!=null) jobs.push([tEnd, "Training ("+busy+" of "+bar.length+" Barracks busy, "+fmt(inTr)+" troops)"]);
+    S.marches.filter(function(m){ return m.city===c.id; }).forEach(function(m){ var q=TILE_BY[m.tile]; jobs.push([m.phase==="back"?m.ret:m.phase==="stay"?Infinity:m.arr, marchVerb(m)+(q?tileName(q):m.tile)]); });
+    jobs.sort(function(a,b){ return a[0]-b[0]; });
+    var units=[]; for (var i=0;i<12;i++){ var all=t[i]+out[i]; if (all||tr[i]||wd[i]) units.push('<li>'+U[i].name+': <b>'+fmt(all)+'</b>'+(out[i]?' ('+fmt(out[i])+' out)':'')+(tr[i]?', '+fmt(tr[i])+' training':'')+(wd[i]?', '+fmt(wd[i])+' wounded':'')+'</li>'); }
+    h+='<div class="acity"><h4><span>'+esc(c.name)+'</span><span class="dur">('+c.x+','+c.y+') \u00b7 Town Hall '+S.th+(c.away?' \u00b7 away':'')+'</span><span style="flex:1"></span>'+(ci!==keep?'<button class="link strong" data-act="city-go" data-city="'+ci+'">Go</button>':'<span class="dur">viewing</span>')+'</h4>'+
+      '<div class="rgrid">'+RES.map(function(k){ var rr=k==="gold"?r.gold:r[k]; return '<span>'+RNAME[k]+' <b>'+fmt(Math.floor(S.res[k]||0))+'</b> <span class="'+(rr<0?'why':'dur')+'">'+(rr<0?'\u2212':'+')+fmt(Math.abs(Math.round(rr)))+'/h</span></span>'; }).join("")+
+      '<span>Population <b>'+fmt(Math.floor(S.pop))+'</b> <span class="dur">/ '+fmt(popCap())+'</span></span><span>Marches <b>'+nm+'</b> <span class="dur">/ '+rl+'</span></span></div>'+
+      '<details class="det" data-det="ac'+c.id+'"'+(DET["ac"+c.id]?' open':'')+'><summary>Troops <b>'+fmt(home+away)+'</b>'+(away?' <span class="dur">('+fmt(away)+' out)</span>':'')+(inTr?' <span class="dur">+'+fmt(inTr)+' training</span>':'')+(hurt?' <span class="dur">+'+fmt(hurt)+' wounded</span>':'')+'</summary>'+(units.length?'<ul>'+units.join("")+'</ul>':'<p class="hint">No troops.</p>')+'</details>'+
+      (jobs.length?'<ul>'+jobs.map(function(j){ return '<li>'+esc(j[1])+' <span class="dur">'+(isFinite(j[0])?fmtT(realMs(j[0]-S.gt)):'on guard')+'</span></li>'; }).join("")+'</ul>':'<p class="dur" style="margin:4px 0 0">Nothing building, researching or training.</p>')+
+      (S.builds.length<BUILDERS?'<p class="dur" style="margin:2px 0 0">'+(BUILDERS-S.builds.length)+' builder'+(BUILDERS-S.builds.length>1?'s':'')+' free</p>':'')+'</div>';
+  }); });
+  var head='<div class="head"><span class="ico">'+ICON.townhall+'</span><div style="flex:1"><h2>All cities</h2><div class="sub">'+S.cities.length+' cities \u00b7 '+fmt(totT)+' troops \u00b7 '+RES.map(function(k){ return fmt(Math.floor(tot[k]))+' '+RNAME[k].toLowerCase(); }).join(", ")+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
+  return head+h+'<button class="closebtn" data-act="close">Close</button>';
+}
 function cbAskSheet(){
   return '<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Keep your game safe</h2><div class="sub">Turn on cloud saves</div></div></div>'+
     '<p class="hint">Right now your whole game lives on this device. Lose the phone, clear the browser or reinstall the computer, and it\u2019s gone. A cloud save keeps it online: it saves every hour while you play, and you can pick it up on any device with a name and a password.</p>'+
@@ -3351,11 +3409,17 @@ function migrate(s){
     });
     s.v=41; }
   if (s.v===41){ s.warMarks=s.warMarks||0; s.invLog=s.invLog||[]; s.invApplied=s.invApplied||[]; s.v=42; }
+  if (s.v===42){ // troop goals become ordered lines: the old goals and priority order turn into line 1
+    s.cities.forEach(function(cc){ var g=cc.goals||[], seen={}, o=[];
+      (cc.gorder||[]).concat(AUTO_ORDER).forEach(function(i){ if (i>=0 && i<12 && !seen[i]){ seen[i]=1; o.push(i); } });
+      cc.tg = g.some(function(n){ return n>0; }) ? [{t:g.slice(0,12).map(function(n){ return Math.max(0,Math.floor(n||0)); }), o:o, b:0}] : []; });
+    s.v=43; }
+  if (s.v===43){ s.cities.forEach(function(cc){ cc.fg=cc.fg||[]; cc.autoFort=!!cc.autoFort; }); s.v=44; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
-var CITY_KEYS = ["trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
+var CITY_KEYS = ["tg","fg","autoFort","trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
 function C(){ return S.cities[S.cur]; }
 var techVer=0, techCache={key:"",o:null};
 // Research is empire-wide: levels live in S.techG. A city only enjoys a level its own Academy can support.
@@ -3377,7 +3441,7 @@ function newCity(id,name,x,y){
   for (i=0;i<CITY_PLOTS;i++) inside.push(null); for (i=0;i<44;i++) fields.push(null);
   Object.keys(TECH).forEach(function(k){ tech[k]=0; });
   return {id:id,name:name,x:x,y:y,res:{food:10000,lumber:10000,stone:10000,iron:10000,gold:10000},pop:100,tax:20,th:1,inside:inside,fields:fields,tech:tech,
-    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],mayor:null,trainer:null,researcher:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],tg:[],fg:[],autoFort:false,mayor:null,trainer:null,researcher:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
 }
 var NPRESETS=10;
 function newPresets(){ var a=[]; for (var i=0;i<NPRESETS;i++) a.push({name:"Preset "+(i+1), t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0, farm:[], auto:false, idx:0, stopOnLoss:true}); return a; }
@@ -3409,7 +3473,7 @@ function bkSnapshot(why, force){
 function bkList(){ var out=[]; [BK_BEST].concat(BK_RING,BK_PRE).forEach(function(k){ var m=bkMeta(k); try { if (m && localStorage.getItem(k)) out.push({k:k,m:m}); } catch(e){} }); out.sort(function(a,b){ return b.m.at-a.m.at; }); return out; }
 var S;
 var loadRaw=null;
-try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=42) S = migrate(p); else loadFail={why:(p&&p.v>42)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
+try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=44) S = migrate(p); else loadFail={why:(p&&p.v>44)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
 if (loadFail){ try { localStorage.setItem(BK_RESCUE, loadRaw); } catch(e){} saveLocked=true; } // a save that won't open is never written over
 else if (!loadRaw){ var bkb=bkMeta(BK_BEST); if (bkb && bkb.score>=1000) recoverOffer=true; }
 if (!S) S = newState();
@@ -3879,7 +3943,7 @@ function fortSection(){
     else h+='<div style="grid-column:1/-1">'+chips(f.cost)+'</div><div class="trainrow"><input type="number" min="0" data-fort="'+i+'" id="ft-amt-'+i+'" value="'+(fortAmt[i]||"")+'" placeholder="Amount"><button class="btn ghost small" data-act="fort-max" data-f="'+i+'" id="ft-max-'+i+'">Max</button><button class="btn small" data-act="fort-build" data-f="'+i+'" id="ft-btn-'+i+'">Build</button><span id="ft-info-'+i+'" class="dur"></span></div>';
     h+='</div>';
   });
-  return h+'</div></details>';
+  return h+'</div>'+fortGoalsHtml()+'</details>';
 }
 function updateFortRow(i){
   var b=document.getElementById("ft-btn-"+i), inf=document.getElementById("ft-info-"+i); if (!b) return;
@@ -6074,15 +6138,27 @@ function viewTitlesBody(t,nt,nr){
   return h;
 }
 
+function goalLinesHtml(k){
+  var G=GK[k], have=G.have(), lines=gLines(k), act=gActive(k,have), auto=k==="fg"?S.autoFort:S.autoTrain, h='';
+  if (!lines.length) h+='<p class="hint"><b>No lines yet.</b> Add one to start.</p>';
+  lines.forEach(function(L,li){ var met=gMet(k,L,have), on=li===act;
+    var chips=L.o.filter(function(i){ return (L.t[i]||0)>0; }).map(function(i){ var sk=G.cant(i), ok=have[i]>=L.t[i];
+      return '<span class="tgc '+(sk?'skip':ok?'ok':'short')+'" title="'+esc(G.name(i))+(sk?' (skipped: '+G.cantWhy+')':'')+'">'+G.codes[i]+':'+fmt(Math.min(have[i],L.t[i]))+'/'+fmt(L.t[i])+'</span>'; }).join("");
+    h+='<div class="tgline'+(on?' on':met?' done':'')+'"><div class="tgh"><b>Line '+(li+1)+'</b>'+(on?'<span class="badge">'+(auto?(k==="fg"?'Building now':'Training now'):'Next up')+'</span>':met?'<span class="dur">Met</span>':'<span class="dur">Waiting</span>')+
+      '<span class="dur">Batch '+(L.b>0?fmt(L.b):'Auto')+'</span><span class="sp"></span><button class="link strong" data-act="tg-edit" data-k="'+k+'" data-l="'+li+'">Edit</button></div>'+
+      '<div class="tgu">'+(chips||'<span class="dur">Empty line: tap Edit to set it.</span>')+'</div></div>'; });
+  return h+'<div class="btnrow" style="margin-top:8px"><button class="btn ghost small" data-act="tg-add" data-k="'+k+'">Add a line</button></div>';
+}
 function goalsSection(){
-  var have=armyCount(), h='<div class="section"><div class="shead"><h3>Troop goals</h3><label class="chk"><input type="checkbox" id="autotrain"'+(S.autoTrain?' checked':'')+'> Auto-train</label></div>'+
-    '<p class="hint">Set the army you want this city to keep. With auto-train on, every idle Barracks takes a small batch (about 30 minutes of work), working down the priority order below: the first unit that is short of its goal and that the Barracks can train. Losses get replaced automatically. Set a resource reserve in any Warehouse so it never starves your build queue. Counts include troops in training and out on marches.</p>'+
-    '<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>#</th><th>Unit</th><th>Have</th><th>Goal</th><th>Priority</th></tr></thead><tbody>';
-  var ord=goalOrder(), rows=ord.filter(function(i){ return !(missing(U[i].req).length && !(S.goals[i]||0) && !have[i]); });
-  rows.forEach(function(i,pos){ var u=U[i], locked=missing(u.req).length, g=S.goals[i]||0;
-    h+='<tr><td class="dur">'+(pos+1)+'</td><td>'+u.name+(locked?' <span class="dur">(locked)</span>':'')+'</td><td class="'+(g&&have[i]>=g?'ok':'')+'">'+fmt(have[i])+'</td><td><input type="number" min="0" data-goal="'+i+'" value="'+(g||"")+'" placeholder="0"></td>'+
-      '<td class="pri"><button class="link" data-act="goal-move" data-u="'+i+'" data-d="-1"'+(pos===0?' disabled':'')+' aria-label="Raise '+u.name+'">\u25b2</button><button class="link" data-act="goal-move" data-u="'+i+'" data-d="1"'+(pos===rows.length-1?' disabled':'')+' aria-label="Lower '+u.name+'">\u25bc</button></td></tr>'; });
-  return h+'</tbody></table></div><p class="hint" style="margin-top:6px">Use \u25b2 and \u25bc to set which units auto-train first in this city.</p></div>';
+  return '<div class="section"><div class="shead"><h3>Troop goals</h3><label class="chk"><input type="checkbox" id="autotrain"'+(S.autoTrain?' checked':'')+'> Auto-train</label></div>'+
+    '<p class="hint">Goals are lines, worked top to bottom. Auto-train finishes line 1 before it starts line 2, and goes straight back up the moment a line above falls short, after a battle say. Within the active line, every idle Barracks takes the leftmost unit that is short. Counts include troops in training and out on marches. Each line has its own batch size: how many one Barracks trains at a time (Auto is about 30 minutes of work). For layered defenses, make line 1 one of each layer with batch 1, then bigger lines below to rebuild.</p>'+
+    goalLinesHtml("tg")+'</div>';
+}
+function fortGoalsHtml(){
+  var why=fortIdleWhy();
+  return '<div style="margin-top:10px"><div class="shead"><h3>Fortification goals</h3><label class="chk"><input type="checkbox" id="autofort"'+(S.autoFort?' checked':'')+'> Auto-build</label></div>'+
+    '<p class="hint">The same line system as troop goals. When the wall crews are free, they build from the first unfinished line, leftmost short fortification first, and go back up the moment a line above falls short after an attack. Counts include what’s being built now. Kinds that are locked or have no wall space left are skipped.</p>'+
+    goalLinesHtml("fg")+(why?'<p class="dur" style="margin:4px 0 0">Wall crews idle: '+esc(why)+'</p>':'')+'</div>';
 }
 
 /* army view */
@@ -6696,7 +6772,7 @@ function updateTabArrows(){
 }
 function renderCityBar(){
   var el=document.getElementById("citybar"), h="";
-  if (S.cities.length>1) h=S.cities.map(function(c,i){ return '<button data-act="city-go" data-city="'+i+'" aria-pressed="'+(i===S.cur)+'">'+esc(c.name)+(c.away?' (away)':'')+'</button>'; }).join("");
+  if (S.cities.length>1) h='<button data-act="allcities" aria-pressed="false">All cities</button>'+S.cities.map(function(c,i){ return '<button data-act="city-go" data-city="'+i+'" aria-pressed="'+(i===S.cur)+'">'+esc(c.name)+(c.away?' (away)':'')+'</button>'; }).join("");
   if (el.innerHTML!==h) el.innerHTML=h;
 }
 function queueVis(){ var qd=document.querySelector(".queue"); if (qd) qd.style.display=(tab==="city"||tab==="bldg")?"":"none"; }
@@ -6809,6 +6885,10 @@ function renderSheet(){
     h=cbAskSheet();
   } else if (sheetFor.kind==="recover"){
     h=recoverSheet();
+  } else if (sheetFor.kind==="tgline"){
+    h=tgSheet(); if (!h) return;
+  } else if (sheetFor.kind==="allcities"){
+    h=allCitiesSheet();
   } else if (sheetFor.kind==="ivboard"){
     h=invBoardSheet();
   } else if (sheetFor.kind==="pvboard"){
@@ -7002,18 +7082,81 @@ function armyCount(){ // home + training + in the field, for this city
   return c;
 }
 var AUTO_BATCH_MS=30*60000;
+/* troop goals: ordered lines, worked top to bottom. Each line: t = target per unit, o = unit order (left to right), b = batch size (0 = about 30 minutes of work) */
+var TG_CODES=["wo","wa","sc","pi","sw","ar","tr","cav","cata","ba","ra","cp"];
+var TG_ALIAS={w:1,s:2,p:3,a:5,t:6,c:7,b:9,r:10,bal:9,ram:10,cat:11,catapult:11,cataphract:8,cavalry:7,archer:5,archers:5,worker:0,workers:0,warrior:1,warriors:1,scout:2,scouts:2,pike:3,pikeman:3,pikemen:3,sword:4,swordsman:4,swordsmen:4,trans:6,transporter:6,transporters:6,ballista:9};
+var FG_CODES=["tp","ab","at","rl","tb"];
+var FG_ALIAS={trap:0,traps:0,t:0,abatis:1,a:1,tower:2,towers:2,archertower:2,archertowers:2,log:3,logs:3,rollinglogs:3,r:3,treb:4,trebs:4,trebuchet:4,trebuchets:4};
+// goal lines, for troops ("tg") and fortifications ("fg"): ordered lines worked top to bottom. Each line: t = target per kind, o = order (left to right), b = batch size (0 = about 30 minutes of work)
+var GK={
+  tg:{n:12, codes:TG_CODES, alias:TG_ALIAS, ex:"wo:0,wa:1,sc:0,pi:1", title:"Troop goals", name:function(i){ return U[i].name; },
+    have:function(){ return armyCount(); }, cant:function(i){ return missing(U[i].req).length>0 || barracksReq(i)>tgMaxBarracks(); }, cantWhy:"can’t train here yet"},
+  fg:{n:5, codes:FG_CODES, alias:FG_ALIAS, ex:"tp:100,ab:50,at:20", title:"Fortification goals", name:function(i){ return FORTS[i].name; },
+    have:function(){ return fortHave(); }, cant:function(i){ return missing(FORTS[i].req).length>0 || Math.floor((fortCap()-fortUsed())/FORTS[i].space)<1; }, cantWhy:"locked or no wall space"}
+};
+function gNat(k){ var a=[]; for (var i=0;i<GK[k].n;i++) a.push(i); return a; }
+function gZero(k){ return gNat(k).map(function(){ return 0; }); }
+function gLines(k){ if (!S[k]) S[k]=[]; return S[k]; }
+function gNew(k){ var l=gLines(k), last=l[l.length-1]; return {t:gZero(k), o:last?last.o.slice():gNat(k), b:0}; }
+// a kind this city can't make at all right now (locked, or no room) is skipped, so it never stalls the lines
+function gMet(k, L, have){ for (var i=0;i<GK[k].n;i++) if ((L.t[i]||0)>0 && have[i]<L.t[i] && !GK[k].cant(i)) return false; return true; }
+function gActive(k, have){ var l=gLines(k); for (var j=0;j<l.length;j++) if (!gMet(k,l[j],have)) return j; return -1; }
+function gStr(k, L, all){ return L.o.filter(function(i){ return all || (L.t[i]||0)>0; }).map(function(i){ return GK[k].codes[i]+":"+(L.t[i]||0); }).join(","); }
+function gParse(k, str){ // "code:n,code:n" in the order typed; kinds left out go to the end at 0
+  var G=GK[k], t=gZero(k), o=[], bad=[];
+  String(str||"").split(/[,;\s]+/).forEach(function(tok){ if (!tok) return; var m=tok.match(/^([a-z]+)\s*[:=]\s*(\d[\d_]*)$/i); if (!m){ bad.push(tok); return; }
+    var c=m[1].toLowerCase(), i=G.codes.indexOf(c); if (i<0) i=G.alias[c]!=null?G.alias[c]:-1; if (i<0){ bad.push(tok); return; }
+    t[i]=Math.min(1e9, +m[2].replace(/_/g,"")); if (o.indexOf(i)<0) o.push(i); });
+  if (!o.length) return {error:"Write it like "+G.ex}; if (bad.length) return {error:"Didn’t understand: "+bad.slice(0,3).join(" ")};
+  gNat(k).forEach(function(i){ if (o.indexOf(i)<0) o.push(i); }); return {t:t, o:o}; }
+function gGoalMax(k){ var g=gZero(k); gLines(k).forEach(function(L){ for (var i=0;i<GK[k].n;i++) g[i]=Math.max(g[i], L.t[i]||0); }); return g; }
+function tgMaxBarracks(){ var m=0; barracksList().forEach(function(sl){ m=Math.max(m,S.inside[sl].level); }); return m; }
+function tgLines(){ return gLines("tg"); }
+function tgCant(i){ return GK.tg.cant(i); }
+function tgMet(L, have){ return gMet("tg", L, have); }
+function tgActive(have){ return gActive("tg", have); }
+function tgStr(L, all){ return gStr("tg", L, all); }
+function tgParse(str){ return gParse("tg", str); }
+function tgGoalMax(){ return gGoalMax("tg"); }
+function fortHave(){ var h=S.forts.slice(); if (S.fortQ) h[S.fortQ.f]+=S.fortQ.n; return h; }
+function fortMaxAuto(i){ var f=FORTS[i], rv=S.reserve||{}, m=Math.floor((fortCap()-fortUsed())/f.space); for (var c in f.cost) m=Math.min(m,Math.floor(Math.max(0,S.res[c]-(rv[c]||0))/f.cost[c])); return Math.max(0,m); }
+// wall crews: when idle, build from the first unfinished fortification line, leftmost short kind first
+function autoFortStep(){
+  if (!S.autoFort || S.fortQ || !(S.wall>0) || !gLines("fg").length) return;
+  var have=fortHave(), li=gActive("fg",have); if (li<0) return;
+  var L=S.fg[li];
+  for (var k=0;k<L.o.length;k++){ var i=L.o[k], d=(L.t[i]||0)-have[i]; if (d<=0 || GK.fg.cant(i)) continue;
+    var mx=fortMaxAuto(i); if (mx<1) continue;
+    var room=Math.floor((fortCap()-fortUsed())/FORTS[i].space), cap=L.b>0?L.b:Math.max(1,Math.floor(AUTO_BATCH_MS*S.speed/fortTime(i))), want=Math.min(d,cap,room), n=Math.min(want,mx);
+    if (n<want && n<Math.max(1,Math.floor(want*0.2))) return; // wait for a worthwhile batch
+    var fc={}; for (var fk in FORTS[i].cost) fc[fk]=FORTS[i].cost[fk]*n; pay(fc,1);
+    S.fortQ={f:i,n:n,start:S.gt,end:S.gt+fortTime(i)*n}; return; }
+}
+function fortIdleWhy(){
+  if (S.fortQ) return "";
+  if (!S.autoFort) return "";
+  if (!gLines("fg").length) return "no lines yet.";
+  var have=fortHave(), li=gActive("fg",have); if (li<0) return "every line is met.";
+  var L=S.fg[li];
+  for (var k=0;k<L.o.length;k++){ var i=L.o[k]; if (!((L.t[i]||0)>have[i]) || GK.fg.cant(i)) continue;
+    if (fortMaxAuto(i)<1) continue;
+    return "line "+(li+1)+" is saving up for a bigger batch of "+FORTS[i].name+"."; }
+  for (k=0;k<L.o.length;k++){ i=L.o[k]; if ((L.t[i]||0)>have[i] && !GK.fg.cant(i)) return "line "+(li+1)+" is short of resources for "+FORTS[i].name+(Object.keys(S.reserve||{}).length?" (or held by your Warehouse reserve)":"")+"."; }
+  return "";
+}
 function goalOrder(){ var o=(S.gorder||[]).filter(function(i){ return i>=0 && i<12; }), seen={}, out=[];
   o.concat(AUTO_ORDER).forEach(function(i){ if (!seen[i]){ seen[i]=1; out.push(i); } }); return out; }
 function autoTrainStep(){
-  if (!S.autoTrain) return;
+  if (!S.autoTrain || !tgLines().length) return;
   var idle=barracksList().filter(function(sl){ return !trainingAt(sl); }).sort(function(a,b){ return S.inside[b].level-S.inside[a].level; });
   idle.forEach(function(slot){
-    var lv=S.inside[slot].level, have=armyCount();
-    var need=function(i){ var g=S.goals[i]||0, d=g-have[i]; return (g>0 && d>0 && !missing(U[i].req).length && barracksReq(i)<=lv && maxTrainAuto(i)>=1) ? d : 0; };
-    var pick=-1, ord=goalOrder();
-    for (var k=0;k<ord.length && pick<0;k++){ if (need(ord[k])) pick=ord[k]; }
+    var lv=S.inside[slot].level, have=armyCount(), li=tgActive(have); if (li<0) return; // only the first unfinished line trains
+    var L=S.tg[li];
+    var need=function(i){ var g=L.t[i]||0, d=g-have[i]; return (g>0 && d>0 && !tgCant(i) && barracksReq(i)<=lv && maxTrainAuto(i)>=1) ? d : 0; };
+    var pick=-1;
+    for (var k=0;k<L.o.length && pick<0;k++){ if (need(L.o[k])) pick=L.o[k]; }
     if (pick<0) return;
-    var cap=Math.max(1, Math.floor(AUTO_BATCH_MS*S.speed/trainTime(pick))), want=Math.min(need(pick), cap), n=Math.min(want, maxTrainAuto(pick));
+    var cap=L.b>0 ? L.b : Math.max(1, Math.floor(AUTO_BATCH_MS*S.speed/trainTime(pick))), want=Math.min(need(pick), cap), n=Math.min(want, maxTrainAuto(pick));
     // don't dribble out tiny batches as people trickle in: wait until a fifth of a batch can start, unless that finishes the goal
     if (n<want && n<Math.max(1, Math.floor(want*0.2))) return;
     startTrain(pick, n, slot);
@@ -7022,17 +7165,19 @@ function autoTrainStep(){
 // why an idle Barracks isn't training, in plain words
 function idleWhy(slot){
   if (!S.autoTrain) return "idle";
-  var lv=S.inside[slot].level, have=armyCount(), ord=goalOrder(), shortAny=false;
-  for (var k=0;k<ord.length;k++){ var i=ord[k], g=S.goals[i]||0; if (!(g>0 && have[i]<g)) continue; shortAny=true;
-    if (missing(U[i].req).length || barracksReq(i)>lv) continue;
-    var u=U[i];
-    if (idlePop()<u.pop*Math.max(1,Math.floor(Math.min(g-have[i], Math.floor(AUTO_BATCH_MS*S.speed/trainTime(i)))*0.2))) return "idle, waiting for idle people to train "+u.name+"s";
-    return "idle, short of resources for "+u.name+"s"+(Object.keys(S.reserve||{}).length?" (or held by your Warehouse reserve)":"");
+  if (!tgLines().length) return "idle: no troop goal lines yet";
+  var lv=S.inside[slot].level, have=armyCount(), li=tgActive(have);
+  if (li<0) return "idle: every goal line is met";
+  var L=S.tg[li];
+  for (var k=0;k<L.o.length;k++){ var i=L.o[k], g=L.t[i]||0; if (!(g>0 && have[i]<g) || tgCant(i) || barracksReq(i)>lv) continue;
+    var u=U[i], cap=L.b>0?L.b:Math.floor(AUTO_BATCH_MS*S.speed/trainTime(i));
+    if (idlePop()<u.pop*Math.max(1,Math.floor(Math.min(g-have[i], cap)*0.2))) return "idle, line "+(li+1)+" is waiting for idle people to train "+u.name+"s";
+    return "idle, line "+(li+1)+" is short of resources for "+u.name+"s"+(Object.keys(S.reserve||{}).length?" (or held by your Warehouse reserve)":"");
   }
-  return shortAny ? "idle: nothing short of its goal can train at level "+lv : "idle: every goal is met";
+  return "idle: line "+(li+1)+" only needs units a level "+lv+" Barracks can\u2019t train";
 }
 function processQueues(){
-  autoTrainStep();
+  autoTrainStep(); autoFortStep();
   for (var k=0; k<S.bq.length && builderFree(); ){
     var st=bqState(S.bq[k]);
     if (st==="drop"){ S.bq.splice(k,1); continue; }
@@ -7210,6 +7355,19 @@ document.addEventListener("click",function(e){
     sim.def.preset="custom"; sim.def.t=tc.t.map(function(n,i){ return n+mine[i]; }); sim.def.f=tc.f.slice(); sim.def.wall=tc.wall; sim.def.r={military_tradition:0,iron_working:tc.r.iron_working||0,medicine:tc.r.medicine||0,compass:0,horseback_riding:0,archery:tc.r.archery||0}; sim.def.hatk=Math.round(((tc.am||1)-1)*100); sim.def.eng=0; sim.def.hint=0; simOut=null;
     tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
+  if (act==="allcities"){ openSheet({kind:"allcities"}); return; }
+  if (act==="tg-add"){ var gka=GK[a.dataset.k]?a.dataset.k:"tg"; gLines(gka).push(gNew(gka)); save(); lastView=""; renderView(true); openSheet({kind:"tgline", gk:gka, l:gLines(gka).length-1, city:S.cur}); return; }
+  if (act==="tg-edit"){ openSheet({kind:"tgline", gk:GK[a.dataset.k]?a.dataset.k:"tg", l:+a.dataset.l, city:S.cur}); return; }
+  if (act.indexOf("tg-")===0 && sheetFor && sheetFor.kind==="tgline"){
+    if (sheetFor.city!==S.cur){ closeSheet(); return; }
+    var tgk=sheetFor.gk||"tg", TL=gLines(tgk), tli=sheetFor.l, TLn=TL[tli]; if (!TLn){ closeSheet(); return; }
+    if (act==="tg-move"){ var tu=+a.dataset.u, tp=TLn.o.indexOf(tu), tq=tp+(+a.dataset.d); if (tp<0 || tq<0 || tq>=TLn.o.length) return; TLn.o[tp]=TLn.o[tq]; TLn.o[tq]=tu; }
+    else if (act==="tg-lmove"){ var tj=tli+(+a.dataset.d); if (tj<0 || tj>=TL.length) return; TL[tli]=TL[tj]; TL[tj]=TLn; sheetFor.l=tj; }
+    else if (act==="tg-dup"){ TL.splice(tli+1,0,{t:TLn.t.slice(), o:TLn.o.slice(), b:TLn.b}); sheetFor.l=tli+1; toast("Line copied below"); }
+    else if (act==="tg-del"){ if (armed!=="tgdel"){ armed="tgdel"; lastSheet=""; renderSheet(); return; } armed=null; TL.splice(tli,1); save(); closeSheet(); lastView=""; renderView(true); processQueues(); return; }
+    else if (act==="tg-apply"){ var tsi=document.getElementById("tgstr"), tpr=gParse(tgk, tsi?tsi.value:""), tmsg=document.getElementById("tgmsg");
+      if (tpr.error){ if (tmsg) tmsg.textContent=tpr.error; return; } TLn.t=tpr.t; TLn.o=tpr.o; toast("Line "+(tli+1)+" set"); }
+    armed=null; save(); processQueues(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); lastSheet=""; renderSheet(); lastView=""; renderView(true); return; }
   if (act==="goal-move"){
     var gu=+a.dataset.u, dir=+a.dataset.d, ord=goalOrder(), at=ord.indexOf(gu);
     if (at<0) return;
@@ -7487,7 +7645,7 @@ document.addEventListener("click",function(e){
   if (act==="dbg-rep"){ AL().rep=Math.round(REP_MAX*(+a.dataset.v)/100); toast("Reputation set to "+a.dataset.v+"%"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="dbg-warcd"){ AL().warReady=0; toast("War cooldown cleared"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="dbg-speed"){ var nsp=+a.dataset.v; if ([1,10,100,1000].indexOf(nsp)<0) return; advance(Date.now()); S.speed=nsp; S.testSpeed=nsp>1?nsp:0; toast(nsp>1?"Game speed "+nsp+"\u00d7":"Back to real time"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
-  if (act==="dbg-goals"){ var hv=armyCount(), added=0; for (var gi=0;gi<12;gi++){ var need=Math.max(0,(S.goals[gi]||0)-hv[gi]); if (need){ S.troops[gi]+=need; added+=need; } } toast(added?"Added "+fmt(added)+" troops":"Already at every goal"); save(); lastView=""; refresh(); return; }
+  if (act==="dbg-goals"){ var hv=armyCount(), added=0, gmx=tgGoalMax(); for (var gi=0;gi<12;gi++){ var need=Math.max(0,(gmx[gi]||0)-hv[gi]); if (need){ S.troops[gi]+=need; added+=need; } } toast(added?"Added "+fmt(added)+" troops":"Already at every goal"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-troops"){ var per=+a.dataset.v, tot=0; U.forEach(function(u,ui){ if (!missing(u.req).length && ui!==0 && ui!==6){ S.troops[ui]+=per; tot+=per; } }); toast(tot?"Added "+fmt(tot)+" troops":"No troop types unlocked here yet"); save(); lastView=""; refresh(); return; }
   if (act==="dbg-tech"||act==="dbg-techall"){ var tl=Math.max(0,Math.min(20,Math.floor(+document.getElementById("dbg-techlv").value||0)));
     if (act==="dbg-tech"){ var tkk=document.getElementById("dbg-tech").value; S.techG[tkk]=tl; toast(TECH[tkk].name+" set to "+tl); }
@@ -7708,6 +7866,8 @@ document.addEventListener("input",function(e){
   if (e.target.id==="repq"){ repQuery=e.target.value; repPage=0; fillRepList(); }
   if (e.target.dataset.reserve!=null){ S.reserve[e.target.dataset.reserve]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.goal!=null){ S.goals[+e.target.dataset.goal]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
+  if (e.target.dataset.tg!=null && sheetFor && sheetFor.kind==="tgline" && sheetFor.city===S.cur){ var tgk2=sheetFor.gk||"tg", tgl=gLines(tgk2)[sheetFor.l]; if (tgl){ tgl.t[+e.target.dataset.tg]=Math.max(0,Math.min(1e9,Math.floor(+e.target.value||0))); var tsx=document.getElementById("tgstr"); if (tsx) tsx.value=gStr(tgk2,tgl,true); save(); lastView=""; } }
+  if (e.target.id==="tgbatch" && sheetFor && sheetFor.kind==="tgline" && sheetFor.city===S.cur){ var tgb=gLines(sheetFor.gk||"tg")[sheetFor.l]; if (tgb){ tgb.b=Math.max(0,Math.min(1e9,Math.floor(+e.target.value||0))); save(); lastView=""; } }
   if (e.target.dataset.fort!=null){ var fx=+e.target.dataset.fort; fortAmt[fx]=Math.max(0,Math.floor(+e.target.value||0)); updateFortRow(fx); }
   if (e.target.dataset.cargo!=null){ marchDraft.cargo[e.target.dataset.cargo]=Math.max(0,Math.floor(+e.target.value||0)); updateMarchInfo(); }
   if (e.target.dataset.march!=null){ marchDraft.t[+e.target.dataset.march]=Math.max(0,Math.floor(+e.target.value||0)); marchDraft.preview=""; updateMarchInfo(); }
@@ -7737,6 +7897,7 @@ document.addEventListener("change",function(e){
   if (e.target.dataset && e.target.dataset.wch!=null && sheetFor && sheetFor.kind==="wc"){ var wcp3=wcById(sheetFor.id); if (wcp3){ wcDraftOf(wcp3).waves[+e.target.dataset.wch].hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.dataset && e.target.dataset.wdh!=null && sheetFor && sheetFor.kind==="wc"){ var wdp2=wcById(sheetFor.id); if (wdp2 && wdp2.kind==="defense"){ wcdDraftOf(wdp2).hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
+  if (e.target.id==="autofort"){ S.autoFort=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
   if (e.target.id==="phero"){ S.presets[sheetFor.p].hero=+e.target.value; save(); }
