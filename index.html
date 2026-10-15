@@ -434,6 +434,13 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .avatar.f-bughunter{box-shadow:0 0 0 3px var(--grass),0 0 0 6px var(--brass),0 0 16px rgba(215,176,88,.45)}
 .avatar .fbadge{position:absolute;right:-9px;bottom:-9px;width:30px;height:30px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--brass);color:var(--grass)}
 .avatar .fbadge svg{width:18px;height:18px}
+.hdl{display:flex;align-items:center;gap:14px;min-width:0}
+.hdav{padding:0;border:0;background:none;cursor:pointer;flex:none;line-height:0;-webkit-tap-highlight-color:transparent}
+.avatar.hd{width:54px;height:54px;border-radius:12px;font-size:1.35rem;box-shadow:0 0 0 2px var(--line)}
+.avatar.hd img{border-radius:11px}
+.avatar.hd.f-bughunter{box-shadow:0 0 0 2px var(--grass),0 0 0 4px var(--brass),0 0 10px rgba(215,176,88,.4)}
+.avatar.hd .fbadge{width:22px;height:22px;right:-7px;bottom:-7px}
+.avatar.hd .fbadge svg{width:13px;height:13px}
 .avatar.sm{width:38px;height:38px;border-radius:9px;font-size:1rem;box-shadow:0 0 0 1px var(--line)}
 .avatar.sm img{border-radius:8px}
 .avatar.sm.f-bughunter{box-shadow:0 0 0 2px var(--grass),0 0 0 3px var(--brass)}
@@ -564,7 +571,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <body>
 <div class="wrap">
   <header>
-    <div><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div>
+    <div class="hdl"><button class="hdav" id="hdav" data-act="me" aria-label="Me: your character and account" title="Me"></button><div style="min-width:0"><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div></div>
     <div class="chiprow">
     <button class="speedchip" data-act="quests" data-tab="quests" aria-label="Quests">Quests<b id="qbadge"></b></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
@@ -604,7 +611,6 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button role="tab" data-act="tab" data-tab="alliance">Kingdom</button>
     <button role="tab" data-act="tab" data-tab="war">War Room</button>
     <button role="tab" data-act="tab" data-tab="college">War College</button>
-    <button role="tab" data-act="me" data-tab="me">Me</button>
     </div>
   </nav></div>
 
@@ -629,7 +635,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.50";
+var APP_VERSION = "0.1.51";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -4343,6 +4349,7 @@ function tickText(){
   document.getElementById("pop").textContent = fmt(S.pop)+" / "+fmt(popCap());
   var ll=document.getElementById("lordline"), lh='<b>'+TITLES[S.title].name+(S.lord?' '+esc(S.lord):'')+'</b>'+(S.rank?', '+RANKS[S.rank].name:'')+', '+fmt(S.prestige)+' prestige';
   if (ll.innerHTML!==lh) ll.innerHTML=lh;
+  var hav=document.getElementById("hdav"), hah=avatarHtml(S.me,S.lord||(S.lb&&S.lb.name)||S.name,"hd"); if (hav && hav._h!==hah){ hav.innerHTML=hah; hav._h=hah; }
   document.getElementById("staff").textContent = pct(r.staff);
   var m=mayor(); document.getElementById("mayorlbl").textContent = m ? m.name.split(" ")[0]+(mayorActive()?"":" (unpaid)") : "none";
   S.builds.forEach(function(b,k){ var t=document.getElementById("qb-t-"+k), bar=document.getElementById("qb-bar-"+k);
@@ -6538,7 +6545,7 @@ function profSync(){ // sends your image and frame to the server so alliance mat
 var FRAMES={bughunter:{name:"Bug Hunter", desc:"For the beta testers who hunted bugs", icon:"bug"}}; // cosmetic frames around the character image; more will come
 function avatarHtml(me, name, sm){
   me=me||{}; var fr=me.frame && FRAMES[me.frame] ? me.frame : "";
-  return '<div class="avatar'+(sm?' sm':'')+(fr?' f-'+fr:'')+'">'+(me.img ? '<img alt="" src="'+me.img+'">' : '<span>'+esc((name||"?").trim().charAt(0).toUpperCase()||"?")+'</span>')+(fr?'<span class="fbadge" title="'+esc(FRAMES[fr].name)+'">'+ICON[FRAMES[fr].icon]+'</span>':'')+'</div>';
+  return '<div class="avatar'+(sm?' '+(sm===true?'sm':sm):'')+(fr?' f-'+fr:'')+'">'+(me.img ? '<img alt="" src="'+me.img+'">' : '<span>'+esc((name||"?").trim().charAt(0).toUpperCase()||"?")+'</span>')+(fr?'<span class="fbadge" title="'+esc(FRAMES[fr].name)+'">'+ICON[FRAMES[fr].icon]+'</span>':'')+'</div>';
 }
 function meSheet(){
   S.me=S.me||{img:"",frame:""}; var me=S.me, st=lbStats(), al=alMine(), nm=S.lord||(S.lb&&S.lb.name)||S.name;

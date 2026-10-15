@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.50
+Version 0.1.51
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,8 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.51
+- The Me tab is gone. Your character picture now sits at the top left of the screen (with your frame), and tapping it opens the Me page. No save or Worker change.
 ### 0.1.50
 - New Me tab: your account stats (prestige, cities, troops killed and lost, top hero, best star set, achievements, War College stars, Kingdom rep, War Marks, days played), your alliance and honor, and your character image.
 - Character image: upload a picture, it is cropped to a small 128x128 square and kept in your save. With a cloud save it is sent to the Worker, and alliance mates see it with your frame on the Members list.
