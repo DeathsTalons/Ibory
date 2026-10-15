@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.25
+Version 0.1.29
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,23 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 40.
+Settings has save codes and Save to file / Load from file. Current save version: 42.
 
 ## Release notes
+### 0.1.29
+- Invasions: after you've been invaded you choose how long you stay safe: 24 hours, 72 hours, 7 days or 14 days (a setting in the Invasions section; 72 hours until you pick). Short means more invasions and more War Marks.
+- The invader can leave an invasion at any time. If they haven't attacked anything it is cancelled and nothing counts; if they have, they must wait an hour after their latest attack (scouting doesn't count). A cancelled invasion that was already fighting still charges any March Speed-ups used.
+- Needs the updated Worker (worker.js): it adds a column to the invasion players table by itself.
+### 0.1.28
+- Starforged tuned: per tier it adds +1 point to Delicate and Flawless Gem drops, +0.1 point to ingot and ore chances, and +0.01 point to mithril, starmetal and Dragon Scale chances.
+### 0.1.27
+- Starforged now adds flat percentage points instead of multiplying: each tier adds +1 to the chance of a Delicate Gem (35% base), a Flawless Gem, a Dragon Scale and a crafting ore. Tier 5 is +5 points.
+### 0.1.26
+- Invasions (testers only for now, Alliance tab): opt in with a cloud backup and at least two cities, press Find a target, and the server pairs you with a player of similar army strength. Your camp lands on their map, you scout for up to 6 hours (pick a target by hour 6, or it is cancelled), then the two camps fight for 6 hours. Raiding only: troops fall and resources are plundered above the Warehouse's protection; no city changes hands.
+- The city that goes out is marked (away): its troops leave with the camp and its builds, research and training wait until it is home. The result comes from the server's ledger and is applied once: troops lost, forts lost, plunder, War Marks and used Teleports or March Speed-ups. A restored backup cannot undo a loss.
+- Defenders see the landing, can scout the camp with their own scouts, and fight with a copy of the picked city. Close the gate to hide troops.
+- Needs the updated scores Worker (worker.js) deployed first: its tables create themselves. Admin page has a new Invasions tab.
+- Save version 42 (adds War Marks and the invasion log).
 ### 0.1.25
 - Optimize layers: "Layers may use" checkboxes for every troop type. Untick a troop (say Ballistas, until you have thousands) and the optimizer never puts it in a mix. The choice is remembered and also applies to the Battlefield's Optimize button.
 ### 0.1.24

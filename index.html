@@ -545,7 +545,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.25";
+var APP_VERSION = "0.1.29";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -1497,10 +1497,11 @@ function resolveMarch(m){
   else if (won && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
   if (won && q.k!=="home"){
     var dl=q.L||1;
-    if (Math.random()<0.35*bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
-    if (dl>=5 && Math.random()<(0.04+0.01*(dl-5))*bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
-    if (q.k!=="monster"){ var bm=Math.random()/bMats(), mk=null; // crafting materials: very rare, better ones only from tougher targets
-      if (dl>=10 && bm<0.0005) mk="starmetal"; else if (dl>=7 && bm<0.0015) mk="mithril"; else if (dl>=4 && bm<0.004) mk="ingot"; else if (bm<0.008) mk="ore";
+    if (Math.random()<0.35+bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
+    if (dl>=5 && Math.random()<(0.04+0.01*(dl-5))+bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
+    if (q.k!=="monster"){ var bm=Math.random(), mk=null, gt=achLv("gear"), ga=0.0001*gt, gb=0.001*gt; // crafting materials: very rare, better ones only from tougher targets. Starforged adds +0.01 points a tier to mithril and starmetal, +0.1 to ingots and ore
+      var tS=0.0005+ga, tM=0.0015+(dl>=10?ga:0)+(dl>=7?ga:0), tI=0.004+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0), tO=0.008+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0)+gb;
+      if (dl>=10 && bm<tS) mk="starmetal"; else if (dl>=7 && bm<tM) mk="mithril"; else if (dl>=4 && bm<tI) mk="ingot"; else if (bm<tO) mk="ore";
       if (mk){ S.items[mk]=(S.items[mk]||0)+1; drops.push(ITEMS[mk].name); } }
     // experience books: very rare, better ones only from tougher targets
     if (q.k!=="home"){ var bk=Math.random()/bItems();
@@ -1511,7 +1512,7 @@ function resolveMarch(m){
     if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007*bItems()){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
     if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01*bItems()){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
     if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
-      if (Math.random()<(0.12+0.04*q.L)*bMats()){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
+      if (Math.random()<(0.12+0.04*q.L)+0.0001*achLv("gear")){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
@@ -2456,7 +2457,7 @@ function bItems(){ return 1+ACH_PCT*achLv("medal"); }
 function bResearch(){ return 1+ACH_PCT*achLv("tech"); }
 function bBuild(){ return 1+ACH_PCT*achLv("city"); }
 function bAttack(){ return ACH_PCT*achLv("conq")+(hornOn()?BUFF_ITEM:0); }
-function bMats(){ return 1+ACH_PCT*achLv("gear"); }
+function bMats(){ return ACH_PCT*achLv("gear"); } // flat: +1 percentage point per tier on gem drops (materials and scales have their own smaller steps)
 function bUpkeep(){ return 1-ACH_PCT*achLv("total"); }
 // tracking
 function achKills(before, after){ var a=achStore(); for (var i=0;i<12;i++) a.kills[i]+=Math.max(0,(before[i]||0)-(after[i]||0)); }
@@ -3303,6 +3304,7 @@ function migrate(s){
       var got=capFill(c, L); if (got.length) (s.capFixed=s.capFixed||[]).push({name:c.name, L:L, n:got.length});
     });
     s.v=41; }
+  if (s.v===41){ s.warMarks=s.warMarks||0; s.invLog=s.invLog||[]; s.invApplied=s.invApplied||[]; s.v=42; }
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
@@ -3339,7 +3341,7 @@ function builderFree(){ return S.builds.length < BUILDERS; }
 function withCity(ci, fn){ var keep=S.cur; S.cur=ci; try { return fn(); } finally { S.cur=keep; } }
 function cityIndex(id){ for (var i=0;i<S.cities.length;i++) if (S.cities[i].id===id) return i; return 0; }
 var S;
-try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=41) S = migrate(p); } } catch(e){}
+try { var raw = localStorage.getItem(SAVE_KEY); if (raw){ var p = JSON.parse(raw); if (p && p.v>=1 && p.v<=42) S = migrate(p); } } catch(e){}
 if (!S) S = newState();
 S.speed=devOn()?(S.testSpeed||1):1; // real time unless a testing speed is set
 installProxies(S);
@@ -3454,6 +3456,7 @@ function accrueAll(ms){
 function tagFinished(before, ci, viewing){ if (ci!==viewing && S.cities.length>1) for (var j=before;j<finished.length;j++) finished[j]=S.cities[ci].name+": "+finished[j]; }
 function advance(now){
   var dtG = Math.max(0,(now - S.real))*S.speed; S.real = now;
+  if (dtG>0) for (var aw=0; aw<S.cities.length; aw++) if (S.cities[aw].away) invHold(S.cities[aw], dtG);
   var target = S.gt + dtG, changed=false, viewing=S.cur;
   while (true){
     var next = Infinity, ev=null;
@@ -5082,6 +5085,297 @@ function bfSendSheet(){
   h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="bf-go"'+(why?' disabled':'')+'>'+(scout?'Send '+fmt(tot)+' scouts':'Send '+fmt(tot))+'</button></div><button class="closebtn" data-act="close">Close</button>';
   return h;
 }
+/* ---------- Invasions: your real cities against another player's, run by the server ---------- */
+// Opt in, press "Find a target": the Worker pairs you with someone of similar strength, lands your camp somewhere on THEIR map,
+// and you scout for up to 6 hours before picking one of their cities. The fight runs 6 hours camp against camp. One city leaves your
+// map while it is out (its builds, research and training wait). The server keeps the result in a ledger; this game applies it once.
+var IV={st:null, at:0, skew:0, busy:0, err:"", search:0, lastPoll:0, lastSearch:0, lastPack:0, map:null, mapBusy:0, draft:Z12(), hero:0, scoutN:0, tx:"", ty:"", armed:"", seenId:"", leaveArmed:0, msg:""};
+function invShown(){ return pvShown() && !!LB_URL; }
+function invOk(){ return invShown() && cbOn(); }
+function invPost(path, body){
+  body=body||{}; body.name=S.cloud.name; body.token=S.cloud.token;
+  return fetch(LB_URL+"/inv/"+path,{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), cache:"no-store"})
+    .then(function(r){ return r.json().catch(function(){ return {error:"Server error "+r.status}; }).then(function(j){ j._st=r.status; return j; }); },
+          function(){ return {error:"Can’t reach the server. Check your connection.", _st:0}; });
+}
+function invCityPack(ci){
+  var o=null;
+  withCity(ci, function(){
+    var c=C(), m=mayorActive(), cp=S.troops.slice(); cp[0]=0; cp[6]=0;
+    o={id:c.id, name:c.name, x:c.x, y:c.y, th:S.th, troops:cp, forts:S.forts.slice(), wall:S.wall||0, gate:S.gate==="closed"?"closed":"open",
+      res:{food:Math.floor(S.res.food),lumber:Math.floor(S.res.lumber),stone:Math.floor(S.res.stone),iron:Math.floor(S.res.iron),gold:Math.floor(S.res.gold)},
+      prot:Math.floor(warehouseProtect()), r:simResearch(), mt:S.tech.militarytradition||0, inf:S.tech.informatics||0, rally:Math.max(1,bLevel("rally")), beacon:bLevel("beacon"),
+      logi:S.tech.logistics||0, mach:S.tech.machinery||0, buffA:bAttack(), buffD:bDefend(),
+      mult:(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))*bMarch(), smult:bScout(),
+      heroes:(S.heroes||[]).filter(function(h){ return !h.away; }).map(function(h){ return {id:h.id, name:h.name, atk:hs(h,"atk"), int:hs(h,"int"), life:setLife(h), mnt:mountSpd(h)}; }),
+      def:{amod:1+0.05*(S.tech.militarytradition||0)+hs(m,"atk")/100+bAttack(), dmod:bDefend(), life:setLife(m), int:hs(m,"int"), fb:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}};
+  });
+  return o;
+}
+function invPack(){
+  var cs=[]; S.cities.forEach(function(c,i){ if (!c.away) cs.push(invCityPack(i)); });
+  return {name:lbAutoName(), seed:S.map.seed, gt:Math.round(S.gt), rid:pvId().id, prestige:Math.floor((S.prestige||0)*totalTH()), items:{teleport:S.items.teleport||0, marchsp:S.items.marchsp||0}, cities:cs};
+}
+function invNow(){ return Date.now()+IV.skew; }
+function invT(v){ return Math.min(v.endAt, v.t+(Date.now()-IV.at)); }
+function invHold(c, d){ // a city that is away: its clocks stand still
+  var all=[c.build, c.research, c.fortQ, c.trainer, c.researcher].concat(c.builds||[], c.train||[]);
+  all.forEach(function(o){ if (o && typeof o==="object" && o.end!=null){ o.end+=d; if (o.start!=null) o.start+=d; } });
+}
+function invTake(j){
+  IV.err=j.error||"";
+  if (j.now) IV.skew=j.now-Date.now();
+  if (j.p){ IV.st=j; IV.at=Date.now(); }
+  else if (j.view){ if (!IV.st) IV.st={p:{}, results:[]}; IV.st.inv=j.view; IV.at=Date.now(); }
+  var v=IV.st&&IV.st.inv;
+  if (v){ if (v.role==="invader") invMarkAway(v); if (v.id!==IV.seenId){ IV.seenId=v.id; IV.map=null; IV.draft=Z12(); IV.armed="";
+      if (v.role==="defender"){ toast("An invasion has begun against you"); note("inv", "Invasion: "+(v.camp?esc(v.camp.name):"someone")+" has landed a camp on your map."); } } }
+  if (j.results && j.results.length) invApply(j.results);
+  lastView=""; if (typeof renderView==="function") renderView(true);
+}
+function invMarkAway(v){
+  var ci=-1; S.cities.forEach(function(c,i){ if (c.id===v.city.id) ci=i; }); if (ci<0) return;
+  var c=S.cities[ci]; if (c.away) return;
+  var t=c.troops.slice(); t[0]=0; t[6]=0; t.forEach(function(n,i){ c.troops[i]-=n; });
+  c.away={inv:v.id, t:t, at:S.gt}; save();
+}
+function invPoll(force){
+  if (!invOk() || IV.busy) return;
+  var v=IV.st&&IV.st.inv, now=Date.now(), every=!IV.st?1000:v?(tab==="alliance"?(v.status==="fighting"?3000:6000):30000):IV.search?20000:(tab==='alliance'?15000:90000);
+  if (!force && (now-IV.lastPoll<every || document.hidden)) return;
+  IV.lastPoll=now; IV.busy=1;
+  var go;
+  if (IV.search && !v && now-IV.lastSearch>20000){ IV.lastSearch=now; go=invPost("launch",{pack:invPack(), city:IV.searchCity}); }
+  else if (IV.st && IV.st.p.opted && !v && now-IV.lastPack>600000){ IV.lastPack=now; go=invPost("pack",{pack:invPack()}).then(function(){ return invPost("status"); }); }
+  else go=invPost("status");
+  go.then(function(j){ IV.busy=0;
+    if (j.matched){ IV.search=0; return invPost("status").then(invTake); }
+    if (j.searching){ IV.err=""; IV.searchInfo=j; return invPost("status").then(invTake); }
+    if (j._st===403 && !j.view) IV.search=0;
+    invTake(j); });
+}
+function invApply(list){
+  if (!S.invApplied) S.invApplied=[]; var ids=[], ch=false;
+  list.forEach(function(r){
+    ids.push(r.id); if (S.invApplied.indexOf(r.id)>=0) return;
+    S.invApplied.push(r.id); if (S.invApplied.length>60) S.invApplied.shift();
+    invApplyOne(r); ch=true; });
+  if (ids.length) invPost("applied",{ids:ids});
+  if (ch){ lastView=""; flushFinished(); save(); }
+}
+function invApplyOne(r){
+  var ci=-1; S.cities.forEach(function(c,i){ if (c.id===r.cid) ci=i; });
+  var c=ci>=0?S.cities[ci]:null, lostN=0;
+  if (c){
+    if (r.role==="invader"){
+      var t=(c.away&&c.away.t)||Z12();
+      for (var i=0;i<12;i++){ var back=Math.max(0,(t[i]||0)-(r.lost[i]||0)); c.troops[i]+=back; lostN+=Math.min(t[i]||0, r.lost[i]||0); }
+      RES.forEach(function(k){ c.res[k]=Math.max(0,(c.res[k]||0)+(r.res[k]||0)); });
+      c.away=null;
+    } else {
+      for (var j=0;j<12;j++){ var l=Math.min(c.troops[j], r.lost[j]||0); c.troops[j]-=l; lostN+=l; }
+      for (var f=0;f<5;f++) c.forts[f]=Math.max(0,c.forts[f]-(r.fortsLost[f]||0));
+      RES.forEach(function(k){ c.res[k]=Math.max(0,(c.res[k]||0)+(r.res[k]||0)); });
+    }
+  }
+  if (r.role==="defender" && r.dScoutLoss) Object.keys(r.dScoutLoss).forEach(function(id){ S.cities.forEach(function(oc){ if (oc.id===+id) oc.troops[2]=Math.max(0,oc.troops[2]-r.dScoutLoss[id]); }); });
+  S.cities.forEach(function(oc){ if (oc.away && oc.away.inv===r.inv && r.role==="invader" && !c) { var tt=oc.away.t; tt.forEach(function(n,i){ oc.troops[i]+=n; }); oc.away=null; } });
+  if (r.used){ S.items.teleport=Math.max(0,(S.items.teleport||0)-(r.used.tele||0)); S.items.marchsp=Math.max(0,(S.items.marchsp||0)-(r.used.march||0)); }
+  if (!r.cancelled){ S.warMarks=(S.warMarks||0)+(r.marks||0); }
+  if (!S.invLog) S.invLog=[];
+  S.invLog.unshift({at:S.gt, role:r.role, opp:r.opp, city:r.city, cancelled:!!r.cancelled, why:r.why||"", win:r.winner===(r.role==="invader"?0:1), lost:lostN, kills:r.kills||0, marks:r.marks||0, score:r.score||0, taken:r.taken||0, res:r.res||{}});
+  if (S.invLog.length>12) S.invLog.length=12;
+  var txt=r.cancelled ? "The invasion with "+esc(r.opp)+" was cancelled"+(r.why?": "+esc(r.why):".")+" Nothing was lost."
+    : (r.role==="invader"?"Your invasion of "+esc(r.opp)+" is over: ":esc(r.opp)+"’s invasion of "+esc(r.city||"your city")+" is over: ")+(r.winner===(r.role==="invader"?0:1)?"you came out ahead":"you came out behind")+". You lost "+fmt(lostN)+" troops, and earned "+fmt(r.marks||0)+" War Marks.";
+  note("inv", txt); toast(r.cancelled?"Invasion cancelled":"Invasion finished: see Alliance");
+}
+// safety net: a city marked away with no invasion and no result for a long time (server reset, ledger lost) comes home
+function invRescue(){
+  if (!IV.st || IV.st.inv || (IV.st.results&&IV.st.results.length)) return;
+  S.cities.forEach(function(c){ if (c.away && S.gt-c.away.at>20*60000){ c.away.t.forEach(function(n,i){ c.troops[i]+=n; }); c.away=null; save(); } });
+}
+function invMin(ms){ var h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000); return h?h+"h "+String(m).padStart(2,"0")+"m":m+"m "+String(Math.floor(ms%60000/1000)).padStart(2,"0")+"s"; }
+function invHour(ms){ return (ms/3600000).toFixed(1)+"h"; }
+function invTroopsText(t, rough){ var s=U.map(function(u,i){ return t[i]?(rough?"about ":"")+fmt(t[i])+" "+uname(i,t[i]):""; }).filter(Boolean).join(", "); return s||"none"; }
+function invIntelText(it){
+  var s='<b>'+esc(it.name)+'</b> (Town Hall '+it.th+', walls '+it.wall+', gate '+it.gate+')<br>'+invTroopsText(it.troops, it.rough)+'.<br>Forts: '+(FORTS.map(function(f,i){ return it.forts[i]?(it.rough?'about ':'')+fmt(it.forts[i])+' '+f.name:''; }).filter(Boolean).join(", ")||"none")+'.';
+  if (it.res) s+='<br>Stores: '+RES.map(function(k){ return fmt(it.res[k])+' '+k; }).join(", ")+'.';
+  if (it.hero) s+='<br>Hero: '+esc(it.hero.name)+' (Atk '+it.hero.atk+', Int '+it.hero.int+').';
+  return s;
+}
+function invCitySel(){
+  var ok=S.cities.map(function(c,i){ return {c:c,i:i}; }).filter(function(x){ return !x.c.away && sumT(x.c.troops)>0; });
+  if (!ok.length) return {html:'<p class="hint">No city has troops to send.</p>', n:0};
+  var cur=IV.pickCity!=null&&ok.some(function(x){ return x.c.id===IV.pickCity; })?IV.pickCity:ok[0].c.id;
+  return {n:ok.length, html:'<div class="farmadd"><label for="ivcity" class="dur">Send from</label><select id="ivcity">'+ok.map(function(x){ return '<option value="'+x.c.id+'"'+(x.c.id===cur?' selected':'')+'>'+esc(x.c.name)+' ('+fmt(sumT(x.c.troops))+')</option>'; }).join("")+'</select></div>'};
+}
+function invWhy(){
+  if (!LB_URL) return "Needs the online server";
+  if (bfAny()) return "Finish your Battlefield first";
+  return "";
+}
+function invSection(){
+  var h='<div class="section"><div class="shead"><h3>Invasions</h3><span class="dur">testing</span></div>';
+  if (!cbOn()) return h+'<p class="hint">Invasions are run by the server and use your cloud backup account to know who you are. Sign in under Settings › Cloud backup first.</p></div>';
+  var st=IV.st;
+  if (!st){ invPoll(true); return h+'<p class="hint">'+(IV.err?esc(IV.err):'Connecting…')+'</p></div>'; }
+  var p=st.p, v=st.inv;
+  if (v && (v.status==='done'||v.status==='cancelled')){ invPoll(true); return h+'<p class="hint">The invasion is over. Settling the result\u2026</p></div>'; }
+  if (v) return h.replace('testing', v.role==="invader"?'you invade':'you are invaded')+invActive(v)+'</div>';
+  h+='<p class="hint">Opt in and your cities can be invaded by other players, and you can invade theirs. Hit <b>Find a target</b>: the server pairs you with someone of similar army strength, lands your camp on <i>their</i> map, and you scout for up to 6 hours to find and pick one of their cities. Then the camps fight for 6 hours; you can leave at any time (an hour after your last attack, if you\u2019ve attacked). One city goes out and leaves your map while it’s away (its builds, research and training wait). It’s raiding only: no city changes hands, but you plunder resources above the Warehouse’s protection, and both sides lose the troops that fall.</p>';
+  if (!p.opted){
+    var many=S.cities.length>=2;
+    h+='<div class="act"><span class="why">'+(many?'':'You need at least two cities: one goes out, one stays home.')+'</span><button class="btn" data-act="iv-optin"'+(many&&!IV.busy?'':' disabled')+'>Opt in</button></div>';
+  } else {
+    h+='<p class="hint">Score <b>'+fmt(p.score)+'</b>'+(p.rank?' (#'+p.rank+')':'')+' · War Marks <b>'+fmt(S.warMarks||0)+'</b> · you have invaded '+p.launched+' time'+(p.launched===1?'':'s')+' and been invaded '+p.invaded+'.</p>';
+    if (p.owe>0) h+='<p class="hint">You’re <b>'+p.owe+'</b> invasion'+(p.owe>1?'s':'')+' ahead: you can’t leave until others have invaded you as often as you’ve invaded them.</p>';
+    if (p.safeUntil) h+='<p class="hint">You were just invaded, so you’re safe from new invasions for '+fmtT(Math.max(0,p.safeUntil-invNow()))+'.</p>';
+    var sh=p.safeHours||72;
+    h+='<div class="farmadd"><label for="ivsafe" class="dur">After I\u2019m invaded, keep me safe for</label><select id="ivsafe">'+[[24,"24 hours"],[72,"72 hours"],[168,"7 days"],[336,"14 days"]].map(function(o){ return '<option value="'+o[0]+'"'+(sh===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join("")+'</select></div>'+
+      '<p class="hint">Your choice: a short cooldown means more invasions (and more War Marks), a long one means fewer. It starts counting when an invasion against you ends.</p>';
+    var cs=invCitySel(), why=invWhy()||(cs.n?"":"No city has troops to send")||"";
+    if (IV.search){
+      var si=IV.searchInfo;
+      h+='<p class="hint"><b>Searching…</b> '+(si&&si.band?'looking within ±'+Math.round(si.band*100)+'% of your strength; the range widens the longer it takes. ':'')+'It checks again every 20 seconds while this game is open; you can close it and come back.</p>'+
+        '<div class="btnrow"><button class="btn ghost" data-act="iv-stop">Stop searching</button></div>';
+    } else {
+      h+=cs.html+'<div class="act"><span class="why">'+esc(why||IV.err)+'</span><button class="btn" data-act="iv-find"'+(why||IV.busy||!cs.n?' disabled':'')+'>Find a target</button></div>';
+    }
+    h+='<div class="btnrow"><button class="btn ghost small" data-act="iv-board">Score board</button><button class="btn ghost small'+(IV.leaveArmed?' danger':'')+'" data-act="iv-optout"'+(p.owe>0?' disabled':'')+'>'+(IV.leaveArmed?'Tap again: leave':'Leave invasions')+'</button></div>';
+  }
+  if (IV.err && !p.opted) h+='<p class="why">'+esc(IV.err)+'</p>';
+  if ((S.invLog||[]).length) h+='<h4 style="margin:8px 0 2px">Past invasions</h4><div class="gearlist">'+S.invLog.slice(0,6).map(function(l){
+    return '<div class="gearrow'+(l.win&&!l.cancelled?' t3':'')+'"><span class="gn">'+(l.role==="invader"?'You invaded ':'Invaded by ')+esc(l.opp)+'</span><span class="gb">'+(l.cancelled?'Cancelled':l.win?'Ahead':'Behind')+'</span>'+
+      '<span class="dur" style="grid-column:1/-1">'+(l.cancelled?esc(l.why||"Nothing was lost."):'Lost '+fmt(l.lost)+' troops, killed '+fmt(l.kills)+' points’ worth, plundered '+fmt(l.taken)+'. +'+fmt(l.marks)+' War Marks, score +'+fmt(l.score)+'.')+'</span></div>'; }).join("")+'</div>';
+  return h+'</div>';
+}
+function invBoardSheet(){
+  var B=IV.board, h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Invasion score board</h2><div class="sub">Score = enemy troops killed (by prestige value) plus plunder ÷ 20,000.</div></div></div>';
+  if (!B) h+='<p class="hint">Loading…</p>';
+  else if (!B.rows.length) h+='<p class="hint">No invasions finished yet.</p>';
+  else h+='<div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>#</th><th>Lord</th><th>Score</th><th>Out / in</th></tr></thead><tbody>'+B.rows.map(function(r){ return '<tr><td>'+r.rank+'</td><td>'+esc(r.name)+'</td><td>'+fmt(r.score)+'</td><td>'+r.launched+' / '+r.invaded+'</td></tr>'; }).join("")+'</tbody></table></div>';
+  return h+'<button class="closebtn" data-act="close">Close</button>';
+}
+function invLog(v){
+  if (!v.log || !v.log.length) return "";
+  return '<h4 style="margin:8px 0 2px">What’s happened</h4><ul class="log">'+v.log.slice(0,12).map(function(l){ return '<li><span class="dur">'+invHour(l.t)+'</span> '+esc(l.s)+'</li>'; }).join("")+'</ul>';
+}
+function invActive(v){
+  var h="", t=invT(v);
+  if (IV.err) h+='<p class="why">'+esc(IV.err)+'</p>';
+  if (v.status==="fighting") return h+invFight(v, t);
+  return h+(v.role==="invader"?invScoutInv(v,t):invScoutDef(v,t))+invLog(v);
+}
+function invScoutInv(v, t){
+  var h='<p class="hint"><b>Scouting.</b> Your camp from <b>'+esc(v.city.name)+'</b> stands at ('+v.pos.x+', '+v.pos.y+') on <b>'+esc(v.players[1].name)+'</b>’s map. '+(v.pick?'Target picked: <b>'+esc(v.pick.name)+'</b>. The fighting starts in '+invMin(v.fightAt-t)+'.':'Pick a target within '+invMin(Math.max(0,v.pickAt-t))+', or the invasion is cancelled. The fighting starts in '+invMin(v.fightAt-t)+'.')+'</p>'+
+    '<p class="dur">At the camp: '+fmt(v.scouts)+' scouts · '+(v.items.teleport||0)+' Teleport'+((v.items.teleport||0)===1?'':'s')+' left · '+(v.sc||[]).length+' of '+v.city.rally+' scouting parties out.</p>';
+  if (v.sc&&v.sc.length) h+='<div class="gearlist">'+v.sc.map(function(s){ return '<div class="gearrow"><span class="gn">'+fmt(s.n)+' scouts '+(s.back?'coming home':'to ('+s.x+', '+s.y+')')+'</span><span class="gb">'+invMin(Math.max(0,s.arr-t))+'</span></div>'; }).join("")+'</div>';
+  if (v.intel&&v.intel.length) h+='<h4 style="margin:8px 0 2px">Cities found</h4><div class="gearlist">'+v.intel.map(function(it){ var picked=v.pick&&v.pick.x===it.x&&v.pick.y===it.y;
+    return '<div class="gearrow'+(picked?' t3':'')+'"><span class="gn">'+esc(it.name)+' ('+it.x+', '+it.y+')</span><span class="gb">'+(picked?'Target':'')+'</span><span class="dur" style="grid-column:1/-1">'+invIntelText(it)+'</span>'+
+      (v.pick?'':'<span class="btnrow" style="grid-column:1/-1;justify-content:flex-end"><button class="btn small" data-act="iv-pick" data-x="'+it.x+'" data-y="'+it.y+'">Pick as target</button></span>')+'</div>'; }).join("")+'</div>';
+  var sn=IV.scoutN||Math.min(v.scouts,1000);
+  h+='<div class="farmadd" style="margin-top:6px"><label for="ivscn" class="dur">Scouts per trip</label><input id="ivscn" type="number" inputmode="numeric" min="1" value="'+sn+'"></div>'+
+    '<p class="hint">Scouts fight the defenders’ scouts when they arrive (Informatics adds 10% a level on each side). A city is only found if yours outnumber theirs, and the lords you’ll see on the map include real AI lords, so most tiles are not players.</p>'+
+    '<div class="btnrow"><button class="btn ghost small" data-act="iv-look"'+(IV.mapBusy?' disabled':'')+'>'+(IV.map?'Refresh the map around the camp':'Look around the camp')+'</button></div>';
+  if (IV.map){
+    var near=IV.map.slice(0,30);
+    h+='<div class="gearlist">'+near.map(function(l){ return '<div class="gearrow"><span class="gn">'+esc(l.name)+' (L'+l.L+')</span><span class="gb">'+l.d+' tiles</span><span class="dur" style="grid-column:1/-1">('+l.x+', '+l.y+')</span>'+
+      '<span class="btnrow" style="grid-column:1/-1;justify-content:flex-end"><button class="btn ghost small" data-act="iv-scout" data-x="'+l.x+'" data-y="'+l.y+'">Scout</button></span></div>'; }).join("")+'</div>'+(IV.map.length>30?'<p class="dur">Showing the 30 nearest of '+IV.map.length+'.</p>':'');
+  }
+  h+='<div class="farmadd" style="margin-top:6px"><label class="dur">Tile</label><input id="ivtx" type="number" inputmode="numeric" placeholder="x" value="'+esc(IV.tx)+'" style="width:5em"><input id="ivty" type="number" inputmode="numeric" placeholder="y" value="'+esc(IV.ty)+'" style="width:5em"></div>'+
+    '<div class="btnrow"><button class="btn ghost small" data-act="iv-scout">Scout that tile</button><button class="btn ghost small" data-act="iv-tele"'+((v.items.teleport||0)>0?'':' disabled')+'>Teleport the camp there (1 item)</button></div>'+
+    '<p class="hint">A Teleport moves the whole camp, so earlier scouting reports on it are worthless. Do it early if your camp landed far from where you want to be.</p>'+
+    '<div class="btnrow"><button class="btn ghost danger" data-act="iv-abort">'+(IV.armed==="abort"?'Tap again: call it off':'Call off the invasion')+'</button></div>';
+  return h;
+}
+function invScoutDef(v, t){
+  var h='<p class="hint"><b>'+esc(v.camp.name)+'</b> has landed a camp at ('+v.camp.x+', '+v.camp.y+'). '+(v.pick?'They picked <b>'+esc(v.pick.name)+'</b> as the target. ':'They haven’t picked a target yet. ')+'The fighting starts in '+invMin(v.fightAt-t)+'. Your scouts can find out what the camp has.</p>';
+  if (v.intel) h+='<p class="hint">'+invIntelText(v.intel)+'</p>';
+  var sn=IV.scoutN||100;
+  h+='<div class="farmadd"><label for="ivscn" class="dur">Scouts per trip</label><input id="ivscn" type="number" inputmode="numeric" min="1" value="'+sn+'"></div><div class="gearlist">'+v.cities.map(function(c){
+    return '<div class="gearrow'+(v.pick&&v.pick.cid===c.id?' t3':'')+'"><span class="gn">'+esc(c.name)+'</span><span class="gb">'+Math.round(c.dist)+' tiles from the camp</span><span class="dur" style="grid-column:1/-1">'+fmt(c.scouts)+' scouts available</span>'+
+      '<span class="btnrow" style="grid-column:1/-1;justify-content:flex-end"><button class="btn ghost small" data-act="iv-dscout" data-cid="'+c.id+'"'+(c.scouts>0?'':' disabled')+'>Scout the camp</button></span></div>'; }).join("")+'</div>';
+  if (v.ds&&v.ds.length) h+='<div class="gearlist">'+v.ds.map(function(s){ return '<div class="gearrow"><span class="gn">'+fmt(s.n)+' scouts '+(s.back?'coming home':'to the camp')+'</span><span class="gb">'+invMin(Math.max(0,s.arr-t))+'</span></div>'; }).join("")+'</div>';
+  return h+'<p class="hint">When the fighting starts, the city they picked is copied into a camp that fights for you. Your real city keeps running, and the result is applied when it ends.</p>';
+}
+function invFight(v, t){
+  var me=v.me, foe=v.foe, inv=v.role==="invader", left=v.endAt-t, mine=v.marches||[], busy={};
+  mine.forEach(function(m){ if (m.h) busy[m.h]=1; });
+  var wait=inv&&v.leaveAt!=null?v.leaveAt-t:0;
+  var h='<p class="hint"><b>The fight.</b> '+invMin(Math.max(0,left))+' left. Your camp: <b>'+esc(me.name)+'</b> ('+me.x+', '+me.y+'). The enemy camp: <b>'+esc(foe.name)+'</b> ('+foe.x+', '+foe.y+'), '+Math.round(foe.dist)+' tiles away, about '+fmt(foe.size)+' troops. Kills so far '+fmt((v.stat||{}).kills||0)+', plunder '+fmt((v.stat||{}).taken||0)+'.</p>';
+  if (foe.intel) h+='<p class="hint">'+invIntelText(foe.intel)+'</p>';
+  h+='<p class="dur">In reserve: '+invTroopsText(me.reserve)+'. Walls '+me.wall+', gate '+me.gate+'.'+(inv?'':' Plunder is limited to what is above your Warehouse protection.')+'</p>';
+  if (v.enemy&&v.enemy.length) h+='<p class="why">Incoming: '+v.enemy.map(function(e){ return (e.t?invTroopsText(e.t.map(function(n){ return n; }),false)+' ':'a march ')+(e.arr?'in '+invMin(Math.max(0,e.arr-t)):''); }).join('; ')+'.</p>';
+  h+='<h4 style="margin:8px 0 2px">Marches ('+mine.length+' of '+me.rally+')</h4>';
+  if (!mine.length) h+='<p class="hint">None out.</p>';
+  else h+='<div class="gearlist">'+mine.map(function(m){ return '<div class="gearrow"><span class="gn">'+(m.back?'Coming home ':m.kind==="scout"?'Scouting ':'Attacking ')+'with '+fmt(sumT(m.t))+'</span><span class="gb">'+invMin(Math.max(0,m.arr-t))+'</span>'+
+    '<span class="btnrow" style="grid-column:1/-1;justify-content:flex-end">'+(m.back?'':'<button class="btn ghost small" data-act="iv-recall" data-id="'+m.id+'">Recall</button>')+'<button class="btn ghost small" data-act="iv-hasten" data-id="'+m.id+'"'+((v.items.marchsp||0)>0?'':' disabled')+'>Speed up ('+(v.items.marchsp||0)+')</button></span></div>'; }).join("")+'</div>';
+  var heroes=(me.heroes||[]).filter(function(x){ return !busy[x.id]; });
+  if (IV.hero && !heroes.some(function(x){ return x.id===IV.hero; })) IV.hero=0;
+  h+='<h4 style="margin:8px 0 2px">Send a march (up to '+fmt(me.cap)+')</h4>';
+  h+='<div class="farmadd"><label for="ivhero" class="dur">Hero</label><select id="ivhero"><option value="0">No hero</option>'+heroes.map(function(x){ return '<option value="'+x.id+'"'+(x.id===IV.hero?' selected':'')+'>'+esc(x.name)+' (Atk '+x.atk+', Int '+x.int+')</option>'; }).join("")+'</select></div>';
+  h+='<table class="gt wct"><tbody>'+U.map(function(u,i){ if (!me.reserve[i] || i===0 || i===6) return ''; return '<tr><td>'+u.name+' <span class="dur">('+fmt(me.reserve[i])+')</span></td><td><input type="number" inputmode="numeric" min="0" max="'+me.reserve[i]+'" data-ivn="'+i+'" value="'+(IV.draft[i]||'')+'" placeholder="0"></td><td style="width:1%"><button class="link" data-act="iv-all" data-unit="'+i+'">All</button></td></tr>'; }).join("")+'</tbody></table>';
+  var tot=sumT(IV.draft), why=tot<=0?"Pick some troops":tot>me.cap?"Over the march limit of "+fmt(me.cap):mine.length>=me.rally?"All your marches are out":"";
+  h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="iv-fill">Fill to the limit</button><button class="btn ghost small" data-act="iv-clear">Clear</button><button class="btn ghost small" data-act="iv-sendscout"'+(me.reserve[2]>0&&mine.length<me.rally?'':' disabled')+'>Send '+fmt(Math.min(me.reserve[2]||0, IV.draft[2]||me.reserve[2]||0))+' scouts</button></div>'+
+    '<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="iv-send"'+(why?' disabled':'')+'>Send '+fmt(tot)+'</button></div>';
+  h+='<div class="btnrow"><button class="btn ghost small" data-act="iv-gate">'+(me.gate==="closed"?'Open the gate':'Close the gate (hides troops from attackers)')+'</button>'+(inv?'<button class="btn ghost small danger" data-act="iv-retreat"'+(wait>0?' disabled':'')+'>'+(wait>0?'Can leave in '+invMin(wait):IV.armed==="retreat"?'Tap again: leave':v.leaveAt==null?'Leave (nothing counted)':'Leave the invasion')+'</button>':'')+'</div>';
+  if (v.reports&&v.reports.length) h+='<h4 style="margin:8px 0 2px">Battle reports</h4><div class="gearlist">'+v.reports.slice(0,8).map(function(r){ var won=r.attacker?r.won:!r.won, lostA=sumT(killedOf(r.sent,r.left)), lostD=sumT(killedOf(r.had,r.eleft));
+    return '<div class="gearrow'+(won?' t3':'')+'"><span class="gn">'+(r.attacker?'You attacked ':'Attacked at ')+esc(r.name)+'</span><span class="gb">'+(won?'Won':'Lost')+'</span><span class="dur" style="grid-column:1/-1">'+invHour(r.t)+': attackers lost '+fmt(lostA)+', defenders lost '+fmt(lostD)+(r.loot?', plunder '+fmt(RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0)):'')+'.</span></div>'; }).join("")+'</div>';
+  return h+invLog(v);
+}
+function invOrder(o, ok){
+  if (IV.busy) return; IV.busy=1;
+  invPost("order",{order:o}).then(function(j){ IV.busy=0; if (j.error){ IV.err=j.error; toast(j.error); if (j.view) invTake({view:j.view}); else { lastView=""; renderView(true); } return; } if (ok) toast(ok); invTake({view:j.view||(IV.st&&IV.st.inv)}); });
+}
+function invAct(act, a){
+  var v=IV.st&&IV.st.inv, me=v&&v.me;
+  function fresh(){ IV.armed=""; IV.leaveArmed=0; }
+  if (act==="iv-optin"){ if (IV.busy||S.cities.length<2) return true; IV.busy=1; invPost("optin",{pack:invPack()}).then(function(j){ IV.busy=0; if (!j.error) toast("You’re in: other players can now invade you"); invTake(j); }); return true; }
+  if (act==="iv-optout"){ if (!IV.leaveArmed){ IV.leaveArmed=1; lastView=""; renderView(true); return true; } fresh(); IV.busy=1; invPost("optout").then(function(j){ IV.busy=0; if (!j.error){ IV.search=0; toast("You’ve left invasions"); } invTake(j); }); return true; }
+  if (act==="iv-board"){ IV.board=null; openSheet({kind:"ivboard"}); fetch(LB_URL+"/inv/board",{cache:"no-store"}).then(function(r){ return r.json(); }).then(function(d){ IV.board=d; lastSheet=""; renderSheet(); }, function(){}); return true; }
+  if (act==="iv-find"){
+    if (IV.busy || invWhy()) return true; var sel=document.getElementById("ivcity"), cid=sel?+sel.value:0; if (!cid) return true;
+    IV.pickCity=cid; IV.searchCity=cid; IV.busy=1; IV.err="";
+    invPost("launch",{pack:invPack(), city:cid}).then(function(j){ IV.busy=0;
+      if (j.matched){ IV.search=0; toast("Target found: your camp has landed"); return invPost("status").then(invTake); }
+      if (j.searching){ IV.search=1; IV.lastSearch=Date.now(); IV.searchInfo=j; toast("Searching for a target"); lastView=""; renderView(true); return; }
+      IV.err=j.error||"Couldn’t start"; if (j.view) return invTake({view:j.view}); lastView=""; renderView(true); });
+    return true; }
+  if (act==="iv-stop"){ IV.search=0; invPost("cancelsearch"); lastView=""; renderView(true); return true; }
+  if (!v) return false;
+  if (act==="iv-look"){
+    if (IV.mapBusy) return true; IV.mapBusy=1; var p=v.pos; lastView=""; renderView(true);
+    invPost("map",{x0:p.x-45,y0:p.y-45,x1:p.x+45,y1:p.y+45}).then(function(j){ IV.mapBusy=0;
+      if (j.error){ IV.err=j.error; } else { IV.err=""; IV.map=(j.lords||[]).map(function(l){ l.d=Math.round(Math.sqrt((l.x-p.x)*(l.x-p.x)+(l.y-p.y)*(l.y-p.y))); return l; }).sort(function(x,y){ return x.d-y.d; }); }
+      lastView=""; renderView(true); });
+    return true; }
+  if (act==="iv-scout"){
+    var x=a.dataset.x!=null?+a.dataset.x:+IV.tx, y=a.dataset.y!=null?+a.dataset.y:+IV.ty;
+    if (a.dataset.x==null && (IV.tx===""||IV.ty==="")){ toast("Type the tile’s x and y first"); return true; }
+    invOrder({type:"scout", x:x, y:y, n:IV.scoutN||Math.min(v.scouts,1000)}, "Scouts sent to ("+x+", "+y+")"); return true; }
+  if (act==="iv-tele"){ if (IV.tx===""||IV.ty===""){ toast("Type the tile’s x and y first"); return true; }
+    if (IV.armed!=="tele"){ fresh(); IV.armed="tele"; toast("Tap again to spend a Teleport"); return true; } fresh(); invOrder({type:"teleport", x:+IV.tx, y:+IV.ty}, "The camp has moved"); IV.map=null; return true; }
+  if (act==="iv-pick"){ invOrder({type:"pick", x:+a.dataset.x, y:+a.dataset.y}, "Target picked"); return true; }
+  if (act==="iv-abort"){ if (IV.armed!=="abort"){ fresh(); IV.armed="abort"; lastView=""; renderView(true); return true; } fresh(); invOrder({type:"abort"}, "Invasion called off"); return true; }
+  if (act==="iv-dscout"){ invOrder({type:"dscout", cid:+a.dataset.cid, n:IV.scoutN||100}, "Scouts sent to the camp"); return true; }
+  if (act==="iv-all"){ var u=+a.dataset.unit; IV.draft[u]=Math.min(me.reserve[u], Math.max(0, me.cap-(sumT(IV.draft)-IV.draft[u]))); lastView=""; renderView(true); return true; }
+  if (act==="iv-fill"){ var left=me.cap; IV.draft=Z12(); for (var i=0;i<12;i++){ if (i===0||i===6||i===2) continue; var n=Math.min(me.reserve[i], left); IV.draft[i]=n; left-=n; } lastView=""; renderView(true); return true; }
+  if (act==="iv-clear"){ IV.draft=Z12(); lastView=""; renderView(true); return true; }
+  if (act==="iv-send"){ invOrder({type:"send", t:IV.draft.slice(), hero:IV.hero||0}, "March sent"); IV.draft=Z12(); return true; }
+  if (act==="iv-sendscout"){ var sc=Z12(); sc[2]=Math.min(me.reserve[2], IV.draft[2]||me.reserve[2]); invOrder({type:"send", scout:true, t:sc}, "Scouts sent"); return true; }
+  if (act==="iv-recall"){ invOrder({type:"recall", id:+a.dataset.id}, "March turned back"); return true; }
+  if (act==="iv-hasten"){ invOrder({type:"hasten", id:+a.dataset.id}, "Half the remaining time"); return true; }
+  if (act==="iv-gate"){ invOrder({type:"gate", closed:me.gate!=="closed"}, me.gate==="closed"?"Gate opened":"Gate closed"); return true; }
+  if (act==="iv-retreat"){ if (IV.armed!=="retreat"){ fresh(); IV.armed="retreat"; lastView=""; renderView(true); return true; } fresh(); invOrder({type:"retreat"}, "Retreating"); return true; }
+  return false;
+}
+function invInput(e){
+  var el=e.target;
+  if (el.dataset && el.dataset.ivn!=null){ IV.draft[+el.dataset.ivn]=Math.max(0,Math.floor(+el.value||0)); return true; }
+  if (el.id==="ivscn"){ IV.scoutN=Math.max(0,Math.floor(+el.value||0)); return true; }
+  if (el.id==="ivtx"){ IV.tx=el.value; return true; } if (el.id==="ivty"){ IV.ty=el.value; return true; }
+  return false;
+}
 /* ---------- PvP Battlefield: one against one with a real player ---------- */
 // The match runs on the Worker. This screen asks it for the latest about once a second and draws what it sends
 // with the Battlefield's own map, panels and send sheet: BF() hands them a stand-in built from that view, which
@@ -5405,6 +5699,7 @@ function viewAlliance(){
     return '<div class="gearrow'+(xf?' t3':'')+'"><span class="gn">'+(xf?'\u2605 ':'')+esc(x.name)+'</span><span class="gb">'+esc(bullyStyleName(x))+', IQ '+x.iq+'</span><span class="dur">'+x.wins+' wins, '+x.losses+' losses</span></div>'; }).join("")+'</div><p class="hint">They remember you, and they\'ll be back for future alliance events. A starred name is one of the old crowd: rarer, and a great deal harder.</p></details>';
   h+=collapsify("ev_war", warSection(), repPct()>=50);
   h+=collapsify("ev_bf", bfSection(), repPct()>=75);
+  if (invShown()) h+=collapsify("ev_inv", invSection(), true);
   if (pvShown()) h+=collapsify("ev_pvp", pvSection(), true); // PvP: testers only for now (dev tools or the tester code)
   h+=collapsify("ev_chal", chalSection(), A.rep>=REP_MAX);
   if (A.log.length) h+='<details class="section det" data-det="alog"'+(DET.alog?' open':'')+'><summary><b>Alliance log</b></summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
@@ -6331,7 +6626,7 @@ function updateTabArrows(){
 }
 function renderCityBar(){
   var el=document.getElementById("citybar"), h="";
-  if (S.cities.length>1) h=S.cities.map(function(c,i){ return '<button data-act="city-go" data-city="'+i+'" aria-pressed="'+(i===S.cur)+'">'+esc(c.name)+'</button>'; }).join("");
+  if (S.cities.length>1) h=S.cities.map(function(c,i){ return '<button data-act="city-go" data-city="'+i+'" aria-pressed="'+(i===S.cur)+'">'+esc(c.name)+(c.away?' (away)':'')+'</button>'; }).join("");
   if (el.innerHTML!==h) el.innerHTML=h;
 }
 function queueVis(){ var qd=document.querySelector(".queue"); if (qd) qd.style.display=(tab==="city"||tab==="bldg")?"":"none"; }
@@ -6442,6 +6737,8 @@ function renderSheet(){
     h=cbConflictSheet();
   } else if (sheetFor.kind==="cbask"){
     h=cbAskSheet();
+  } else if (sheetFor.kind==="ivboard"){
+    h=invBoardSheet();
   } else if (sheetFor.kind==="pvboard"){
     h=pvBoardSheet();
   } else if (sheetFor.kind==="bfpre"){
@@ -6702,6 +6999,7 @@ document.addEventListener("click",function(e){
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
   if (act.indexOf("dbg-")===0 && !devOn()) return;
+  if (act.indexOf("iv-")===0 && invAct(act,a)) return;
   if (act==="dev-unlock"){ var dpw=document.getElementById("devpw"), dv=dpw?dpw.value.trim():""; if (devHash(dv)===2422952517){ devSet(true); toast("Developer tools unlocked"); armed=null; lastSheet=""; renderSheet(); }
     else if (devHash(dv.toLowerCase())===4145256078){ /* secret package: once per save */ var dm2=document.getElementById("devmsg"); S.secrets=S.secrets||{};
       if (S.secrets.p1){ if (dm2) dm2.textContent="That package was already claimed on this save."; return; }
@@ -7293,6 +7591,7 @@ document.addEventListener("click",function(e){
   }
 });
 document.addEventListener("input",function(e){
+  if (invInput(e)) return;
   if (e.target.id==="pvcode"){ PV.code=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6); return; }
   if (e.target.id==="allyname2"){ renameAlly(e.target.value); return; }
   if (e.target.dataset && e.target.dataset.bfp!=null && sheetFor && sheetFor.kind==="bfpre"){ var bpr=bfPresets()[bfPreSel]; bpr.t[+e.target.dataset.bfp]=Math.max(0,Math.floor(+e.target.value||0)); var bpt=document.getElementById("bfptot"); if (bpt) bpt.textContent="Total "+fmt(sumT(bpr.t)); save(); }
@@ -7331,6 +7630,9 @@ document.addEventListener("input",function(e){
   }
 });
 document.addEventListener("change",function(e){
+  if (e.target.id==="ivcity"){ IV.pickCity=+e.target.value; return; }
+  if (e.target.id==="ivhero"){ IV.hero=+e.target.value; return; }
+  if (e.target.id==="ivsafe"){ var sv=+e.target.value; e.target.blur(); invPost("setsafe",{hours:sv}).then(function(j){ if (!j.error) toast("Cooldown after being invaded: "+(sv>=168?sv/24+" days":sv+" hours")); invTake(j); }); return; }
   if (e.target.dataset && e.target.dataset.loskip!=null){ var lsk=+e.target.dataset.loskip; if (e.target.checked) delete LOW.skip[lsk]; else LOW.skip[lsk]=1; S.loSkip=LOW.skip; save(); var lsum=e.target.closest("details"); if (lsum){ var off=LO_TYPES.filter(function(i){ return LOW.skip[i]; }); lsum.querySelector("summary").textContent="Layers may use: "+(off.length?"all but "+off.map(function(i){ return U[i].name; }).join(", "):"every troop"); } return; }
   if (e.target.id==="pvcity2" && pvOn() && PV.v && PV.v.status==="lobby"){ var pnc=+e.target.value; e.target.blur(); S.pvp.ci=pnc; save();
     pvPost("snap", pvWith({snap:pvSnap(pnc)})).then(function(j){ PV.err=j.error||""; if (!j.error) toast("Bringing "+S.cities[pnc].name); lastView=""; refresh(); }); return; }
@@ -7382,6 +7684,7 @@ setTimeout(capFixToast, 1500);
 setInterval(function(){
   if (bfOn()) bfTick();
   if (pvOn()) pvTick();
+  if (invOk()){ invPoll(false); if (IV.st) invRescue(); }
   woundExpire();
   var changed=advance(Date.now());
   if (finished.length || changed){ flushFinished(); renderQueue(); renderView(tab==="map"); renderSheet(); tickText(); save(); }
