@@ -31,6 +31,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 - High scores: the Top hero board shows each player's hero name next to the level.
 - The server's cheat checks count plunder from attacks as income, so NPC farming no longer trips the resource flag. Flags only ever show on the admin page; nothing is blocked.
 - Valleys and flats you attack in the 5 hours before the daily reset (or with an army still marching to them across it) skip that night's level-up, so a farming preset doesn't meet a tougher garrison while you're away. They level up normally from the next reset. Keep hitting one every day in that window and it stays put.
+- Fixed heroes stuck as "marching" with no march out: the game now checks every tick that only heroes on a real march count as away, which also frees ones already stuck in existing saves.
 - Needs the updated Worker (worker.js): it adds a hero name column to the players table by itself.
 ### 0.1.30
 - The daily reset (valleys and flats gaining a level, daily alliance tasks) now happens at midnight Eastern time (New York, with daylight saving) for everyone, instead of at each phone's own midnight. Nothing jumps when you update: every valley and flat keeps its current level and the day number is kept; only the time of the next rollover moves.

@@ -3130,6 +3130,10 @@ function respecHero(h){
   h.pol=b.pol; h.atk=b.atk; h.int=b.int; h.pts=(h.pts||0)+n;
   return n;
 }
+// a hero is "marching" only while one of your marches carries them: anything else (an old save, a march that ended oddly) is put right every tick
+function reconcileHeroes(){ var busy={}; S.marches.forEach(function(m){ if (m.hero) busy[m.hero]=1; });
+  S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ var b=!!busy[h.id]; if (!!h.away!==b) h.away=b; }); });
+  (S.waiting||[]).forEach(function(h){ if (h.away) h.away=false; }); }
 function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].heroes; for (var i=0;i<hs.length;i++) if (hs[i].id===id) return hs[i]; } return null; }
 function mayor(){ return S.mayor ? heroById(S.mayor) : null; }
 function salary(){ var s=0; S.heroes.forEach(function(h){ s += h.level*20; }); return s; }
@@ -3551,7 +3555,7 @@ function advance(now){
     changed=true;
   }
   accrueAll(target - S.gt); S.gt = target;
-  syncDayClock(now); checkQueen();
+  syncDayClock(now); checkQueen(); reconcileHeroes();
   processAll();
   for (var cj=0; cj<S.cities.length; cj++){ S.cur=cj; if (innLv() && S.gt >= S.innRefreshAt){ rollInn(); if (cj===viewing) changed=true; } }
   S.cur=viewing;
