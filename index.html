@@ -635,7 +635,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.55";
+var APP_VERSION = "0.1.56";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -4071,6 +4071,14 @@ if (S.alliance && S.alliance.bully && !S.alliance.bully.garrison){ var bb0=bully
 if (!S.qdone) S.qdone={}; if (!S.qstat) S.qstat={};
 if (S._rebuildLog){ S.reports.slice().reverse().forEach(function(r){ var c=compactRep(r); c.c=""; S.log.unshift(c); bumpStats(c); }); delete S._rebuildLog; }
 var saveUi="";
+var storOk=true, storPersisted=null; // does this browser actually keep the save, and has it promised not to clear it?
+try { localStorage.setItem("ibory-probe","1"); storOk = localStorage.getItem("ibory-probe")==="1"; localStorage.removeItem("ibory-probe"); } catch(e){ storOk=false; }
+try { if (navigator.storage && navigator.storage.persist){ navigator.storage.persist().then(function(g){ storPersisted=!!g; var el=document.getElementById("storstat"); if (el) el.textContent=storageStatus(); }).catch(function(){}); } } catch(e){}
+function storageStatus(){
+  if (!storOk) return "Saving: this browser is NOT keeping your save (private browsing?). Set up a cloud save so you don\u2019t lose your progress.";
+  if (storPersisted===true) return "Saving: this browser keeps your save and won\u2019t clear it on its own \u2713";
+  return "Saving: kept on this phone. Some browsers clear it when you close them or run low on space, so set up a cloud save as a backup.";
+}
 function offlineStatus(){
   if (!("serviceWorker" in navigator) || !/^https:/.test(location.protocol) || /claude\.ai|claudeusercontent/.test(location.hostname)) return "Offline play: available in the installed app.";
   return navigator.serviceWorker.controller ? "Offline play: ready \u2713" : "Offline play: not ready yet. Close and reopen the app once with internet.";
@@ -7575,6 +7583,8 @@ function renderSheetCore(){
       '<div class="sub" id="offlinestat">'+offlineStatus()+'</div>'+
       '<div class="sub">This realm has stood <b id="saveage"></b>.</div>'+
       '<div class="sub">Ibory version <b>'+APP_VERSION+'</b></div>'+
+      '<div class="btnrow"><button class="btn ghost small" data-act="force-update">Update now</button></div><div class="hint">Gets the newest version of the game and reloads. Your save is not touched.</div>'+
+      '<div class="sub" id="storstat">'+storageStatus()+'</div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="allyname" class="sub">Kingdom name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
       '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+
@@ -8433,6 +8443,12 @@ document.addEventListener("click",function(e){
   if (act==="chal-forecast"){ var fc=chalById(+a.dataset.c); if (!fc || fc.phase!=="prep") return; var fr=chalSiegeFight(fc, chalArmy(fc)), left=sumT(fr.attacker);
     chalForecast[fc.id]={win:fr.result===1, txt: fr.result===1 ? "If they marched now, they would take it with about "+fmt(roughN(left))+" troops to spare." : "If they marched now, the garrison would hold. Keep them there."};
     lastView=""; renderView(true); return; }
+  if (act==="force-update"){ save(); toast("Updating\u2026");
+    var done=function(){ location.reload(); };
+    var go=function(){ var p1 = ("serviceWorker" in navigator) ? navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister(); })); }) : Promise.resolve();
+      p1.then(function(){ return window.caches ? caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); }) : 0; })
+        .then(function(){ return fetch(location.pathname, {cache:"reload"}); }).then(done, done); };
+    try { go(); } catch(e){ done(); } return; }
   if (act==="dbg-rep"){ AL().rep=Math.round(REP_MAX*(+a.dataset.v)/100); toast("Reputation set to "+a.dataset.v+"%"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="dbg-warcd"){ AL().warReady=0; toast("War cooldown cleared"); save(); lastSheet=""; renderSheet(); refresh(); return; }
   if (act==="dbg-speed"){ var nsp=+a.dataset.v; if ([1,10,100,1000].indexOf(nsp)<0) return; advance(Date.now()); S.speed=nsp; S.testSpeed=nsp>1?nsp:0; toast(nsp>1?"Game speed "+nsp+"\u00d7":"Back to real time"); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); return; }
