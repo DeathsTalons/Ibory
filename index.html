@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.92";
+var APP_VERSION = "0.1.93";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4224,7 +4224,8 @@ var WHEEL = [
   {k:"ensign",label:"Ensign",w:0.15,icon:"rally"},
   {k:"s150",label:"2.5h",w:0.8,icon:"hourglass"}
 ];
-var AMULET_RATE = 0.25, AMULET_PER_HOUR = 20*AMULET_RATE, PITY = 100, LEGEND_IDX = 11;
+var AMULET_RATE = 0.25, AMULET_JOB = 1, AMULET_PER_HOUR = 20*AMULET_RATE, // fortification batches and the hourly trickle stay at a quarter of the original; buildings and research are back to the full amount (1 each, 10 for a Town Hall level)
+   PITY = 100, LEGEND_IDX = 11;
 var WSUM = WHEEL.reduce(function(a,s){ return a+s.w; },0);
 var ITEMS = {
   s15:{name:"15-minute speed-up",min:15,icon:"hourglass"},
@@ -4575,14 +4576,14 @@ function completeBuild(bi){
   if (b.where==="th") S.th=b.to; else if (b.where==="wall") S.wall=b.to; else { var s=getSlot(b.where,b.idx); if (s) s.level=b.to; }
   note("build",DEF[b.type].name+" level "+b.to);
   addPrestige(prestBuild(b.type,b.to));
-  S.amulets += (b.type==="townhall" ? 10 : 1)*AMULET_RATE;
+  S.amulets += (b.type==="townhall" ? 10 : 1)*AMULET_JOB;
   S.builds.splice(bi,1);
   if (b.type==="inn") rollInn();
 }
 function completeResearch(){
   var r=S.research; setTech(r.tech, r.to); addPrestige(prestTech(r.to));
   note("research",TECH[r.tech].name+" level "+r.to);
-  S.amulets += AMULET_RATE;
+  S.amulets += AMULET_JOB;
   S.research=null;
 }
 function completeFort(){
@@ -8042,7 +8043,7 @@ function viewWheel(){
     '<button class="btn" data-act="legend-open" id="legendbtn" hidden></button>'+
     '<div class="spinrow"><button class="btn" data-act="spin" id="spin1">Spin</button><button class="btn ghost" data-act="spin10" id="spin10">Spin 10×</button></div>'+
     '<span class="dur" id="spincount"></span></div>'+
-    '<p class="hint" style="text-align:center">Earn a quarter amulet for every finished building, research and fortification batch, 2.5 per Town Hall level, and a slow '+AMULET_PER_HOUR+' per hour.</p>'+
+    '<p class="hint" style="text-align:center">Earn an amulet for every finished building and research, 10 per Town Hall level, a quarter for every fortification batch, and a slow '+AMULET_PER_HOUR+' per hour.</p>'+
     '<details><summary>Odds</summary><div class="odds">'+odds+'</div><p class="hint" style="margin-top:6px">Resource prizes scale with your Town Hall level.</p></details></div>'+
     '<div class="section"><div class="act"><span class="dur">Everything you win lands in your Items.</span><button class="btn ghost small" data-act="tab" data-tab="items">Open items</button></div></div>'+
     '<div class="section"><h3>Recent prizes</h3><ul class="log" id="wlog"></ul></div>';
