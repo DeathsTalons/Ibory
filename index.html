@@ -648,7 +648,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.74";
+var APP_VERSION = "0.1.75";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -4060,10 +4060,13 @@ function heroBaseOf(h){
   return b;
 }
 function heroSpent(h){ var b=heroBaseOf(h); return Math.max(0,(h.pol-b.pol)+(h.atk-b.atk)+(h.int-b.int)); }
+// one reset per hero per day (the day turns over at midnight UTC, like the other daily limits)
+function respecDayNo(){ return Math.floor(Date.now()/864e5); }
+function respecWait(h){ return h.rsDay===respecDayNo() ? (respecDayNo()+1)*864e5-Date.now() : 0; }
 function respecHero(h){
-  var b=heroBaseOf(h), n=heroSpent(h); if (!n) return 0;
+  var b=heroBaseOf(h), n=heroSpent(h); if (!n || respecWait(h)>0) return 0;
   h.base={pol:b.pol, atk:b.atk, int:b.int};
-  h.pol=b.pol; h.atk=b.atk; h.int=b.int; h.pts=(h.pts||0)+n;
+  h.pol=b.pol; h.atk=b.atk; h.int=b.int; h.pts=(h.pts||0)+n; h.rsDay=respecDayNo();
   return n;
 }
 // a hero is "marching" only while one of your marches carries them: anything else (an old save, a march that ended oddly) is put right every tick
@@ -8134,7 +8137,8 @@ function renderSheetCore(){
     h+='<div class="btnrow">'+(hoff?'<button class="btn ghost" data-act="unoffice">Step down as '+hoff[1].toLowerCase()+'</button>':OFFICES.map(function(o){ return '<button class="btn'+(o[0]==="mayor"?'':' ghost')+'" data-act="office" data-role="'+o[0]+'">'+o[1]+'</button>'; }).join(""))+
       ["primer","tome","codex","annals"].map(function(bk){ return '<button class="btn ghost small" data-act="tome" data-book="'+bk+'"'+((S.items[bk]||0)&&hr.level<HERO_MAX?'':' disabled')+'>'+ITEMS[bk].name+' +'+fmt(ITEMS[bk].xp)+' ('+(S.items[bk]||0)+')</button>'; }).join("")+'</div>';
     var spentPts=heroSpent(hr);
-    h+='<div class="act"><button class="btn ghost small" data-act="respec"'+(spentPts?'':' disabled')+'>'+(armed==="respec"?"Tap again: take back "+spentPts+" point"+(spentPts>1?"s":""):"Reset points"+(spentPts?" ("+spentPts+")":""))+'</button></div>'+
+    var rsWait=respecWait(hr);
+    h+='<div class="act"><button class="btn ghost small" data-act="respec"'+(spentPts&&!rsWait?'':' disabled')+'>'+(rsWait?"Reset points: again in "+fmtT(rsWait):armed==="respec"?"Tap again: take back "+spentPts+" point"+(spentPts>1?"s":""):"Reset points"+(spentPts?" ("+spentPts+")":""))+'</button></div>'+
       '<div class="act"><button class="btn ghost danger small" data-act="dismiss">'+(armed==="dismiss"?"Tap again to dismiss":"Dismiss hero")+'</button><button class="closebtn" data-act="close">Close</button></div>';
   } else {
     var w=sheetFor.w, i=sheetFor.i, s=getSlot(w,i);
@@ -9050,6 +9054,7 @@ document.addEventListener("click",function(e){
   }
   if (act==="respec"){
     var rh=heroById(sheetFor.id); if (!rh || !heroSpent(rh)) return;
+    if (respecWait(rh)>0){ toast(rh.name+" can reset points once a day. Back in "+fmtT(respecWait(rh))); return; }
     if (armed!=="respec"){ armed="respec"; lastSheet=""; renderSheet(); return; }
     armed=null; var back=respecHero(rh); toast(rh.name+": "+back+" point"+(back>1?"s":"")+" back to spend"); save(); lastSheet=""; refresh(); return;
   }
