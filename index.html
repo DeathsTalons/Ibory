@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.98";
+var APP_VERSION = "0.1.99";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1179,7 +1179,7 @@ function bestFor(stat){
   if (S.res.gold<=0 && salary()>0) return null;
   var best=null; S.heroes.forEach(function(h){ if (!h.away && (!best || hs(h,stat)>hs(best,stat))) best=h; }); return best;
 }
-function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.995, m?hs(m,"atk"):0)/bTrain(); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
+function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.9975, m?hs(m,"atk"):0)/bTrain(); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
 function barracksList(){ var out=[]; S.inside.forEach(function(x,i){ if (x && x.type==="barracks" && x.level>0) out.push(i); }); return out; }
 function trainingAt(slot){ for (var i=0;i<S.train.length;i++) if (S.train[i].slot===slot) return S.train[i]; return null; }
 function barracksReq(i){ var r=U[i].req.filter(function(x){ return x[0]==="barracks"; })[0]; return r?r[1]:1; }
@@ -4186,7 +4186,7 @@ function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].h
 function mayor(){ return S.mayor ? heroById(S.mayor) : null; }
 function salary(){ var s=0; S.heroes.forEach(function(h){ s += h.level*20; }); return s; }
 function mayorActive(){ var m=mayor(); return m && !(S.res.gold<=0 && salary()>0) ? m : null; }
-function mayorBonus(){ var m=mayorActive(), t=officerActive("trainer"), r=officerActive("researcher"); return {prod: m? hs(m,"pol")*0.003 : 0, build: m? hs(m,"pol")/200 : 0, research: r? hs(r,"int")/200 : 0, train: t? 1-Math.pow(0.995,hs(t,"atk")) : 0}; }
+function mayorBonus(){ var m=mayorActive(), t=officerActive("trainer"), r=officerActive("researcher"); return {prod: m? hs(m,"pol")*0.003 : 0, build: m? hs(m,"pol")/200 : 0, research: r? hs(r,"int")/200 : 0, train: t? 1-Math.pow(0.9975,hs(t,"atk")) : 0}; }
 function hallCap(){ var f=findUnique("feasting"); return f&&f.level>0 ? 4+f.level : 0; }
 function innLv(){ var n=findUnique("inn"); return n?n.level:0; }
 function initials(n){ var p=n.split(" "); return (p[0][0]+(p[p.length-1][0]||"")).toUpperCase(); }
@@ -8412,7 +8412,7 @@ function renderSheetCore(){
     });
     h+='</div>'+(hr.pts?'<p class="sub" style="color:var(--brass)">'+hr.pts+' point'+(hr.pts>1?'s':'')+' to assign.</p>':'');
     var hdg=dragonOf(hr); if (hdg) h+='<p class="sub"><b style="color:'+hdg.def.col+'">'+hdg.def.name+' Dragon</b>, level '+hdg.lv+': '+dragonBuffTxt(hdg.t,hdg.lv)+'. Change it in the Overlook.</p>';
-    h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster. As trainer: training '+pct(1-Math.pow(0.995,hs(hr,"atk")))+' faster. As researcher: research '+pct(1-1/(1+hs(hr,"int")/200))+' faster.</p>';
+    h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster. As trainer: training '+pct(1-Math.pow(0.9975,hs(hr,"atk")))+' faster. As researcher: research '+pct(1-1/(1+hs(hr,"int")/200))+' faster.</p>';
     var hset=starSet(hr), nxt=nextSetTier(Math.max(0,hset));
     h+='<div class="h3" id="herogear">Gear</div><p class="sub">'+(hset<0?'Wear all 16 pieces to earn a star set bonus.':'Star set '+hset+': troops led by this hero have \u00d7'+setLife(hr)+' life.'+(nxt?' Next bonus (\u00d7'+nxt[1]+') at a '+nxt[0]+'-star set.':' Maximum bonus.'))+'</p><div class="gearslots">'+GEAR_POS.map(function(ps){ var g=wornAt(hr,ps.k), sl=g?slotOf(g):null;
       return '<button class="gslot'+(g?' t'+g.tier:'')+'" data-act="gear-pick" data-slot="'+ps.k+'"><span class="gs-n">'+ps.name+'</span>'+(g?'<span class="gs-s">'+starStr(g)+'</span><span class="gs-b">+'+gearVal(g)+' '+STATN[gearStat(g)].slice(0,3)+(ps.k==="mount"?', '+pct(MOUNT_SPD[g.tier])+' march':'')+'</span>':'<span class="gs-e">Empty</span>')+'</button>'; }).join("")+'</div>';
