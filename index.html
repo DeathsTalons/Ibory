@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.84";
+var APP_VERSION = "0.1.85";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -7062,7 +7062,7 @@ function profSync(){ // sends your image and frame to the server so alliance mat
 var COSM={ // cosmetics: look only, never changes how the game plays. Prices and what you own come from the server (/cos/state)
   frame:{bughunter:{name:"Bug Hunter", desc:"For the beta testers who hunted bugs", icon:"bug"}, fire:{name:"Fire", desc:"Flames round your picture", icon:"cfire"}, water:{name:"Water", desc:"A cool blue ring", icon:"cwater"}, rock:{name:"Rock", desc:"Solid grey stone", icon:"crock"}, leaf:{name:"Leaf", desc:"Fresh leaf green", icon:"cleaf"}, halloween:{name:"Halloween", desc:"Pumpkin orange and witch purple", icon:"cpump"}, automaton:{name:"Automaton", desc:"Steel with a cyan glow", icon:"cbot"}},
   city:{bughunter:{name:"Bug Hunter", desc:"A mossy castle with a ladybug on the gate"}, halloween:{name:"Halloween", desc:"Witch-hat towers and a pumpkin at the gate"}, automaton:{name:"Automaton", desc:"A clockwork castle with a glowing visor"}},
-  march:{bughunter:{name:"Bug Hunter", desc:"A little bug marches for you"}, automaton:{name:"Automaton", desc:"A tin robot marches for you"}}};
+  march:{bughunter:{name:"Bug Hunter", desc:"A little bug marches for you"}, halloween:{name:"Halloween", desc:"A bat flutters ahead of your army"}, automaton:{name:"Automaton", desc:"A tin robot marches for you"}}};
 var FRAMES=COSM.frame;
 var CPAL={bughunter:{bg:"#2f5a2a",w:"#a8d98a",d:"#6fa653",a:"#e8c34a"}, halloween:{bg:"#2b1a3a",w:"#8a68a8",d:"#5d4278",a:"#ff8a1f"}, automaton:{bg:"#26343d",w:"#b4c4d0",d:"#7d909e",a:"#3fe0e8"}};
 function cosCastleSvg(st, px){ // one castle drawing used on the alliance map, in the Me sheet and (as a picture) on the world map; original art
@@ -7080,9 +7080,12 @@ function cosCastleSvg(st, px){ // one castle drawing used on the alliance map, i
 var CASTLE_IMG={};
 function cosCastleImg(st){ var im=CASTLE_IMG[st]; if (im) return im; if (!CPAL[st]) return null; im=new Image(); im.onload=function(){ miniDirty=true; requestDraw(); }; im.src="data:image/svg+xml;utf8,"+encodeURIComponent(cosCastleSvg(st,96)); CASTLE_IMG[st]=im; return im; }
 function cosMarchDraw(g, st, x, y, r, dir, ang){ // your own marches on the world map; the bug turns to face where it is heading, the robot just flips
-  g.save(); g.translate(x,y); if (st==="bughunter") g.rotate(ang||0); else g.scale(dir,1); g.lineWidth=1.3; g.strokeStyle="rgba(0,0,0,.75)";
+  g.save(); g.translate(x,y); if (st==="bughunter" || st==="halloween") g.rotate(ang||0); else g.scale(dir,1); g.lineWidth=1.3; g.strokeStyle="rgba(0,0,0,.75)";
   if (st==="bughunter"){ g.strokeStyle="#16240f"; g.lineWidth=1.2; g.beginPath(); [-0.6,0,0.6].forEach(function(f){ g.moveTo(-r*0.3,f*r*0.7); g.lineTo(-r*0.9,f*r*1.3); g.moveTo(r*0.3,f*r*0.7); g.lineTo(r*0.9,f*r*1.3); }); g.moveTo(r*1.05,-r*0.2); g.lineTo(r*1.5,-r*0.7); g.moveTo(r*1.05,r*0.2); g.lineTo(r*1.5,r*0.7); g.stroke();
     g.fillStyle="#5fa63a"; g.beginPath(); g.ellipse(-r*0.1,0,r*0.95,r*0.7,0,0,Math.PI*2); g.fill(); g.stroke(); g.fillStyle="#2f5a2a"; g.beginPath(); g.arc(r*0.95,0,r*0.42,0,Math.PI*2); g.fill(); g.stroke(); g.fillStyle="#e8c34a"; g.beginPath(); g.arc(-r*0.3,0,r*0.22,0,Math.PI*2); g.fill(); }
+  else if (st==="halloween"){ g.fillStyle="#241633"; g.strokeStyle="#140c1c"; // a bat: body facing forward (+x, head of the march), wings flap out to the sides
+    g.beginPath(); g.moveTo(r*0.9,0); g.lineTo(r*0.1,-r*0.4); g.lineTo(-r*0.5,-r*1.1); g.lineTo(-r*0.1,-r*0.35); g.lineTo(-r*0.15,0); g.lineTo(-r*0.1,r*0.35); g.lineTo(-r*0.5,r*1.1); g.lineTo(r*0.1,r*0.4); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle="#ff8a1f"; g.beginPath(); g.arc(r*0.55,-r*0.12,r*0.1,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(r*0.55,r*0.12,r*0.1,0,Math.PI*2); g.fill(); }
   else { g.fillStyle="#9db4c4"; g.beginPath(); g.moveTo(-r*0.8,-r*0.6); g.lineTo(r*0.8,-r*0.6); g.lineTo(r*0.8,r*0.7); g.lineTo(-r*0.8,r*0.7); g.closePath(); g.fill(); g.stroke(); g.fillStyle="#26343d"; g.fillRect(-r*0.55,-r*0.3,r*1.1,r*0.4); g.fillStyle="#3fe0e8"; g.fillRect(-r*0.4,-r*0.2,r*0.8,r*0.2);
     g.strokeStyle="#9db4c4"; g.beginPath(); g.moveTo(0,-r*0.6); g.lineTo(0,-r*1.2); g.stroke(); g.fillStyle="#3fe0e8"; g.beginPath(); g.arc(0,-r*1.25,r*0.2,0,Math.PI*2); g.fill(); }
   g.restore();
