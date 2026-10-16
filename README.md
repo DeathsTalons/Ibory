@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.72
+Version 0.1.73
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,11 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.73 (0.2.0 playtest)
+- Training troops no longer gives amulets (buildings, research, fortifications and the hourly trickle still do).
+- Drop tables: a dice button in the top row, before Settings. Every item (medals, boxes, speed-ups, books, gear materials, gems, battle items, heroes, resources) with each place it drops and how often, searchable and filterable by category. Base chances, built from the game's own drop code (ibory-loot-table generator, 0.1.70).
+- No save version or Worker change.
+
 ### 0.1.72 (0.2.0 playtest)
 - Reinforcement losses are checked: the host's game sends each fight it fought with reinforcements (the attack, its own side and the dice); the server reruns it with its own copy of the reinforcements and applies its own result. A report that doesn't match is flagged for review on the admin page.
 - Reinforcements that reach a city during an invasion's fight join the defense from the moment they arrive (and are held there until it ends). Sending into an invaded city is allowed again.
