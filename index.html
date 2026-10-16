@@ -648,7 +648,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.73";
+var APP_VERSION = "0.1.74";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -3054,8 +3054,9 @@ function rfApply(d){ // acknowledgements, and troops that made it home
       done.push(x.id); if (S.alRfDone.indexOf(x.id)>=0) return; S.alRfDone.push(x.id);
       var ci=-1; S.cities.forEach(function(c,i){ if (c.id===x.fromCity) ci=i; }); if (ci<0) ci=0;
       withCity(ci,function(){ x.t.forEach(function(n,i){ S.troops[i]+=n; }); });
+      var rw=woundFrom(S.cities[ci].id, x.t0||x.t, x.t, false, defWoundRate(S.cities[ci].id)); // most of those who fell defending an ally are only wounded
       if (hh) hh.away=false; delete S.alRfHero[x.id];
-      note("alliance", "Your reinforcements came home from "+x.to+"’s "+x.cityName+": "+fmt(sumT(x.t))+" of "+fmt(sumT(x.t0))+" troops"+(x.lost?" ("+fmt(x.lost)+" lost defending)":"")+".");
+      note("alliance", "Your reinforcements came home from "+x.to+"’s "+x.cityName+": "+fmt(sumT(x.t))+" of "+fmt(sumT(x.t0))+" troops"+(x.lost?" ("+fmt(x.lost)+" fell defending"+(rw?", "+fmt(rw)+" of them only wounded and waiting in the Medic Camp":"")+")":"")+".");
     } else if (hh) hh.away=true;
   });
   if (S.alRfDone.length>200) S.alRfDone=S.alRfDone.slice(-200);
@@ -5912,8 +5913,10 @@ function woundBucket(c){ c.wounded=c.wounded||[]; var hr=Math.floor(S.gt/3600000
 function woundAdd(cityId, i, lost){ if (!(lost>0)) return 0; var ci=cityIndex(cityId); if (ci<0) return 0;
   var n=Math.round(lost*woundRate(cityId)); if (!n) return 0; woundBucket(S.cities[ci]).t[i]+=n; pendingWound+=n; return n; }
 // before/after are the troops a city sent (or held) and what's left; attach=true when the report already exists
-function woundFrom(cityId, before, after, attach){
-  var ci=cityIndex(cityId); if (ci<0) return 0; var rate=woundRate(cityId), b=null, tot=0;
+// defending against a real player (invasions, and reinforcements defending an ally): 50% of the fallen are only wounded, +3% per Medicine level to 80% at 10, then +1% per level
+function defWoundRate(cityId){ var ci=cityIndex(cityId), med=0; if (ci>=0) withCity(ci, function(){ med=S.tech.medicine||0; }); return med<=10 ? 0.5+0.03*med : Math.min(0.95, 0.8+0.01*(med-10)); }
+function woundFrom(cityId, before, after, attach, rateOver){
+  var ci=cityIndex(cityId); if (ci<0) return 0; var rate=rateOver!=null?rateOver:woundRate(cityId), b=null, tot=0;
   for (var i=0;i<12;i++){ var n=Math.round(Math.max(0,(before[i]||0)-(after[i]||0))*rate); if (!n) continue; if (!b) b=woundBucket(S.cities[ci]); b.t[i]+=n; tot+=n; }
   if (!tot) return 0;
   var r=S.reports[0]; if (attach && r && r.at===S.gt && !r.scout) r.wounded=(r.wounded||0)+tot; else pendingWound+=tot;
@@ -6230,15 +6233,17 @@ function invApply(list){
 }
 function invApplyOne(r){
   var ci=-1; S.cities.forEach(function(c,i){ if (c.id===r.cid) ci=i; });
-  var c=ci>=0?S.cities[ci]:null, lostN=0;
+  var c=ci>=0?S.cities[ci]:null, lostN=0, wounded=0;
   if (c){
     if (r.role==="invader"){
       var t=(c.away&&c.away.t)||Z12();
-      for (var i=0;i<12;i++){ var back=Math.max(0,(t[i]||0)-(r.lost[i]||0)); c.troops[i]+=back; lostN+=Math.min(t[i]||0, r.lost[i]||0); }
+      var backT=Z12(); for (var i=0;i<12;i++){ var back=Math.max(0,(t[i]||0)-(r.lost[i]||0)); backT[i]=back; c.troops[i]+=back; lostN+=Math.min(t[i]||0, r.lost[i]||0); }
+      if (!r.cancelled) wounded=woundFrom(c.id, t, backT, false); // the invader: the usual share of the fallen is only wounded
       RES.forEach(function(k){ c.res[k]=Math.max(0,(c.res[k]||0)+(r.res[k]||0)); });
       c.away=null;
     } else {
-      for (var j=0;j<12;j++){ var l=Math.min(c.troops[j], r.lost[j]||0); c.troops[j]-=l; lostN+=l; }
+      var befD=c.troops.slice(); for (var j=0;j<12;j++){ var l=Math.min(c.troops[j], r.lost[j]||0); c.troops[j]-=l; lostN+=l; }
+      if (!r.cancelled) wounded=woundFrom(c.id, befD, c.troops, false, defWoundRate(c.id)); // the defender: most of the fallen are only wounded
       for (var f=0;f<5;f++) c.forts[f]=Math.max(0,c.forts[f]-(r.fortsLost[f]||0));
       RES.forEach(function(k){ c.res[k]=Math.max(0,(c.res[k]||0)+(r.res[k]||0)); });
     }
@@ -6251,7 +6256,7 @@ function invApplyOne(r){
   S.invLog.unshift({at:S.gt, role:r.role, opp:r.opp, city:r.city, cancelled:!!r.cancelled, why:r.why||"", win:r.winner===(r.role==="invader"?0:1), lost:lostN, kills:r.kills||0, marks:r.marks||0, score:r.score||0, taken:r.taken||0, res:r.res||{}});
   if (S.invLog.length>12) S.invLog.length=12;
   var txt=r.cancelled ? "The invasion with "+esc(r.opp)+" was cancelled"+(r.why?": "+esc(r.why):".")+" Nothing was lost."
-    : (r.role==="invader"?"Your invasion of "+esc(r.opp)+" is over: ":esc(r.opp)+"’s invasion of "+esc(r.city||"your city")+" is over: ")+(r.winner===(r.role==="invader"?0:1)?"you came out ahead":"you came out behind")+". You lost "+fmt(lostN)+" troops, and earned "+fmt(r.marks||0)+" War Marks.";
+    : (r.role==="invader"?"Your invasion of "+esc(r.opp)+" is over: ":esc(r.opp)+"’s invasion of "+esc(r.city||"your city")+" is over: ")+(r.winner===(r.role==="invader"?0:1)?"you came out ahead":"you came out behind")+". You lost "+fmt(lostN)+" troops"+(wounded?" ("+fmt(wounded)+" of them only wounded: they wait in the Medic Camp for 24 hours)":"")+", and earned "+fmt(r.marks||0)+" War Marks.";
   note("inv", txt); toast(r.cancelled?"Invasion cancelled":"Invasion finished: see the Kingdom tab");
 }
 // safety net: a city marked away with no invasion and no result for a long time (server reset, ledger lost) comes home
