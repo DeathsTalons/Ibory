@@ -646,7 +646,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.70";
+var APP_VERSION = "0.1.72";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -851,12 +851,19 @@ function fight(atk, def, opts){
   var wallhp = Math.round(WALL_HP*wall*(wall+1)*(def.fortBonus||1));
   var fortIn = def.fortifications||[0,0,0,0,0];
   var fs=0, i, j;
-  [0,1,3,4,6,5,7,8,9,10,11].forEach(function(i){ if ((atk.troops[i]||0)>0 || (def.troops[i]||0)>0) fs=Math.max(fs, 200+BASE[i][4]); });
+  // reinforcements: def.allies = [{troops, research, hero, attack_modifier, defence_modifier, life_modifier}], each with its own stats.
+  // Each troop type is still one group on the field (moves and is targeted as one), made of each owner's part.
+  var CON=[def].concat(def.allies||[]), CS=CON.map(function(c,ci){ return ci===0?DS:stats(c); });
+  var dTot=function(i){ var n=0; CON.forEach(function(c){ n+=(c.troops&&c.troops[i])||0; }); return n; };
+  [0,1,3,4,6,5,7,8,9,10,11].forEach(function(i){ if ((atk.troops[i]||0)>0 || dTot(i)>0) fs=Math.max(fs, 200+BASE[i][4]); });
   for (i=0;i<5;i++) if ((fortIn[i]||0)>0) fs=Math.max(fs, 200+FORT[i][4]);
   var A=[], D=[];
   for (i=0;i<12;i++){
     A.push({loc:0,type:i,count:atk.troops[i]||0,eff:atk.troops[i]||0,stat:AS[i],isAtk:true});
-    D.push({loc:fs,type:i,count:def.troops[i]||0,eff:def.troops[i]||0,stat:DS[i],isAtk:false});
+    var pts=[]; CON.forEach(function(c,ci){ var n=(c.troops&&c.troops[i])||0; if (n>0) pts.push({own:ci,type:i,count:n,eff:n,stat:CS[ci][i]}); });
+    var big=pts.length?pts.reduce(function(a,q){ return q.count>a.count?q:a; }):null; // the biggest part sets the group's speed and range
+    D.push({loc:fs,type:i,count:pts.length>1?dTot(i):(def.troops[i]||0)+(pts.length===1&&pts[0].own?pts[0].count:0),eff:0,stat:big?big.stat:DS[i],isAtk:false,parts:pts.length>1?pts:null,solo:pts.length===1?pts[0].own:0});
+    D[i].eff=D[i].count;
   }
   var tower={loc:fs,type:14,count:fortIn[2]||0,eff:fortIn[2]||0,stat:tw};
   var trap=fortIn[0]||0, abatis=fortIn[1]||0, logs=fortIn[3]||0, rocks=fortIn[4]||0;
@@ -867,8 +874,10 @@ function fight(atk, def, opts){
   var tr = opts.trace ? [] : null, fr = null, lastMod = 1; // replay trace for the War College visualizer
   var round, attackerAlive=false, defenderAlive=false;
 
-  function kills(pq, tgt, distance){
+  function kills(pq, tgt, distance, share){
     var k;
+    if (share!=null && share!==1) return killsShare(pq, tgt, distance, share);
+    if (pq.parts) return pq.parts.reduce(function(n,q){ return n+(q.count>0?kills(q,tgt,distance):0); },0); // each owner strikes with its own attack
     if (MELEE[pq.type]){
       var m=dmgMod(pq.type,tgt.type); lastMod=m;
       k = trunc(F(F(F(F(m*pq.count)*pq.stat.attack)*tgt.stat.defense)/tgt.stat.life));
@@ -881,6 +890,19 @@ function fight(atk, def, opts){
       k = Math.ceil(F(F(F(F(pq.stat.attack*tgt.stat.defense)*pq.count)*F(m2))/tgt.stat.life));
     }
     return k;
+  }
+  function killsShare(pq, tgt, distance, share){ // an attacker's blow on one owner's part of a defending group, by that part's share of the group
+    var c=F(pq.count*share);
+    if (MELEE[pq.type]){ var m=dmgMod(pq.type,tgt.type); lastMod=m; return trunc(F(F(F(F(m*c)*pq.stat.attack)*tgt.stat.defense)/tgt.stat.life)); }
+    var m2; if (distance <= tgt.stat.range && MELEE[tgt.type]) m2=0.25; else if (distance > pq.stat.range/2) m2=0.5; else m2=1; lastMod=m2;
+    return Math.ceil(F(F(F(F(pq.stat.attack*tgt.stat.defense)*c)*F(m2))/tgt.stat.life));
+  }
+  function gv(x){ return x.parts ? x.parts.reduce(function(a,q){ return a+F(q.stat.attack*q.eff); },0) : F(x.stat.attack*x.eff); } // a group's threat, for target choice
+  function strikeD(p, tgt, distance){ // attacker stack p hits defending group tgt: split by size, each part takes it with its own defense and life
+    if (!tgt.parts){ var k0=kills(p,tgt,distance); return {k:k0, got:hit(tgt,k0)}; }
+    var tot=0; tgt.parts.forEach(function(q){ tot+=q.eff; }); if (!tot) return {k:0, got:0};
+    var k=0, got=0; tgt.parts.forEach(function(q){ if (q.eff<=0) return; var kp=kills(p,q,distance,q.eff/tot); k+=kp; var g=kp>q.eff?q.eff:kp; q.eff-=g; got+=g; });
+    tgt.eff=0; tgt.parts.forEach(function(q){ tgt.eff+=q.eff; }); return {k:k, got:got};
   }
   // kill credit: KA[attacker unit][target 0-11, 12 = archer tower], KD[defender source 0-11 units, 12+ fortifications][target]
   var KA=[], KD=[]; for (i=0;i<12;i++){ KA.push([0,0,0,0,0,0,0,0,0,0,0,0,0]); } for (i=0;i<17;i++){ KD.push([0,0,0,0,0,0,0,0,0,0,0,0]); }
@@ -942,16 +964,16 @@ function fight(atk, def, opts){
         if (MELEE[i]){
           for (j=0;j<12;j++){ var lq=D[j];
             if (lq.eff>0 && lq.loc<=maxR4){
-              var d2=lq.loc-p.loc, v2=F(lq.stat.attack*lq.eff);
+              var d2=lq.loc-p.loc, v2=gv(lq);
               if (md2===-1 || md2>d2 || (md2===d2 && v2>av2)){ tg=lq; av2=v2; md2=d2; }
             } }
           if (!tg && tower.eff>0 && fs<=maxR4){ if (F(tower.stat.attack*tower.eff) > av2) tg=tower; }
         } else {
-          RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4){ var v=F(lq.stat.attack*lq.eff); if (v>av2){ av2=v; tg=lq; } } });
+          RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4){ var v=gv(lq); if (v>av2){ av2=v; tg=lq; } } });
           if (tower.eff>0 && fs<=maxR4){ if (F(tower.stat.attack*tower.eff) > av2) tg=tower; }
           if (!tg){ var bs2=-1; NON_RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4 && lq.stat.speed>bs2){ tg=lq; bs2=lq.stat.speed; } }); }
         }
-        if (tg){ var k2=kills(p,tg,tg.loc-p.loc); if (log) log.push([round,'A',i,tg.type,k2]); var gotA=hit(tg,k2); credA(i,tg,gotA);
+        if (tg){ var sk=tg.type===14?null:strikeD(p,tg,tg.loc-p.loc), k2=sk?sk.k:kills(p,tg,tg.loc-p.loc); if (log) log.push([round,'A',i,tg.type,k2]); var gotA=sk?sk.got:hit(tg,k2); credA(i,tg,gotA);
           if (tr) fr.ev.push({s:'A', u:i, n:p.count, t:tg.type, d:tg.loc-p.loc, k:k2, got:gotA, m:lastMod}); }
         else if (wallhp>0 && maxR4>=fs){ var wb=wallhp; wallhp=Math.max(wallhp - Math.floor(F(p.count*p.stat.attack*(MELEE[i]?1:0.5))),0); if (log) log.push([round,'A',i,'wall']);
           if (tr) fr.ev.push({s:'A', u:i, n:p.count, t:'wall', d:fs-p.loc, got:wb-wallhp, m:MELEE[i]?1:0.5}); }
@@ -1007,12 +1029,14 @@ function fight(atk, def, opts){
     }
     attackerAlive=false; defenderAlive=false;
     A.forEach(function(x){ x.count=x.eff; if (x.count>0) attackerAlive=true; });
-    D.forEach(function(x){ x.count=x.eff; if (x.count>0) defenderAlive=true; });
+    D.forEach(function(x){ x.count=x.eff; if (x.parts) x.parts.forEach(function(q){ q.count=q.eff; }); if (x.count>0) defenderAlive=true; });
     if (wallhp>0) defenderAlive=true;
-    if (tr){ fr.eA=A.map(function(x){ return x.eff; }); fr.eD=D.map(function(x){ return x.eff; }); fr.wallEnd=wallhp; }
+    if (tr){ fr.eA=A.map(function(x){ return x.eff; }); fr.eD=D.map(function(x){ return x.eff; }); fr.wallEnd=wallhp; if (CON.length>1) fr.pD=ownLeft(); }
     if (!attackerAlive || !defenderAlive) break;
   }
+  function ownLeft(){ return CON.map(function(c,ci){ return D.map(function(x){ return x.parts ? x.parts.filter(function(q){ return q.own===ci; }).reduce(function(n,q){ return n+q.eff; },0) : (x.solo===ci ? x.eff : 0); }); }); }
   return {
+    parts: CON.length>1 ? ownLeft() : undefined, // what each owner has left (0 = the city, then each ally)
     attacker: A.map(function(x){return x.count;}), defender: D.map(function(x){return x.count;}),
     forts:[trap,abatis,tower.count,logs,rocks], wallhp:wallhp,
     result: (attackerAlive?1:0) | (defenderAlive?2:0), rounds: Math.min(round+1,100), fieldSize:fs, log:log, trace:tr, ranges:{A:A.map(function(x){ return x.stat.range; }), D:D.map(function(x){ return x.stat.range; }), tower:tower.stat.range}, kb:packKills(KA,KD)
@@ -1036,7 +1060,7 @@ function fightRec(a, d, opts){
   return out;
 }
 function capFor(kb){ for (var i=RECENT.length-1;i>=0;i--) if (RECENT[i].kb===kb) return {A:RECENT[i].A, D:RECENT[i].D, rands:RECENT[i].rands.slice()}; return null; }
-return {fight:fightRec, stats:stats, MELEE:MELEE, capFor:capFor};
+return {fight:fightRec, stats:stats, MELEE:MELEE, capFor:capFor, last:function(){ return RECENT[RECENT.length-1]||null; }};
 })();
 
 /* ---------- troops ---------- */
@@ -2016,12 +2040,17 @@ function warehouseProtect(){ var p=0; S.inside.forEach(function(b){ if (b && b.t
 function resolveDefense(w){
   var ci=cityIndex(w.city); if (!S.cities[ci] || S.cities[ci].id!==w.city) return;
   withCity(ci, function(){
-    var def=cityDefense(C()), A={troops:w.t, research:w.r, attack_modifier:w.am};
-    var shut=S.gate==="closed", before=S.troops.slice(), fBefore=S.forts.slice(), r=SIM.fight(A,def);
+    var def=cityDefense(C()), A={troops:w.t, research:w.r, attack_modifier:w.am}, shut=S.gate==="closed";
+    var rfs=mpShown()?rfHere(C().id):[], rfBefore=rfs.map(function(x){ return x.t.slice(); });
+    if (rfs.length) def.allies=rfs.map(function(x){ var sd=x.side||{}; return {rid:x.id, name:x.from, troops:shut?Z12():x.t.slice(), research:sd.research||{}, hero:sd.hero||{intel:0}, attack_modifier:sd.attack_modifier||1, defence_modifier:sd.defence_modifier||1, life_modifier:sd.life_modifier||1}; });
+    var before=S.troops.slice(), fBefore=S.forts.slice(), r=SIM.fight(A,def), rec=rfs.length?SIM.last():null, hostLeft=r.parts?r.parts[0]:r.defender;
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
-    if (shut) r.defender=before.slice();
-    else { S.troops=before.map(function(n,i){ var tot=n+helpT[i]; return tot? Math.round(n*r.defender[i]/tot) : 0; }); S.troops=surgeonHeal(before, S.troops); woundFrom(C().id, before, S.troops, false);
-      if (S.alliance) S.alliance.help.forEach(function(hp){ if (hp.city===C().id && hp.arr<=S.gt && S.gt<hp.until) hp.t=hp.t.map(function(n,i){ var tot=before[i]+helpT[i]; return tot?Math.round(n*r.defender[i]/tot):0; }); }); }
+    if (shut){ r.defender=before.slice(); hostLeft=before.slice(); }
+    else { S.troops=before.map(function(n,i){ var tot=n+helpT[i]; return tot? Math.round(n*hostLeft[i]/tot) : 0; }); S.troops=surgeonHeal(before, S.troops); woundFrom(C().id, before, S.troops, false);
+      if (S.alliance) S.alliance.help.forEach(function(hp){ if (hp.city===C().id && hp.arr<=S.gt && S.gt<hp.until) hp.t=hp.t.map(function(n,i){ var tot=before[i]+helpT[i]; return tot?Math.round(n*hostLeft[i]/tot):0; }); });
+      if (r.parts){ rfs.forEach(function(x,k){ x.t=r.parts[k+1].slice(); });
+        // the whole fight goes to the server (attack, defense, dice), which reruns it with its own copy of the reinforcements
+        S.alRfLoss=S.alRfLoss||[]; S.alRfLoss.push({fid:"w"+w.id, fight:rec?{A:rec.A, D:rec.D, rands:rec.rands}:null, allies:rfs.map(function(x){ return {id:x.id, left:x.t.slice()}; })}); } }
     var RR_FORT=[0.55,0.66,0.33,0.77,0.88], mach=Math.pow(2,S.tech.machinery||0)/1024; // traps, abatis, towers, logs, trebuchets
     var lostF=fBefore.map(function(n,i){ return n-r.forts[i]; }), rep=Math.round(0.33*mach*100)/100;
     S.forts=r.forts.map(function(n,i){ return n+Math.floor(lostF[i]*Math.min(1,RR_FORT[i]*mach)); });
@@ -2032,7 +2061,7 @@ function resolveDefense(w){
       var take=tot?Math.min(1,cap/tot):0; RES.forEach(function(k){ loot[k]=Math.floor(avail[k]*take); S.res[k]-=loot[k]; });
     }
     achKills(w.t, r.attacker);
-    var myLost=0, theirLost=0; for (var j=0;j<12;j++){ myLost+=before[j]-r.defender[j]; theirLost+=w.t[j]-r.attacker[j]; }
+    var myLost=0, theirLost=0; for (var j=0;j<12;j++){ myLost+=before[j]-hostLeft[j]; theirLost+=w.t[j]-r.attacker[j]; }
     var tot2=RES.reduce(function(a,k){ return a+loot[k]; },0), spoils=[];
     if (w.war) warDefended(w, before, r);
     if (w.chal) chalDefended(w, r);
@@ -2040,7 +2069,8 @@ function resolveDefense(w){
       S.items.gemF=(S.items.gemF||0)+sp.gems; spoils.push(sp.gems+" Flawless Gem"+(sp.gems>1?"s":""));
       if (sp.scales){ S.items.scale=(S.items.scale||0)+sp.scales; spoils.push(sp.scales+" Dragon Scale"+(sp.scales>1?"s":"")); } }
     addReport({id:S.nextMarchId++, at:S.gt, def:true, tile:C().x+","+C().y, name:w.name+"\u2019s "+w.label.toLowerCase()+" on "+S.name+(shut?" (gate closed)":""), result:r.result, rounds:r.rounds, kb:r.kb,
-      sent:before, left:r.defender.slice(), had:w.t.slice(), eleft:r.attacker.slice(), forts:fBefore, fleft:r.forts.slice(), loot:loot, medal:-1, drops:spoils, lost:myLost, repaired:rep});
+      sent:before, left:hostLeft.slice(), had:w.t.slice(), eleft:r.attacker.slice(), forts:fBefore, fleft:r.forts.slice(), loot:loot, medal:-1, drops:spoils, lost:myLost, repaired:rep,
+      allies:rfs.length&&!shut?rfs.map(function(x,k){ return {name:x.from, sent:rfBefore[k], left:x.t.slice()}; }):undefined});
     note("attack",(r.result===1?"\u2694 "+S.name+" was broken by ":"\u26e8 "+S.name+" held against ")+w.name+"\u2019s "+w.label.toLowerCase()+". You lost "+fmt(myLost)+", they lost "+fmt(theirLost)+(tot2?". Plundered: "+fmt(tot2):"")+(spoils.length?". Spoils: "+spoils.join(" and "):"")+".");
   });
 }
@@ -2778,7 +2808,7 @@ function alUnread(){ var al=alMine(); if (!al) return 0; var seen=S.alSeen||0, n
 function alSync(){
   if (!alOn() || ALS.busy) return; ALS.busy=true; ALS.last=Date.now();
   var sendJobs=!!alMine(), jobs=sendJobs?alMyJobs():null; if (jobs) ALS.jobSig=jobs.map(function(j){ return j.ref; }).join("|");
-  var sb={since:ALS.top}, firstChat=!ALS.top; if (alMine()) sb.thr=wtThreats(); if (jobs){ sb.proj=jobs.map(function(j){ return {ref:j.ref, kind:j.kind, label:j.label, end:j.end}; }); S.alGive=S.alGive||{r:0,c:0}; sb.give={r:Math.floor(S.alGive.r), c:Math.floor(S.alGive.c)}; } if (!ALS.cat) sb.cat=1;
+  var sb={since:ALS.top}, firstChat=!ALS.top; if (alMine()){ sb.thr=wtThreats(); sb.hc=rfCities(); if (S.alRfLoss&&S.alRfLoss.length) sb.rl=S.alRfLoss.slice(0,50); } if (jobs){ sb.proj=jobs.map(function(j){ return {ref:j.ref, kind:j.kind, label:j.label, end:j.end}; }); S.alGive=S.alGive||{r:0,c:0}; sb.give={r:Math.floor(S.alGive.r), c:Math.floor(S.alGive.c)}; } if (!ALS.cat) sb.cat=1;
   alPost("/al/sync",sb).then(function(d){ ALS.busy=false;
     if (d.error){ ALS.err=d.error; alRender(); return; }
     ALS.err=""; var aid=d.member?d.member.aid:null; if (d.cat) ALS.cat=d.cat;
@@ -2786,7 +2816,7 @@ function alSync(){
     else if (!aid && S.alMember){ S.alMember=false; S.alFx={}; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); } // left: bonuses and lending end
     if (aid!==ALS.aid){ ALS.aid=aid; ALS.chat=[]; ALS.top=0; ALS.d=d; if (aid){ ALS.last=0; } alRender(); if (aid) setTimeout(alSync,50); return; }
     if (firstChat) ALS.moreOld=(d.chat||[]).length>=60; // a full first page means there may be older messages
-    ALS.d=d; tpApply(d.al?d.al.trade:d.trade); if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon);
+    ALS.d=d; tpApply(d.al?d.al.trade:d.trade); rfApply(d.al&&d.al.reinf); if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon);
     (d.chat||[]).forEach(function(c){ var at=-1; for (var i=ALS.chat.length-1;i>=0;i--) if (ALS.chat[i].id===c.id){ at=i; break; } if (at>=0) ALS.chat[at]=c; else ALS.chat.push(c); if (c.id>ALS.top) ALS.top=c.id; });
     if (ALS.chat.length>1000) ALS.chat=ALS.chat.slice(-1000);
     if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
@@ -2869,7 +2899,7 @@ function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
   if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
   var hp=ALS.d.help||{projects:[],canHelp:0};
-  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["reinf","Reinforce"+((al.reinf&&al.reinf.here&&al.reinf.here.length)?" ("+al.reinf.here.length+")":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
@@ -2887,6 +2917,8 @@ function viewMyAlliance(al){
     h+=viewAllianceList(al.id);
   } else if (sub==="arena"){
     h+=alArenaHtml(al);
+  } else if (sub==="reinf"){
+    h+=alReinfHtml(al);
   } else if (sub==="trade"){
     h+=alTradeHtml(al);
   } else if (sub==="map"){
@@ -3004,6 +3036,79 @@ function tpSend(){
   alPost("/al/trade/send",{to:TP.to, res:res}).then(function(d){ TP.busy=false;
     if (d.error){ back(); toast(d.error); } else { TP.res={}; toast("Sent to "+TP.to+": "+tpResTxt(d.got)+" lands in "+fmtT(d.travel)); ALS.last=0; alSync(); }
     lastView=""; renderView(true); }).catch(function(){ TP.busy=false; back(); toast("Couldn’t reach the server"); lastView=""; renderView(true); });
+}
+/* ---------- alliance reinforcements: send troops to a member's city; they defend it with their own research and hero ---------- */
+var RF={to:"", city:0, from:0, t:{}, hero:0, busy:false};
+function rfData(){ var al=alMine(); return (al&&al.reinf)||null; }
+function rfCities(){ return S.cities.map(function(c,i){ var v=IV.st&&IV.st.inv, inv=!!(v && v.role==="defender" && !v.result && v.status==="fighting" && v.me && v.me.cid===c.id);
+  return {id:c.id, name:c.name, emb:withCity(i,function(){ return bLevel("embassy"); }), inv:inv}; }); }
+function rfHere(cityId){ var d=rfData(), now=Date.now(); return d ? d.here.filter(function(x){ return x.city===cityId && x.arr<=now && x.st!=="back" && sumT(x.t)>0; }) : []; }
+function rfApply(d){ // acknowledgements, and troops that made it home
+  if (!d) return; S.alRfLoss=(S.alRfLoss||[]).filter(function(x){ return (d.ack||[]).indexOf(x.fid)<0; });
+  S.alRfDone=S.alRfDone||[]; S.alRfHero=S.alRfHero||{}; var now=Date.now(), done=[];
+  (d.mine||[]).forEach(function(x){
+    var hid=S.alRfHero[x.id], hh=hid?heroById(hid):null;
+    if (x.st==="home" || (x.st==="back" && x.ret<=now)){
+      done.push(x.id); if (S.alRfDone.indexOf(x.id)>=0) return; S.alRfDone.push(x.id);
+      var ci=-1; S.cities.forEach(function(c,i){ if (c.id===x.fromCity) ci=i; }); if (ci<0) ci=0;
+      withCity(ci,function(){ x.t.forEach(function(n,i){ S.troops[i]+=n; }); });
+      if (hh) hh.away=false; delete S.alRfHero[x.id];
+      note("alliance", "Your reinforcements came home from "+x.to+"’s "+x.cityName+": "+fmt(sumT(x.t))+" of "+fmt(sumT(x.t0))+" troops"+(x.lost?" ("+fmt(x.lost)+" lost defending)":"")+".");
+    } else if (hh) hh.away=true;
+  });
+  if (S.alRfDone.length>200) S.alRfDone=S.alRfDone.slice(-200);
+  if (done.length){ save(); alPost("/al/reinf/done",{ids:done}).catch(function(){}); }
+}
+function rfSide(ci, hid){ return withCity(ci, function(){ var h=hid?heroById(hid):null;
+  return {research:simResearch(), hero:{intel:hs(h,"int")}, attack_modifier:1+0.05*(S.tech.militarytradition||0)+hs(h,"atk")/100+bAttack(), defence_modifier:bDefend(), life_modifier:setLife(h), hn:h?h.name:"", ha:h?hs(h,"atk"):0}; }); }
+function rfStatusTxt(x){ var now=Date.now(), mins=function(t){ var l=t-now; return l<60000?'under a minute':fmtT(Math.ceil(l/60000)*60000); };
+  if (x.st==="go") return 'arriving in '+mins(x.arr); if (x.st==="stay") return x.locked?'holding the walls (invasion)':'stationed'; if (x.st==="back") return x.ret>now?'coming home in '+mins(x.ret):'home'; return x.st; }
+function rfTroops(t){ var a=[]; (t||[]).forEach(function(n,i){ if (n) a.push(fmt(n)+' '+uname(i,n)); }); return a.join(', ')||'none left'; }
+function alReinfHtml(al){
+  var d=al.reinf||{mine:[],here:[],hosts:[]}, h='<div class="section"><h3>Send reinforcements</h3>';
+  h+='<p class="hint">Troops you send defend that member’s city with your own research, hero and star set'+(d.sw?' (plus Shield Wall: +'+Math.round(d.sw*100)+'% attack and defense)':'')+'. They don’t eat while away. A city hosts as many reinforcement marches as its Embassy level'+(d.extra?' + '+d.extra+' (Hall of Envoys)':'')+'.</p>';
+  var hosts=(d.hosts||[]).filter(function(x){ return x.cities.some(function(c){ return c.slots>0; }); });
+  if (!hosts.length) h+='<p class="hint">No other member has a city with an Embassy yet (or they haven’t opened this version of the game).</p>';
+  else {
+    if (!hosts.some(function(x){ return x.name===RF.to; })) RF.to=hosts[0].name; var hc=hosts.filter(function(x){ return x.name===RF.to; })[0], open=hc.cities.filter(function(c){ return c.slots>0; });
+    if (!open.some(function(c){ return c.id===RF.city; })) RF.city=open[0].id; if (!S.cities[RF.from]) RF.from=S.cur;
+    var heroes=withCity(RF.from, function(){ return freeHeroes(); }); if (RF.hero && !heroes.some(function(x){ return x.id===RF.hero; })) RF.hero=0;
+    h+='<div class="farmadd"><label class="dur" for="rfto">To</label><select id="rfto">'+hosts.map(function(x){ return '<option'+(x.name===RF.to?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select>'+
+      '<label class="dur" for="rfcity">City</label><select id="rfcity">'+open.map(function(c){ return '<option value="'+c.id+'"'+(c.id===RF.city?' selected':'')+(c.used>=c.slots?' disabled':'')+'>'+esc(c.name)+' ('+c.used+' / '+c.slots+(c.inv?', under invasion: they join the fight':'')+')</option>'; }).join("")+'</select></div>';
+    h+='<div class="farmadd"><label class="dur" for="rffrom">From</label><select id="rffrom">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===RF.from?' selected':'')+'>'+esc(c.name)+'</option>'; }).join("")+'</select>'+
+      '<label class="dur" for="rfhero">Hero</label><select id="rfhero"><option value="0">No hero</option>'+heroes.map(function(x){ return '<option value="'+x.id+'"'+(x.id===RF.hero?' selected':'')+'>'+esc(x.name)+', Atk '+hs(x,"atk")+', Int '+hs(x,"int")+'</option>'; }).join("")+'</select></div>';
+    var have=withCity(RF.from,function(){ return S.troops.slice(); });
+    h+='<div class="tpgrid">'+U.map(function(u,i){ if (!have[i] && !RF.t[i]) return ''; return '<label class="dur" for="rf-'+i+'">'+u.name+' <span class="dur">(have '+fmt(have[i])+')</span></label><input type="number" min="0" inputmode="numeric" id="rf-'+i+'" value="'+(RF.t[i]||"")+'" placeholder="0">'; }).join("")+'</div>';
+    h+='<div class="btnrow" style="margin-top:8px"><button class="btn" data-act="rf-send"'+(RF.busy?' disabled':'')+'>'+(RF.busy?'Sending…':'Send')+'</button></div>';
+  }
+  h+='</div>';
+  var mine=(d.mine||[]).filter(function(x){ return x.st!=="done"; });
+  if (mine.length) h+='<div class="section"><h3>Your troops out</h3>'+mine.map(function(x){ var can=(x.st==="go"||x.st==="stay")&&!x.locked;
+    var moving=(x.st==="go"&&x.arr>Date.now())||(x.st==="back"&&x.ret>Date.now()), sp=moving&&(S.items.marchsp||0)>0;
+    return '<div class="bq"><span>To <b>'+plName(x.to)+'</b>’s '+esc(x.cityName)+(x.side&&x.side.hn?' with '+esc(x.side.hn):'')+'<br><span class="dur">'+rfTroops(x.t)+(x.lost?' · '+fmt(x.lost)+' lost so far':'')+'</span></span><span class="qtime">'+rfStatusTxt(x)+'</span>'+(can||sp?'<div class="qacts">'+(sp?'<button class="link strong" data-act="rf-hasten" data-id="'+x.id+'">Speed up ('+S.items.marchsp+')</button>':'')+(can?'<button class="link" data-act="rf-recall" data-id="'+x.id+'">Recall</button>':'')+'</div>':'')+'</div>'; }).join("")+'</div>';
+  var here=(d.here||[]);
+  if (here.length) h+='<div class="section"><h3>Stationed with you</h3>'+here.map(function(x){ var can=!x.locked;
+    return '<div class="bq"><span><b>'+plName(x.from)+'</b> in '+esc(x.cityName)+(x.side&&x.side.hn?' with '+esc(x.side.hn):'')+'<br><span class="dur">'+rfTroops(x.t)+'</span></span><span class="qtime">'+rfStatusTxt(x)+'</span>'+(can?'<div class="qacts"><button class="link" data-act="rf-home" data-id="'+x.id+'">Send home</button></div>':'')+'</div>'; }).join("")+'</div>';
+  return h;
+}
+function rfSend(){
+  var d=rfData(); if (!d || RF.busy) return; var ci=RF.from, t=Z12(), tot=0;
+  for (var i=0;i<12;i++){ t[i]=Math.max(0,Math.floor(+RF.t[i]||0)); tot+=t[i]; }
+  if (!tot){ toast("Pick some troops to send"); return; }
+  var short=withCity(ci,function(){ return t.some(function(n,i){ return n>S.troops[i]; }); }); if (short){ toast("Not enough troops in "+S.cities[ci].name); return; }
+  var hid=RF.hero, hh=hid?heroById(hid):null, side=rfSide(ci, hid);
+  var back=function(){ withCity(ci,function(){ t.forEach(function(n,i){ S.troops[i]+=n; }); }); if (hh) hh.away=false; save(); };
+  withCity(ci,function(){ t.forEach(function(n,i){ S.troops[i]-=n; }); }); if (hh) hh.away=true; save(); RF.busy=true; lastView=""; renderView(true);
+  alPost("/al/reinf/send",{to:RF.to, city:RF.city, from:S.cities[ci].id, t:t, side:side}).then(function(r){ RF.busy=false;
+    if (r.error){ back(); toast(r.error); } else { RF.t={}; S.alRfHero=S.alRfHero||{}; if (hid) S.alRfHero[r.id]=hid; save(); toast("Reinforcements on their way to "+RF.to+": they arrive in "+fmtT(r.travel)); ALS.last=0; alSync(); }
+    lastView=""; renderView(true); }).catch(function(){ RF.busy=false; back(); toast("Couldn’t reach the server"); lastView=""; renderView(true); });
+}
+function rfMove(path, id){ alPost(path,{id:+id}).then(function(r){ if (r.error) toast(r.error); else toast(path==="/al/reinf/recall"?"Recalled: they’re heading home":"Sent home"); ALS.last=0; alSync(); }).catch(function(){ toast("Couldn’t reach the server"); }); }
+function allyRepHtml(r){ // reinforcements in a defense report: each owner on their own
+  if (!r.allies || !r.allies.length) return '';
+  return r.allies.map(function(a){ var lost=0; for (var i=0;i<12;i++) lost+=(a.sent[i]||0)-(a.left[i]||0);
+    return '<h4 style="margin:10px 0 2px">'+esc(a.name)+'’s reinforcements <span class="dur">lost '+fmt(lost)+'</span></h4><div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Sent</th><th>Lost</th><th>Left</th></tr></thead><tbody>'+
+      U.map(function(u,i){ if (!a.sent[i]) return ''; var l=a.sent[i]-a.left[i]; return '<tr><td>'+u.name+'</td><td>'+fmt(a.sent[i])+'</td><td class="'+(l?'loss':'')+'">'+fmt(l)+'</td><td>'+fmt(a.left[i])+'</td></tr>'; }).join("")+'</tbody></table></div>'; }).join("");
 }
 function alCityHtml(al){
   var E=al.econ, C0=ALS.cat; if (!E || !C0) return '<div class="section"><p class="hint">Loading the Alliance City\u2026</p></div>';
@@ -3354,6 +3459,7 @@ function cbStats(){
     var t=S.troops.slice(); // the army: home, marching or stationed away, and waiting in the Medic Camp
     (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,j){ t[j]+=n; }); });
     S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,j){ t[j]+=n; }); });
+    var rfd=rfData(); if (rfd) (rfd.mine||[]).forEach(function(x){ if (x.fromCity===c.id && x.st!=="home" && x.st!=="done") (x.t||[]).forEach(function(n,j){ t[j]+=n; }); }); // out reinforcing an ally
     (S.alArena||[]).forEach(function(m){ if (m.city!==c.id) return; if (m.st==="out") m.t.forEach(function(n,j){ t[j]+=n; }); else for (var j=0;j<12;j++) t[j]+=(m.back[j]||0)+(m.wounded[j]||0); });
     t.forEach(function(n,j){ ar[j]+=n; });
     RES.forEach(function(k,j){ re[j]+=S.res[k]||0; });
@@ -3800,6 +3906,7 @@ function rpOpen(pid, w){
 function rpOpenCap(cap, o){
   var A=JSON.parse(cap.A), D=JSON.parse(cap.D), i=0, res=SIM.fight(A, D, {trace:true, rand:function(){ return i<cap.rands.length?cap.rands[i++]:0.5; }});
   RP={res:res, f:0, mine:o.mine||"A", play:false, sub:o.sub||"", back:o.back||null};
+  if (D.allies && D.allies.length){ RP.owners=[(o.mine||"A")==="D"?"Your troops":"The city\u2019s own"].concat(D.allies.map(function(a){ return (a.name||"An ally")+"\u2019s reinforcements"; })); RP.own0=[D.troops].concat(D.allies.map(function(a){ return a.troops; })); }
   openSheet({kind:"replay"});
 }
 function rpStop(){ if (rpTimer){ clearInterval(rpTimer); rpTimer=null; } if (RP) RP.play=false; }
@@ -3893,6 +4000,11 @@ function rpSheet(){
     function cell(a,b2,rg){ return a>0||b2>0?fmt(b2)+(b2<a?' <span class="badc">\u2212'+fmt(a-b2)+'</span>':'')+'<br><span class="dur">reach '+fmt(rg)+'</span>':'<span class="dur">\u2014</span>'; }
     return '<tr><td>'+U[t].name+'</td><td>'+cell(fr.cA[t],eA[t],res.ranges.A[t])+'</td><td>'+cell(fr.cD[t],eD[t],res.ranges.D[t])+'</td></tr>'; }).join("")+
     (tr[0].forts.some(function(n){ return n>0; })?'<tr><td>Forts</td><td></td><td>'+fr.forts.map(function(n,i){ return n>0?fmt(n)+' '+FORT_EVN[i]:''; }).filter(Boolean).join(", ")+'</td></tr>':'')+'</tbody></table>';
+  if (RP.owners){ // defenders by owner: each reinforcement on its own line
+    var now0=f===0?RP.own0:(fr.pD||RP.own0), prev=f<=1?RP.own0:(tr[f-1].pD||RP.own0);
+    h+='<h4 class="rph" style="margin-top:10px">Defenders by owner</h4><table class="gt wct rpt2"><thead><tr><th>Unit</th>'+RP.owners.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join("")+'</tr></thead><tbody>'+
+      rows.filter(function(t){ return RP.own0.some(function(o2){ return (o2[t]||0)>0; }); }).map(function(t){ return '<tr><td>'+U[t].name+'</td>'+RP.owners.map(function(n,k){ var a=(prev[k]||[])[t]||0, b2=(now0[k]||[])[t]||0; return '<td>'+(a||b2?fmt(b2)+(b2<a?' <span class="badc">\u2212'+fmt(a-b2)+'</span>':''):'<span class="dur">\u2014</span>')+'</td>'; }).join("")+'</tr>'; }).join("")+'</tbody></table>';
+  }
   h+='<button class="closebtn" data-act="rp-back">'+(RP.back&&RP.back.kind==="report"?'Back to the report':RP.back&&RP.back.kind==="wc"?'Back to the puzzle':'Close')+'</button>';
   return h;
 }
@@ -3952,7 +4064,7 @@ function respecHero(h){
   return n;
 }
 // a hero is "marching" only while one of your marches carries them: anything else (an old save, a march that ended oddly) is put right every tick
-function reconcileHeroes(){ var busy={}; S.marches.forEach(function(m){ if (m.hero) busy[m.hero]=1; }); (S.alArena||[]).forEach(function(m){ if (m.hero) busy[m.hero]=1; });
+function reconcileHeroes(){ var busy={}; S.marches.forEach(function(m){ if (m.hero) busy[m.hero]=1; }); (S.alArena||[]).forEach(function(m){ if (m.hero) busy[m.hero]=1; }); for (var rk in (S.alRfHero||{})) busy[S.alRfHero[rk]]=1; // leading alliance reinforcements
   S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ var b=!!busy[h.id]; if (!!h.away!==b) h.away=b; }); });
   (S.waiting||[]).forEach(function(h){ if (h.away) h.away=false; }); }
 function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].heroes; for (var i=0;i<hs.length;i++) if (hs[i].id===id) return hs[i]; } return null; }
@@ -6041,7 +6153,7 @@ function bfSendSheet(){
 // and you scout for up to 6 hours before picking one of their cities. The fight runs 6 hours camp against camp. One city leaves your
 // map while it is out (its builds, research and training wait). The server keeps the result in a ledger; this game applies it once.
 var IV={st:null, at:0, skew:0, busy:0, err:"", search:0, lastPoll:0, lastSearch:0, lastPack:0, map:null, mapBusy:0, draft:Z12(), hero:0, scoutN:0, tx:"", ty:"", armed:"", seenId:"", leaveArmed:0, msg:""};
-function invShown(){ return pvShown() && !!LB_URL && mpShown(); }
+function invShown(){ return !!LB_URL && mpShown(); } // open to every multiplayer player (0.1.71; was testers only)
 function invOk(){ return invShown() && cbOn(); }
 function invPost(path, body){
   body=body||{}; body.name=S.cloud.name; body.token=S.cloud.token;
@@ -6166,13 +6278,13 @@ function invWhy(){
   return "";
 }
 function invSection(){
-  var h='<div class="section"><div class="shead"><h3>Invasions</h3><span class="dur">testing</span></div>';
+  var h='<div class="section"><div class="shead"><h3>Invasions</h3><span class="dur">multiplayer</span></div>';
   if (!cbOn()) return h+'<p class="hint">Invasions are run by the server and use your cloud backup account to know who you are. Sign in under Settings › Cloud backup first.</p></div>';
   var st=IV.st;
   if (!st){ invPoll(true); return h+'<p class="hint">'+(IV.err?esc(IV.err):'Connecting…')+'</p></div>'; }
   var p=st.p, v=st.inv;
   if (v && (v.status==='done'||v.status==='cancelled')){ invPoll(true); return h+'<p class="hint">The invasion is over. Settling the result\u2026</p></div>'; }
-  if (v) return h.replace('testing', v.role==="invader"?'you invade':'you are invaded')+invActive(v)+'</div>';
+  if (v) return h.replace('>multiplayer<', '>'+(v.role==="invader"?'you invade':'you are invaded')+'<')+invActive(v)+'</div>';
   h+='<p class="hint">Opt in and your cities can be invaded by other players, and you can invade theirs. Hit <b>Find a target</b>: the server pairs you with someone of similar army strength, lands your camp on <i>their</i> map, and you scout for up to 6 hours to find and pick one of their cities. Then the camps fight for 6 hours; you can leave at any time (an hour after your last attack, if you\u2019ve attacked). One city goes out and leaves your map while it’s away (its builds, research and training wait). It’s raiding only: no city changes hands, but you plunder resources above the Warehouse’s protection, and both sides lose the troops that fall.</p>';
   if (!p.opted){
     var many=S.cities.length>=2;
@@ -6271,7 +6383,7 @@ function invFight(v, t){
     '<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="iv-send"'+(why?' disabled':'')+'>Send '+fmt(tot)+'</button></div>';
   h+='<div class="btnrow"><button class="btn ghost small" data-act="iv-gate">'+(me.gate==="closed"?'Open the gate':'Close the gate (hides troops from attackers)')+'</button>'+(inv?'<button class="btn ghost small danger" data-act="iv-retreat"'+(wait>0?' disabled':'')+'>'+(wait>0?'Can leave in '+invMin(wait):IV.armed==="retreat"?'Tap again: leave':v.leaveAt==null?'Leave (nothing counted)':'Leave the invasion')+'</button>':'')+'</div>';
   if (v.reports&&v.reports.length) h+='<h4 style="margin:8px 0 2px">Battle reports</h4><div class="gearlist">'+v.reports.slice(0,8).map(function(r){ var won=r.attacker?r.won:!r.won, lostA=sumT(killedOf(r.sent,r.left)), lostD=sumT(killedOf(r.had,r.eleft));
-    return '<div class="gearrow'+(won?' t3':'')+'"><span class="gn">'+(r.attacker?'You attacked ':'Attacked at ')+esc(r.name)+'</span><span class="gb">'+(won?'Won':'Lost')+'</span><span class="dur" style="grid-column:1/-1">'+invHour(r.t)+': attackers lost '+fmt(lostA)+', defenders lost '+fmt(lostD)+(r.loot?', plunder '+fmt(RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0)):'')+'.</span></div>'; }).join("")+'</div>';
+    return '<div class="gearrow'+(won?' t3':'')+'"><span class="gn">'+(r.attacker?'You attacked ':'Attacked at ')+esc(r.name)+'</span><span class="gb">'+(won?'Won':'Lost')+'</span><span class="dur" style="grid-column:1/-1">'+invHour(r.t)+': attackers lost '+fmt(lostA)+', defenders lost '+fmt(lostD)+(r.loot?', plunder '+fmt(RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0)):'')+'.'+(r.allies&&r.allies.length?' Reinforcements: '+r.allies.map(function(x){ return esc(x.name)+' lost '+fmt(sumT(killedOf(x.had,x.left)))+' of '+fmt(sumT(x.had)); }).join('; ')+'.':'')+'</span></div>'; }).join("")+'</div>';
   return h+invLog(v);
 }
 function invOrder(o, ok){
@@ -6948,7 +7060,7 @@ function reportDetailBase(r){
   if (r.def) return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.repaired?' Machinery repaired '+Math.round(r.repaired*100)+'% of lost archer towers (more of other fortifications).':'')+'</p>'+
     '<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Yours</th><th>You lost</th><th>Theirs</th><th>They lost</th></tr></thead><tbody>'+
     U.map(function(u,i){ if (!r.sent[i] && !r.had[i]) return ''; var a1=r.sent[i]-r.left[i], a2=r.had[i]-r.eleft[i]; return '<tr><td>'+u.name+'</td><td>'+fmt(r.sent[i])+'</td><td class="'+(a1?'loss':'')+'">'+fmt(a1)+'</td><td>'+fmt(r.had[i])+'</td><td class="'+(a2?'ok':'')+'">'+fmt(a2)+'</td></tr>'; }).join("")+
-    FORTN.map(function(n,k){ if (!r.forts[k]) return ''; var lf=r.forts[k]-r.fleft[k]; return '<tr><td>Your '+n+'</td><td>'+fmt(r.forts[k])+'</td><td class="'+(lf?'loss':'')+'">'+fmt(lf)+'</td><td></td><td></td></tr>'; }).join("")+'</tbody></table></div>';
+    FORTN.map(function(n,k){ if (!r.forts[k]) return ''; var lf=r.forts[k]-r.fleft[k]; return '<tr><td>Your '+n+'</td><td>'+fmt(r.forts[k])+'</td><td class="'+(lf?'loss':'')+'">'+fmt(lf)+'</td><td></td><td></td></tr>'; }).join("")+'</tbody></table></div>'+allyRepHtml(r);
   var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
   return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
     (loot?'<div class="us" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'');
@@ -7794,7 +7906,7 @@ function effectLine(type,L,only){
   if (type==="workshop") return "Machinery and Engineering up to level "+L+(top?"":" → "+nx);
   if (type==="forge") return "Iron Working and Metal Casting up to level "+L+(top?"":" → "+nx);
   if (type==="rally") return L+" march"+(L>1?"es":"")+" at once, up to "+fmt(10000*L)+" troops each; Logistics, Compass, Privateering and Cartography up to level "+L+(top?"":" → "+nx+" marches, "+fmt(10000*nx)+" troops each");
-  if (type==="embassy") return "Room for "+Math.min(10,L)+" all"+(L===1?"y":"ies")+", hosts "+fmt(L*10000)+" troops from each ally"+(top?"":" → "+Math.min(10,nx)+" allies, "+fmt(nx*10000)+" each");
+  if (type==="embassy") return "Room for "+Math.min(10,L)+" all"+(L===1?"y":"ies")+", hosts "+fmt(L*10000)+" troops from each ally, and "+L+" alliance reinforcement march"+(L===1?"":"es")+(top?"":" → "+Math.min(10,nx)+" allies, "+fmt(nx*10000)+" each, "+nx+" reinforcement marches");
   if (type==="beacon") return beaconText(L)+(top?"":" → level "+nx+": "+beaconText(nx))+". On the Battlefield: level 8 shows how many enemy marches are on each route, level 9 the troops in each, level 10 their exact landing times";
   if (type==="warehouse") return "Protects "+fmt(whBase(L)*whMul())+" of each resource from plunder"+(top?"":" → "+fmt(whBase(nx)*whMul()))+"; Stockpile up to level "+L+(top?"":" → "+nx);
   if (type==="feasting") return "Holds "+(4+L)+" heroes"+(top?"":" → "+(4+nx));
@@ -8351,6 +8463,10 @@ document.addEventListener("click",function(e){
   if (act==="wt-type"){ S.wtOff=S.wtOff||{}; S.wtOff[a.dataset.k]=wtOn(a.dataset.k)?1:0; save(); lastSheet=""; renderSheet(); return; }
   if (act==="wt-ign"){ S.wtIgn=S.wtIgn||{}; var wn=Date.now(); for (var wk in S.wtIgn) if (S.wtIgn[wk]<wn) delete S.wtIgn[wk]; if (a.dataset.v==="1") S.wtIgn[a.dataset.key]=+a.dataset.land||wn+864e5; else delete S.wtIgn[a.dataset.key]; save(); lastSheet=""; renderSheet(); return; }
   if (act==="tp-send"){ tpSend(); return; }
+  if (act==="rf-send"){ rfSend(); return; }
+  if (act==="rf-hasten"){ if ((S.items.marchsp||0)<=0) return; alPost("/al/reinf/hasten",{id:+a.dataset.id}).then(function(r){ if (r.error){ toast(r.error); return; } S.items.marchsp=Math.max(0,(S.items.marchsp||0)-1); save(); toast("March Speed-up used: half the trip left"); ALS.last=0; alSync(); }).catch(function(){ toast("Couldn\u2019t reach the server"); }); return; }
+  if (act==="rf-recall"){ rfMove("/al/reinf/recall", a.dataset.id); return; }
+  if (act==="rf-home"){ rfMove("/al/reinf/home", a.dataset.id); return; }
   if (act==="chat-older"){ if (a.dataset.ch==="world") wcOlder(); else alOlder(); return; }
   if (act==="pl-open"){ var pe=a; if (pe.getAttribute("data-me")==="1" || (S.cloud && S.cloud.name && String(S.cloud.name).toLowerCase()===pe.getAttribute("data-k") && !pe.getAttribute("data-pid"))){ closeSheet(); ALS.last=0; goPage("me"); return; } plOpen(pe.getAttribute("data-k")||"", +pe.getAttribute("data-pid")||0, pe.getAttribute("data-nm")||""); return; }
   if (act==="me"){ ALS.last=0; goPage("me"); return; }
@@ -8942,6 +9058,7 @@ document.addEventListener("click",function(e){
 });
 document.addEventListener("input",function(e){
   if (invInput(e)) return;
+  if (e.target.id && e.target.id.indexOf("rf-")===0){ RF.t[+e.target.id.slice(3)]=e.target.value; return; }
   if (e.target.id && e.target.id.indexOf("tp-")===0){ TP.res[e.target.id.slice(3)]=e.target.value; tpPreview(); return; }
   if (e.target.id==="pvcode"){ PV.code=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6); return; }
   if (e.target.id==="allyname2"){ renameAlly(e.target.value); return; }
@@ -8988,6 +9105,10 @@ document.addEventListener("input",function(e){
 document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else alSend("dockin"); } });
 document.addEventListener("change",function(e){
   if (e.target.id==="tpto"){ TP.to=e.target.value; return; }
+  if (e.target.id==="rfto"){ RF.to=e.target.value; lastView=""; renderView(true); return; }
+  if (e.target.id==="rfcity"){ RF.city=+e.target.value; return; }
+  if (e.target.id==="rffrom"){ RF.from=+e.target.value; RF.t={}; lastView=""; renderView(true); return; }
+  if (e.target.id==="rfhero"){ RF.hero=+e.target.value; return; }
   if (e.target.id==="tpfrom"){ TP.from=+e.target.value; lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.arlv!=null){ ARL[e.target.dataset.arlv]=+e.target.value; e.target.blur(); lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }

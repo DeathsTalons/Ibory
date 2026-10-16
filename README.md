@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.70
+Version 0.1.72
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,19 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.72 (0.2.0 playtest)
+- Reinforcement losses are checked: the host's game sends each fight it fought with reinforcements (the attack, its own side and the dice); the server reruns it with its own copy of the reinforcements and applies its own result. A report that doesn't match is flagged for review on the admin page.
+- Reinforcements that reach a city during an invasion's fight join the defense from the moment they arrive (and are held there until it ends). Sending into an invaded city is allowed again.
+- March Speed-ups work on reinforcement marches (going or coming home): each halves what's left of the trip.
+- Needs the matching Worker (scores-worker 0.1.72). No save version change.
+
+### 0.1.71 (0.2.0 playtest)
+- Alliance reinforcements: a Reinforce page in the Alliance tab. Send troops (and a hero) to another member's city; a city hosts as many reinforcement marches as its Embassy level, plus Hall of Envoys. They travel by alliance-map distance (2 min + 30 s per square, faster with Swift Allies), don't eat, and can be recalled by the sender or sent home by the host.
+- They defend the host city against AI raids, bully waves and invasions, each owner with their own research, hero and star set (Shield Wall adds attack and defense). Battle reports and the War Wizard show each owner's troops separately. Their losses go back to the sender's game; survivors come home on their own.
+- Battle engine: a defending side can now be several owners. Each troop type is still one group on the field; damage taken is split by size and met with each owner's own defense and life, and each owner strikes with its own attack. Fights with one owner are unchanged (3,000 random fights identical to the old engine, traces and kill counts included).
+- Invasions are open to every multiplayer player (no tester code needed). Reinforcements stationed in the invaded city when the fight starts hold its walls until the invasion ends.
+- Needs the matching Worker (scores-worker 0.1.71). No save version change.
+
 ### 0.1.70
 - Watchtower: invasions against a member now show too (one alert for as long as the invasion runs, with incoming troops when their Beacon can see them).
 - Ignore an alert with its Ignore button (ignored ones fold into an Ignored list and can be shown again), or turn off whole types ("AI lord attacks", "Invasions") from the Watchtower sheet or Settings. The alarm chip only counts what is left.
