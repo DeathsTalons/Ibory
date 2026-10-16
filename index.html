@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.89";
+var APP_VERSION = "0.1.91";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3451,7 +3451,7 @@ function fillAlChat(){
   var al=alMine(), my=al&&al.my, hh=ALS.chat.length?chatOlderBtn('al')+ALS.chat.map(function(c){
     if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
     var canDel=!c.del && (c.name===S.cloud.name || (my&&my.can.chat));
-    return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+plName(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+plChat(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
   if (el._sig===hh) return;
   var atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40 || !el._sig;
   var kp=el._keep; el._keep=null; el.innerHTML=hh; el._sig=hh; if (kp) el.scrollTop=kp.t+(el.scrollHeight-kp.h); else if (atBottom) el.scrollTop=el.scrollHeight;
@@ -3517,14 +3517,14 @@ function renderDock(){
     if (!cbOn()){ canSay=false; hint="World chat needs a cloud save. Set one up in Settings, then come back."; }
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
-    msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?lw.name+": "+lw.text:(cbOn()?"No messages yet":"Sign in to chat");
-    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ return '<div class="alm"><b>'+plName(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?chatName(lw.name)+": "+lw.text:(cbOn()?"No messages yet":"Sign in to chat");
+    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ return '<div class="alm"><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
     setText(document.getElementById("dkch"), "World");
   } else {
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
-    lastTxt=la?la.name+": "+la.text:"No messages yet";
-    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+plName(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    lastTxt=la?chatName(la.name)+": "+la.text:"No messages yet";
+    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+plChat(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
   setText(document.getElementById("dklast"), lastTxt);
@@ -4607,6 +4607,7 @@ function advance(now){
   var dtG = Math.max(0,(now - S.real))*S.speed; S.real = now;
   if (dtG>0) for (var aw=0; aw<S.cities.length; aw++) if (S.cities[aw].away) invHold(S.cities[aw], dtG);
   var target = S.gt + dtG, changed=false, viewing=S.cur;
+  var evGuard=0;
   while (true){
     var next = Infinity, ev=null;
     for (var ci=0; ci<S.cities.length; ci++){
@@ -4620,6 +4621,11 @@ function advance(now){
     var ae=nextAiEvent(); if (ae && ae.t < next){ next=ae.t; ev={w:"ai",a:ae.w}; }
     var le=nextAllianceEvent(); if (le && le.t < next){ next=le.t; ev={w:"al",e:le}; }
     if (next > target) break;
+    if (++evGuard > 50000){ // safety: a handler that never moves its own event forward would spin forever and freeze the page
+      try { console.warn("advance: stopped after 50000 events", ev && ev.w, ev && ev.m ? JSON.stringify({id:ev.m.id,mission:ev.m.mission,phase:ev.m.phase,tile:ev.m.tile,arr:ev.m.arr,ret:ev.m.ret,dep:ev.m.dep,gt:S.gt})
+        : ev && ev.a ? JSON.stringify(ev.a) : ""); } catch(e){}
+      if (ev && ev.w==="m" && ev.m){ if (ev.m.phase==="out") ev.m.arr=target+1000; else if (ev.m.phase==="wait") ev.m.dep=target+1000; else if (ev.m.phase==="back") ev.m.ret=target+1000; } // push the stuck march past now so the game carries on
+      changed=true; break; }
     accrueAll(next - S.gt); S.gt = Math.max(S.gt,next);
     var before=finished.length;
     if (ev.w==="al"){ handleAlliance(ev.e); }
@@ -7136,6 +7142,20 @@ function dropsSheet(){
 /* ---------- player profiles: tap a name (high scores, chat, alliance lists) to see that player ---------- */
 var PLC={}, plBusy=false;
 function plName(name, pid, me){ return '<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(String(name||"").toLowerCase())+'"'+(pid?' data-pid="'+pid+'"':'')+(me?' data-me="1"':'')+' data-nm="'+esc(name)+'">'+esc(name)+'</span>'; }
+// chat shows each player's high-score name, not their cloud save name: looked up once per player through /player (by cloud name) and kept for 10 minutes
+var DNM={}, dnmQ=[], dnmBusy=false, DNM_TTL=600000;
+function chatName(n){ if (!n) return n; var k=String(n).toLowerCase();
+  if (S.cloud && S.cloud.name && k===String(S.cloud.name).toLowerCase()) return (S.lb && S.lb.name && !S.lb.removed && S.lb.on!==false) ? S.lb.name : n;
+  var c=DNM[k]; if (!c || Date.now()-c.at>=DNM_TTL){ if (dnmQ.indexOf(k)<0) dnmQ.push(k); setTimeout(dnmPump,0); }
+  return (c && c.n) || n; }
+function dnmPump(){ if (dnmBusy || !dnmQ.length || !LB_URL) return; var k=dnmQ.shift(), c=DNM[k];
+  if (c && Date.now()-c.at<DNM_TTL){ dnmPump(); return; }
+  DNM[k]={n:(c&&c.n)||"", at:Date.now()}; dnmBusy=true;
+  fetch(LB_URL+"/player?k="+encodeURIComponent(k),{cache:"no-store"}).then(function(r){ return r.json(); }).then(function(d){ dnmBusy=false;
+    if (d && !d.error && !d.gone && d.found && d.name) DNM[k].n=String(d.name).slice(0,40);
+    if (d && !d.error) PLC["k"+k]={d:d,at:Date.now()};
+    try { fillAlChat(); renderDock(); } catch(e){} dnmPump(); }).catch(function(){ dnmBusy=false; setTimeout(dnmPump,3000); }); }
+function plChat(name){ var dn=chatName(name); return '<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(String(name||"").toLowerCase())+'" data-nm="'+esc(dn)+'">'+esc(dn)+'</span>'; }
 function plKey(k,pid){ return pid ? "p"+pid : "k"+k; }
 function plOpen(k,pid,nm){
   openSheet({kind:"player", k:k, pid:pid, nm:nm}); var key=plKey(k,pid), c=PLC[key];
