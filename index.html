@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.83";
+var APP_VERSION = "0.1.84";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4548,7 +4548,7 @@ function shownFinished(){ var out=[]; finished.forEach(function(m,i){ if (noteOn
 function phoneNotify(list){
   if (!list.length || !S.phoneNotif || !document.hidden || !("Notification" in window) || Notification.permission!=="granted") return;
   var body=list[list.length-1]+(list.length>1?" (and "+(list.length-1)+" more)":"");
-  try { if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(function(reg){ reg.showNotification("Ibory",{body:body, icon:"icon-192.png", badge:"icon-192.png", tag:"ibory"}); }); else new Notification("Ibory",{body:body, icon:"icon-192.png", tag:"ibory"}); } catch(e){}
+  try { if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(function(reg){ reg.showNotification("Ibory",{body:body, icon:"icon-192.png", badge:"badge-96.png", tag:"ibory"}); }); else new Notification("Ibory",{body:body, icon:"icon-192.png", tag:"ibory"}); } catch(e){}
 }
 function accrue(ms){
   if (ms<=0) return;
@@ -7251,6 +7251,7 @@ function addPvpLog(win, us, them, why, tiers){
 }
 function addReport(rep){
   if (rep.kb && !rep.ww){ var cap=SIM.capFor(rep.kb); if (cap) rep.ww=cap; }
+  if (rep.ww && !rep.scout && !rep.ally && !rep.mods){ var ms=null, mp=function(v){ return Math.round(((v==null?1:+v)-1)*1000)/10; }; try { ms=JSON.parse(rep.def?rep.ww.D:rep.ww.A); } catch(e){} if (ms) rep.mods=[mp(ms.attack_modifier),mp(ms.defence_modifier),mp(ms.life_modifier)]; } // your side's total bonuses, kept with the report
   if (pendingWound && !rep.scout){ rep.wounded=(rep.wounded||0)+pendingWound; } pendingWound=0;
   S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
   var c=compactRep(rep); S.log.unshift(c); trimKeepFav(S.log, LOG_CAP); bumpStats(c);
@@ -7334,14 +7335,16 @@ function shareReport(){
   else fresh();
 }
 function reportDetail(r){ return reportDetailBase(r)+killsHtml(r); }
+function modsLine(r){ if (!r.mods) return ""; var f=function(v){ return (v>=0?"+":"\u2212")+Math.abs(v)+"%"; };
+  return '<div class="us" style="margin:4px 0;display:flex;flex-wrap:wrap;gap:2px 14px"><span>Your attack <b>'+f(r.mods[0])+'</b></span><span>Defence <b>'+f(r.mods[1])+'</b></span><span>Troop life <b>'+f(r.mods[2])+'</b></span></div>'; }
 function reportDetailBase(r){
   if (r.scout) return r.intel ? '<p class="hint">Scouts got through'+(r.lost?' ('+fmt(r.lost)+' lost)':'')+'.</p>'+troopRows(r.intel.inf<3?r.intel.t.map(roughN):r.intel.t, r.intel.inf<3?null:r.intel.f, r.intel.wall)+'<div class="us">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(roughN(r.intel.res[k]))+'</b></span>'; }).join("")+'</div>' : '<p class="hint">All '+fmt(r.lost)+' scouts were caught.</p>';
-  if (r.def) return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.repaired?' Machinery repaired '+Math.round(r.repaired*100)+'% of lost archer towers (more of other fortifications).':'')+'</p>'+
+  if (r.def) return woundLine(r)+modsLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.repaired?' Machinery repaired '+Math.round(r.repaired*100)+'% of lost archer towers (more of other fortifications).':'')+'</p>'+
     '<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Yours</th><th>You lost</th><th>Theirs</th><th>They lost</th></tr></thead><tbody>'+
     U.map(function(u,i){ if (!r.sent[i] && !r.had[i]) return ''; var a1=r.sent[i]-r.left[i], a2=r.had[i]-r.eleft[i]; return '<tr><td>'+u.name+'</td><td>'+fmt(r.sent[i])+'</td><td class="'+(a1?'loss':'')+'">'+fmt(a1)+'</td><td>'+fmt(r.had[i])+'</td><td class="'+(a2?'ok':'')+'">'+fmt(a2)+'</td></tr>'; }).join("")+
     FORTN.map(function(n,k){ if (!r.forts[k]) return ''; var lf=r.forts[k]-r.fleft[k]; return '<tr><td>Your '+n+'</td><td>'+fmt(r.forts[k])+'</td><td class="'+(lf?'loss':'')+'">'+fmt(lf)+'</td><td></td><td></td></tr>'; }).join("")+'</tbody></table></div>'+allyRepHtml(r);
   var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
-  return woundLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
+  return woundLine(r)+modsLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
     (loot?'<div class="us" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'');
 }
 function fillRepList(){
