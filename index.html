@@ -479,6 +479,11 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .avatar.sm[class*=" f-"]{box-shadow:0 0 0 2px var(--fa),0 0 0 3px var(--fb)}
 .avatar.sm .fbadge{width:16px;height:16px;right:-5px;bottom:-5px;box-shadow:0 0 0 1px var(--fb,var(--brass))}
 .avatar.sm .fbadge svg{width:10px;height:10px}
+.avatar.xs{display:inline-flex;vertical-align:middle;width:22px;height:22px;border-radius:6px;font-size:.7rem;margin-right:6px;box-shadow:0 0 0 1px var(--line)}
+.avatar.xs img{border-radius:5px}
+.avatar.xs[class*=" f-"]{box-shadow:0 0 0 1px var(--fa),0 0 0 2px var(--fb)}
+.avatar.xs .fbadge{width:12px;height:12px;right:-4px;bottom:-4px;box-shadow:0 0 0 1px var(--fb,var(--brass))}
+.avatar.xs .fbadge svg{width:8px;height:8px}
 .lookcity{display:flex;align-items:center;justify-content:center;border-radius:6px}
 .lookcity svg{width:100%;height:100%}
 .alt.cz{padding:0;overflow:hidden}
@@ -683,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.91";
+var APP_VERSION = "0.1.92";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -7153,9 +7158,11 @@ function dnmPump(){ if (dnmBusy || !dnmQ.length || !LB_URL) return; var k=dnmQ.s
   DNM[k]={n:(c&&c.n)||"", at:Date.now()}; dnmBusy=true;
   fetch(LB_URL+"/player?k="+encodeURIComponent(k),{cache:"no-store"}).then(function(r){ return r.json(); }).then(function(d){ dnmBusy=false;
     if (d && !d.error && !d.gone && d.found && d.name) DNM[k].n=String(d.name).slice(0,40);
+    if (d && !d.error && !d.gone && (d.pu||d.fr) && d.ck) DNM[k].pf={img: d.pu ? LB_URL+"/me/img?k="+encodeURIComponent(d.ck)+"&v="+d.pu : "", frame:d.fr||""};
     if (d && !d.error) PLC["k"+k]={d:d,at:Date.now()};
     try { fillAlChat(); renderDock(); } catch(e){} dnmPump(); }).catch(function(){ dnmBusy=false; setTimeout(dnmPump,3000); }); }
-function plChat(name){ var dn=chatName(name); return '<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(String(name||"").toLowerCase())+'" data-nm="'+esc(dn)+'">'+esc(dn)+'</span>'; }
+function plChat(name){ var dn=chatName(name), k=String(name||"").toLowerCase(), mine=S.cloud && S.cloud.name && k===String(S.cloud.name).toLowerCase(), c=DNM[k], pf=mine?S.me:(c&&c.pf);
+  return avatarHtml(pf||{},dn,"xs")+'<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(k)+'" data-nm="'+esc(dn)+'">'+esc(dn)+'</span>'; }
 function plKey(k,pid){ return pid ? "p"+pid : "k"+k; }
 function plOpen(k,pid,nm){
   openSheet({kind:"player", k:k, pid:pid, nm:nm}); var key=plKey(k,pid), c=PLC[key];
@@ -8679,7 +8686,8 @@ document.addEventListener("click",function(e){
     if (ga.my.rank===0){ if (ga.members.length>1){ toast("Hand the alliance to another member first (Alliance, Members), then come back"); return; } alDo("/al/disband",{},"Alliance disbanded",gdone); }
     else alDo("/al/leave",{},"You left the alliance",gdone);
     return; }
-  if (act==="chat-open"){ dockOpen=true; dockSave(); var chs=dockChans(); if (chs.indexOf(dockCh)<0 && chs.length) dockCh=chs[0]; renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb0=document.getElementById("dkmsgs"); if (dkb0) dkb0.scrollTop=dkb0.scrollHeight; return; }
+  if (act==="chat-open"){ var dkv=document.getElementById("chatdock"); if (dockOpen && dkv && dkv.style.display==="block"){ dockOpen=false; dockSave(); renderDock(); return; } // tapping the chat icon while chat is open closes it
+    dockOpen=true; dockSave(); var chs=dockChans(); if (chs.indexOf(dockCh)<0 && chs.length) dockCh=chs[0]; renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb0=document.getElementById("dkmsgs"); if (dkb0) dkb0.scrollTop=dkb0.scrollHeight; return; }
   if (act==="dock-ch"){ dockCh=a.dataset.ch; dockSave(); renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb1=document.getElementById("dkmsgs"); if (dkb1) dkb1.scrollTop=dkb1.scrollHeight; return; }
   if (act==="dock-close"){ dockOpen=false; dockSave(); renderDock(); return; }
   if (act==="dock-pin"){ dockPin=!dockPin; dockSave(); renderDock(); toast(dockPin?"Chat pinned to the bottom of every page":"Chat unpinned"); return; }
