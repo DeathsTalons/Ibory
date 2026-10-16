@@ -57,6 +57,8 @@ h1{font:700 1.5rem/1.1 var(--display);letter-spacing:.04em;margin:0}
 .speedchip b:empty{display:none}
 .speedchip.helpchip{background:var(--brass);color:var(--bg);border-color:var(--brass);font-weight:700}
 .speedchip.helpchip b{color:var(--bg)}
+.speedchip.wtchip{background:var(--red);border-color:var(--red)}
+.tpgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:8px}.tpgrid input{width:100%;max-width:200px}
 header{flex-wrap:wrap}
 .chiprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 @media (max-width:420px){ .chiprow{gap:5px} .chiprow .speedchip{padding:6px 9px;gap:5px;font-size:.9rem} .chiprow .speedchip.iconchip{padding:6px 7px} }
@@ -148,6 +150,7 @@ details.rep summary{list-style-position:outside;line-height:1.35}
 .qlist{margin:6px 0 0;padding-left:22px;display:grid;gap:4px}
 .qlist li span.dur{margin-left:6px}
 .qlist li > button{float:right;margin-left:10px}
+.qlist:has(.qbtns){counter-reset:q;list-style:none;padding-left:4px}.qlist li:has(.qbtns)::before{counter-increment:q;content:counter(q)".";color:var(--muted);min-width:1.2em}.qlist li:has(.qbtns){display:flex;justify-content:space-between;align-items:center;gap:8px}.qlist li:has(.qbtns)>span:first-child{flex:1;min-width:0}.qlist li .qbtns{margin-left:10px;flex:none;display:inline-flex;gap:4px;align-items:center}.qlist li .qbtns .link{padding:3px 8px}.qlist li .qbtns .link:disabled{opacity:.3;cursor:default}
 .bar{grid-column:1/-1;height:5px;background:var(--panel2);border-radius:3px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--brass);width:0}
 .qacts{grid-column:1/-1;display:flex;gap:16px}
@@ -588,6 +591,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button class="speedchip" data-act="settings" data-tab="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
     <button class="speedchip iconchip helpchip" data-act="al-help" id="helpchip" style="display:none" aria-label="Help your alliance" title="Help your alliance"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V5.5a1.5 1.5 0 0 1 3 0V12M17 11.5V9a1.5 1.5 0 0 1 3 0v5c0 4-3 7-7 7-3 0-4.6-1.4-6.2-4l-2.2-3.6a1.5 1.5 0 0 1 2.6-1.5L8 14"/></svg><b id="helpn"></b></button>
     <button class="speedchip iconchip helpchip" data-act="al-arena-go" id="monchip" style="display:none" aria-label="A monster is waiting at your alliance's Arena" title="Monster Arena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19l4-14M10.5 20l3-15M16 19l3-12"/></svg><b id="monn"></b></button>
+    <button class="speedchip iconchip helpchip wtchip" data-act="wt-open" id="wtchip" style="display:none" aria-label="Attacks heading for your alliance" title="Watchtower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><b id="wtn"></b></button>
     </div>
   </header>
 
@@ -642,7 +646,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.66";
+var APP_VERSION = "0.1.70";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
@@ -2774,16 +2778,17 @@ function alUnread(){ var al=alMine(); if (!al) return 0; var seen=S.alSeen||0, n
 function alSync(){
   if (!alOn() || ALS.busy) return; ALS.busy=true; ALS.last=Date.now();
   var sendJobs=!!alMine(), jobs=sendJobs?alMyJobs():null; if (jobs) ALS.jobSig=jobs.map(function(j){ return j.ref; }).join("|");
-  var sb={since:ALS.top}; if (jobs){ sb.proj=jobs.map(function(j){ return {ref:j.ref, kind:j.kind, label:j.label, end:j.end}; }); S.alGive=S.alGive||{r:0,c:0}; sb.give={r:Math.floor(S.alGive.r), c:Math.floor(S.alGive.c)}; } if (!ALS.cat) sb.cat=1;
+  var sb={since:ALS.top}, firstChat=!ALS.top; if (alMine()) sb.thr=wtThreats(); if (jobs){ sb.proj=jobs.map(function(j){ return {ref:j.ref, kind:j.kind, label:j.label, end:j.end}; }); S.alGive=S.alGive||{r:0,c:0}; sb.give={r:Math.floor(S.alGive.r), c:Math.floor(S.alGive.c)}; } if (!ALS.cat) sb.cat=1;
   alPost("/al/sync",sb).then(function(d){ ALS.busy=false;
     if (d.error){ ALS.err=d.error; alRender(); return; }
     ALS.err=""; var aid=d.member?d.member.aid:null; if (d.cat) ALS.cat=d.cat;
     if (aid && d.al && d.al.econ){ S.alMember=true; S.alFx=d.al.econ.fx||{}; }
     else if (!aid && S.alMember){ S.alMember=false; S.alFx={}; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); } // left: bonuses and lending end
     if (aid!==ALS.aid){ ALS.aid=aid; ALS.chat=[]; ALS.top=0; ALS.d=d; if (aid){ ALS.last=0; } alRender(); if (aid) setTimeout(alSync,50); return; }
-    ALS.d=d; if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon);
+    if (firstChat) ALS.moreOld=(d.chat||[]).length>=60; // a full first page means there may be older messages
+    ALS.d=d; tpApply(d.al?d.al.trade:d.trade); if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon);
     (d.chat||[]).forEach(function(c){ var at=-1; for (var i=ALS.chat.length-1;i>=0;i--) if (ALS.chat[i].id===c.id){ at=i; break; } if (at>=0) ALS.chat[at]=c; else ALS.chat.push(c); if (c.id>ALS.top) ALS.top=c.id; });
-    if (ALS.chat.length>300) ALS.chat=ALS.chat.slice(-300);
+    if (ALS.chat.length>1000) ALS.chat=ALS.chat.slice(-1000);
     if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
     alRender();
   }).catch(function(){ ALS.busy=false; ALS.err="Couldn\u2019t reach the server. Check your connection."; alRender(); });
@@ -2864,7 +2869,7 @@ function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
   if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
   var hp=ALS.d.help||{projects:[],canHelp:0};
-  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
@@ -2882,6 +2887,8 @@ function viewMyAlliance(al){
     h+=viewAllianceList(al.id);
   } else if (sub==="arena"){
     h+=alArenaHtml(al);
+  } else if (sub==="trade"){
+    h+=alTradeHtml(al);
   } else if (sub==="map"){
     h+=alMapHtml(al);
   } else if (sub==="members"){
@@ -2916,6 +2923,88 @@ var ALD={food:"",lumber:"",stone:"",iron:"",gold:""};
 function alPct(got,need){ return Math.min(100, Math.floor(got/Math.max(1,need)*100)); }
 function alBar(got,need){ return '<div class="bar" style="margin-top:4px"><i style="width:'+alPct(got,need)+'%"></i></div><span class="dur">'+fmt(Math.floor(got))+' / '+fmt(need)+' points ('+alPct(got,need)+'%)</span>'; }
 function alCostTxt(need){ var x=(ALS.cat&&ALS.cat.resX)||{food:2,lumber:2,stone:2,iron:2,gold:0.5}; return RES.map(function(k){ return fmt(Math.round(need*x[k]))+' '+RNAME[k].toLowerCase(); }).join(", "); }
+/* ---------- Watchtower (alarm chip + list) and Trading Post (Trade page) ---------- */
+function wtThreats(){ // the attacks heading for my cities, sent with every alliance sync so the Watchtower can warn the others
+  var now=Date.now(), out=[];
+  (S.aiWar||[]).forEach(function(w){ if (w.phase!=="out") return; var ci=cityIndex(w.city), c=ci>=0?S.cities[ci]:null; if (!c) return;
+    out.push({k:"ai", id:"w"+w.id, c:c.name, a:w.name||"", n:sumT(w.t||[]), t:(w.t||[]).slice(0,12), land:now+Math.max(0,realMs(w.arr-S.gt))}); });
+  var v=IV.st&&IV.st.inv; // being invaded: one alert for as long as the invasion runs
+  if (v && v.role==="defender" && !v.result && v.endAt){ var en=0, et=Z12(); (v.enemy||[]).forEach(function(e){ if (e.t) e.t.forEach(function(n,i){ et[i]+=n; en+=n; }); });
+    out.unshift({k:"inv", id:"i"+v.id, c:(v.me&&v.me.name)||"", a:(v.players&&v.players[0]&&v.players[0].name)||"", n:en, t:en?et:[], land:now+Math.max(0,v.endAt-invT(v))}); }
+  return out.slice(0,40);
+}
+function wtAll(){ var al=alMine(), w=al&&al.watch; if (!w || !w.lv || !mpShown()) return []; var now=Date.now(); return (w.list||[]).filter(function(x){ return x.land>now; }); }
+function wtKey(x){ return x.who+"|"+(x.id||x.c+x.land); }
+function wtOn(k){ return !(S.wtOff && S.wtOff[k]); }
+function wtIgnored(x){ return !!(S.wtIgn && S.wtIgn[wtKey(x)]); }
+function wtList(){ return wtAll().filter(function(x){ return wtOn(x.k||"ai") && !wtIgnored(x); }); } // what the alarm chip counts
+function wtTypeBtns(){ return '<div class="farmadd" style="margin:4px 0 8px"><span class="dur">Alert me about:</span>'+[["ai","AI lord attacks"],["inv","Invasions"]].map(function(t){ return '<button class="chipbtn'+(wtOn(t[0])?' on':'')+'" data-act="wt-type" data-k="'+t[0]+'" aria-pressed="'+wtOn(t[0])+'">'+t[1]+'</button>'; }).join("")+'</div>'; }
+function wtSheet(){
+  var al=alMine(), w=al&&al.watch, L=w?w.lv:0, list=wtList();
+  var h='<div class="head"><span class="ico">'+ICON.beacon+'</span><div style="flex:1"><h2>Watchtower</h2><div class="sub">'+(L?'Level '+L+' · attacks heading for your alliance':'Your alliance has no Watchtower')+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  var all=wtAll(), off=all.filter(function(x){ return !wtOn(x.k||"ai"); }).length, ign=all.filter(function(x){ return wtOn(x.k||"ai") && wtIgnored(x); });
+  h+=wtTypeBtns();
+  if (!list.length) h+='<p class="hint">'+(all.length?'Nothing new to warn you about.':'No attacks on the way right now.')+'</p>';
+  var row=function(x, ignored){ var left=Math.max(0,x.land-Date.now()), what='', inv=x.k==="inv";
+    if (x.t) what=x.t.map(function(n,i){ return n?fmt(n)+' '+uname(i,n):''; }).filter(Boolean).join(', ');
+    else if (x.n!=null) what='about '+fmt(x.n)+' troops';
+    var tm=left<60000?'under a minute':fmtT(Math.ceil(left/60000)*60000);
+    return '<div class="bq"'+(ignored?' style="opacity:.6"':'')+'><span>'+(inv?'<b>Invasion</b> of ':'')+'<b>'+plName(x.who)+'</b>\u2019s '+esc(x.c||'city')+(x.a?' <span class="dur">by</span> '+esc(x.a):'')+(what?'<br><span class="dur">'+(inv?'incoming: ':'')+what+'</span>':'')+'</span><span class="qtime">'+(inv?'ends in ':'')+tm+'</span>'+
+      '<div class="qacts"><button class="link" data-act="wt-ign" data-key="'+esc(wtKey(x))+'" data-land="'+x.land+'" data-v="'+(ignored?'0':'1')+'">'+(ignored?'Show again':'Ignore')+'</button></div></div>'; };
+  h+=list.map(function(x){ return row(x,false); }).join("");
+  if (ign.length) h+='<details class="det" style="margin-top:8px"><summary><b>Ignored</b> <span class="dur">'+ign.length+'</span></summary>'+ign.map(function(x){ return row(x,true); }).join("")+'</details>';
+  if (off) h+='<p class="dur">'+off+' more hidden by the alert types you turned off.</p>';
+  var nx = L<3?'Level 3 shows who is attacking.':L<5?'Level 5 shows a rough troop count.':L<8?'Level 8 shows every troop.':'';
+  return h+'<p class="hint">'+(nx?nx+' ':'')+'Members’ games report attacks heading for their cities whenever they sync with the alliance.</p>';
+}
+var TP={to:"", from:0, res:{}, busy:false};
+function tpApply(tr){ // shipments that have landed go into your first city, once each
+  if (!tr || !tr.in || !tr.in.length) return; S.alTradeDone=S.alTradeDone||[]; var now=Date.now(), ack=[], got=[];
+  tr.in.forEach(function(x){ if (x.arrive>now) return; ack.push(x.id); if (S.alTradeDone.indexOf(x.id)>=0) return; S.alTradeDone.push(x.id);
+    withCity(0,function(){ RES.forEach(function(k){ S.res[k]=(S.res[k]||0)+Math.max(0,+(x.res&&x.res[k])||0); }); }); got.push(x); });
+  if (S.alTradeDone.length>300) S.alTradeDone=S.alTradeDone.slice(-300);
+  if (got.length){ toast(got.length===1?"Resources from "+got[0].from+" arrived in "+S.cities[0].name:got.length+" shipments arrived in "+S.cities[0].name); save(); }
+  if (ack.length) alPost("/al/trade/got",{ids:ack}).catch(function(){});
+}
+function tpResTxt(r){ return RES.filter(function(k){ return r&&r[k]; }).map(function(k){ return fmt(r[k])+' '+k; }).join(', ')||'nothing'; }
+function tpPreview(){ var el=document.getElementById("tppv"), al=alMine(), tr=al&&al.trade; if (!el || !tr) return; var tot=0, net=0;
+  RES.forEach(function(k){ var v=Math.max(0,Math.floor(+TP.res[k]||0)); tot+=v; net+=Math.floor(v*(1-tr.fee)); });
+  el.textContent = tot ? 'Sends '+fmt(tot)+'; '+fmt(net)+' arrives after the '+Math.round(tr.fee*100)+'% fee.' : 'Enter what to send.'; }
+function alTradeHtml(al){
+  var tr=al.trade||{lv:0,in:[],out:[]}, h='<div class="section"><h3>Trading Post</h3>';
+  if (!tr.lv) h+='<p class="hint">Your alliance has no Trading Post yet. It’s built from the Alliance City page with construction points, like the other alliance buildings. Then members can send each other resources.</p>';
+  else {
+    h+='<p class="hint">Level '+tr.lv+'. '+Math.round(tr.fee*100)+'% of every shipment is lost on the way. In the next 24 hours you can still send '+fmt(Math.max(0,tr.limit-tr.sent))+' and receive '+fmt(Math.max(0,tr.limit-tr.got))+' (limit '+fmt(tr.limit)+' each way). Shipments you receive land in '+esc(S.cities[0].name)+'.</p>';
+    var others=al.members.filter(function(m){ return m.name!==S.cloud.name; });
+    if (!others.length) h+='<p class="hint">Nobody else is in your alliance yet.</p>';
+    else {
+      if (!TP.to || !others.some(function(m){ return m.name===TP.to; })) TP.to=others[0].name; if (!S.cities[TP.from]) TP.from=S.cur;
+      var fc=S.cities[TP.from];
+      h+='<div class="farmadd"><label class="dur" for="tpto">To</label><select id="tpto">'+others.map(function(m){ return '<option'+(m.name===TP.to?' selected':'')+'>'+esc(m.name)+'</option>'; }).join("")+'</select>'+
+        '<label class="dur" for="tpfrom">From</label><select id="tpfrom">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===TP.from?' selected':'')+'>'+esc(c.name)+'</option>'; }).join("")+'</select></div>';
+      h+='<div class="tpgrid">'+RES.map(function(k){ var have=withCity(TP.from,function(){ return Math.floor(S.res[k]||0); });
+        return '<label class="dur" for="tp-'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+' <span class="dur">(have '+fmt(have)+')</span></label><input type="number" min="0" inputmode="numeric" id="tp-'+k+'" value="'+(TP.res[k]||"")+'" placeholder="0">'; }).join("")+'</div>';
+      h+='<p class="hint" id="tppv"></p><div class="btnrow"><button class="btn" data-act="tp-send"'+(TP.busy?' disabled':'')+'>'+(TP.busy?'Sending…':'Send')+'</button></div>';
+    }
+  }
+  h+='</div>';
+  var now=Date.now(), mins=function(t){ var l=t-now; return l<=0?'arrived':l<60000?'under a minute':fmtT(Math.ceil(l/60000)*60000); };
+  if (tr.in && tr.in.length) h+='<div class="section"><h3>On the way to you</h3>'+tr.in.map(function(x){ return '<div class="bq"><span><b>'+plName(x.from)+'</b>: '+tpResTxt(x.res)+'</span><span class="qtime">'+mins(x.arrive)+'</span></div>'; }).join("")+'</div>';
+  if (tr.out && tr.out.length) h+='<div class="section"><h3>Sent in the last 24 hours</h3>'+tr.out.map(function(x){ return '<div class="bq"><span>To <b>'+plName(x.to)+'</b>: '+tpResTxt(x.res)+'</span><span class="qtime">'+mins(x.arrive)+'</span></div>'; }).join("")+'</div>';
+  return h;
+}
+function tpSend(){
+  var al=alMine(), tr=al&&al.trade; if (!tr || !tr.lv || TP.busy) return;
+  var ci=TP.from, res={}, tot=0; RES.forEach(function(k){ var v=Math.max(0,Math.floor(+TP.res[k]||0)); res[k]=v; tot+=v; });
+  if (!TP.to){ toast("Pick who to send to"); return; } if (!tot){ toast("Enter some resources to send"); return; }
+  var short=withCity(ci,function(){ return RES.filter(function(k){ return (S.res[k]||0)<res[k]; }); });
+  if (short.length){ toast("Not enough "+short.join(", ")+" in "+S.cities[ci].name); return; }
+  var back=function(){ withCity(ci,function(){ RES.forEach(function(k){ S.res[k]+=res[k]; }); }); save(); };
+  withCity(ci,function(){ RES.forEach(function(k){ S.res[k]-=res[k]; }); }); save(); TP.busy=true; lastView=""; renderView(true);
+  alPost("/al/trade/send",{to:TP.to, res:res}).then(function(d){ TP.busy=false;
+    if (d.error){ back(); toast(d.error); } else { TP.res={}; toast("Sent to "+TP.to+": "+tpResTxt(d.got)+" lands in "+fmtT(d.travel)); ALS.last=0; alSync(); }
+    lastView=""; renderView(true); }).catch(function(){ TP.busy=false; back(); toast("Couldn’t reach the server"); lastView=""; renderView(true); });
+}
 function alCityHtml(al){
   var E=al.econ, C0=ALS.cat; if (!E || !C0) return '<div class="section"><p class="hint">Loading the Alliance City\u2026</p></div>';
   var my=al.my, h='', univ=C0.bldg[0], ul=E.lv.univ||0, cl=E.lv.city||1;
@@ -3126,7 +3215,7 @@ function alMapHtml(al){
     if (t && t.city && !cityTop) continue; // the city is drawn once, as one big block
     if (t && t.b && !bTop) continue;
     if (bTop){ var bnm=((ALS.cat&&ALS.cat.bldg.filter(function(z){ return z.k===t.b.k; })[0])||{n:t.b.k}).n, bon=sel&&alBldgAt(M,sel.x,sel.y)===t.b;
-      h+='<button class="alt bldg'+(bon?' sel':'')+'" style="grid-row:'+(y+1)+' / span '+(M.bs||3)+';grid-column:'+(x+1)+' / span '+(M.bs||3)+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+esc(bnm)+'">'+(t.b.k==="wh"?ICON.warehouse:t.b.k==="arena"?ICON.rally:ICON.academy)+'<span class="altl">'+esc(bnm)+'</span></button>'; continue; }
+      h+='<button class="alt bldg'+(bon?' sel':'')+'" style="grid-row:'+(y+1)+' / span '+(M.bs||3)+';grid-column:'+(x+1)+' / span '+(M.bs||3)+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+esc(bnm)+'">'+(t.b.k==="wh"?ICON.warehouse:t.b.k==="arena"?ICON.rally:t.b.k==="watch"?ICON.beacon:t.b.k==="trade"?ICON.market:ICON.academy)+'<span class="altl">'+esc(bnm)+'</span></button>'; continue; }
     var on=sel&&(t&&t.city ? alInCity(M,sel.x,sel.y) : sel.x===x&&sel.y===y), cls='alt'+(on?' sel':'')+(t&&t.city?' city':t&&t.k?(t.k.name===S.cloud.name?' mine':' kd'):'')+(mv&&!t?' free':'');
     var inner = t&&t.city ? ICON.townhall+'<span class="altl">Alliance City</span>' : t&&t.k ? '<span>'+esc(alInitials(t.k.name))+'</span>' : '';
     var area = 'grid-row:'+(y+1)+(cityTop?' / span '+alCs(M):'')+';grid-column:'+(x+1)+(cityTop?' / span '+alCs(M):'');
@@ -3148,13 +3237,13 @@ function alMapHtml(al){
 }
 function fillAlChat(){
   var el=document.getElementById("alchat"); if (!el) return;
-  var al=alMine(), my=al&&al.my, hh=ALS.chat.length?ALS.chat.map(function(c){
+  var al=alMine(), my=al&&al.my, hh=ALS.chat.length?chatOlderBtn('al')+ALS.chat.map(function(c){
     if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
     var canDel=!c.del && (c.name===S.cloud.name || (my&&my.can.chat));
     return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+plName(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
   if (el._sig===hh) return;
   var atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40 || !el._sig;
-  el.innerHTML=hh; el._sig=hh; if (atBottom) el.scrollTop=el.scrollHeight;
+  var kp=el._keep; el._keep=null; el.innerHTML=hh; el._sig=hh; if (kp) el.scrollTop=kp.t+(el.scrollHeight-kp.h); else if (atBottom) el.scrollTop=el.scrollHeight;
   if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
 }
 /* pinned chat dock: a bar at the bottom of every page (only for alliance members who pinned it); it opens into the chat */
@@ -3163,13 +3252,15 @@ try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorag
 function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); localStorage.setItem("ibory-dock-ch",dockCh); } catch(e){} }
 function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); return c; }
 /* ---------- world chat: everyone with a cloud save; lives in the chat dock next to alliance chat ---------- */
-var WCH={lines:[], top:0, last:0, busy:false, mutedUntil:0, err:""};
+var WCH={lines:[], top:0, last:0, busy:false, mutedUntil:0, err:"", more:false, oldBusy:false};
 function wcUnread(){ var seen=S.wcSeen||0, me=S.cloud&&S.cloud.name, n=0; WCH.lines.forEach(function(l){ if (l.id>seen && l.name!==me) n++; }); return n; }
 function wcSync(){
   if (WCH.busy || !cbOn()) return; WCH.busy=true;
+  var firstLoad=!WCH.top;
   alPost("/wc/sync",{since:WCH.top}).then(function(d){ WCH.busy=false; WCH.last=Date.now(); if (d.error){ WCH.err=d.error; renderDock(); return; } WCH.err="";
+    if (firstLoad) WCH.more=(d.lines||[]).length>=80; // a full first page means there may be older messages
     var gone={}; (d.gone||[]).forEach(function(id){ gone[id]=1; }); (d.lines||[]).forEach(function(l){ if (l.del) gone[l.id]=1; });
-    WCH.lines=WCH.lines.concat((d.lines||[]).filter(function(l){ return !l.del; })).filter(function(l){ return !gone[l.id]; }).slice(-150);
+    WCH.lines=WCH.lines.concat((d.lines||[]).filter(function(l){ return !l.del; })).filter(function(l){ return !gone[l.id]; }).slice(-1000);
     (d.lines||[]).forEach(function(l){ if (l.id>WCH.top) WCH.top=l.id; });
     WCH.mutedUntil=d.mutedUntil||0; if (d.mp && !S.mp){ S.mp=true; S.mpSent=1; save(); }
     if (!S.wcSeen && WCH.top) S.wcSeen=WCH.top; // first look: older lines aren't "new"
@@ -3184,6 +3275,15 @@ function wcTick(){
 setInterval(wcTick, 1000);
 function wcSend(){ var i=document.getElementById("dockin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value="";
   alPost("/wc/say",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { WCH.last=0; wcSync(); } }).catch(function(){ toast("Couldn’t reach the server"); i.value=t; }); }
+function wcOlder(){ // load the 80 messages before the oldest one shown
+  if (WCH.oldBusy || !WCH.lines.length) return; WCH.oldBusy=true; renderDock();
+  var box=document.getElementById("dkmsgs"), keep=box?{h:box.scrollHeight,t:box.scrollTop}:null;
+  alPost("/wc/sync",{before:WCH.lines[0].id}).then(function(d){ WCH.oldBusy=false; if (d.error){ toast(d.error); renderDock(); return; }
+    var have={}; WCH.lines.forEach(function(l){ have[l.id]=1; });
+    var add=(d.lines||[]).filter(function(l){ return !l.del && !have[l.id]; }); WCH.lines=add.concat(WCH.lines); WCH.more=!!d.more;
+    if (keep && box) box._keep=keep; renderDock(); }).catch(function(){ WCH.oldBusy=false; toast("Couldn\u2019t reach the server"); renderDock(); });
+}
+function chatOlderBtn(ch){ var more=ch==="world"?WCH.more:ALS.moreOld, busy=ch==="world"?WCH.oldBusy:ALS.oldBusy; return more?'<div style="text-align:center;margin:2px 0 6px"><button class="link" data-act="chat-older" data-ch="'+ch+'"'+(busy?' disabled':'')+'>'+(busy?'Loading\u2026':'Load older messages')+'</button></div>':''; }
 function wcTime(at){ var d=new Date(at); return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"); }
 function renderDock(){
   var el=document.getElementById("chatdock"); if (!el || !WCH) return; // (world chat state is set up a moment after the first render)
@@ -3207,13 +3307,13 @@ function renderDock(){
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
     msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?lw.name+": "+lw.text:(cbOn()?"No messages yet":"Sign in to chat");
-    hh=msgs.length ? msgs.slice(-80).map(function(c){ return '<div class="alm"><b>'+plName(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ return '<div class="alm"><b>'+plName(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
     setText(document.getElementById("dkch"), "World");
   } else {
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
     lastTxt=la?la.name+": "+la.text:"No messages yet";
-    hh=msgs.length ? msgs.slice(-60).map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+plName(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+plName(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
   setText(document.getElementById("dklast"), lastTxt);
@@ -3221,9 +3321,17 @@ function renderDock(){
   var fd=canSay?"":"none"; if (fm && fm.style.display!==fd) fm.style.display=fd;
   if (dockOpen){
     if (dockCh==="world"){ if (WCH.top>(S.wcSeen||0)) S.wcSeen=WCH.top; } else if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
-    var box=document.getElementById("dkmsgs"); if (box && box._sig!==dockCh+hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig || box._sig.indexOf(dockCh)!==0; box.innerHTML=hh; box._sig=dockCh+hh; if (atBottom) box.scrollTop=box.scrollHeight; }
+    var box=document.getElementById("dkmsgs"); if (box && box._sig!==dockCh+hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig || box._sig.indexOf(dockCh)!==0; var kp=box._keep; box._keep=null; box.innerHTML=hh; box._sig=dockCh+hh; if (kp) box.scrollTop=kp.t+(box.scrollHeight-kp.h); else if (atBottom) box.scrollTop=box.scrollHeight; }
     setText(document.getElementById("dkn"), "");
   } else { var un=dockCh==="world"?unW:unA; setText(document.getElementById("dkn"), un?String(un):""); }
+}
+function alOlder(){ // load the 60 messages before the oldest one shown
+  if (ALS.oldBusy || !ALS.chat.length) return; ALS.oldBusy=true; fillAlChat(); renderDock();
+  var box=document.getElementById(dockOpen&&dockCh==="al"?"dkmsgs":"alchat"), keep=box?{h:box.scrollHeight,t:box.scrollTop}:null;
+  alPost("/al/chatmore",{before:ALS.chat[0].id}).then(function(d){ ALS.oldBusy=false; if (d.error){ toast(d.error); fillAlChat(); renderDock(); return; }
+    var have={}; ALS.chat.forEach(function(c){ have[c.id]=1; });
+    ALS.chat=(d.chat||[]).filter(function(c){ return !have[c.id]; }).concat(ALS.chat); ALS.moreOld=!!d.more;
+    if (keep && box) box._keep=keep; fillAlChat(); renderDock(); }).catch(function(){ ALS.oldBusy=false; toast("Couldn\u2019t reach the server"); fillAlChat(); renderDock(); });
 }
 function alSend(id){ var i=document.getElementById(id||"alchatin"); if (!i) return; var t=i.value.trim(); if (!t) return; i.value=""; alPost("/al/chat",{text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; } else { ALS.last=0; alSync(); } }).catch(function(){ toast("Couldn\u2019t reach the server"); i.value=t; }); }
 /* ---------- cloud backup: name + password, kept on the high-scores Worker ---------- */
@@ -4410,7 +4518,7 @@ function renderQueue(){
   if (S.builds.length){
     qb.className="qstack"; qb.innerHTML=S.builds.map(function(b,k){ var lbl=DEF[b.type].name+(b.to===1?" (new)":" to level "+b.to);
       return '<div class="qrow"><span class="qlabel">'+esc(lbl)+'</span><span class="qtime" id="qb-t-'+k+'"></span><div class="bar"><i id="qb-bar-'+k+'"></i></div><div class="qacts"><button class="link strong" data-act="speedup" data-target="build" data-slot="'+k+'" id="qb-sp-'+k+'">Speed up</button>'+'<button class="link" data-act="cancel-build" data-slot="'+k+'">Cancel</button></div></div>'; }).join("")+
-      (S.builds.length<BUILDERS?'<div class="qrow idle">One builder is free.'+(S.bq.length?' '+S.bq.length+' queued.':'')+'</div>':(S.bq.length?'<div class="qrow idle">'+S.bq.length+' more in the build queue.</div>':''));
+      (S.builds.length<BUILDERS?'<div class="qrow idle">One builder is free.</div>':'');
   } else { qb.className="qrow idle"; qb.textContent="Both builders are free. Tap a plot to build or upgrade."+(S.bq.length?" "+S.bq.length+" queued (waiting on resources or requirements).":""); }
   if (S.research){
     var r=S.research;
@@ -4419,6 +4527,8 @@ function renderQueue(){
   else { qr.className=""; qr.innerHTML=""; }
   var qq=document.getElementById("q-queues"); if (qq){ var qh=queuesHtml(); if (qq._sig!==qh){ qq.innerHTML=qh; qq._sig=qh; wireDetails(qq); } }
 }
+// move up / move down / remove buttons for one queued item
+function qMoveBtns(w,k,n){ return '<span class="qbtns"><button class="link" data-act="'+w+'-up" data-k="'+k+'"'+(k===0?' disabled':'')+' aria-label="Move up" title="Move up">\u25b2</button><button class="link" data-act="'+w+'-down" data-k="'+k+'"'+(k>=n-1?' disabled':'')+' aria-label="Move down" title="Move down">\u25bc</button><button class="link" data-act="'+w+'-remove" data-k="'+k+'">Remove</button></span>'; }
 // the build and research queues, folded inside the running-work dropdown
 function queuesHtml(){
   if (!S.bq.length && !S.rq.length) return '';
@@ -4426,8 +4536,8 @@ function queuesHtml(){
   var h='<details class="det qnest" data-det="queues"'+(DET.queues?' open':'')+'><summary><b>Queued</b> <span class="dur">'+parts.join(", ")+'</span></summary>';
   if (S.bq.length) h+='<div class="h3" style="margin-top:6px">Build queue</div><p class="hint" style="margin:2px 0">Starts on its own when a builder is free and the cost is covered, even while you\u2019re away.</p><ol class="qlist">'+S.bq.map(function(it,k){
       var sl=getSlot(it.w,it.i), L=sl?sl.level:0, st=bqState(it);
-      return '<li><span>'+DEF[it.type].name+(sl?' to level '+(L+1):' (new)')+' <span class="dur">'+(st==="wait"?(buildOn(it.w,it.i)?"after current work":"waiting"):"ready")+'</span></span><button class="link" data-act="bq-remove" data-k="'+k+'">Remove</button></li>'; }).join("")+'</ol>';
-  if (S.rq.length) h+='<div class="h3" style="margin-top:6px">Research queue</div><ol class="qlist">'+S.rq.map(function(k,i){ return '<li><span>'+TECH[k].name+'</span><button class="link" data-act="rq-remove" data-k="'+i+'">Remove</button></li>'; }).join("")+'</ol>';
+      return '<li><span>'+DEF[it.type].name+(sl?' to level '+(L+1):' (new)')+' <span class="dur">'+(st==="wait"?(buildOn(it.w,it.i)?"after current work":"waiting"):"ready")+'</span></span>'+qMoveBtns("bq",k,S.bq.length)+'</li>'; }).join("")+'</ol>';
+  if (S.rq.length) h+='<div class="h3" style="margin-top:6px">Research queue</div><ol class="qlist">'+S.rq.map(function(k,i){ return '<li><span>'+TECH[k].name+'</span>'+qMoveBtns("rq",i,S.rq.length)+'</li>'; }).join("")+'</ol>';
   return h+'</details>';
 }
 function tickText(){
@@ -4453,6 +4563,7 @@ function tickText(){
     var rsp=document.getElementById("qr-sp"); if (rsp){ var rfree=realMs(S.research.end-S.gt)<=FREE_MS; setText(rsp, rfree ? "Finish free" : "Speed up"); var rdisp=(rfree||hasSpeedups(true))?"":"none"; if (rsp.style.display!==rdisp) rsp.style.display=rdisp; } }
   if (document.getElementById("m-have")) updateMarket();
   var hcp=document.getElementById("helpchip"); if (hcp){ var hn=(alMine()&&ALS.d.help)?ALS.d.help.canHelp:0, hd=hn?"":"none"; if (hcp.style.display!==hd) hcp.style.display=hd; setText(document.getElementById("helpn"), hn?String(hn):""); }
+  var wtc=document.getElementById("wtchip"); if (wtc){ var wtl=alMine()?wtList().length:0, wtd=wtl?"":"none"; if (wtc.style.display!==wtd) wtc.style.display=wtd; setText(document.getElementById("wtn"), wtl?String(wtl):""); if (sheetFor && sheetFor.kind==="watch") renderSheet(); }
   var mcp=document.getElementById("monchip"); if (mcp){ var mc=arCur(), md=mc?"":"none"; if (mcp.style.display!==md) mcp.style.display=md; if (mc){ var mln=arLive().length; setText(document.getElementById("monn"), (mln>1?mln+" \u00b7 ":"")+fmtT(Math.max(0,mc.ends-Date.now()))); } }
   document.querySelectorAll(".arleft").forEach(function(el){ var le=+el.dataset.ends-Date.now(); setText(el, le>0?fmtT(le):"closing"); });
   var gbt=document.querySelector('nav.tabs [data-tab="guild"]'); if (gbt){ var gun=alUnread(), gtx=gun?"Alliance "+gun:"Alliance"; if (gbt.textContent!==gtx) gbt.textContent=gtx; }
@@ -7729,6 +7840,7 @@ function renderSheetCore(){
       '<div class="sub" id="storstat">'+storageStatus()+'</div>'+
       '<div><div class="h3" style="margin-bottom:6px">Multiplayer</div><div class="speeds"><button data-act="mp-set" data-v="on" aria-pressed="'+mpShown()+'">On</button><button data-act="mp-set" data-v="off" aria-pressed="'+!mpShown()+'">Off: single player</button></div>'+
         '<div class="hint">Off hides alliances, invasions and PvP. Your high scores: <b>'+(S.mp?'multiplayer boards (for good)':'single-player boards')+'</b>.</div></div>'+
+      (alMine()?'<div><div class="h3" style="margin-bottom:6px">Watchtower alerts</div>'+wtTypeBtns()+'</div>':'')+
       '<div><div class="h3" style="margin-bottom:6px">World chat</div><div class="speeds"><button data-act="wc-set" data-v="on" aria-pressed="'+wcShown()+'">Shown</button><button data-act="wc-set" data-v="off" aria-pressed="'+!wcShown()+'">Hidden</button></div></div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
       '<div><label for="allyname" class="sub">Kingdom name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
@@ -7781,6 +7893,8 @@ function renderSheetCore(){
     h=bfSendSheet();
   } else if (sheetFor.kind==="ach"){
     h=achSheet();
+  } else if (sheetFor.kind==="watch"){
+    h=wtSheet();
   } else if (sheetFor.kind==="player"){
     h=playerSheet();
   } else if (sheetFor.kind==="me"){
@@ -8233,6 +8347,11 @@ document.addEventListener("click",function(e){
   if (act==="build-new"){ if (!startBuild(sheetFor.w,sheetFor.i,a.dataset.type)){ S.bq.push({w:sheetFor.w,i:sheetFor.i,type:a.dataset.type}); toast(DEF[a.dataset.type].name+" added to the build queue"); } closeSheet(); refresh(); return; }
   if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
   if (act==="quests"){ goPage("quests"); return; }
+  if (act==="wt-open"){ openSheet({kind:"watch"}); return; }
+  if (act==="wt-type"){ S.wtOff=S.wtOff||{}; S.wtOff[a.dataset.k]=wtOn(a.dataset.k)?1:0; save(); lastSheet=""; renderSheet(); return; }
+  if (act==="wt-ign"){ S.wtIgn=S.wtIgn||{}; var wn=Date.now(); for (var wk in S.wtIgn) if (S.wtIgn[wk]<wn) delete S.wtIgn[wk]; if (a.dataset.v==="1") S.wtIgn[a.dataset.key]=+a.dataset.land||wn+864e5; else delete S.wtIgn[a.dataset.key]; save(); lastSheet=""; renderSheet(); return; }
+  if (act==="tp-send"){ tpSend(); return; }
+  if (act==="chat-older"){ if (a.dataset.ch==="world") wcOlder(); else alOlder(); return; }
   if (act==="pl-open"){ var pe=a; if (pe.getAttribute("data-me")==="1" || (S.cloud && S.cloud.name && String(S.cloud.name).toLowerCase()===pe.getAttribute("data-k") && !pe.getAttribute("data-pid"))){ closeSheet(); ALS.last=0; goPage("me"); return; } plOpen(pe.getAttribute("data-k")||"", +pe.getAttribute("data-pid")||0, pe.getAttribute("data-nm")||""); return; }
   if (act==="me"){ ALS.last=0; goPage("me"); return; }
   if (act==="me-cycle"){ S.me=S.me||{img:"",frame:""}; var cyc=[""].concat((S.frames||[]).filter(function(k){ return FRAMES[k]; })); if (cyc.length>1){ S.me.frame=cyc[(cyc.indexOf(S.me.frame||"")+1)%cyc.length]; save(); profSync(); lastSheet=""; renderSheet(); } return; }
@@ -8348,6 +8467,7 @@ document.addEventListener("click",function(e){
     closeSheet(); if (tab==="bldg"){ tab="city"; pg=null; } lastView=""; toast(dn+" demolished"); refresh(); return;
   }
   if (act==="queue-up"){ var qc=ctxPlot(), qs=getSlot(qc.w,qc.i); if (qs){ S.bq.push({w:qc.w,i:qc.i,type:qs.type}); toast(DEF[qs.type].name+" upgrade queued"); } closeSheet(); processQueues(); refresh(); return; }
+  if (act==="bq-up"||act==="bq-down"||act==="rq-up"||act==="rq-down"){ var qa=act.charAt(0)==="b"?S.bq:S.rq, qk=+a.dataset.k, qj=act.slice(3)==="up"?qk-1:qk+1; if (qj>=0 && qj<qa.length && qk>=0 && qk<qa.length){ var qt=qa[qk]; qa[qk]=qa[qj]; qa[qj]=qt; save(); refresh(); } return; }
   if (act==="bq-remove"){ S.bq.splice(+a.dataset.k,1); refresh(); return; }
   if (act==="rq-add"){ S.rq.push(a.dataset.tech); toast(TECH[a.dataset.tech].name+" queued"); processQueues(); refresh(); return; }
   if (act==="rq-remove"){ S.rq.splice(+a.dataset.k,1); refresh(); return; }
@@ -8822,6 +8942,7 @@ document.addEventListener("click",function(e){
 });
 document.addEventListener("input",function(e){
   if (invInput(e)) return;
+  if (e.target.id && e.target.id.indexOf("tp-")===0){ TP.res[e.target.id.slice(3)]=e.target.value; tpPreview(); return; }
   if (e.target.id==="pvcode"){ PV.code=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6); return; }
   if (e.target.id==="allyname2"){ renameAlly(e.target.value); return; }
   if (e.target.dataset && e.target.dataset.bfp!=null && sheetFor && sheetFor.kind==="bfpre"){ var bpr=bfPresets()[bfPreSel]; bpr.t[+e.target.dataset.bfp]=Math.max(0,Math.floor(+e.target.value||0)); var bpt=document.getElementById("bfptot"); if (bpt) bpt.textContent="Total "+fmt(sumT(bpr.t)); save(); }
@@ -8866,6 +8987,8 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else alSend("dockin"); } });
 document.addEventListener("change",function(e){
+  if (e.target.id==="tpto"){ TP.to=e.target.value; return; }
+  if (e.target.id==="tpfrom"){ TP.from=+e.target.value; lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.arlv!=null){ ARL[e.target.dataset.arlv]=+e.target.value; e.target.blur(); lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }
   if (e.target.id==="ivcity"){ IV.pickCity=+e.target.value; return; }

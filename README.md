@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.66
+Version 0.1.70
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -22,6 +22,24 @@ Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name 
 Settings has save codes and Save to file / Load from file. Current save version: 48.
 
 ## Release notes
+### 0.1.70
+- Watchtower: invasions against a member now show too (one alert for as long as the invasion runs, with incoming troops when their Beacon can see them).
+- Ignore an alert with its Ignore button (ignored ones fold into an Ignored list and can be shown again), or turn off whole types ("AI lord attacks", "Invasions") from the Watchtower sheet or Settings. The alarm chip only counts what is left.
+- Needs the matching Worker (scores-worker 0.1.70; alerts now carry a type and id). No save version change.
+
+### 0.1.69
+- Alliance Watchtower: a new alliance building. Members see attacks heading for any member (who is hit and when; level 3 adds the attacker, level 5 a rough troop count, level 8 every troop) behind a small red alarm chip in the header.
+- Alliance Trading Post: a new alliance building and a Trade page in the Alliance tab. Send resources to another member; a fee is lost on the way (10% at level 1, down to 2% at level 10); each member can send and receive 100 million a day at level 1, doubling per level. Shipments travel by map distance and land in the receiver's first city.
+- Needs the matching Worker (scores-worker 0.1.69): tables al_threats and al_trades (they create themselves), /al/trade/send, /al/trade/got, and a Trades tab on the admin page. No save version change.
+
+### 0.1.68
+- Build and research queues: each queued item has up and down arrows to change its order. The queue starts items from the top, so moving one up makes it start first once a builder is free and its cost is covered.
+- The running-work dropdown no longer repeats how many builds are queued (the Queued section already shows it). No save or Worker change.
+
+### 0.1.67
+- Chat: a "Load older messages" button at the top of world chat (80 at a time) and alliance chat (60 at a time) fetches earlier messages from the server, keeping your scroll position, until you reach the start of what the server keeps (the last 1,000 world and 500 alliance messages).
+- Needs the matching Worker (scores-worker 0.1.67): /wc/sync takes `before`, and new /al/chatmore. No save change.
+
 ### 0.1.66
 - The game now talks to the Worker at ibory-scores.ibory-reports.workers.dev (the account subdomain changed). Change the Cloudflare account subdomain to ibory-reports at the same time as uploading this build; older versions stop reaching scores, chat and cloud saves until they update. No save or Worker change.
 
