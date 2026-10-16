@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.80";
+var APP_VERSION = "0.1.81";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2256,11 +2256,12 @@ function drawMap(){
     else if (m.phase==="back"){ var bs=m.bs!=null?m.bs:m.ret-m.travel; f=1-(S.gt-bs)/Math.max(1,m.ret-bs); }
     f=Math.max(0,Math.min(1,f));
     var mx=(oc.x+.5+(q.x-oc.x)*f-mv.x)*z, my=(oc.y+.5+(q.y-oc.y)*f-mv.y)*z, mr=Math.max(3,Math.min(7,z/4));
+    var hsg=m.phase==="back"?-1:1, hdx=(q.x-oc.x)*hsg, hdy=(q.y-oc.y)*hsg, hang=Math.atan2(hdy,hdx), hdir=hdx<0?-1:1; // which way it is travelling (home again on the way back)
     var mdg=m.hero?dragonOf(heroById(m.hero)):null;
-    if (mdg){ var dr=Math.max(6,Math.min(12,z/3)), dir=((q.x-oc.x)<0)?-1:1; // a dragon in the hero's colour instead of the plain dot
+    if (mdg){ var dr=Math.max(6,Math.min(12,z/3)), dir=hdir; // a dragon in the hero's colour instead of the plain dot
       g.save(); g.translate(mx,my); g.scale(dir,1); g.fillStyle=mdg.def.col; g.strokeStyle="rgba(0,0,0,.7)"; g.lineWidth=1.5; g.beginPath();
       g.moveTo(dr*0.95,-dr*0.15); g.lineTo(dr*0.5,-dr*0.45); g.lineTo(dr*0.25,-dr*1.1); g.lineTo(-dr*0.1,-dr*0.35); g.lineTo(-dr*0.5,-dr*0.8); g.lineTo(-dr*0.55,-dr*0.1); g.lineTo(-dr*1.1,dr*0.45); g.lineTo(-dr*0.45,dr*0.3); g.lineTo(-dr*0.1,dr*0.65); g.lineTo(dr*0.45,dr*0.3); g.lineTo(dr*0.7,dr*0.2); g.closePath(); g.fill(); g.stroke(); g.restore(); }
-    else if (myMarch){ cosMarchDraw(g,myMarch,mx,my,Math.max(5,Math.min(10,z/3.5)),((q.x-oc.x)<0)?-1:1); }
+    else if (myMarch){ cosMarchDraw(g,myMarch,mx,my,Math.max(5,Math.min(10,z/3.5)),hdir,hang); }
     else { g.fillStyle=g.strokeStyle; g.beginPath(); g.arc(mx,my,mr,0,Math.PI*2); g.fill(); g.lineWidth=1.5; g.strokeStyle="rgba(0,0,0,.55)"; g.stroke(); } });
   if (selTile && TILE_BY[selTile]){ var sq=TILE_BY[selTile]; g.strokeStyle=ink; g.lineWidth=2.5; g.strokeRect((sq.x-mv.x)*z+1,(sq.y-mv.y)*z+1,z-2,z-2); }
   var cc=document.getElementById("mapcoord"); if (cc) cc.textContent="View ("+Math.round(mv.x+W/z/2)+", "+Math.round(mv.y+H/z/2)+")";
@@ -7078,8 +7079,8 @@ function cosCastleSvg(st, px){ // one castle drawing used on the alliance map, i
 }
 var CASTLE_IMG={};
 function cosCastleImg(st){ var im=CASTLE_IMG[st]; if (im) return im; if (!CPAL[st]) return null; im=new Image(); im.onload=function(){ miniDirty=true; requestDraw(); }; im.src="data:image/svg+xml;utf8,"+encodeURIComponent(cosCastleSvg(st,96)); CASTLE_IMG[st]=im; return im; }
-function cosMarchDraw(g, st, x, y, r, dir){ // your own marches on the world map
-  g.save(); g.translate(x,y); g.scale(dir,1); g.lineWidth=1.3; g.strokeStyle="rgba(0,0,0,.75)";
+function cosMarchDraw(g, st, x, y, r, dir, ang){ // your own marches on the world map; the bug turns to face where it is heading, the robot just flips
+  g.save(); g.translate(x,y); if (st==="bughunter") g.rotate(ang||0); else g.scale(dir,1); g.lineWidth=1.3; g.strokeStyle="rgba(0,0,0,.75)";
   if (st==="bughunter"){ g.strokeStyle="#16240f"; g.lineWidth=1.2; g.beginPath(); [-0.6,0,0.6].forEach(function(f){ g.moveTo(-r*0.3,f*r*0.7); g.lineTo(-r*0.9,f*r*1.3); g.moveTo(r*0.3,f*r*0.7); g.lineTo(r*0.9,f*r*1.3); }); g.moveTo(r*1.05,-r*0.2); g.lineTo(r*1.5,-r*0.7); g.moveTo(r*1.05,r*0.2); g.lineTo(r*1.5,r*0.7); g.stroke();
     g.fillStyle="#5fa63a"; g.beginPath(); g.ellipse(-r*0.1,0,r*0.95,r*0.7,0,0,Math.PI*2); g.fill(); g.stroke(); g.fillStyle="#2f5a2a"; g.beginPath(); g.arc(r*0.95,0,r*0.42,0,Math.PI*2); g.fill(); g.stroke(); g.fillStyle="#e8c34a"; g.beginPath(); g.arc(-r*0.3,0,r*0.22,0,Math.PI*2); g.fill(); }
   else { g.fillStyle="#9db4c4"; g.beginPath(); g.moveTo(-r*0.8,-r*0.6); g.lineTo(r*0.8,-r*0.6); g.lineTo(r*0.8,r*0.7); g.lineTo(-r*0.8,r*0.7); g.closePath(); g.fill(); g.stroke(); g.fillStyle="#26343d"; g.fillRect(-r*0.55,-r*0.3,r*1.1,r*0.4); g.fillStyle="#3fe0e8"; g.fillRect(-r*0.4,-r*0.2,r*0.8,r*0.2);
