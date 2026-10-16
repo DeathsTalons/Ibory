@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.97";
+var APP_VERSION = "0.1.98";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1691,7 +1691,7 @@ function resolveMarch(m){
   if (!hq || !(hq.k in VTYPES || hq.k==="npc" || hq.k==="ai" || hq.k==="hc" || hq.k==="monster" || hq.k==="flat")){ // nothing left to fight there: turn round
     m.phase="back"; m.bs=S.gt; m.ret=S.gt+(m.travel||1); m.loot=m.cargo||{}; note("march","Your army found nothing to fight and is heading home"); return true; }
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
-  var fullGar = q.k!=="npc" || baseOf(q).t.every(function(v,i){ return cur.t[i]>=v; }); // an NPC drops nothing but resources unless its troop garrison was full when the fight began
+  var fullGar = (q.k!=="npc" && q.k!=="ai") || baseOf(q).t.every(function(v,i){ return cur.t[i]>=v; }); // an NPC or AI lord drops nothing but resources unless its troop garrison was full when the fight began
   var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack())};
   var D={troops:cur.t, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, fortBonus:cur.fb||1, hero:{intel:cur.hint||0}};
   var gateClosed=false;
@@ -2388,7 +2388,7 @@ function renderTileInfo(){
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
   if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
-  if (q.k==="npc") h+='<p class="hint">An NPC only drops medals and items if its troop garrison is full when you hit it; otherwise you get just its resources. Let it recover before you hit it again.</p>';
+  if (q.k==="npc"||q.k==="ai") h+='<p class="hint">'+(q.k==="ai"?'An AI lord':'An NPC')+' only drops medals and items if its troop garrison is full when you hit it; otherwise you get just its resources. Let it recover before you hit it again.</p>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
   if (q.k==="flat" && (S.items.teleport||0)>0 && (!C().fieldCap || hasHC(16))) h+='<div class="btnrow" style="margin:6px 0"><button class="btn" data-act="teleport" data-tile="'+q.id+'">'+(armedTile==="tp"+q.id?"Tap again to move "+esc(S.name)+" here":"Teleport "+esc(S.name)+" here ("+S.items.teleport+" left)")+'</button></div><p class="hint">The whole city moves: buildings, troops, heroes and held valleys. Its old tile becomes a flat.</p>';
   if (VTYPES[q.k]) h+='<p class="hint">Unheld valleys and flats gain a level every day at midnight Eastern time, and drop back to level 1 after level 10 (next in '+fmtT(realMs(msToNewDay()))+'). Holding one locks its level.'+(q.k==="flat"?' Occupy this flat to establish an NPC city of its level here.':'')+'</p>';
@@ -7142,7 +7142,7 @@ function dropsSheet(){
   var h='<div class="head lbhead"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Drop tables</h2><div class="sub">Every item, where it drops and how often</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
   h+='<input type="search" id="dtq" placeholder="Search an item or a place (e.g. Mithril, NPC city, wheel)" value="'+esc(DT.q)+'" style="width:100%;margin:2px 0 8px">';
   h+='<div class="lbtabs">'+[["","All"]].concat(dtCats().map(function(c){ return [c,c]; })).map(function(c){ return '<button class="chipbtn'+(DT.cat===c[0]?' on':'')+'" data-act="dt-cat" data-c="'+esc(c[0])+'">'+esc(c[1])+'</button>'; }).join("")+'</div>';
-  h+='<p class="hint" style="margin-top:8px">Base chances before achievement bonuses (Decorated adds 1% per tier to item drops; Starforged adds flat points to materials). NPC cities drop items only if their garrison was full when you hit them; valleys and flats never drop gems or gear materials.</p>';
+  h+='<p class="hint" style="margin-top:8px">Base chances before achievement bonuses (Decorated adds 1% per tier to item drops; Starforged adds flat points to materials). NPC cities and AI lords drop items only if their garrison was full when you hit them; valleys and flats never drop gems or gear materials.</p>';
   return h+'<div id="dtlist">'+dtListHtml()+'</div>';
 }
 /* ---------- player profiles: tap a name (high scores, chat, alliance lists) to see that player ---------- */
