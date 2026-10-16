@@ -44,7 +44,7 @@ html:root[data-look="automaton"]{--bg:#1a2229;--panel:#243038;--panel2:#2d3b45;-
 html:root[data-look="bughunter"]{--bg:#1d2a18;--panel:#283a22;--panel2:#31462a;--ink:#eef0d8;--muted:#a9b891;--brass:#e8c34a;--brass-soft:rgba(232,195,74,.14);--red:#e5604f;--grass:#93d25e;--grass-soft:rgba(147,210,94,.15);--line:#47633c;--stone:#5f7d50}
 html[data-look="halloween"] body{background:radial-gradient(circle at 85% -5%,rgba(255,138,31,.16),transparent 45%),var(--bg)}
 html[data-look="halloween"] h1,html[data-look="halloween"] .plot.th .nm{text-shadow:0 0 10px rgba(255,138,31,.45)}
-html[data-look="halloween"] .walls::before{background:var(--stone);-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 0 0/20px 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 0 0/20px 100%;height:12px;top:-12px}
+html[data-look="halloween"] .walls::before{background:var(--stone);-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 0 0/20px 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 0 0/20px 100%;height:12px;top:-12px;transform:scaleY(-1)}
 html[data-look="halloween"] .walls{background:linear-gradient(180deg,#5f4878,#4a3560)}
 html[data-look="halloween"] .plot{background:linear-gradient(160deg,var(--panel),#241633)}
 html[data-look="halloween"] .plot:hover,html[data-look="halloween"] .plot.busy{box-shadow:0 0 10px rgba(255,138,31,.4)}
@@ -481,9 +481,9 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .avatar.sm .fbadge svg{width:10px;height:10px}
 .lookcity{display:flex;align-items:center;justify-content:center;border-radius:6px}
 .lookcity svg{width:100%;height:100%}
-.alt.kd.cz{padding:2px;flex-direction:column;position:relative}
-.alt.kd.cz svg{width:34px;height:34px}
-.alt.kd.cz span{position:absolute;bottom:0;right:2px;font-size:.55rem;color:#fff;text-shadow:0 0 2px #000}
+.alt.cz{padding:0;overflow:hidden}
+.alt.cz svg{width:100%;height:100%}
+.alt.mine.cz{border-width:3px}
 .mehead{display:flex;gap:18px;align-items:center;padding:6px 8px 4px}
 .merows{display:grid;gap:0;margin-top:8px}
 .merow{display:flex;justify-content:space-between;gap:12px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:.95rem}
@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.81";
+var APP_VERSION = "0.1.83";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3427,7 +3427,7 @@ function alMapHtml(al){
       h+='<button class="alt bldg'+(bon?' sel':'')+'" style="grid-row:'+(y+1)+' / span '+(M.bs||3)+';grid-column:'+(x+1)+' / span '+(M.bs||3)+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+esc(bnm)+'">'+(t.b.k==="wh"?ICON.warehouse:t.b.k==="arena"?ICON.rally:t.b.k==="watch"?ICON.beacon:t.b.k==="trade"?ICON.market:ICON.academy)+'<span class="altl">'+esc(bnm)+'</span></button>'; continue; }
     var on=sel&&(t&&t.city ? alInCity(M,sel.x,sel.y) : sel.x===x&&sel.y===y), cls='alt'+(on?' sel':'')+(t&&t.city?' city':t&&t.k?(t.k.name===S.cloud.name?' mine':' kd')+(kcs?' cz':''):'')+(mv&&!t?' free':'');
     var kpf = t&&t.k ? (t.k.name===S.cloud.name ? S.me : PROF[String(t.k.name).toLowerCase()]) : null, kcs = kpf&&kpf.city&&CPAL[kpf.city]&&(t.k.name!==S.cloud.name||myLook("city")) ? kpf.city : "";
-    var inner = t&&t.city ? ICON.townhall+'<span class="altl">Alliance City</span>' : kcs ? cosCastleSvg(kcs)+'<span>'+esc(alInitials(t.k.name))+'</span>' : t&&t.k ? '<span>'+esc(alInitials(t.k.name))+'</span>' : '';
+    var inner = t&&t.city ? ICON.townhall+'<span class="altl">Alliance City</span>' : kcs ? cosCastleSvg(kcs) : t&&t.k ? '<span>'+esc(alInitials(t.k.name))+'</span>' : '';
     var area = 'grid-row:'+(y+1)+(cityTop?' / span '+alCs(M):'')+';grid-column:'+(x+1)+(cityTop?' / span '+alCs(M):'');
     if (kcs) area+=';background:'+CPAL[kcs].bg+';border-color:'+CPAL[kcs].a;
     h+='<button class="'+cls+'" style="'+area+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+(t&&t.city?'Alliance City':t&&t.k?esc(t.k.name):'Free square')+' at '+x+', '+y+'">'+inner+'</button>';
