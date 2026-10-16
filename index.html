@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.86";
+var APP_VERSION = "0.1.87";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3715,7 +3715,8 @@ function allCitiesSheet(){
       '<span>Population <b>'+fmt(Math.floor(S.pop))+'</b> <span class="dur">/ '+fmt(popCap())+'</span></span><span>Marches <b>'+nm+'</b> <span class="dur">/ '+rl+'</span></span></div>'+
       '<details class="det" data-det="ac'+c.id+'"'+(DET["ac"+c.id]?' open':'')+'><summary>Troops <b>'+fmt(home+away)+'</b>'+(away?' <span class="dur">('+fmt(away)+' out)</span>':'')+(inTr?' <span class="dur">+'+fmt(inTr)+' training</span>':'')+(hurt?' <span class="dur">+'+fmt(hurt)+' wounded</span>':'')+'</summary>'+(units.length?'<ul>'+units.join("")+'</ul>':'<p class="hint">No troops.</p>')+'</details>'+
       (jobs.length?'<ul>'+jobs.map(function(j){ return '<li>'+esc(j[1])+' <span class="dur">'+(isFinite(j[0])?fmtT(realMs(j[0]-S.gt)):'on guard')+'</span></li>'; }).join("")+'</ul>':'<p class="dur" style="margin:4px 0 0">Nothing building, researching or training.</p>')+
-      (S.builds.length<BUILDERS?'<p class="dur" style="margin:2px 0 0">'+(BUILDERS-S.builds.length)+' builder'+(BUILDERS-S.builds.length>1?'s':'')+' free</p>':'')+'</div>';
+      ((S.alBld||S.alAcad)?'<p class="dur" style="margin:2px 0 0">Helping the alliance: '+[S.alBld?S.alBld+' builder'+(S.alBld>1?'s':''):'', S.alAcad?'the Academy':''].filter(Boolean).join(' and ')+'</p>':'')+
+      (BUILDERS-S.builds.length-(S.alBld||0)>0?'<p class="dur" style="margin:2px 0 0">'+(BUILDERS-S.builds.length-(S.alBld||0))+' builder'+(BUILDERS-S.builds.length-(S.alBld||0)>1?'s':'')+' free</p>':'')+'</div>';
   }); });
   var head='<div class="head"><span class="ico">'+ICON.townhall+'</span><div style="flex:1"><h2>All cities</h2><div class="sub">'+S.cities.length+' cities \u00b7 '+fmt(totT)+' troops \u00b7 '+RES.map(function(k){ return fmt(Math.floor(tot[k]))+' '+RNAME[k].toLowerCase(); }).join(", ")+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
   return head+h+'<button class="closebtn" data-act="close">Close</button>';
@@ -4709,9 +4710,10 @@ function queueSummary(){
   S.builds.forEach(function(x){ soon=Math.min(soon,x.end); });
   if (S.research) soon=Math.min(soon, S.research.end);
   if (S.fortQ) soon=Math.min(soon, S.fortQ.end);
-  var jobs=n+(S.research?1:0)+(S.fortQ?1:0);
+  var lent=S.alBld||0, alJobs=lent+(S.alAcad?1:0), free=BUILDERS-n-lent; // builders and the Academy lent to the alliance count as running work
+  var jobs=n+(S.research?1:0)+(S.fortQ?1:0)+alJobs;
   var lead = jobs ? jobs+" job"+(jobs>1?"s":"")+" running" : (BUILDERS-n)+" builder"+(BUILDERS-n>1?"s":"")+" free";
-  var tail = jobs ? "next in "+fmtT(realMs(soon-S.gt)) : (S.bq.length? S.bq.length+" queued" : "tap a plot to build");
+  var tail = !jobs ? (S.bq.length? S.bq.length+" queued" : "tap a plot to build") : (soon===Infinity ? "helping the alliance" : "next in "+fmtT(realMs(soon-S.gt)));
   if (!jobs && S.bq.length) lead="Builders free";
   setText(a, lead); setText(b, tail);
 }
@@ -4719,15 +4721,18 @@ function renderQueue(){
   renderThreats(); renderMarchStrip(); queueVis(); queueSummary();
   var qb=document.getElementById("q-build"), qr=document.getElementById("q-research");
   var sp = hasSpeedups();
-  if (S.builds.length){
+  var lentB=S.alBld||0, freeB=BUILDERS-S.builds.length-lentB;
+  if (S.builds.length || lentB){
     qb.className="qstack"; qb.innerHTML=S.builds.map(function(b,k){ var lbl=DEF[b.type].name+(b.to===1?" (new)":" to level "+b.to);
       return '<div class="qrow"><span class="qlabel">'+esc(lbl)+'</span><span class="qtime" id="qb-t-'+k+'"></span><div class="bar"><i id="qb-bar-'+k+'"></i></div><div class="qacts"><button class="link strong" data-act="speedup" data-target="build" data-slot="'+k+'" id="qb-sp-'+k+'">Speed up</button>'+'<button class="link" data-act="cancel-build" data-slot="'+k+'">Cancel</button></div></div>'; }).join("")+
-      (S.builds.length<BUILDERS?'<div class="qrow idle">One builder is free.</div>':'');
+      (lentB?'<div class="qrow"><span class="qlabel">'+(lentB>1?lentB+' builders are':'One builder is')+' building for the alliance</span><span class="qtime">helping</span></div>':'')+
+      (freeB>0?'<div class="qrow idle">'+(freeB>1?freeB+' builders are free.':'One builder is free.')+'</div>':'');
   } else { qb.className="qrow idle"; qb.textContent="Both builders are free. Tap a plot to build or upgrade."+(S.bq.length?" "+S.bq.length+" queued (waiting on resources or requirements).":""); }
   if (S.research){
     var r=S.research;
     qr.className="qrow"; qr.innerHTML='<span class="qlabel">Researching '+esc(TECH[r.tech].name)+' level '+r.to+'</span><span class="qtime" id="qr-t"></span><div class="bar"><i id="qr-bar"></i></div><div class="qacts">'+'<button class="link strong" data-act="speedup" data-target="research" id="qr-sp">Speed up</button>'+'<button class="link" data-act="cancel-research">Cancel</button></div>';
-  } else if (academyLv()>0){ qr.className="qrow idle"; qr.textContent="Academy is idle."; }
+  } else if (S.alAcad && academyLv()>0){ qr.className="qrow"; qr.innerHTML='<span class="qlabel">Academy is researching for the alliance</span><span class="qtime">helping</span>'; }
+  else if (academyLv()>0){ qr.className="qrow idle"; qr.textContent="Academy is idle."; }
   else { qr.className=""; qr.innerHTML=""; }
   var qq=document.getElementById("q-queues"); if (qq){ var qh=queuesHtml(); if (qq._sig!==qh){ qq.innerHTML=qh; qq._sig=qh; wireDetails(qq); } }
 }
@@ -8215,7 +8220,7 @@ function upgradeWhy(type,L){
   if (L>=maxLv(type)) return "Max level";
   var rq=buildReqWhy(type,L+1); if (rq) return rq;
   if (type!=="townhall" && L+1>thAllows(type)) return "Needs Town Hall level "+(L+1-(TH_OVER[type]||0));
-  if (!builderFree()) return "Both builders are busy";
+  if (!builderFree()) return (S.alBld ? "Your builders are busy or helping the alliance" : "Both builders are busy");
   if (L+1===10 && !((S.items&&S.items.script)||0)) return "Needs a Michelangelo\u2019s Script";
   if (!afford(costFor(type,L+1))) return "Not enough resources";
   return "";
