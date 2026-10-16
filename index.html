@@ -683,7 +683,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.87";
+var APP_VERSION = "0.1.89";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2896,7 +2896,7 @@ function alSync(){
     if (d.error){ ALS.err=d.error; alRender(); return; }
     ALS.err=""; var aid=d.member?d.member.aid:null; if (d.cat) ALS.cat=d.cat;
     if (aid && d.al && d.al.econ){ S.alMember=true; S.alFx=d.al.econ.fx||{}; }
-    else if (!aid && S.alMember){ S.alMember=false; S.alFx={}; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); } // left: bonuses and lending end
+    else if (!aid && (S.alMember || S.cities.some(function(c){ return c.alAcad || c.alBld; }))){ S.alMember=false; S.alFx={}; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); lastView=""; } // left: bonuses and lending end
     if (aid!==ALS.aid){ ALS.aid=aid; ALS.chat=[]; ALS.top=0; ALS.d=d; if (aid){ ALS.last=0; } alRender(); if (aid) setTimeout(alSync,50); return; }
     if (firstChat) ALS.moreOld=(d.chat||[]).length>=60; // a full first page means there may be older messages
     ALS.d=d; tpApply(d.al?d.al.trade:d.trade); rfApply(d.al&&d.al.reinf); if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon);
@@ -4411,6 +4411,7 @@ function migrate(s){
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   if (s.v===47){ s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  if (!s.alMember && Array.isArray(s.cities)) s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); // 0.1.88: lending can only exist inside an alliance; this frees builders and Academies stuck as "lent" after leaving or switching off multiplayer
   s.dragons=s.dragons||{}; s.shopSeen=s.shopSeen||[]; s.giftSeen=s.giftSeen||[];
   s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; FRAMES_FOR_ALL.forEach(function(f){ if (s.frames.indexOf(f)<0) s.frames.push(f); });
   return s;
@@ -4725,13 +4726,13 @@ function renderQueue(){
   if (S.builds.length || lentB){
     qb.className="qstack"; qb.innerHTML=S.builds.map(function(b,k){ var lbl=DEF[b.type].name+(b.to===1?" (new)":" to level "+b.to);
       return '<div class="qrow"><span class="qlabel">'+esc(lbl)+'</span><span class="qtime" id="qb-t-'+k+'"></span><div class="bar"><i id="qb-bar-'+k+'"></i></div><div class="qacts"><button class="link strong" data-act="speedup" data-target="build" data-slot="'+k+'" id="qb-sp-'+k+'">Speed up</button>'+'<button class="link" data-act="cancel-build" data-slot="'+k+'">Cancel</button></div></div>'; }).join("")+
-      (lentB?'<div class="qrow"><span class="qlabel">'+(lentB>1?lentB+' builders are':'One builder is')+' building for the alliance</span><span class="qtime">helping</span></div>':'')+
+      (lentB?'<div class="qrow"><span class="qlabel">'+(lentB>1?lentB+' builders are':'One builder is')+' building for the alliance</span><div class="qacts"><button class="link" data-act="al-lendbld" data-ci="'+S.cur+'" data-n="0">Bring home</button></div></div>':'')+
       (freeB>0?'<div class="qrow idle">'+(freeB>1?freeB+' builders are free.':'One builder is free.')+'</div>':'');
   } else { qb.className="qrow idle"; qb.textContent="Both builders are free. Tap a plot to build or upgrade."+(S.bq.length?" "+S.bq.length+" queued (waiting on resources or requirements).":""); }
   if (S.research){
     var r=S.research;
     qr.className="qrow"; qr.innerHTML='<span class="qlabel">Researching '+esc(TECH[r.tech].name)+' level '+r.to+'</span><span class="qtime" id="qr-t"></span><div class="bar"><i id="qr-bar"></i></div><div class="qacts">'+'<button class="link strong" data-act="speedup" data-target="research" id="qr-sp">Speed up</button>'+'<button class="link" data-act="cancel-research">Cancel</button></div>';
-  } else if (S.alAcad && academyLv()>0){ qr.className="qrow"; qr.innerHTML='<span class="qlabel">Academy is researching for the alliance</span><span class="qtime">helping</span>'; }
+  } else if (S.alAcad && academyLv()>0){ qr.className="qrow"; qr.innerHTML='<span class="qlabel">Academy is researching for the alliance</span><div class="qacts"><button class="link" data-act="al-lendacad" data-ci="'+S.cur+'">Bring home</button></div>'; }
   else if (academyLv()>0){ qr.className="qrow idle"; qr.textContent="Academy is idle."; }
   else { qr.className=""; qr.innerHTML=""; }
   var qq=document.getElementById("q-queues"); if (qq){ var qh=queuesHtml(); if (qq._sig!==qh){ qq.innerHTML=qh; qq._sig=qh; wireDetails(qq); } }
@@ -8650,11 +8651,11 @@ document.addEventListener("click",function(e){
   if (act==="mp-intro"){ var mpwc=document.getElementById("mpiwc"); S.mpIntro=1; S.mpOn = a.dataset.v==="on"; if (!S.mpOn && mpwc) S.wcOn=!mpwc.checked; save(); closeSheet(); lastView=""; refresh(); renderDock();
     toast(S.mpOn?"Multiplayer is on. You can switch any time in Settings":"Single player it is. You can switch any time in Settings");
     if (mpNeedsGrace()) setTimeout(function(){ openSheet({kind:"mpgrace"}); },400); return; }
-  if (act==="mp-set"){ S.mpOn = a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); renderDock(); if (!S.mpOn && mpNeedsGrace()) openSheet({kind:"mpgrace"}); return; }
+  if (act==="mp-set"){ S.mpOn = a.dataset.v==="on"; if (!S.mpOn) S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); renderDock(); if (!S.mpOn && mpNeedsGrace()) openSheet({kind:"mpgrace"}); return; }
   if (act==="wc-set"){ S.wcOn = a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); renderDock(); return; }
   if (act==="mp-grace-go"){ S.mpGrace=1; mpGo("alliance"); closeSheet(); toast("You stay in your alliance, on the multiplayer high scores"); return; }
   if (act==="mp-grace-leave"){ var ga=alMine(); if (!ga){ ALS.last=0; toast("Checking your alliance\u2026 try again in a moment"); return; }
-    var gdone=function(){ S.mpGrace=1; S.alMember=false; S.alFx={}; save(); closeSheet(); toast("You left the alliance and stay on the single-player high scores"); };
+    var gdone=function(){ S.mpGrace=1; S.alMember=false; S.alFx={}; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); closeSheet(); toast("You left the alliance and stay on the single-player high scores"); };
     if (ga.my.rank===0){ if (ga.members.length>1){ toast("Hand the alliance to another member first (Alliance, Members), then come back"); return; } alDo("/al/disband",{},"Alliance disbanded",gdone); }
     else alDo("/al/leave",{},"You left the alliance",gdone);
     return; }
@@ -8837,8 +8838,8 @@ document.addEventListener("click",function(e){
       if (!any){ toast("Type how much to donate"); return; } if (ALS.donating) return; ALS.donating=true;
       alPost("/al/donate",{res:dg}).then(function(d){ ALS.donating=false; if (d.error){ toast(d.error); return; } for (var k in dg) S.res[k]-=dg[k]; ALD={food:"",lumber:"",stone:"",iron:"",gold:""}; save(); toast("Donated. Thank you!"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.last=0; alSync(); refresh(); })
         .catch(function(){ ALS.donating=false; toast("Couldn\u2019t reach the server"); }); return; }
-    if (act==="al-lendacad"){ var lci=+a.dataset.ci; withCity(lci,function(){ if (!S.alAcad && S.research){ toast("Finish or cancel this city\u2019s research first"); return; } S.alAcad=!S.alAcad; toast(S.alAcad?S.name+"\u2019s Academy now works for the alliance":S.name+"\u2019s Academy is back to its own research"); }); save(); lastView=""; renderView(true); processAll(); return; }
-    if (act==="al-lendbld"){ var bci=+a.dataset.ci, bn=+a.dataset.n; withCity(bci,function(){ if (S.builds.length>BUILDERS-bn){ toast("Those builders are busy here"); return; } S.alBld=bn; toast(bn?bn+" builder"+(bn>1?"s":"")+" from "+S.name+" now work"+(bn>1?"":"s")+" for the alliance":S.name+"\u2019s builders are back home"); }); save(); lastView=""; renderView(true); processAll(); return; }
+    if (act==="al-lendacad"){ var lci=+a.dataset.ci; withCity(lci,function(){ if (!S.alAcad && S.research){ toast("Finish or cancel this city\u2019s research first"); return; } S.alAcad=!S.alAcad; toast(S.alAcad?S.name+"\u2019s Academy now works for the alliance":S.name+"\u2019s Academy is back to its own research"); }); save(); lastView=""; renderView(true); processAll(); renderQueue(); return; }
+    if (act==="al-lendbld"){ var bci=+a.dataset.ci, bn=+a.dataset.n; withCity(bci,function(){ if (S.builds.length>BUILDERS-bn){ toast("Those builders are busy here"); return; } S.alBld=bn; toast(bn?bn+" builder"+(bn>1?"s":"")+" from "+S.name+" now work"+(bn>1?"":"s")+" for the alliance":S.name+"\u2019s builders are back home"); }); save(); lastView=""; renderView(true); processAll(); renderQueue(); return; }
     if (act==="al-tile"){ var tx=+a.dataset.x, ty=+a.dataset.y, alm=alMine(), M2=alm&&alm.map;
       if (ALS.moving && M2 && (ALS.moving.what==="city" || ALS.moving.what==="b" || !alMapAt(M2,tx,ty))){ var mvv=ALS.moving, big=mvv.what==="city"||mvv.what==="b", bsz=mvv.what==="b"?(M2.bs||3):alCs(M2), half=Math.floor(bsz/2), mx=big?Math.max(0,Math.min(M2.n-bsz,tx-half)):tx, my2=big?Math.max(0,Math.min(M2.n-bsz,ty-half)):ty;
         ALS.moving=null; ALS.sel={x:tx,y:ty}; alDo("/al/move",mvv.what==="b"?{what:"b", key:mvv.who, x:mx, y:my2}:{what:mvv.what, who:mvv.who, x:mx, y:my2},"Moved"); lastView=""; renderView(true); return; }
