@@ -271,6 +271,15 @@ select,input[type=number],input[type=text]{font:inherit;color:var(--ink);backgro
 
 /* Heroes */
 .herolist{display:grid;gap:8px;margin-top:10px}
+.hcard{display:grid;grid-template-columns:76px 1fr;gap:12px;align-items:center;background:var(--panel2);border:1px solid transparent;border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
+.hcard:hover{border-color:var(--line)}
+.hcb{min-width:0;display:grid;gap:3px}.hct{display:flex;align-items:center;gap:6px}.hct .hn{font:700 1.05rem/1.2 var(--display);overflow-wrap:anywhere;flex:1}
+.hcs{display:flex;gap:14px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}.hcs b{color:var(--ink)}
+.hfav{background:none;border:0;padding:0 2px;font-size:1.25rem;line-height:1;color:var(--muted);cursor:pointer}.hfav.on{color:var(--brass)}
+.hport{position:relative;display:inline-block;border-radius:12px;overflow:hidden;flex:none;vertical-align:middle;background:#1b2023}
+.hport img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}.hport svg{display:block;width:100%;height:100%}
+.hhead{display:grid;grid-template-columns:128px 1fr;gap:14px;align-items:center;margin-bottom:8px}
+@media (max-width:380px){ .hhead{grid-template-columns:96px 1fr} .hhead .hport{width:96px!important;height:96px!important} }
 .hero{display:grid;grid-template-columns:42px 1fr auto;gap:2px 12px;align-items:center;text-align:left;background:var(--panel2);border:1px solid transparent;border-radius:10px;padding:9px 12px;cursor:pointer;width:100%}
 .hero:hover{border-color:var(--brass)}
 .hero .shield{grid-row:1/3}
@@ -693,7 +702,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.122";
+var APP_VERSION = "0.1.123";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1709,7 +1718,7 @@ function resolveMarch(m){
   // valleys and flats (always at full garrison): half the experience, and a tile only gives experience once an hour
   var xpWait=0; if (VTYPES[q.k] && hero && xp>0){ S.vxp=S.vxp||{}; var vlast=S.vxp[q.id];
     if (vlast!=null && S.gt-vlast < VXP_GAP){ xpWait=vlast+VXP_GAP-S.gt; xp=0; } else { xp=Math.round(xp*VXP_MULT); S.vxp[q.id]=S.gt; for (var vk in S.vxp) if (S.gt-S.vxp[vk]>VXP_GAP) delete S.vxp[vk]; S.vxp[q.id]=S.gt; } }
-  var ups = hero && xp ? giveXp(hero, xp) : 0; xp = hero ? Math.round(xp*bHeroXp()) : xp; // the report shows what the hero really got, achievement and alliance bonuses included
+  var ups = hero && xp ? giveXp(hero, xp) : 0; if (hero) heroRecFight(hero, r, cur.t, m.t, tileName(q), {valley:!!VTYPES[q.k], npc:q.k==="npc"}); xp = hero ? Math.round(xp*bHeroXp()) : xp; // the report shows what the hero really got, achievement and alliance bonuses included
   var loot={food:0,lumber:0,stone:0,iron:0,gold:0};
   if (won){
     var cap=0; for (i=0;i<12;i++) cap += r.attacker[i]*LOAD[i]*loadMul();
@@ -2171,6 +2180,7 @@ function resolveDefense(w){
     }
     achKills(w.t, r.attacker);
     var myLost=0, theirLost=0; for (var j=0;j<12;j++){ myLost+=before[j]-hostLeft[j]; theirLost+=w.t[j]-r.attacker[j]; }
+    var dwh=wallHero(); if (dwh && !shut) heroRec(dwh, {def:true, won:r.result!==1, killed:w.t.map(function(n,i){ return Math.max(0,n-(r.attacker[i]||0)); }), lost:before.map(function(n,i){ return Math.max(0,n-(hostLeft[i]||0)); }), label:"defending "+C().name});
     var tot2=RES.reduce(function(a,k){ return a+loot[k]; },0), spoils=[];
     if (w.war) warDefended(w, before, r);
     if (w.chal) chalDefended(w, r);
@@ -2960,13 +2970,13 @@ function lbAutoJoin(){
   setTimeout(function(){ toast("You\u2019re on the Ibory high scores as "+S.lb.name+". Tap the trophy to see them, or to leave."); },1200);
 }
 function lbStats(){
-  var hero=0, heroName="", heroStats=[]; function seeHero(h){ if ((h.level||0)>hero || ((h.level||0)===hero && hero>0 && hs(h,"atk")>heroStats[1])){ hero=h.level||0; heroName=h.name||""; heroStats=[Math.floor(hs(h,"pol")||0),Math.floor(hs(h,"atk")||0),Math.floor(hs(h,"int")||0)]; } }
+  var hero=0, heroName="", heroStats=[], heroId=0; function seeHero(h){ if ((h.level||0)>hero || ((h.level||0)===hero && hero>0 && hs(h,"atk")>heroStats[1])){ hero=h.level||0; heroName=h.name||""; heroId=h.id||0; heroStats=[Math.floor(hs(h,"pol")||0),Math.floor(hs(h,"atk")||0),Math.floor(hs(h,"int")||0)]; } }
   S.cities.forEach(function(c){ (c.heroes||[]).forEach(seeHero); }); (S.waiting||[]).forEach(seeHero);
   S.hcSeen=S.hcSeen||{}; S.cities.forEach(function(c){ if (c.fieldCap && LB_HC.indexOf(c.fieldCap)>=0) S.hcSeen[c.fieldCap]=1; }); // once taken, it counts even if given away later
   var hc={}; LB_HC.forEach(function(L){ if (S.hcSeen[L]) hc[L]=true; });
   var gev=(S.starLog||[]).filter(function(e){ return e.at>Date.now()-3500000; }).map(function(e){ return {at:e.at, st:e.st, nm:e.nm}; }); // every 11+ star hit of the last hour, for the world chat
   return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
-    hero:hero, heroName:heroName, heroStats:heroStats, stars:bestGearSet(), gearEv:gev, college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
+    hero:hero, heroName:heroName, heroId:heroId, heroStats:heroStats, stars:bestGearSet(), gearEv:gev, college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
 }
 function lbHeroSt(r){ // the top hero's stats under its name: yours from the save, others as sent to the server
   var a = r.me ? lbStats().heroStats : String(r.hst||"").split(",").map(Number); if (!a || a.length<3 || a.some(function(x){ return !isFinite(x); })) return "";
@@ -4355,7 +4365,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn" data-act="pl-open" role="button" data-k="'+esc(r.ck||"")+'" data-pid="'+(r.pid||0)+'"'+(r.me?' data-me="1"':'')+' data-nm="'+esc(r.name)+'">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn" data-act="pl-open" role="button" data-k="'+esc(r.ck||"")+'" data-pid="'+(r.pid||0)+'"'+(r.me?' data-me="1"':'')+' data-nm="'+esc(r.name)+'">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+(r.hid&&r.hu&&r.hk?heroPortrait({id:r.hid, name:r.hero, tier:"legendary"},28,{k:r.hk, hu:r.hu})+' ':'')+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed || (S.lb&&S.lb.needAcct&&!cbOn())){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
@@ -4779,6 +4789,7 @@ function giveXp(h, xp){
   h.xp += xp; var up=0;
   while (h.level<HERO_MAX && h.xp >= xpNeed(h.level)){ h.xp -= xpNeed(h.level); h.level++; h.pts++; up++; }
   if (h.level>=HERO_MAX) h.xp=0;
+  if (up) heroAuto(h); // auto level-up spends the new points by the hero's ratio
   return up;
 }
 // Respec: every point a hero has been given above its starting stats goes back into the pool to be spent again.
@@ -5492,6 +5503,102 @@ function viewFields(){
   if (fieldSlots(S.th)<44 && S.th<cityMax()) for (var j=0;j<4;j++) h+='<div class="plot locked"><span class="ico">'+ICON.lock+'</span><span class="nm">Town Hall '+(S.th+1)+'</span></div>';
   return h+'</div>';
 }
+/* ---------- heroes, 0.1.123: portraits (uploaded or drawn), sorting, auto level-up, service record, favourites ---------- */
+var HIMG={}; // hero pictures this device has: id -> data URL (also kept in localStorage, outside the save, so saves stay small)
+function himgKey(id){ return "ibory-himg:"+((S.cloud&&S.cloud.name)||"local").toLowerCase()+":"+id; }
+function himgGet(h){ if (!h || !h.pic) return ""; if (HIMG[h.id]) return HIMG[h.id];
+  try { var v=localStorage.getItem(himgKey(h.id)); if (v){ HIMG[h.id]=v; return v; } } catch(e){}
+  if (cbOn()) return LB_URL+"/me/heroimg?k="+encodeURIComponent(S.cloud.name)+"&h="+h.id+"&v="+h.pic; // another device made it: the server has it
+  return ""; }
+function himgSet(h, url){ HIMG[h.id]=url; try { if (url) localStorage.setItem(himgKey(h.id), url); else localStorage.removeItem(himgKey(h.id)); } catch(e){} }
+function hhash(h, k){ var s=String(h.id)+":"+String(h.name||"")+":"+k, x=2166136261; for (var i=0;i<s.length;i++){ x^=s.charCodeAt(i); x=Math.imul(x,16777619); } return (x>>>0); }
+// an original drawn portrait for heroes without a picture: helm, face and plume vary by hero; the frame colour is the tier's
+var HP_SKIN=["#f1c7a0","#d9a47a","#a8714a","#6e4a32"], HP_HAIR=["#2b1d14","#6b4a2a","#b8862e","#8a8a8a","#1a1a1a"], HP_STEEL=["#9aa6ad","#7d8a91","#b9a37a","#5d676d"];
+function heroDrawn(h, px){
+  var t=TIERS[h.tier]||TIERS.common, sk=HP_SKIN[hhash(h,"s")%4], hr=HP_HAIR[hhash(h,"h")%5], st=HP_STEEL[hhash(h,"m")%4], helm=hhash(h,"helm")%5, beard=hhash(h,"b")%3, plume=hhash(h,"p")%2;
+  var royal=h.tier==="historic"||h.tier==="queen"||h.tier==="mythic";
+  var o='<svg class="hpsvg" viewBox="0 0 64 64" width="'+px+'" height="'+px+'" aria-hidden="true"><defs><linearGradient id="hpg'+h.id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b3236"/><stop offset="1" stop-color="#14181a"/></linearGradient></defs>'+
+    '<rect width="64" height="64" fill="url(#hpg'+h.id+')"/><circle cx="32" cy="70" r="40" style="fill:'+t.color+'" opacity=".35"/>'+
+    '<path d="M6 64C8 47 20 42 32 42s24 5 26 22z" fill="'+st+'"/><path d="M20 47l12 6 12-6" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>'+
+    '<rect x="27" y="36" width="10" height="8" fill="'+sk+'"/><ellipse cx="32" cy="29" rx="10.5" ry="12" fill="'+sk+'"/>'+
+    '<circle cx="28" cy="28" r="1.3" fill="#1b1b1b"/><circle cx="36" cy="28" r="1.3" fill="#1b1b1b"/><path d="M29 35q3 1.6 6 0" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="1.1"/>';
+  if (beard===1) o+='<path d="M21.5 30c1 9 5 12.5 10.5 12.5s9.5-3.5 10.5-12.5c-2 4-5 5.5-10.5 5.5S23.5 34 21.5 30z" fill="'+hr+'"/>';
+  if (beard===2) o+='<path d="M27 35.5q5 2.5 10 0q-1 3-5 3t-5-3z" fill="'+hr+'"/>';
+  if (helm===0) o+='<path d="M20 28c0-10 5-15 12-15s12 5 12 15h-3c0-7-4-11-9-11s-9 4-9 11z" fill="'+st+'"/><rect x="31" y="21" width="2" height="12" fill="'+st+'"/>';
+  else if (helm===1) o+='<path d="M20 31c0-12 5-18 12-18s12 6 12 18v8H20z" fill="'+st+'"/><rect x="23" y="27" width="18" height="2.4" fill="#151515"/><rect x="31" y="29.5" width="2" height="7" fill="#151515" opacity=".6"/>';
+  else if (helm===2) o+='<path d="M17 40c0-17 6-27 15-27s15 10 15 27l-4 0c0-10-4-17-11-17s-11 7-11 17z" fill="#4b3a2a"/>';
+  else if (helm===3) o+='<path d="M21 26c0-9 5-14 11-14s11 5 11 14c-3-4-6-6-11-6s-8 2-11 6z" fill="'+hr+'"/>';
+  else o+='<path d="M20 29c0-10 5-16 12-16s12 6 12 16l-2.5-1c-.5-6-4-10-9.5-10s-9 4-9.5 10z" fill="'+st+'"/><path d="M19 29h26v2.5H19z" fill="'+st+'"/>';
+  if (plume && (helm===0||helm===1||helm===4)) o+='<path d="M32 13c3-8 12-10 15-7-5 0-9 3-12 9z" style="fill:'+t.color+'"/>';
+  if (royal) o+='<path d="M22 15l3 5 3.5-6 3.5 6 3.5-6 3.5 6 3-5v6H22z" fill="#d4af37" stroke="#7a5c12" stroke-width=".8"/>';
+  return o+'</svg>';
+}
+function heroPortrait(h, px, ext){ // ext: {k: account key, hu: picture version} for another player's hero
+  var src = ext ? (ext.hu ? LB_URL+"/me/heroimg?k="+encodeURIComponent(ext.k)+"&h="+h.id+"&v="+ext.hu : "") : himgGet(h);
+  return '<span class="hport" style="width:'+px+'px;height:'+px+'px;box-shadow:0 0 0 2px '+(TIERS[h.tier]||TIERS.common).color+'">'+(src?'<img alt="" loading="lazy" src="'+esc(src)+'" onerror="this.style.display=\'none\'">':'')+heroDrawn(h, px)+'</span>';
+}
+function heroImageFromFile(h, f){
+  if (!f || !h) return; if (f.type && !/^image\//.test(f.type) && !/\.(png|jpe?g|webp|gif|bmp|avif|heic|heif)$/i.test(f.name||"")){ toast("That file isn’t an image"); return; }
+  var url=URL.createObjectURL(f), img=new Image();
+  img.onload=function(){ try { var c=document.createElement("canvas"); c.width=c.height=96; var g=c.getContext("2d"), s=Math.min(img.width,img.height);
+      g.fillStyle="#fff"; g.fillRect(0,0,96,96); g.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,96,96);
+      var d=c.toDataURL("image/jpeg",0.8); himgSet(h,d); h.pic=Date.now(); save(); lastSheet=""; renderSheet(); lastView=""; refresh();
+      if (cbOn()) alPost("/me/heroimg",{hid:h.id, img:d}).then(function(r){ if (r.error) toast(r.error); else toast("Picture saved: everyone can see it"); }).catch(function(){ toast("Saved here; it goes to the server next time you’re online"); h.picPending=1; save(); });
+      else toast("Picture saved on this device (sign in to a cloud save to share it)"); }
+    catch(e){ toast("Couldn’t use that image"); } URL.revokeObjectURL(url); };
+  img.onerror=function(){ URL.revokeObjectURL(url); toast("Couldn’t read that image. PNG, JPG, WebP and GIF work; for other kinds, screenshot it first"); };
+  img.src=url;
+}
+function heroImageRemove(h){ himgSet(h,""); h.pic=0; delete h.picPending; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); if (cbOn()) alPost("/me/heroimg",{hid:h.id, img:""}).catch(function(){}); toast("Picture removed"); }
+// pictures picked while offline go up later
+setInterval(function(){ if (!cbOn() || document.hidden) return; var all=[]; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ if (h.picPending && HIMG[h.id]) all.push(h); }); }); var h=all[0]; if (!h) return;
+  alPost("/me/heroimg",{hid:h.id, img:HIMG[h.id]}).then(function(r){ if (!r.error){ delete h.picPending; save(); } }).catch(function(){}); }, 20000);
+// ---- service record: every fight a hero leads ----
+function heroRec(h, o){ if (!h) return; var r=h.rec=h.rec||{b:0,w:0,k:0,kv:0,l:0,v:0,n:0,d:0,dw:0,best:null};
+  if (o.def){ r.d++; if (o.won) r.dw++; } else { r.b++; if (o.won) r.w++; if (o.won && o.valley) r.v++; if (o.won && o.npc) r.n++; }
+  var k=sumT(o.killed||[]); r.k+=k; r.kv+=Math.round((o.killed||[]).reduce(function(a,n,i){ return a+n*PREST_U[i]; },0)); r.l+=sumT(o.lost||[]);
+  if (k && (!r.best || k>r.best.k)) r.best={k:k, n:o.label||"", at:S.gt, won:!!o.won}; }
+function heroRecFight(h, r, defBefore, sent, label, extra){ if (!h || !r) return; var killed=defBefore.map(function(n,i){ return Math.max(0,n-(r.defender[i]||0)); }), lost=sent.map(function(n,i){ return Math.max(0,n-(r.attacker[i]||0)); });
+  heroRec(h, Object.assign({won:r.result===1, killed:killed, lost:lost, label:label}, extra||{})); }
+// ---- auto level-up: a ratio of politics : attack : intelligence, spent point by point ----
+function heroAuto(h){ var a=h&&h.auto; if (!a || !(h.pts>0)) return 0; var tot=(a.pol||0)+(a.atk||0)+(a.int||0); if (!tot) return 0;
+  h.autoAcc=h.autoAcc||{pol:0,atk:0,int:0}; var n=0;
+  while (h.pts>0){ var best=null, bv=Infinity; ["pol","atk","int"].forEach(function(s){ if (!(a[s]>0)) return; var v=h.autoAcc[s]/a[s]; if (v<bv || (v===bv && a[s]>a[best])){ bv=v; best=s; } });
+    if (!best) break; h[best]++; h.pts--; h.autoAcc[best]++; n++; }
+  return n; }
+// ---- sorting, remembered per city ----
+var HSORT=[["level","Level"],["atk","Attack"],["int","Intelligence"],["pol","Politics"],["tier","Tier"],["stars","Star set"],["gear","Gear bonus"],["kills","Troops killed"],["free","Free first"],["name","Name"]];
+var TIER_RANK={mythic:7, historic:6, queen:5, legendary:4, epic:3, rare:2, common:1};
+function heroSortVal(h, k){
+  if (k==="level") return h.level*1e6+h.xp/1e3; if (k==="atk"||k==="int"||k==="pol") return hs(h,k); if (k==="tier") return TIER_RANK[h.tier]||0;
+  if (k==="stars") return starSet(h); if (k==="gear") return gearBonus(h,"atk")+gearBonus(h,"int")+gearBonus(h,"pol"); if (k==="kills") return (h.rec&&h.rec.k)||0;
+  if (k==="free") return (h.away||officeOf(h))?0:1; return 0; }
+function heroesSorted(list){ var o=C().heroSort||{a:"level",b:"atk"};
+  return list.slice().sort(function(x,y){ if (!!x.fav!==!!y.fav) return x.fav?-1:1;
+    var keys=[o.a,o.b]; for (var i=0;i<2;i++){ var k=keys[i]; if (!k) continue; if (k==="name"){ var c=String(x.name).localeCompare(String(y.name)); if (c) return c; continue; } var d=heroSortVal(y,k)-heroSortVal(x,k); if (d) return d; }
+    return x.id-y.id; }); }
+function heroSortBar(){ var o=C().heroSort||{a:"level",b:"atk"}, opt=function(sel){ return HSORT.map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===sel?' selected':'')+'>'+x[1]+'</option>'; }).join(""); };
+  return '<div class="farmadd" style="margin-top:6px"><label class="dur" for="hsort1">Sort by</label><select id="hsort1">'+opt(o.a)+'</select><label class="dur" for="hsort2">then</label><select id="hsort2"><option value="">nothing</option>'+opt(o.b)+'</select></div>'; }
+function heroCardBig(h){
+  var xp = h.level>=HERO_MAX ? 100 : Math.floor(h.xp/xpNeed(h.level)*100), off=officeOf(h), set=starSet(h), r=h.rec, a=h.auto;
+  var status = off ? '<span class="badge">'+off[1]+'</span>' : h.away ? '<span class="badge" style="background:var(--red)">Marching</span>' : '<span class="dur">At home</span>';
+  return '<div class="hcard" role="button" tabindex="0" data-act="hero" data-id="'+h.id+'">'+heroPortrait(h,76)+
+    '<div class="hcb"><div class="hct"><b class="hn">'+esc(h.name)+'</b><button class="hfav'+(h.fav?' on':'')+'" data-act="hero-fav" data-id="'+h.id+'" aria-label="'+(h.fav?'Unfavourite':'Favourite')+' '+esc(h.name)+'">'+(h.fav?'★':'☆')+'</button></div>'+
+    '<div class="dur"><span style="color:'+TIERS[h.tier].color+';font-weight:700">'+TIERS[h.tier].name+'</span> · Lv '+h.level+' · '+status+(set>=0?' · ★'+set+' set':'')+'</div>'+
+    '<div class="hcs"><span>Pol <b>'+hs(h,"pol")+'</b></span><span>Atk <b>'+hs(h,"atk")+'</b></span><span>Int <b>'+hs(h,"int")+'</b></span></div>'+
+    '<div class="dur">'+(r&&(r.b||r.d)?fmt(r.b)+' battle'+(r.b===1?'':'s')+(r.d?', '+fmt(r.d)+' defense'+(r.d===1?'':'s'):'')+' · '+fmt(r.k)+' killed':'No battles yet')+(a?' · auto '+(a.pol||0)+':'+(a.atk||0)+':'+(a.int||0):'')+(h.pts?' · <span style="color:var(--brass)">+'+h.pts+' to assign</span>':'')+'</div>'+
+    '<span class="xpbar"><i style="width:'+xp+'%"></i></span></div></div>';
+}
+function heroRecordHtml(h){ var r=h.rec;
+  if (!r || !(r.b||r.d)) return '<div class="h3" style="margin-top:8px">Service record</div><p class="hint">'+esc(h.name)+' hasn’t led a fight yet. Every battle from now on goes on the record.</p>';
+  var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
+  return '<div class="h3" style="margin-top:8px">Service record</div><div class="mestats">'+row("Battles led",fmt(r.b)+(r.b?' ('+fmt(r.w)+' won)':''))+row("Defenses led",fmt(r.d)+(r.d?' ('+fmt(r.dw)+' held)':''))+row("Troops killed",fmt(r.k))+row("Prestige destroyed",fmt(r.kv))+row("Troops lost",fmt(r.l))+row("Valleys and flats beaten",fmt(r.v))+row("NPC cities beaten",fmt(r.n))+
+    (r.best?row("Best battle",fmt(r.best.k)+' killed'+(r.best.n?' at '+esc(r.best.n):'')+(r.best.won?'':' (lost)')):'')+'</div><p class="dur">Records started with version 0.1.123: older battles aren’t counted.</p>'; }
+function heroAutoHtml(h){ var a=h.auto||{pol:0,atk:0,int:0}, on=!!h.auto, d=HAD[h.id]||a;
+  return '<div class="h3" style="margin-top:8px">Auto level-up</div><p class="hint">Every point '+esc(h.name)+' earns goes into politics, attack and intelligence by this ratio (for example 0 : 2 : 1 = two attack for every intelligence). Turning it on spends the unused points now.</p>'+
+    '<div class="farmadd"><label class="dur" for="hauto-pol">Pol</label><input type="number" min="0" max="9" id="hauto-pol" value="'+(d.pol||0)+'" style="width:60px"><label class="dur" for="hauto-atk">Atk</label><input type="number" min="0" max="9" id="hauto-atk" value="'+(d.atk||0)+'" style="width:60px"><label class="dur" for="hauto-int">Int</label><input type="number" min="0" max="9" id="hauto-int" value="'+(d.int||0)+'" style="width:60px"></div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="hero-auto">'+(on?'Save ratio':'Turn on')+'</button>'+(on?'<button class="btn ghost small" data-act="hero-autooff">Turn off</button><span class="dur">On: '+(a.pol||0)+' : '+(a.atk||0)+' : '+(a.int||0)+'</span>':'')+'</div>'; }
+var HAD={}; // auto level-up ratio being typed, per hero
 function heroCard(h){
   var isM = S.mayor===h.id, xp = h.level>=HERO_MAX ? 100 : Math.floor(h.xp/xpNeed(h.level)*20)*5;
   return '<button class="hero" data-act="hero" data-id="'+h.id+'">'+shield(h)+
@@ -5517,7 +5624,8 @@ function viewHeroes(){
   h+='<div class="section"><div class="shead"><h3>Feasting Hall</h3><span class="dur">'+S.heroes.length+' / '+cap+' heroes'+(salary()?', salaries '+fmt(salary())+' gold/h':'')+'</span></div>';
   if (!cap) h+='<p class="hint">Build a Feasting Hall to keep heroes.</p>';
   else if (!S.heroes.length) h+='<p class="hint">The hall is empty. Hire at the Inn or try the wheel.</p>';
-  h+='<div class="herolist">'+S.heroes.map(heroCard).join("")+'</div></div>';
+  if (S.heroes.length>1) h+=heroSortBar();
+  h+='<div class="herolist">'+heroesSorted(S.heroes).map(heroCardBig).join("")+'</div></div>';
   if (S.waiting.length){
     h+='<div class="section"><h3>Waiting at the gate</h3><p class="hint">Legendary and historic heroes wait here, free, until the hall has room. Lesser heroes with nowhere to sleep just move on.</p><div class="herolist">';
     S.waiting.forEach(function(w){
@@ -6036,7 +6144,7 @@ function warCityBattle(m){
   var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1;
   E.garrison=r.defender.slice(); E.forts=r.forts.map(function(n){ return Math.max(0,n); });
   achKills(base.t, r.defender);
-  var xp=0, k; for (k=0;k<12;k++) xp+=(base.t[k]-r.defender[k])*KILLXP[k]; for (k=0;k<5;k++) xp+=(base.f[k]-r.forts[k])*FORTXP[k]; if (hero) giveXp(hero, Math.round(xp));
+  var xp=0, k; for (k=0;k<12;k++) xp+=(base.t[k]-r.defender[k])*KILLXP[k]; for (k=0;k<5;k++) xp+=(base.f[k]-r.forts[k])*FORTXP[k]; if (hero){ giveXp(hero, Math.round(xp)); heroRecFight(hero, r, base.t, m.t, ""); }
   var lostT=killedOf(m.t, r.attacker), loot={food:0,lumber:0,stone:0,iron:0,gold:0};
   warScore(ptsOf(killedOf(base.t, r.defender)), ptsOf(lostT), (won?"took ":"hit ")+b.name+"\u2019s war camp");
   if (won){
@@ -6211,7 +6319,7 @@ function chalCityBattle(m){
   var Atk={troops:m.t.slice(), research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack())};
   var r=SIM.fight(Atk,{troops:base.t, fortifications:base.f, wallLevel:base.wall, research:base.r, attack_modifier:base.am, hero:{intel:base.hint}, fortBonus:base.fb}), won=r.result===1, k;
   achKills(base.t, r.defender);
-  var xp=0; for (k=0;k<12;k++) xp+=(base.t[k]-r.defender[k])*KILLXP[k]; for (k=0;k<5;k++) xp+=(base.f[k]-r.forts[k])*FORTXP[k]; if (hero) giveXp(hero, Math.round(xp));
+  var xp=0; for (k=0;k<12;k++) xp+=(base.t[k]-r.defender[k])*KILLXP[k]; for (k=0;k<5;k++) xp+=(base.f[k]-r.forts[k])*FORTXP[k]; if (hero){ giveXp(hero, Math.round(xp)); heroRecFight(hero, r, base.t, m.t, ""); }
   var lost=sumT(killedOf(m.t, r.attacker)), loot={food:0,lumber:0,stone:0,iron:0,gold:0}, nm;
   if (q.seat){
     c.garrison=r.defender.slice(); c.forts=r.forts.map(function(n){ return Math.max(0,n); }); nm=b.name+"\u2019s seat";
@@ -7550,7 +7658,7 @@ function bullyCampBattle(m){
   B.garrison=r.defender.slice(); B.forts=r.forts.map(function(n){ return Math.max(0,n); });
   var after=sumT(B.garrison)+B.forts.reduce(function(a,c){ return a+c; },0), dmg=Math.max(0,(before-after)/Math.max(1,B.campStart));
   achKills(base.t, r.defender);
-  var xp=0; for (i=0;i<12;i++) xp+=(base.t[i]-r.defender[i])*KILLXP[i]; for (i=0;i<5;i++) xp+=(base.f[i]-r.forts[i])*FORTXP[i]; if (hero) giveXp(hero, Math.round(xp));
+  var xp=0; for (i=0;i<12;i++) xp+=(base.t[i]-r.defender[i])*KILLXP[i]; for (i=0;i<5;i++) xp+=(base.f[i]-r.forts[i])*FORTXP[i]; if (hero){ giveXp(hero, Math.round(xp)); heroRecFight(hero, r, base.t, m.t, ""); }
   var loot={food:0,lumber:0,stone:0,iron:0,gold:0}, drops=[], gain=0;
   if (won){
     var cap=0; for (i=0;i<12;i++) cap += r.attacker[i]*LOAD[i]*loadMul();
@@ -7826,7 +7934,7 @@ function playerSheet(){
   if (dmOn() && !isMe(nm) && (d.ck||nm)) h+='<div class="btnrow" style="margin:6px 0"><button class="btn small" data-act="dm-with" data-k="'+esc(d.ck||"")+'" data-nm="'+esc(nm)+'">Send a message</button></div>';
   if (!d.found){ return h+'<p class="hint">This player hasn’t sent any scores to the high scores yet, so there’s nothing more to show.</p>'; }
   var rows='';
-  if (d.hero){ var st=String(d.hero.st||"").split(",").map(Number); rows+=row("Top hero",esc(d.hero.name)+' <span class="dur">level '+d.hero.lv+'</span>'); if (st.length>=3 && st.every(isFinite)) rows+=row("Hero stats",'Attack '+fmt(st[1])+' · Intelligence '+fmt(st[2])+' · Politics '+fmt(st[0])); }
+  if (d.hero){ var st=String(d.hero.st||"").split(",").map(Number); rows+=row("Top hero",(d.hero.hid&&d.hero.hu?heroPortrait({id:d.hero.hid, name:d.hero.name, tier:"legendary"},40,{k:d.ck, hu:d.hero.hu})+' ':'')+esc(d.hero.name)+' <span class="dur">level '+d.hero.lv+'</span>'); if (st.length>=3 && st.every(isFinite)) rows+=row("Hero stats",'Attack '+fmt(st[1])+' · Intelligence '+fmt(st[2])+' · Politics '+fmt(st[0])); }
   else rows+=row("Top hero","none yet");
   rows+=row("Prestige",fmt(d.prestige))+row("Troops killed",fmt(d.kills))+row("Troops lost",fmt(d.deaths))+row("Cities",d.cities)+row("Best star set",d.stars)+row("War College stars",fmt(d.college||0));
   rows+=row("Historic cities taken",d.hc&&d.hc.length?d.hc.map(function(L){ return "Level "+L; }).join(", "):"none");
@@ -9054,7 +9162,9 @@ function renderSheetCore(){
     if (!hr){ closeSheet(); return; }
     var isM = S.mayor===hr.id, need=xpNeed(hr.level);
     var renameRow = hr.fixedName ? '<p class="hint">'+esc(hr.name)+' keeps this name.</p>' : hr.tier==="queen" ? '<div><label class="sub" for="hname">Name</label><div style="display:flex;align-items:center;gap:6px"><b>Queen</b><input type="text" id="hname" maxlength="22" style="flex:1" value="'+esc(hr.name.replace(/^Queen\s+/i,""))+'"></div></div>' : hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
-    h='<div class="head">'+shield(hr,48)+'<div><h2 id="hname-h">'+esc(hr.name)+'</h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase():'')+'</div></div></div>';
+    h='<div class="hhead">'+heroPortrait(hr,128)+'<div style="min-width:0"><h2 id="hname-h" style="margin:0;overflow-wrap:anywhere">'+esc(hr.name)+' <button class="hfav'+(hr.fav?' on':'')+'" data-act="hero-fav" data-id="'+hr.id+'" aria-label="Favourite">'+(hr.fav?'\u2605':'\u2606')+'</button></h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase():'')+'</div>'+
+      '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="hero-pic">'+(hr.pic?'Change picture':'Add a picture')+'</button>'+(hr.pic?'<button class="link" data-act="hero-picdel">Remove</button>':'')+'</div><input type="file" id="heroimgf" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif,.heic,.heif" hidden>'+
+      '<p class="dur" style="margin:4px 0 0">'+(hr.fav?'A favourite: pinned to the top and can\u2019t be dismissed.':'Tap the star to make a favourite.')+' Pictures are seen by other players.</p></div></div>';
     h+=renameRow;
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
     h+='<div class="statgrid">';
@@ -9062,6 +9172,7 @@ function renderSheetCore(){
       h+='<div><b>'+s[1]+'</b><div class="sub">'+s[2]+'</div></div><span class="sv">'+hs(hr,s[0])+(gearBonus(hr,s[0])?'<div class="dur" style="font:400 .78rem var(--body)">'+hr[s[0]]+' + '+gearBonus(hr,s[0])+' gear</div>':'')+'</span><span class="ptbtns"><button class="plus" data-act="pt" data-stat="'+s[0]+'" aria-label="Add a point to '+s[1]+'"'+(hr.pts?'':' disabled')+'>+</button><button class="plus all" data-act="ptall" data-stat="'+s[0]+'" aria-label="Add all points to '+s[1]+'"'+(hr.pts?'':' disabled')+'>All</button></span>';
     });
     h+='</div>'+(hr.pts?'<p class="sub" style="color:var(--brass)">'+hr.pts+' point'+(hr.pts>1?'s':'')+' to assign.</p>':'');
+    h+=heroAutoHtml(hr)+heroRecordHtml(hr);
     var hdg=dragonOf(hr); if (hdg) h+='<p class="sub"><b style="color:'+hdg.def.col+'">'+hdg.def.name+' Dragon</b>, level '+hdg.lv+': '+dragonBuffTxt(hdg.t,hdg.lv)+'. Change it in the Overlook.</p>';
     h+='<p class="sub">As mayor: production +'+pct(hs(hr,"pol")*0.003)+', buildings '+pct(1-1/(1+hs(hr,"pol")/200))+' faster. As trainer: training '+pct(1-Math.pow(0.9975,hs(hr,"atk")))+' faster. As researcher: research '+pct(1-1/(1+hs(hr,"int")/200))+' faster.</p>';
     var hset=starSet(hr), nxt=nextSetTier(Math.max(0,hset));
@@ -10003,6 +10114,13 @@ document.addEventListener("click",function(e){
   }
   if (act==="spin10"){ doSpin10(); return; }
   if (act==="hero"){ openSheet({kind:"hero",id:+a.dataset.id}); return; }
+  if (act==="hero-fav"){ var fh=heroById(+a.dataset.id); if (fh){ fh.fav=!fh.fav; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); toast(fh.fav?fh.name+" is a favourite":fh.name+" is no longer a favourite"); } return; }
+  if (act==="hero-pic"){ var hfi=document.getElementById("heroimgf"); if (hfi) hfi.click(); return; }
+  if (act==="hero-picdel"){ var hpd=heroById(sheetFor&&sheetFor.id); if (hpd) heroImageRemove(hpd); return; }
+  if (act==="hero-auto"){ var ha=heroById(sheetFor&&sheetFor.id); if (!ha) return; var hd=HAD[ha.id]||ha.auto||{pol:0,atk:0,int:0}, nr={pol:Math.max(0,Math.min(9,+hd.pol||0)), atk:Math.max(0,Math.min(9,+hd.atk||0)), int:Math.max(0,Math.min(9,+hd.int||0))};
+    if (!(nr.pol+nr.atk+nr.int)){ toast("Set at least one number above 0"); return; } ha.auto=nr; ha.autoAcc={pol:0,atk:0,int:0}; delete HAD[ha.id]; var spent=heroAuto(ha); save(); lastSheet=""; renderSheet(); lastView=""; refresh();
+    toast("Auto level-up on ("+nr.pol+" : "+nr.atk+" : "+nr.int+")"+(spent?", "+spent+" point"+(spent>1?"s":"")+" spent now":"")); return; }
+  if (act==="hero-autooff"){ var ho=heroById(sheetFor&&sheetFor.id); if (ho){ delete ho.auto; delete ho.autoAcc; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); toast("Auto level-up off"); } return; }
   if (act==="ptall"){ var ha=heroById(sheetFor.id); if (ha && ha.pts>0){ var np=ha.pts; ha[a.dataset.stat]+=np; ha.pts=0; toast("+"+np+" "+STATN[a.dataset.stat]+" for "+ha.name); save(); } refresh(); return; }
   if (act==="pt"){ var hh=heroById(sheetFor.id); if (hh && hh.pts>0){ hh[a.dataset.stat]++; hh.pts--; } refresh(); return; }
   if (act==="office"||act==="mayor"){ var role=a.dataset.role||"mayor", oh=heroById(sheetFor.id); if (!oh) return; if (oh.away){ toast("That hero is away on a march"); return; }
@@ -10023,6 +10141,7 @@ document.addEventListener("click",function(e){
   if (act==="dismiss"){
     if (armed!=="dismiss"){ armed="dismiss"; lastSheet=""; renderSheet(); return; }
     var dh=heroById(sheetFor.id); if (dh.away){ toast("That hero is away on a march"); return; }
+    if (dh.fav){ armed=null; toast("Unfavourite "+dh.name+" first (the star)"); lastSheet=""; renderSheet(); return; }
     if (dh.tier==="queen"){ armed=null; toast("The Queen will not leave your court"); lastSheet=""; renderSheet(); return; }
     if (dh.unique==="beta"){ armed=null; toast("Beta will not leave your court"); lastSheet=""; renderSheet(); return; }
     S.heroes=S.heroes.filter(function(x){ return x.id!==sheetFor.id; });
@@ -10156,6 +10275,9 @@ document.addEventListener("change",function(e){
   if (e.target.id==="mcamp"){ marchDraft.camp=e.target.checked; }
   if (e.target.id==="mrep"){ marchDraft.rep=e.target.checked; lastSheet=""; renderSheet(); }
   if (e.target.id==="mrepl"){ marchDraft.repl=e.target.checked; }
+  if (e.target.id==="heroimgf"){ var hf0=e.target.files&&e.target.files[0]; e.target.value=""; var hfh=heroById(sheetFor&&sheetFor.id); if (hfh) heroImageFromFile(hfh, hf0); return; }
+  if (e.target.id==="hsort1"||e.target.id==="hsort2"){ var hso=C().heroSort=C().heroSort||{a:"level",b:"atk"}; if (e.target.id==="hsort1") hso.a=e.target.value; else hso.b=e.target.value; e.target.blur(); save(); lastView=""; renderView(true); return; }
+  if (e.target.id && e.target.id.indexOf("hauto-")===0 && sheetFor && sheetFor.kind==="hero"){ var hah=heroById(sheetFor.id); if (hah){ var cur0=HAD[hah.id]||Object.assign({pol:0,atk:0,int:0},hah.auto||{}); cur0[e.target.id.slice(6)]=Math.max(0,Math.min(9,Math.floor(+e.target.value||0))); HAD[hah.id]=cur0; } return; }
   if (e.target.id==="meimg"){ var mf0=e.target.files&&e.target.files[0]; e.target.value=""; meImageFromFile(mf0); return; }
   if (e.target.id==="dockpin"){ dockPin=e.target.checked; dockSave(); renderDock(); toast(dockPin?"Chat pinned: it shows as a bar at the bottom on other pages":"Chat unpinned"); }
   if (e.target.id==="marchfrom"){ marchDraft.from=e.target.value||""; marchDraft.t=[0,0,0,0,0,0,0,0,0,0,0,0]; var mfc=draftCamp(); marchDraft.hero = mfc ? (mfc.hero||0) : ((marchHeroes()[0]||{}).id||0); marchDraft.preview=""; e.target.blur(); lastSheet=""; renderSheet(); }
