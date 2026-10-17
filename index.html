@@ -691,7 +691,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.118";
+var APP_VERSION = "0.1.119";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2000,15 +2000,24 @@ function viewFarms(){
   });
   return h+'</div>';
 }
-function wavesSheet(){
+function wavesSheet(){ if (!waveDraft.times) waveDraft.times=[];
   var d=waveDraft, q=TILE_BY[d.tile], h='<div class="head"><span class="ico">'+ICON.hourglass+'</span><div><h2>Timed waves on '+esc(tileName(q))+'</h2><div class="sub">('+q.x+', '+q.y+'), '+tdist(q).toFixed(1)+' tiles away</div></div></div>';
-  h+='<p class="hint">Pick how many waves each preset sends, in order. Every wave is timed to land the chosen number of seconds after the one before it. Troops leave home now and wait at the gate until their launch time.</p>';
+  var clk=d.mode==="clock";
+  h+='<div class="farmadd" style="margin-bottom:6px"><button class="chipbtn'+(clk?'':' on')+'" data-act="waves-mode" data-v="gap">One after another</button><button class="chipbtn'+(clk?' on':'')+'" data-act="waves-mode" data-v="clock">Set landing times</button></div>';
+  h+='<p class="hint">'+(clk?'Pick how many waves each preset sends, then the exact clock time each one lands, down to the second. Waves can land on the same second (they hit in the order listed). Every wave leaves now, waits at the target (no rations, can\u2019t be attacked, can be recalled) and hits at its time. Up to 24 hours of waiting.':'Pick how many waves each preset sends, in order. Every wave is timed to land the chosen number of seconds after the one before it. Troops leave home now and wait at the gate until their launch time.')+'</p>';
   h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>';
   S.presets.forEach(function(pr,pi){ var ph=presetHero(pr), tm=presetTotal(pr)?travelMs(pr.t,q,ph?ph.id:0):0;
     h+='<tr><td>'+esc(pr.name)+'<div class="dur">'+presetSummary(pr)+(tm?', travel '+fmtT(realMs(tm)):'')+'</div></td><td><input type="number" min="0" max="10" data-wave="'+pi+'" value="'+(d.n[pi]||"")+'" placeholder="0" aria-label="Waves from '+esc(pr.name)+'"></td></tr>'; });
   h+='</tbody></table></div>';
-  h+='<div class="mrow"><label for="wgap">Seconds between landings</label><input type="number" id="wgap" min="0" value="'+d.gap+'">'+
-    '<label for="wmis">Mission</label><select id="wmis"><option value="attack"'+(d.mission==="attack"?' selected':'')+'>Attack</option>'+'</select></div>';
+  if (clk){ var pl0=wavePlan(true);
+    h+='<div class="mrow"><label for="wstart">First lands at</label><input type="time" step="1" id="wstart" value="'+esc(d.start||wvClock(pl0.earliest))+'"><label for="wevery">Then every (seconds)</label><input type="number" id="wevery" min="0" value="'+(d.every!=null?d.every:1)+'"></div>'+
+      '<div class="btnrow" style="margin:4px 0"><button class="btn ghost small" data-act="waves-fill">Fill in the times</button><span class="dur">Earliest any wave can land: '+wvClock(pl0.earliest)+'</span></div>';
+    if (pl0.list.length) h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+pl0.list.map(function(w,k){ var wh=w.hero?heroById(w.hero):null;
+      return '<tr><td>Wave '+(k+1)+': '+esc(S.presets[w.pi].name)+'<div class="dur">'+(wh?esc(wh.name)+', ':'')+'travel '+fmtT(realMs(w.travel))+', earliest '+wvClock(S.gt+w.travel)+'</div></td><td><input type="time" step="1" style="width:158px" data-wtime="'+k+'" value="'+esc(d.times[k]||"")+'" aria-label="Wave '+(k+1)+' lands at"></td></tr>'; }).join("")+'</tbody></table></div>';
+    h+='<div class="mrow"><label for="wmis">Mission</label>';
+  } else h+='<div class="mrow"><label for="wgap">Seconds between landings</label><input type="number" id="wgap" min="0" value="'+d.gap+'">'+
+    '<label for="wmis">Mission</label>';
+  h+='<select id="wmis"><option value="attack"'+(d.mission==="attack"?' selected':'')+'>Attack</option>'+'</select></div>';
   h+='<p class="sub" id="waveinfo"></p><div class="act"><span></span><button class="btn" data-act="waves-go" id="wavego">Launch waves</button></div><button class="closebtn" data-act="close">Cancel</button>';
   return h;
 }
@@ -2027,12 +2036,27 @@ function wavePlan(){
   else if (S.res.food < list.reduce(function(a,w){ return a+marchFood(w.t,d.mission,w.travel); },0)) why="Needs "+fmt(list.reduce(function(a,w){ return a+marchFood(w.t,d.mission,w.travel); },0))+" food for the trip";
   else for (var i=0;i<12;i++) if (need[i]>S.troops[i]){ why="Not enough "+U[i].name+"s ("+fmt(need[i])+" needed)"; break; }
   var maxT=list.reduce(function(a,w){ return Math.max(a,w.travel); },0), gap=Math.max(0,+d.gap||0)*1000*S.speed, first=S.gt+maxT+1000*S.speed;
+  if (d.mode==="clock"){ // every wave leaves now, waits at the target, and lands at its own clock time
+    var earliest=S.gt+maxT+1000*S.speed, ref={now:Date.now(), gt:S.gt};
+    list.forEach(function(w,k){ w.dep=S.gt; w.reach=S.gt+w.travel; var at=wvParse(d.times[k], ref); w.arr=at; w.ok=at!=null;
+      if (!why && at==null) why="Set a landing time for wave "+(k+1);
+      else if (!why && at<w.reach) why="Wave "+(k+1)+" can\u2019t land before "+wvClock(w.reach+1000);
+      else if (!why && at-w.reach>24*3600e3*S.speed) why="Wave "+(k+1)+" would wait more than 24 hours"; });
+    var ar=list.filter(function(w){ return w.ok; }).map(function(w){ return w.arr; });
+    return {list:list, why:why, first:ar.length?Math.min.apply(null,ar):earliest, earliest:earliest, clock:true};
+  }
   list.forEach(function(w,k){ w.arr=first+k*gap; w.dep=w.arr-w.travel; });
-  return {list:list, why:why, first:first};
+  return {list:list, why:why, first:first, earliest:first};
 }
+// timed waves: game time <-> the phone's clock ("14:32:05"). A time earlier than now means tomorrow.
+function wvClock(gt){ var d=new Date(Date.now()+realMs(gt-S.gt)); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0"); }
+function wvParse(v, ref){ var m=/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(v||"")); if (!m) return null; // ref: one {now, gt} pair for a whole plan, so equal times give equal landings
+  ref=ref||{now:Date.now(), gt:S.gt}; var now=new Date(ref.now), t=new Date(now.getFullYear(), now.getMonth(), now.getDate(), +m[1], +m[2], +(m[3]||0), 0).getTime(); if (t<ref.now-1000) t+=86400e3;
+  return ref.gt+(t-ref.now)*S.speed; }
 function updateWaveInfo(){
   var el=document.getElementById("waveinfo"), b=document.getElementById("wavego"); if (!el) return;
   var pl=wavePlan();
+  if (pl.clock){ el.textContent = pl.list.length ? pl.list.length+" wave"+(pl.list.length>1?"s":"")+", all leaving now"+(pl.why?"":". First lands in "+fmtT(realMs(pl.first-S.gt)))+"." : ""; b.disabled=!!pl.why; b.textContent=pl.why||"Send "+pl.list.length+" wave"+(pl.list.length>1?"s":""); return; }
   el.textContent = pl.list.length ? pl.list.length+" wave"+(pl.list.length>1?"s":"")+". First lands in "+fmtT(realMs(pl.first-S.gt))+(pl.list.length>1?", last "+fmtT(realMs(pl.list[pl.list.length-1].arr-S.gt)):"")+". Leading: "+pl.list.slice(0,8).map(function(w){ var wh=w.hero?heroById(w.hero):null; return wh?wh.name:"no hero"; }).join(", ")+(pl.list.length>8?"\u2026":"")+"." : "";
   b.disabled=!!pl.why; b.textContent=pl.why||"Launch "+pl.list.length+" wave"+(pl.list.length>1?"s":"");
 }
@@ -2281,7 +2305,7 @@ function drawMap(){
     g.moveTo((oc.x+.5-mv.x)*z,(oc.y+.5-mv.y)*z); g.lineTo((q.x+.5-mv.x)*z,(q.y+.5-mv.y)*z); g.stroke(); if (g.setLineDash) g.setLineDash([]);
     // where the march is right now
     var f=0, home=false;
-    if (m.phase==="out"){ f=(S.gt-m.dep)/Math.max(1,m.arr-m.dep); }
+    if (m.phase==="out"){ f=(S.gt-m.dep)/Math.max(1,(m.reach||m.arr)-m.dep); } // a timed wave stops at the target and waits
     else if (m.phase==="stay"){ f=1; }
     else if (m.phase==="back"){ var bs=m.bs!=null?m.bs:m.ret-m.travel; f=1-(S.gt-bs)/Math.max(1,m.ret-bs); }
     f=Math.max(0,Math.min(1,f));
@@ -3774,6 +3798,9 @@ function dmTick(){
   if (Date.now()-DMS.last>=gap) dmSync();
 }
 setInterval(dmTick, 1000);
+// the admin pushed an edited save (admin page save editor): say so once, after it has loaded
+setInterval(function(){ var ae=S&&S.adminEdit; if (!ae || !(ae.at>(S.adminEditSeen||0))) return; S.adminEditSeen=ae.at; save();
+  openSheet({kind:"msg", title:"Your save was updated", body:ae.note||"Your save was updated by the admin."}); }, 2000);
 function dmMarkRead(k){ var top=0; DMS.lines.forEach(function(l){ if (l.k===k && !l.me && l.id>top) top=l.id; }); if (!top || top<=(DMS.reads[k]||0)) return; DMS.reads[k]=top; alPost("/dm/read",{k:k, id:top}).catch(function(){}); }
 function dmSend(){ var i=document.getElementById("dockin"); if (!i || !DMS.open) return; var t=i.value.trim(); if (!t) return; i.value="";
   alPost("/dm/send",{to:DMS.open.name, k:DMS.open.k||undefined, text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; return; }
@@ -4094,7 +4121,7 @@ function allCitiesSheet(){
     S.marches.filter(function(m){ return m.city===c.id; }).forEach(function(m){ var q=TILE_BY[m.tile]; jobs.push([m.phase==="back"?m.ret:m.phase==="stay"?Infinity:m.arr, marchVerb(m)+(q?tileName(q):m.tile)]); });
     jobs.sort(function(a,b){ return a[0]-b[0]; });
     var units=[]; for (var i=0;i<12;i++){ var all=t[i]+out[i]; if (all||tr[i]||wd[i]) units.push('<li>'+U[i].name+': <b>'+fmt(all)+'</b>'+(out[i]?' ('+fmt(out[i])+' out)':'')+(tr[i]?', '+fmt(tr[i])+' training':'')+(wd[i]?', '+fmt(wd[i])+' wounded':'')+'</li>'); }
-    h+='<div class="acity"><h4><span>'+esc(c.name)+'</span><span class="dur">('+c.x+','+c.y+') \u00b7 Town Hall '+S.th+(c.away?' \u00b7 away':'')+'</span><span style="flex:1"></span>'+(ci!==keep?'<button class="link strong" data-act="city-go" data-city="'+ci+'">Go</button>':'<span class="dur">viewing</span>')+'</h4>'+
+    h+='<div class="acity"><h4><span>'+esc(c.name)+'</span><span class="dur">('+c.x+','+c.y+') \u00b7 Town Hall '+S.th+(c.away?' \u00b7 away':'')+'</span><span style="flex:1"></span>'+(ci>0?'<button class="btn ghost small" data-act="city-move" data-city="'+ci+'" data-d="-1" aria-label="Move '+esc(c.name)+' up">\u2191</button>':'')+(ci<S.cities.length-1?'<button class="btn ghost small" data-act="city-move" data-city="'+ci+'" data-d="1" aria-label="Move '+esc(c.name)+' down">\u2193</button>':'')+(ci!==keep?'<button class="link strong" data-act="city-go" data-city="'+ci+'">Go</button>':'<span class="dur">viewing</span>')+'</h4>'+
       '<div class="rgrid">'+RES.map(function(k){ var rr=k==="gold"?r.gold:r[k]; return '<span>'+RNAME[k]+' <b>'+fmt(Math.floor(S.res[k]||0))+'</b> <span class="'+(rr<0?'why':'dur')+'">'+(rr<0?'\u2212':'+')+fmt(Math.abs(Math.round(rr)))+'/h</span></span>'; }).join("")+
       '<span>Population <b>'+fmt(Math.floor(S.pop))+'</b> <span class="dur">/ '+fmt(popCap())+'</span></span><span>Marches <b>'+nm+'</b> <span class="dur">/ '+rl+'</span></span></div>'+
       '<details class="det" data-det="ac'+c.id+'"'+(DET["ac"+c.id]?' open':'')+'><summary>Troops <b>'+fmt(home+away)+'</b>'+(away?' <span class="dur">('+fmt(away)+' out)</span>':'')+(inTr?' <span class="dur">+'+fmt(inTr)+' training</span>':'')+(hurt?' <span class="dur">+'+fmt(hurt)+' wounded</span>':'')+'</summary>'+(units.length?'<ul>'+units.join("")+'</ul>':'<p class="hint">No troops.</p>')+'</details>'+
@@ -5124,7 +5151,7 @@ function marchSummary(m){
   if (cs.length) bits.push((m.phase==="back"?"bringing home ":"carrying ")+cs.join(", "));
   return bits.join(" \u00b7 ");
 }
-function marchVerb(m){ return m.phase==="wait" ? "Wave for " : m.phase==="back" ? "Returning from " : m.phase==="stay" ? (m.mission==="station"?"Camped at ":m.mission==="hide"?"Hiding in the woods around ":"Guarding ") : ({station:"Marching to camp at ",allyguard:"Marching to guard ",scout:"Scouting ",occupy:"Occupying ",found:"Founding at ",transport:"Carrying to ",reinforce:"Reinforcing ",attack:"Attacking ",conquer:"Conquering "}[m.mission]||"Marching to "); }
+function marchVerb(m){ if (m.phase==="out" && m.reach && S.gt>=m.reach) return "Waiting to hit "; return m.phase==="wait" ? "Wave for " : m.phase==="back" ? "Returning from " : m.phase==="stay" ? (m.mission==="station"?"Camped at ":m.mission==="hide"?"Hiding in the woods around ":"Guarding ") : ({station:"Marching to camp at ",allyguard:"Marching to guard ",scout:"Scouting ",occupy:"Occupying ",found:"Founding at ",transport:"Carrying to ",reinforce:"Reinforcing ",attack:"Attacking ",conquer:"Conquering "}[m.mission]||"Marching to "); }
 function marchLine(m){
   var q=TILE_BY[m.tile], nm=q?tileName(q):m.tile, pre=(m.preset!=null||m.label!=null)?S.presets[m.preset!=null?m.preset:m.label].name+": ":"";
   var verb = marchVerb(m);
@@ -8817,6 +8844,8 @@ function renderSheetCore(){
   } else if (sheetFor.kind==="preset"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=presetSheet(sheetFor.p);
+  } else if (sheetFor.kind==="msg"){
+    h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>'+esc(sheetFor.title||"")+'</h2></div></div><p>'+esc(sheetFor.body||"")+'</p><button class="closebtn" data-act="close">OK</button>';
   } else if (sheetFor.kind==="waves"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=wavesSheet();
@@ -9457,6 +9486,9 @@ document.addEventListener("click",function(e){
     dq.k="flat"; dq.L=dayLevel(dq); miniDirty=true;
     toast("Demolished. It\u2019s a level "+dq.L+" flat today."); refresh(); return;
   }
+  if (act==="city-move"){ var cmi=+a.dataset.city, cmj=cmi+(+a.dataset.d); if (cmj<0 || cmj>=S.cities.length) return; // reorder cities: everything stored refers to cities by id, only the viewed index moves with it
+    var cmId=C().id, tmpc=S.cities[cmi]; S.cities[cmi]=S.cities[cmj]; S.cities[cmj]=tmpc; S.cur=cityIndex(cmId); if (S.pvp) S.pvp.ci=null; TP.from=0; RF.from=0;
+    save(); lastView=""; refresh(); return; }
   if (act==="city-gift"){
     var gid=+a.dataset.city, gc=S.cities[cityIndex(gid)], gsel=document.getElementById("giftally"), gally=gsel?gsel.value:null;
     if (!gc || giftWhy(gc) || !gally) return;
@@ -9583,6 +9615,7 @@ document.addEventListener("click",function(e){
     withCity(cityIndex(mm.city), function(){
       if (act==="march-hasten"){
         if (!(S.items.marchsp>0) || mm.phase==="wait") return;
+        if (mm.timed && mm.phase==="out"){ toast("Timed waves land at their set time"); return; }
         S.items.marchsp--; if (mm.phase==="out") mm.arr=S.gt+(mm.arr-S.gt)/2; else mm.ret=S.gt+(mm.ret-S.gt)/2;
         toast("March hastened: half the remaining time"); return;
       }
@@ -9598,7 +9631,7 @@ document.addEventListener("click",function(e){
       } else if (mm.phase==="stay"){
         mm.phase="back"; mm.bs=S.gt; mm.ret=S.gt+mm.travel; mm.loot={}; toast((mm.mission==="station"?"Camp packed up":"Guards recalled")+", home in "+fmtT(realMs(mm.travel)));
       } else if (mm.phase==="out"){
-        mm.phase="back"; mm.bs=S.gt; mm.ret=S.gt+Math.max(1,S.gt-mm.dep); mm.loot=refund; toast("Army turned back, home in "+fmtT(realMs(mm.ret-S.gt)));
+        mm.phase="back"; mm.bs=S.gt; mm.ret=S.gt+Math.max(1,Math.min(S.gt-mm.dep, mm.reach?mm.travel:Infinity)); mm.loot=refund; // a timed wave waiting at the target walks back the whole way toast("Army turned back, home in "+fmtT(realMs(mm.ret-S.gt)));
       }
     });
     save(); refresh(); return;
@@ -9701,8 +9734,14 @@ document.addEventListener("click",function(e){
   if (act==="farm-clear"){ var fc2=S.presets[+a.dataset.p]; fc2.farm=[]; fc2.idx=0; fc2.auto=false; lastSheet=""; renderSheet(); save(); return; }
   if (act==="march-preset"){ var mp=S.presets[+a.dataset.p], mav=draftAvail(); marchDraft.t=mp.t.map(function(n,i){ return Math.min(n,mav[i]); });
     var mh=presetHero(mp); marchDraft.hero = marchDraft.from ? marchDraft.hero : (mh && !mh.away && !isOfficer(mh) ? mh.id : 0); marchDraft.preview=""; lastSheet=""; renderSheet(); return; }
+  if (act==="waves-mode"){ waveDraft.mode=a.dataset.v; lastSheet=""; renderSheet(); return; }
+  if (act==="waves-fill"){ var wpl=wavePlan(), ws=document.getElementById("wstart"), we=document.getElementById("wevery"); waveDraft.start=ws?ws.value:waveDraft.start; waveDraft.every=Math.max(0,Math.floor(+(we?we.value:waveDraft.every)||0));
+    var w0=wvParse(waveDraft.start); if (w0==null){ toast("Pick the first landing time"); return; }
+    waveDraft.times=wpl.list.map(function(w,k){ return wvClock(w0+k*waveDraft.every*1000*S.speed); }); lastSheet=""; renderSheet(); return; }
   if (act==="waves-open"){ waveDraft={tile:a.dataset.tile, n:[0,0,0,0,0,0,0,0,0,0], gap:1, mission:"attack"}; openSheet({kind:"waves"}); return; }
   if (act==="waves-go"){ var pl=wavePlan(); if (pl.why) return; var wq=TILE_BY[waveDraft.tile];
+    if (pl.clock){ pl.list.forEach(function(w){ var lm=launchMarch(waveDraft.tile, waveDraft.mission, w.t, w.hero, {label:w.pi}); lm.reach=lm.arr; lm.arr=w.arr; lm.timed=1; });
+      toast(pl.list.length+" wave"+(pl.list.length>1?"s":"")+" on the way to "+tileName(wq)+": first lands at "+wvClock(pl.first)); closeSheet(); refresh(); return; }
     pl.list.forEach(function(w){ launchMarch(waveDraft.tile, waveDraft.mission, w.t, w.hero, {dep:w.dep, label:w.pi}); var lm=S.marches[S.marches.length-1]; lm.arr=w.arr; });
     toast(pl.list.length+" wave"+(pl.list.length>1?"s":"")+" set to land on "+tileName(wq)+" starting in "+fmtT(realMs(pl.first-S.gt))); closeSheet(); refresh(); return; }
   if (act==="march-open"){ openMarch(a.dataset.tile, a.dataset.mission); return; }
@@ -9864,7 +9903,9 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.unit!=null && e.target.tagName==="INPUT"){ var iu=+e.target.dataset.unit; trainAmt[iu]=Math.max(0,Math.floor(+e.target.value||0)); updateTrainRow(iu); }
   if (e.target.dataset.ptroop!=null){ S.presets[sheetFor.p].t[+e.target.dataset.ptroop]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.pfield==="name"){ S.presets[sheetFor.p].name=e.target.value.trim()||("Preset "+(sheetFor.p+1)); save(); }
-  if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); updateWaveInfo(); }
+  if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); if (waveDraft.mode==="clock"){ e.target.blur(); lastSheet=""; renderSheet(); } else updateWaveInfo(); }
+  if (e.target.dataset.wtime!=null && waveDraft){ waveDraft.times[+e.target.dataset.wtime]=e.target.value; updateWaveInfo(); }
+  if ((e.target.id==="wstart" || e.target.id==="wevery") && waveDraft){ if (e.target.id==="wstart") waveDraft.start=e.target.value; else waveDraft.every=Math.max(0,Math.floor(+e.target.value||0)); }
   if (e.target.id==="wgap"){ waveDraft.gap=Math.max(0,+e.target.value||0); updateWaveInfo(); }
   if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic" && !rh.fixedName){ var nv=e.target.value.replace(/\s+/g," ").trim(); if (rh.tier==="queen"){ nv=nv.replace(/^queen\s+/i,""); rh.name=nv?"Queen "+nv:rh.name; } else rh.name=nv||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
   if (e.target.id==="gname"){ var ng=forgeGear(); if (ng){ ng.nm=e.target.value.replace(/\s+/g," ").trim().slice(0,28)||undefined; if (!ng.nm) delete ng.nm; save(); } }
