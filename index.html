@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.110";
+var APP_VERSION = "0.1.111";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -6512,7 +6512,7 @@ function invSection(){
   var p=st.p, v=st.inv;
   if (v && (v.status==='done'||v.status==='cancelled')){ invPoll(true); return h+'<p class="hint">The invasion is over. Settling the result\u2026</p></div>'; }
   if (v) return h.replace('>multiplayer<', '>'+(v.role==="invader"?'you invade':'you are invaded')+'<')+invActive(v)+'</div>';
-  h+='<p class="hint">Opt in and your cities can be invaded by other players, and you can invade theirs. Hit <b>Find a target</b>: the server pairs you with someone of similar army strength, lands your camp on <i>their</i> map, and you scout for up to 6 hours to find and pick one of their cities. Then the camps fight for 6 hours; you can leave at any time (an hour after your last attack, if you\u2019ve attacked). One city goes out and leaves your map while it’s away (its builds, research and training wait). It’s raiding only: no city changes hands, but you plunder resources above the Warehouse’s protection, and both sides lose the troops that fall.</p>';
+  h+='<p class="hint">Opt in and your cities can be invaded by other players, and you can invade theirs. Hit <b>Find a target</b>: the server pairs you with someone of similar army strength (never a member of your own alliance), lands your camp on <i>their</i> map, and you scout for up to 6 hours to find and pick one of their cities. Then the camps fight for 6 hours; you can leave at any time (an hour after your last attack, if you\u2019ve attacked). One city goes out and leaves your map while it’s away (its builds, research and training wait). It’s raiding only: no city changes hands, but you plunder resources above the Warehouse’s protection, and both sides lose the troops that fall.</p>';
   if (!p.opted){
     var many=S.cities.length>=2;
     h+='<div class="act"><span class="why">'+(many?'':'You need at least two cities: one goes out, one stays home.')+'</span><button class="btn" data-act="iv-optin"'+(many&&!IV.busy?'':' disabled')+'>Opt in</button></div>';
