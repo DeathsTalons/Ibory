@@ -441,7 +441,10 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .unitlist{display:grid;gap:8px;margin-top:10px}
 .qnest{margin-top:6px}
 .almap{overflow:auto;max-height:62vh;border-radius:10px;background:var(--panel2);padding:4px;touch-action:pan-x pan-y}
-.algrid{display:grid;gap:2px;width:max-content}
+.algrid{display:grid;gap:2px;width:max-content;position:relative}
+.almv{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:2}
+.almv line{stroke-width:3;stroke-linecap:round;opacity:.85}.almv .rf{stroke:var(--grass)}.almv .ar{stroke:var(--red)}.almv .me{stroke:var(--brass)}.almv .st{stroke-dasharray:5 6}
+.almv circle{stroke:var(--bg);stroke-width:2}.almv circle.rf{fill:var(--grass)}.almv circle.ar{fill:var(--red)}.almv circle.me{fill:var(--brass)}
 .alt{width:44px;height:44px;border-radius:6px;border:1px solid var(--line);background:var(--panel);display:flex;align-items:center;justify-content:center;font:700 .8rem var(--body);color:var(--ink);padding:0;cursor:pointer}
 .alt.city{background:var(--brass);color:var(--bg);border-color:var(--brass)}
 .alt.city{flex-direction:column;gap:4px;width:auto;height:auto}
@@ -688,7 +691,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.114";
+var APP_VERSION = "0.1.117";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1168,12 +1171,14 @@ function reqName(r){ return (r[0].indexOf("t:")===0 ? TECH[r[0].slice(2)].name :
 function rationMult(){ var m=0; S.cities.forEach(function(c){ m=Math.max(m, (c.tech&&c.tech.grandtreasury)||0); }); return Math.max(0.1, 1-0.05*m); }
 function upkeep(){ var u=0; for (var i=0;i<12;i++) u += (S.troops[i]||0)*U[i].up; return u*rationMult()*bUpkeep(); } // troops out of the city (marching, camped, hidden) live off the land
 function idlePop(){ return Math.max(0, Math.floor(S.pop - workersNeeded())); }
-var OFFICES=[["mayor","Mayor","pol","Production and building speed"],["trainer","Trainer","atk","Training speed"],["researcher","Researcher","int","Research speed"]];
+var OFFICES=[["mayor","Mayor","pol","Production and building speed"],["trainer","Trainer","atk","Training speed"],["researcher","Researcher","int","Research speed"],["wallHero","Wall hero","atk","Leads the city\u2019s troops when it is attacked"]];
 var OFFICE_OF={pol:"mayor", atk:"trainer", int:"researcher"};
-function isOfficer(h){ return !!h && (h.id===S.mayor || h.id===S.trainer || h.id===S.researcher); }
+function isOfficer(h){ return !!h && (h.id===S.mayor || h.id===S.trainer || h.id===S.researcher || h.id===S.wallHero); }
 function officeOf(h){ for (var i=0;i<OFFICES.length;i++) if (h && S[OFFICES[i][0]]===h.id) return OFFICES[i]; return null; }
 function officer(role){ var id=S[role]; return id ? heroById(id) : null; }
-function officerActive(role){ var o=officer(role); return o && !(S.res.gold<=0 && salary()>0) ? o : null; }
+function officerActive(role){ var o=officer(role); if (role==="wallHero") return o; return o && !(S.res.gold<=0 && salary()>0) ? o : null; } // the wall hero never stops: the captain goes down with the ship
+// the hero who leads this city's defense (every fight at home: AI lords, bullies, invasions, the sim's "my defense"). No wall hero = no hero leads.
+function wallHero(){ var h=officer("wallHero"); return h && !h.away ? h : null; }
 function bestFor(stat){
   if (!S.autoMayor) return officerActive(OFFICE_OF[stat]);
   if (S.res.gold<=0 && salary()>0) return null;
@@ -1808,12 +1813,32 @@ function handleMarch(m){
   });
 }
 // A repeating march (attack or conquer, sent from the city) goes out again the moment the army is home, with the same troops and hero.
-// It stops with a note if the last fight lost troops or failed, or if anything needed for the next trip is missing.
+// It stops with a note if the last fight lost troops or failed (when "stop on losses" is on), if any troop type it was sent with has run out at home,
+// or if anything else needed for the next trip is missing. Otherwise it sends what is home, up to the original army.
+// A city is about to teleport: marches from your other cities still heading to it turn around (what they carried goes home with them),
+// waves not yet left are cancelled, and troops stationed there head home. Returns how many were turned back.
+function tpTurnBack(cid){
+  var n=0;
+  S.marches.slice().forEach(function(m){
+    var q=TILE_BY[m.tile]; if (m.city===cid || !q || q.city!==cid || m.phase==="back") return;
+    n++; m.rep=false;
+    withCity(cityIndex(m.city), function(){
+      if (m.phase==="wait"){
+        for (var i=0;i<12;i++) S.troops[i]+=m.t[i]; RES.forEach(function(k){ S.res[k]+=(m.cargo&&m.cargo[k])||0; }); S.res.food+=m.food||0;
+        var wh=m.hero?heroById(m.hero):null; if (wh) wh.away=false; if (m.ensign){ var rk=ensKey(m.ensign); S.items[rk]=(S.items[rk]||0)+1; }
+        S.marches=S.marches.filter(function(x){ return x!==m; });
+      } else if (m.phase==="out"){ var cg={}; RES.forEach(function(k){ cg[k]=(m.cargo&&m.cargo[k])||0; }); m.phase="back"; m.bs=S.gt; m.ret=S.gt+Math.max(1,S.gt-m.dep); m.loot=cg; }
+      else { m.phase="back"; m.bs=S.gt; m.ret=S.gt+(m.travel||1); m.loot={}; }
+    });
+  });
+  if (n) note("march", n+" march"+(n>1?"es":"")+" heading to "+((S.cities.filter(function(c){ return c.id===cid; })[0]||{}).name||"that city")+" turned back home because it teleported");
+  return n;
+}
 function repeatMarch(m){
   var q=TILE_BY[m.tile], t0=m.t0||m.t, hid=m.hero0||0, why="", t=t0.map(function(n,i){ return Math.max(0,Math.min(n,Math.floor(S.troops[i]||0))); }); // sends what is home, up to the original army
   if (!q || !farmTarget(m.tile)) why="that target is gone";
   else if (!rallyLv() || rallyUsed()>=rallyLv()) why="no free march slot";
-  else if (sumT(t)<Math.ceil(sumT(t0)/2)) why="the army is down to under half of the original ("+fmt(sumT(t))+" of "+fmt(sumT(t0))+" troops home)";
+  else { var gone=[]; for (var ti=0;ti<12;ti++) if (t0[ti]>0 && !(t[ti]>0)) gone.push(U[ti].name); if (gone.length) why="no "+gone.join(", ")+" left at home to send"; }
   if (!why && hid){ var rh=heroById(hid); if (!rh || C().heroes.indexOf(rh)<0 || rh.away || isOfficer(rh)) why="the leading hero isn’t free"; }
   if (!why && S.res.food<marchFood(t,m.mission,travelMs(t,q,hid,m.mission))) why="not enough food for rations";
   if (why){ note("march","Repeat stopped at "+tileName(q)+": "+why); return; }
@@ -2028,7 +2053,7 @@ var REPLIES={
 function unitValue(i){ var c=U[i].cost, v=0; for (var k in c) v+=c[k]; return v; }
 function aiResearchFull(r){ return {military_tradition:0, iron_working:r.iron_working||0, medicine:r.medicine||0, compass:r.compass||0, horseback_riding:r.horseback_riding||0, archery:r.archery||0}; }
 function cityDefense(c){
-  return withCity(cityIndex(c.id), function(){ var m=mayorActive();
+  return withCity(cityIndex(c.id), function(){ var m=wallHero();
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
     return {troops:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.map(function(n,i){ return n+helpT[i]; }), fortifications:S.forts.slice(), wallLevel:S.wall||0, research:simResearch(), hero:{intel:hsB(m,"int",1)}, life_modifier:setLife(m,1),
       defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(m,"atk",1)/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0), trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25}; });
@@ -2567,7 +2592,7 @@ function marchWhy(){
 function updateMarchInfo(){
   var el=document.getElementById("marchinfo"), b=document.getElementById("marchgo"); if (!el) return;
   var q=TILE_BY[marchDraft.tile], tm=draftTravel(), cap=0;
-  if (marchDraft.mission==="arena"){ var acur=arById(marchDraft.mid); el.textContent="Travel about "+fmtT(arTravelEst())+" from your kingdom square to the Arena"+(acur?"; the window closes in "+fmtT(Math.max(0,acur.ends-Date.now())):"")+". Army size "+fmt(sumT(marchDraft.t))+" of "+fmt(armyCap(marchDraft.ensign, marchDraft.hero?heroById(marchDraft.hero):null))+"."; var amh=marchDraft.hero?heroById(marchDraft.hero):null; if (amh) el.textContent+=" Led by "+amh.name+" (Attack "+hs(amh,"atk")+", Intelligence "+hs(amh,"int")+").";
+  if (marchDraft.mission==="arena"){ var acur=arById(marchDraft.mid); el.textContent="Travel about "+fmtT(arTravelEst())+(soloArOn()?" from your city":" from your kingdom square")+" to the Arena"+(acur?"; the window closes in "+fmtT(Math.max(0,acur.ends-Date.now())):"")+". Army size "+fmt(sumT(marchDraft.t))+" of "+fmt(armyCap(marchDraft.ensign, marchDraft.hero?heroById(marchDraft.hero):null))+"."; var amh=marchDraft.hero?heroById(marchDraft.hero):null; if (amh) el.textContent+=" Led by "+amh.name+" (Attack "+hs(amh,"atk")+", Intelligence "+hs(amh,"int")+").";
     var awhy=marchWhy(); b.disabled=!!awhy||!!ALS.arSending; b.textContent=awhy||"March to the Arena"; return; }
   marchDraft.t.forEach(function(n,i){ cap+=n*LOAD[i]*loadMul(); });
   el.textContent = marchDraft.mission==="hide" ? "They leave at once and come back the moment you recall them." : !tm ? "" : (marchDraft.mission==="reinforce"||marchDraft.mission==="station") ? "Travel "+fmtT(realMs(tm))+". These troops will stay there"+(marchDraft.mission==="station"?" as a camp you can attack from":"")+"."+(marchDraft.mission==="reinforce"&&cargoTotal()?" Carrying "+fmt(cargoTotal())+" of "+fmt(cap)+" capacity in resources, delivered on arrival.":"") :
@@ -2581,7 +2606,7 @@ function updateMarchInfo(){
 }
 function marchSheet(){
   var d=marchDraft, q=TILE_BY[d.tile], h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>'+({hide:"Hide troops in the woods around ",station:"Station troops at ",occupy:"Occupy ",found:"Found a city at ",transport:"Send resources to ",reinforce:"Reinforce ",attack:"Attack ",conquer:"Conquer ",scout:"Scout ",allyguard:"Guard "}[d.mission])+esc(tileName(q))+'</h2><div class="sub">('+q.x+', '+q.y+'), '+(function(){ var k=TRAVEL_FROM; TRAVEL_FROM=d.from?campXY(d.from):null; var v=tdist(q).toFixed(1); TRAVEL_FROM=k; return v; })()+' tiles away'+(d.from?' from your camp':'')+'</div></div></div>';
-  if (d.mission==="arena"){ var acM=arById(d.mid)||{}, acT=arT(acM.type); h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Fight the level '+(acM.lv||"?")+' '+esc(acT.n)+'</h2><div class="sub">at the Monster Arena, from your kingdom square</div></div></div><p class="hint">'+arWeakTxt(acT)+' Losses come home wounded to '+esc(S.name)+'\u2019s Medic Camp. This march uses one of your '+arSlots()+' Arena slots, not the Rally Spot.</p>'; }
+  if (d.mission==="arena"){ var acM=arById(d.mid)||{}, acT=arT(acM.type); h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Fight the level '+(acM.lv||"?")+' '+esc(acT.n)+'</h2><div class="sub">at the Monster Arena, from '+(soloArOn()?'your city':'your kingdom square')+'</div></div></div><p class="hint">'+arWeakTxt(acT)+' Losses come home wounded to '+esc(S.name)+'\u2019s Medic Camp. This march uses one of your '+arSlots()+' Arena slots, not the Rally Spot.</p>'; }
   var any=false, av=draftAvail(), camps=CAMP_MISSIONS[d.mission]?cityCamps().filter(function(c){ return c.tile!==d.tile; }):[];
   if (camps.length) h+='<div><label class="sub" for="marchfrom">March from</label><select id="marchfrom"><option value="">'+esc(S.name)+' (the city)</option>'+camps.map(function(c){ var cq=TILE_BY[c.tile]; return '<option value="'+c.tile+'"'+(d.from===c.tile?' selected':'')+'>Camp at '+esc(cq?tileName(cq):c.tile)+' ('+fmt(sumT(c.t))+' troops)</option>'; }).join("")+'</select></div>';
   if (d.mission==="hide") h+='<p class="hint">They slip out into the woods around the city: attackers won\u2019t find them, and Recall brings them back instantly. They hunt for their own food. Each group takes a Rally Spot slot, like any march.</p>';
@@ -2599,9 +2624,9 @@ function marchSheet(){
   }
   var dc=draftCamp(), fh=dc ? (dc.hero&&heroById(dc.hero)?[heroById(dc.hero)]:[]) : marchHeroes();
   if (d.mission!=="transport" && d.mission!=="scout") h+='<div><label class="sub" for="marchhero">'+(d.mission==="reinforce"?"Hero to move there (needs room in its Feasting Hall)":"Leading hero")+'</label><select id="marchhero"><option value="0">No hero</option>'+fh.map(function(x){ return '<option value="'+x.id+'"'+(x.id===d.hero?' selected':'')+'>'+esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+'</option>'; }).join("")+'</select>'+
-    (S.mayor||S.trainer||S.researcher?'<p class="hint" style="margin-top:4px">Your mayor, trainer and researcher stay home to do their jobs.</p>':'')+'</div>';
+    (S.mayor||S.trainer||S.researcher||S.wallHero?'<p class="hint" style="margin-top:4px">Your mayor, trainer, researcher and wall hero stay home to do their jobs.</p>':'')+'</div>';
   if (d.mission==="transport") h=h.replace('<select id="marchhero">','<select id="marchhero" hidden>');
-  if ((d.mission==="attack"||d.mission==="conquer") && !d.from) h+='<label class="chk"><input type="checkbox" id="mrep"'+(d.rep?' checked':'')+'> Repeat this march: it goes out again with the same hero as soon as it’s home, sending whatever of the army survived. It keeps going through losses (as long as at least half the original army is home) and stops if the attack fails or it can’t be fed or crewed.</label>'+(d.rep?'<label class="chk"><input type="checkbox" id="mrepl"'+(d.repl?' checked':'')+'> Stop repeating if it loses any troops</label>':'');
+  if ((d.mission==="attack"||d.mission==="conquer") && !d.from) h+='<label class="chk"><input type="checkbox" id="mrep"'+(d.rep?' checked':'')+'> Repeat this march: it goes out again with the same hero as soon as it’s home, sending whatever of the army survived. It keeps going through losses, but stops as soon as any troop type it was sent with has run out at home, if the attack fails, or if it can’t be fed or crewed.</label>'+(d.rep?'<label class="chk"><input type="checkbox" id="mrepl"'+(d.repl?' checked':'')+'> Stop repeating if it loses any troops</label>':'');
   if (d.mission==="occupy") h+='<label class="chk"><input type="checkbox" id="mcamp"'+(d.camp?' checked':'')+'> Stay and make camp: if it wins, this army stays on the tile as a hidden base to attack from. Nobody can join it later.</label>';
   var ensOpts=["ensign","msize50","msize100"].filter(function(k){ return (S.items[k]||0)>0 || ensKey(d.ensign)===k; });
   if (d.mission!=="hide" && ensOpts.length) h+='<div><label class="sub" for="mensign">Bigger march (uses one)</label><select id="mensign"><option value="">No</option>'+ensOpts.map(function(k){ return '<option value="'+k+'"'+(ensKey(d.ensign)===k?' selected':'')+'>'+ITEMS[k].name+' (+'+Math.round((ENS_MULT[k]-1)*100)+'%, '+(S.items[k]||0)+' left)</option>'; }).join("")+'</select></div>';
@@ -3020,7 +3045,8 @@ function alApplyHelps(hp){
 }
 function alTick(){
   if (document.hidden) return;
-  if (!mpShown() && !mpNeedsGrace()) return; // multiplayer off: no alliance traffic (unless a member still has to make their one-time choice)
+  sarTick(); // the single-player Arena (and wiping it once multiplayer is on)
+  if (!mpShown() && !mpNeedsGrace()){ arTick(); return; } // multiplayer off: no alliance traffic (unless a member still has to make their one-time choice)
   arTick();
   if (!alOn()) return;
   if (alMine()){ var sig=alMyJobs().map(function(j){ return j.ref; }).join("|"); if (sig!==ALS.jobSig && Date.now()-ALS.last>3000) ALS.last=0; } // a new build or research: tell the alliance soon
@@ -3368,14 +3394,163 @@ function alBoxMove(dir){
 /* the Monster Arena: summon a monster, everyone marches from their kingdom square, one fight when the 5-minute window closes.
    Arena marches don't use a city's Rally Spot; losses all come home wounded (to the sending city's Medic Camp). */
 var ARL={}, ARG=null, AR_CLS_NAME={ground:"foot soldiers",ranged:"archers",mounted:"mounted troops",siege:"siege engines"};
-function arCat(){ return ALS.cat && ALS.cat.arena; }
+/* ---------- the single-player Monster Arena ----------
+   With multiplayer off you can build your own Arena (Kingdom tab). Same monsters, same fight and the same rewards as the alliance
+   one (numbers copied from the Worker), only nobody else marches: it is meant to be brutal. Your marches go out from your city
+   (1 minute plus march speed) into the same Arena slots. Turning multiplayer on wipes it (troops come home whole); it starts over
+   from nothing when you come back. State: S.soloAr = {lv, up:{to,end}, best:{}, day, used, live:[], recent:[], n}. */
+var SAR_TYPES=[
+  {k:"goblin",n:"Goblin",res:"food",weak:"mounted",hits:"ranged",hp:0.8,dmg:1.0,d:"A screeching swarm of claws and teeth."},
+  {k:"ent",n:"Ent",res:"lumber",weak:"ground",hits:"mounted",hp:0.45,dmg:0.9,d:"An old, angry forest that has learned to walk."},
+  {k:"golem",n:"Golem",res:"stone",weak:"ground",hits:"siege",hp:0.5,dmg:1.0,d:"Living stone, slow and patient."},
+  {k:"titan",n:"Iron Titan",res:"iron",weak:"siege",only:true,hits:"ground",hp:1.6,dmg:1.3,d:"The toughest of them: a walking furnace of iron."},
+  {k:"dragon",n:"Dragon",res:"gold",weak:"ranged",hits:"mounted",hp:0.45,dmg:1.4,d:"Scales, wings and fire."}];
+var SAR_CLASS=["ground","ground","ground","ground","ground","ranged","other","mounted","mounted","siege","siege","siege"];
+var SAR={weakX:2.5, otherX:0.5, onlyX:0.15, hitsX:2.5, rounds:10, hp0:60e6, hpX:2.2, dmg0:300e3, dmgX:1.68, window:5*60e3, free:10, slots:5, cost0:10e6, maxLv:10, keep:30, travel0:60};
+// building it: resources from the city you are looking at, real time. Level N: 200,000 of each resource and 1 hour, x1.8 a level (level 10: about 40 million each, 8 days)
+function sarBuildNeed(L){ return Math.round(200000*Math.pow(1.8,L-1)); }
+function sarBuildMs(L){ return Math.round(3600e3*Math.pow(1.8,L-1)); }
+function sarCost(L){ return SAR.cost0*Math.pow(10,L-1); }
+function sarHp(T,L){ return Math.round(SAR.hp0*Math.pow(SAR.hpX,L-1)*T.hp); }
+function sarDmg(T,L){ return Math.round(SAR.dmg0*Math.pow(SAR.dmgX,L-1)*T.dmg); }
+function sarTitan(L){ return {ingot:0.03+0.04*L, mithril:0.01+0.015*L, starmetal:0.005+0.005*L}; }
+function sarRewardText(k,L){
+  if (k==="goblin") return L+" Delicate Gem"+(L>1?"s":"")+" (10% chance of 1 more, 5% of 2 more)";
+  if (k==="dragon") return L+" Flawless Gem"+(L>1?"s":"")+" (10% chance of 1 more, 5% of 2 more)";
+  if (k==="ent") return L*L+" Annals of Conquest (50,000 hero experience each) and "+fmt(sarCost(L)*0.05)+" of each resource";
+  if (k==="golem") return Math.pow(2,L-1)+" × 15-minute speed-up"+(L>1?"s":"");
+  if (k==="titan"){ var c=sarTitan(L); return "1 Rough Ore, plus a "+Math.round(c.ingot*100)+"% chance of a Fine Ingot, "+Math.round(c.mithril*100)+"% of Mithril and "+(Math.round(c.starmetal*1000)/10)+"% of Star Metal"; }
+  return "";
+}
+function sarRoll(k,L){
+  var out={items:{},res:{}}, extra=function(){ var r=Math.random(); return r<0.05?2:r<0.15?1:0; };
+  if (k==="goblin") out.items.gemD=L+extra();
+  else if (k==="dragon") out.items.gemF=L+extra();
+  else if (k==="ent"){ out.items.annals=L*L; RES.forEach(function(r){ out.res[r]=sarCost(L)*0.05; }); }
+  else if (k==="golem") out.items.s15=Math.pow(2,L-1);
+  else if (k==="titan"){ out.items.ore=1; var c=sarTitan(L); for (var x in c) if (Math.random()<c[x]) out.items[x]=1; }
+  return out;
+}
+var SAR_CAT=null;
+function sarCat(){ if (!SAR_CAT) SAR_CAT={types:SAR_TYPES.map(function(T){ return {k:T.k,n:T.n,res:T.res,d:T.d,
+    lv:Array.from({length:SAR.maxLv},function(_,i){ return {cost:sarCost(i+1), hp:sarHp(T,i+1), dmg:sarDmg(T,i+1), reward:sarRewardText(T.k,i+1)}; })}; }),
+  cls:SAR_CLASS, weakX:SAR.weakX, otherX:SAR.otherX, onlyX:SAR.onlyX, hitsX:SAR.hitsX, rounds:SAR.rounds, window:SAR.window, free:SAR.free, slots0:SAR.slots, travel0:SAR.travel0, travelTile:0};
+  return SAR_CAT; }
+function soloArOn(){ return !mpShown(); }
+function sarState(){ if (!S.soloAr) S.soloAr={lv:0, up:null, best:{}, day:-1, used:0, live:[], recent:[], n:0}; return S.soloAr; }
+function sarFreeLeft(){ var A=sarState(); return Math.max(0, SAR.free-(A.day===gameDay()?A.used:0)); }
+function sarResetAt(){ return Date.now()+Math.max(0, DAY_MS-((S.gt+(S.dayOff||0))%DAY_MS)); }
+// the same shape the alliance Arena screen reads from the server
+function sarMon(){ var A=sarState(); return {free:sarFreeLeft(), freeMax:SAR.free, best:A.best, slots:SAR.slots, resetAt:sarResetAt(),
+  live:A.live.map(function(c){ return {id:c.id, type:c.type, lv:c.lv, by:c.by, at:c.at, ends:c.ends, joins:c.joins.map(function(j){ return {name:myName()||"You", n:sumT(j.t), arrive:j.arrive, mine:true}; })}; }),
+  recent:A.recent}; }
+// the fight, exactly as the Worker runs it
+function sarFight(T,L,joins){
+  var hp=sarHp(T,L), hp0=hp, dmg=sarDmg(T,L), stacks=[];
+  joins.forEach(function(j,ji){ var st; try { st=SIM.stats(j.side||{}); } catch(e){ st=null; }
+    j.t.forEach(function(n,i){ if (n>0 && st) stacks.push({ji:ji,i:i,n:n,n0:n,atk:st[i].attack,life:Math.max(1,st[i].life),def:Math.max(0.05,st[i].defense),cls:SAR_CLASS[i]}); }); });
+  var rounds=0;
+  for (var r=0;r<SAR.rounds && hp>0;r++){
+    var alive=stacks.filter(function(x){ return x.n>0; }); if (!alive.length) break;
+    rounds++; var out=0, bulk=0;
+    alive.forEach(function(x){ var m=x.cls===T.weak?SAR.weakX:T.only?SAR.onlyX:SAR.otherX; out+=x.n*x.atk*m; bulk+=x.n*x.life; });
+    alive.forEach(function(x){ var take=dmg*(x.n*x.life/bulk)*(x.cls===T.hits?SAR.hitsX:1); x.n=Math.max(0, x.n-Math.floor(take/(x.life*x.def))); });
+    hp-=out;
+  }
+  var res=joins.map(function(j){ return {back:j.t.slice(), wounded:j.t.map(function(){ return 0; })}; });
+  stacks.forEach(function(x){ res[x.ji].back[x.i]=x.n; res[x.ji].wounded[x.i]=x.n0-x.n; });
+  return {win:hp<=0, hpLeft:Math.max(0,Math.round(hp)), hp0:hp0, rounds:rounds, res:res};
+}
+function sarTick(){
+  if (!S.soloAr) return;
+  if (!soloArOn()){ sarWipe(); return; }
+  var A=S.soloAr, now=Date.now(), ch=false;
+  if (A.up && now>=A.up.end){ A.lv=A.up.to; A.up=null; note("alliance","Your Monster Arena reached level "+A.lv+"."); ch=true; }
+  var done=A.live.filter(function(c){ return now>=c.ends; });
+  if (done.length){ A.live=A.live.filter(function(c){ return now<c.ends; }); ch=true;
+    done.sort(function(a,b){ return a.ends-b.ends; }).forEach(function(c){
+      var T=SAR_TYPES.filter(function(t){ return t.k===c.type; })[0]; if (!T) return;
+      var joins=c.joins.filter(function(j){ return j.arrive<=c.ends; }), f=sarFight(T,c.lv,joins), rw=f.win?sarRoll(T.k,c.lv):null;
+      if (f.win) A.best[T.k]=Math.max(A.best[T.k]||0, c.lv);
+      var mine={}; joins.forEach(function(j,i){ mine[j.ref]={back:f.res[i].back, wounded:f.res[i].wounded}; });
+      A.recent.unshift({id:c.id, type:c.type, lv:c.lv, by:c.by, at:c.ends, win:f.win, rounds:f.rounds, hpLeft:f.hpLeft, hp0:f.hp0, players:joins.length?[myName()||"You"]:[], marches:joins.length, reward:rw, mine:mine});
+      (S.alArena||[]).forEach(function(m){ if (m.aid!=="solo" || m.st!=="out") return; var o=mine[m.ref];
+        if (o){ m.st="back"; m.back=o.back.slice(); m.wounded=o.wounded.slice(); m.home=now+(m.travel||60000); }
+        else if (m.mid===c.id){ m.st="back"; m.back=m.t.slice(); m.wounded=m.t.map(function(){ return 0; }); m.home=now+(m.travel||60000); } });
+      if (!joins.length) note("alliance","Nobody reached the level "+c.lv+" "+T.n+" in time. It wandered off.");
+      else arReward({type:c.type, lv:c.lv, win:f.win, reward:rw}, (S.alArena||[]).filter(function(m){ return mine[m.ref]; })[0]);
+    });
+    A.recent=A.recent.filter(function(r){ return now-r.at<86400e3; }).slice(0,SAR.keep);
+  }
+  if (ch){ save(); flushFinished(); refresh(); }
+}
+// multiplayer switched on: the solo Arena is gone, and anything marching there comes home whole at once
+function sarWipe(){
+  var L=S.alArena||[], n=0;
+  for (var i=L.length-1;i>=0;i--){ var m=L[i]; if (m.aid!=="solo") continue; var ci=cityIndex(m.city);
+    if (ci>=0) withCity(ci,function(){ var src=m.st==="back"?m.back:m.t; for (var j=0;j<12;j++) S.troops[j]+=(src[j]||0); if (m.st==="back") { var wb=null; for (var k=0;k<12;k++){ var w=m.wounded[k]||0; if (w){ if (!wb) wb=woundBucket(S.cities[ci]); wb.t[k]+=w; } } } });
+    L.splice(i,1); n++; }
+  delete S.soloAr; reconcileHeroes(); save();
+  note("alliance","Multiplayer is on, so your single-player Monster Arena is gone"+(n?" (its marches came home)":"")+". It starts over if you go back to single player.");
+}
+function sarSummon(type, lv){
+  var A=sarState(), T=SAR_TYPES.filter(function(t){ return t.k===type; })[0]; if (!T || !A.lv) return;
+  lv=Math.max(1, Math.min(lv||1, A.lv, (A.best[type]||0)+1));
+  if (A.live.length>=SAR.slots){ toast("The Arena is full"); return; }
+  var free=sarFreeLeft()>0, cost=sarCost(lv);
+  if (!free){ if ((S.res[T.res]||0)<cost){ toast("A paid summon needs "+fmt(cost)+" "+RNAME[T.res].toLowerCase()+" in "+S.name); return; } S.res[T.res]-=cost; }
+  else { if (A.day!==gameDay()){ A.day=gameDay(); A.used=0; } A.used++; }
+  var now=Date.now(); A.n=(A.n||0)+1;
+  A.live.push({id:A.n, type:type, lv:lv, by:myName()||"You", at:now, ends:now+SAR.window, joins:[]});
+  save(); toast("A level "+lv+" "+T.n+" is in the Arena: you have "+Math.round(SAR.window/60000)+" minutes to march"); lastView=""; refresh();
+}
+function sarUpgrade(){
+  var A=sarState(); if (A.up || A.lv>=SAR.maxLv) return; var to=A.lv+1, need=sarBuildNeed(to);
+  var short=RES.filter(function(k){ return (S.res[k]||0)<need; }); if (short.length){ toast("Needs "+fmt(need)+" of each resource in "+S.name); return; }
+  RES.forEach(function(k){ S.res[k]-=need; }); A.up={to:to, end:Date.now()+sarBuildMs(to)};
+  save(); toast((to===1?"Building":"Upgrading")+" the Monster Arena: "+fmtT(sarBuildMs(to))); lastView=""; refresh();
+}
+function soloArenaHtml(){
+  var A=sarState(), C0=sarCat(), mon=sarMon(), now=Date.now(), mine=(S.alArena||[]).filter(function(m){ return m.aid==="solo"; }), h='', live=arLive(), full=(S.alArena||[]).length>=SAR.slots;
+  h+='<div class="section"><div class="shead"><h3>Monster Arena</h3><span class="dur">'+(A.lv?'level '+A.lv:'not built')+'</span></div>'+
+    '<p class="hint">Single player only. Summon a monster and you have '+Math.round(SAR.window/60000)+' minutes to march your armies here. When the window closes, every army that made it fights. Nobody dies: losses come home wounded to their city’s Medic Camp. The monsters are built for whole alliances, so the higher levels are brutal alone. Arena marches need a hero and use your '+SAR.slots+' Arena slots, not the Rally Spot. Turning multiplayer on removes this Arena; it starts over from nothing if you come back.</p>';
+  if (A.up) h+='<p class="dur">'+(A.up.to===1?'Building':'Upgrading to level '+A.up.to)+': <b>'+fmtT(Math.max(0,A.up.end-now))+'</b> left.</p>';
+  else if (A.lv<SAR.maxLv){ var to=A.lv+1, need=sarBuildNeed(to), ok=RES.every(function(k){ return (S.res[k]||0)>=need; });
+    h+='<div class="btnrow"><button class="btn small" data-act="sar-up"'+(ok?'':' disabled')+'>'+(A.lv?'Upgrade to level '+to:'Build the Arena')+'</button><span class="dur">'+fmt(need)+' of each resource from '+esc(S.name)+', '+fmtT(sarBuildMs(to))+'</span></div>'; }
+  h+='</div>';
+  live.forEach(function(cur){ var T=arT(cur.type), L=T.lv[cur.lv-1];
+    h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>Level '+cur.lv+' '+esc(T.n)+'</h3><span class="dur">closes in <b class="arleft" data-ends="'+cur.ends+'">'+fmtT(cur.ends-now)+'</b></span></div>'+
+      '<p class="hint" style="margin:0 0 4px">'+esc(T.d||"")+'</p><p class="dur" style="margin:0 0 4px">'+arWeakTxt(T)+'</p>'+
+      (L?'<p class="dur" style="margin:0 0 6px">Strength '+fmt(L.hp)+', hits for '+fmt(L.dmg)+' a round. Reward if it falls: '+esc(L.reward)+'.</p>':'')+
+      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst())+' from your city')+'</span></div>'+
+      (cur.joins.length?'<p class="dur">'+cur.joins.length+' march'+(cur.joins.length>1?'es':'')+' on the way: '+fmt(cur.joins.reduce(function(a,j){ return a+j.n; },0))+' troops</p>':'<p class="dur">Nothing has marched yet.</p>')+'</div>'; });
+  if (mine.length) h+='<div class="section"><div class="shead"><h3>Your Arena marches</h3><span class="dur">'+(S.alArena||[]).length+' / '+SAR.slots+' slots</span></div>'+mine.map(function(m){ var hh=m.hero?heroById(m.hero):null, ci=cityIndex(m.city);
+    return '<div class="bq"><span><b>'+fmt(sumT(m.t))+' troops</b> from '+esc(ci>=0?S.cities[ci].name:"?")+(hh?' led by '+esc(hh.name):'')+'<br><span class="dur">'+arStatus(m)+'</span></span></div>'; }).join("")+'</div>';
+  if (A.lv){
+    h+='<div class="section"><div class="shead"><h3>Summon</h3><span class="dur">'+A.live.length+' / '+SAR.slots+' up · '+mon.free+' of '+SAR.free+' free today</span></div>'+
+      '<p class="hint">'+(mon.free?'Free summons left today: <b>'+mon.free+'</b>. ':'The free summons are used up. ')+'They come back at the daily reset, in '+fmtT(Math.max(0,mon.resetAt-now))+'. After that, each summon costs its resource from the city you’re looking at: 10 million at level 1, ten times more each level. A monster’s level can’t pass the Arena’s, and each level needs a kill of the one before.</p>';
+    C0.types.forEach(function(T){ var best=A.best[T.k]||0, top=Math.min(A.lv, best+1), pick=Math.min(top, ARL[T.k]||top), L=T.lv[pick-1];
+      h+='<div class="unit"><h4>'+esc(T.n)+'</h4><span class="own">'+(best?'killed up to level '+best:'not killed yet')+'</span><div class="us"><span>'+esc(T.d)+'</span><span>'+arWeakTxt(T)+'</span></div>'+
+        '<div style="grid-column:1/-1"><span class="dur">Level '+pick+': strength '+fmt(L.hp)+'. Reward: '+esc(L.reward)+'. '+(mon.free?'Free today.':'Costs '+fmt(L.cost)+' '+RNAME[T.res].toLowerCase()+'.')+'</span></div>'+
+        '<div class="trainrow"><select data-arlv="'+T.k+'" aria-label="'+esc(T.n)+' level">'+Array.from({length:top},function(_,i){ return '<option value="'+(i+1)+'"'+(i+1===pick?' selected':'')+'>Level '+(i+1)+'</option>'; }).join("")+'</select>'+
+        '<button class="btn small" data-act="sar-summon" data-type="'+T.k+'"'+(A.live.length>=SAR.slots?' disabled':'')+'>Summon</button></div></div>'; });
+    h+='</div>';
+  }
+  if (A.recent.length){ h+='<div class="section"><h3>Recent fights</h3>'+A.recent.map(function(r){ var T=arT(r.type), w=0, b=0; for (var ref in r.mine){ w+=sumT(r.mine[ref].wounded); b+=sumT(r.mine[ref].back); }
+      return '<div class="acity"><h4><span class="'+(r.win?'okc':'badc')+'">Level '+r.lv+' '+esc(T.n)+(r.win?' fell':' survived')+'</span><span class="dur">'+alTime(r.at)+'</span></h4>'+
+        '<p class="dur" style="margin:0">'+(r.marches?r.marches+' march'+(r.marches>1?'es':'')+', '+r.rounds+' round'+(r.rounds>1?'s':'')+(r.win?'':' ('+Math.round(r.hpLeft/Math.max(1,r.hp0)*100)+'% of it left)'):'Nobody arrived in time.')+'</p>'+
+        (r.win?'<p class="dur" style="margin:2px 0 0">Reward: '+esc(arRewardList(r.reward))+'</p>':'')+
+        (b+w?'<p class="dur" style="margin:2px 0 0">Your troops: '+fmt(b)+' unhurt, '+fmt(w)+' wounded.</p>':'')+'</div>'; }).join("")+'</div>'; }
+  return h;
+}
+function arCat(){ return soloArOn() ? sarCat() : ALS.cat && ALS.cat.arena; }
 function arT(k){ var c=arCat(); return (c && c.types.filter(function(t){ return t.k===k; })[0]) || {k:k, n:k, lv:[]}; }
-function arMon(){ var al=alMine(); return al && al.econ && al.econ.mon; }
+function arMon(){ if (soloArOn()) return S.soloAr ? sarMon() : null; var al=alMine(); return al && al.econ && al.econ.mon; }
 function arLive(){ var m=arMon(), now=Date.now(); return m && m.live ? m.live.filter(function(c){ return now<c.ends; }).sort(function(a,b){ return a.ends-b.ends; }) : []; }
 function arCur(){ return arLive()[0] || null; } // the one closing soonest
 function arById(id){ return arLive().filter(function(c){ return c.id===id; })[0] || null; }
-function arWeakTxt(T){ var c=arCat(); if (!c||!T.weak) return ""; return 'Weak to <b>'+AR_CLS_NAME[T.weak]+'</b> ('+c.weakX+'× damage'+(T.only?'; everything else does only '+Math.round(c.onlyX*100)+'%':'; everything else does '+Math.round(c.otherX*100)+'%')+'). It decimates <b>'+AR_CLS_NAME[T.hits]+'</b> ('+c.hitsX+'× losses).'; }
-function arTravelEst(){ var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M) return 60000; var me=alMyTile(M), b=(M.b||[]).filter(function(x){ return x.k==="arena"; })[0], bs=M.bs||3;
+function arWeakTxt(T){ return ""; } // 0.1.117: no hints. Players find each monster's weakness (and what it decimates) by fighting it
+function arTravelEst(){ if (soloArOn()) return SAR.travel0*1000/Math.min(4,Math.max(1,bMarch())); var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M) return 60000; var me=alMyTile(M), b=(M.b||[]).filter(function(x){ return x.k==="arena"; })[0], bs=M.bs||3;
   var d=me&&b?Math.hypot(me.x-(b.x+(bs-1)/2), me.y-(b.y+(bs-1)/2)):0; return (c.travel0+c.travelTile*d)*1000/Math.min(4,Math.max(1,bMarch())); }
 function arSlots(){ var m=arMon(); return m?m.slots:5; }
 function arStatus(m){ var now=Date.now(); return m.st==="back" ? 'coming home, '+fmtT(Math.max(0,m.home-now)) : now<m.arrive ? 'arrives in '+fmtT(m.arrive-now) : 'at the Arena, waiting for the fight'; }
@@ -3464,6 +3639,15 @@ function arSend(){
   var hero=d.hero?heroById(d.hero):null, cid=C().id, t=d.t.slice(), ens=ensKey(d.ensign);
   var side={research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack())};
   var ref="m"+cid+"-"+Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36);
+  if (soloArOn()){ // the single-player Arena: no server
+    var sc=(S.soloAr&&S.soloAr.live||[]).filter(function(c){ return c.id===d.mid; })[0]; if (!sc){ toast("The window has closed"); return; }
+    var trv=Math.round(arTravelEst()), arr=Date.now()+trv;
+    for (var si=0;si<12;si++) S.troops[si]=Math.max(0,S.troops[si]-t[si]); if (ens && S.items[ens]>0) S.items[ens]--;
+    if (hero) hero.away=true;
+    sc.joins.push({ref:ref, t:t, side:side, arrive:arr});
+    S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:"solo", mid:sc.id, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:arr, travel:trv, ends:sc.ends, st:"out"});
+    save(); toast("Marching to the Arena: arrives in "+fmtT(trv)); closeSheet(); lastView=""; refresh(); return;
+  }
   ALS.arSending=true; var gb=document.getElementById("marchgo"); if (gb) gb.disabled=true;
   alPost("/al/arena/join",{mid:d.mid, ref:ref, t:t, side:side, speed:Math.min(4,bMarch())}).then(function(r){ ALS.arSending=false;
     if (r.error){ toast(r.error); if (gb) gb.disabled=false; return; }
@@ -3484,6 +3668,34 @@ function alMyTile(M){ for (var i=0;i<M.k.length;i++) if (isMe(M.k[i].name)) retu
 function alDist(a, b){ return a&&b ? Math.round(Math.hypot(a.x-b.x, a.y-b.y)*10)/10 : 0; }
 function alInitials(n){ var p=String(n).trim().split(/\s+/); return (p.length>1 ? p[0][0]+p[1][0] : String(n).slice(0,2)).toUpperCase(); }
 function alMapCenter(el){ var M=alMine()&&alMine().map; if (!M) return; var me=alMyTile(M)||alCityMid(M), cs=46; el.scrollLeft=Math.max(0, me.x*cs-el.clientWidth/2+cs/2); el.scrollTop=Math.max(0, me.y*cs-el.clientHeight/2+cs/2); }
+// every member's marches between kingdoms (Arena trips and reinforcements), drawn over the map. The dots move every second (alMvTick); the lines only change on a sync.
+function alMarchSvg(M){
+  var L=M.mv||[]; if (!L.length) return "";
+  var P=46, ctr=function(x,y){ return [x*P+22, y*P+22]; }, kt={}; (M.k||[]).forEach(function(k){ kt[k.name]=k; });
+  var ab=(M.b||[]).filter(function(b){ return b.k==="arena"; })[0], bs=M.bs||3, arP=ab?ctr(ab.x+(bs-1)/2, ab.y+(bs-1)/2):null, h="";
+  L.forEach(function(m){ var fk=kt[m.f]; if (!fk) return; var a=ctr(fk.x,fk.y), b;
+    if (m.k==="arena"){ if (!arP) return; b=arP; } else { var tk=kt[m.to]; if (!tk) return; b=ctr(tk.x,tk.y); }
+    var cls=isMe(m.f)?"me":m.k==="arena"?"ar":"rf", still=m.s==="wait"||m.s==="stay", p0=m.s==="back"?b:a, p1=m.s==="back"?a:b;
+    h+='<line class="'+cls+(still?' st':'')+'" x1="'+p0[0]+'" y1="'+p0[1]+'" x2="'+p1[0]+'" y2="'+p1[1]+'"/>';
+    if (still) return;
+    var dat=' data-a="'+m.a+'" data-b="'+m.b+'" data-x0="'+p0[0]+'" data-y0="'+p0[1]+'" data-x1="'+p1[0]+'" data-y1="'+p1[1]+'"', mst=alMarchLook(m.f);
+    if (mst){ var dx=p1[0]-p0[0], dy=p1[1]-p0[1], img=cosMarchImg(mst, dx<0?-1:1, Math.atan2(dy,dx)); // the owner's march cosmetic, as on the world map
+      h+='<image class="almd" width="28" height="28" href="'+img+'" x="'+(p0[0]-14)+'" y="'+(p0[1]-14)+'"'+dat+'/>'; }
+    else h+='<circle class="'+cls+' almd" r="6" cx="'+p0[0]+'" cy="'+p0[1]+'"'+dat+'/>';
+  });
+  return h?'<svg class="almv" width="'+(M.n*P)+'" height="'+(M.n*P)+'" aria-hidden="true">'+h+'</svg>':"";
+}
+function alMvTick(){ var ds=document.querySelectorAll(".almd"); if (!ds.length) return; var now=Date.now()+(ALS.skew||0);
+  ds.forEach(function(d){ var a=+d.dataset.a, b=+d.dataset.b, f=b>a?Math.max(0,Math.min(1,(now-a)/(b-a))):1;
+    var x=+d.dataset.x0+(d.dataset.x1-d.dataset.x0)*f, y=+d.dataset.y0+(d.dataset.y1-d.dataset.y0)*f;
+    if (d.tagName.toLowerCase()==="image"){ d.setAttribute("x",(x-14).toFixed(1)); d.setAttribute("y",(y-14).toFixed(1)); } else { d.setAttribute("cx",x.toFixed(1)); d.setAttribute("cy",y.toFixed(1)); } }); }
+// whose march cosmetic to show on the alliance map: yours (if you own and wear one) or the member's own pick from their profile
+function alMarchLook(name){ if (isMe(name)) return myLook("march"); var pf=PROF[String(name).toLowerCase()], st=pf&&pf.march; return st&&COSM.march&&COSM.march[st]?st:""; }
+var COS_MIMG={};
+function cosMarchImg(st, dir, ang){ var key=st+"|"+dir+"|"+Math.round(ang*20); if (COS_MIMG[key]) return COS_MIMG[key];
+  var c=document.createElement("canvas"); c.width=c.height=56; var g=c.getContext("2d"); g.scale(2,2); cosMarchDraw(g, st, 14, 14, 8, dir, ang);
+  return COS_MIMG[key]=c.toDataURL(); }
+setInterval(alMvTick, 1000);
 function alMapHtml(al){
   var M=al.map; if (!M) return '<div class="section"><p class="hint">Loading the map\u2026</p></div>';
   var me=alMyTile(M), sel=ALS.sel, mv=ALS.moving, rk={}; al.members.forEach(function(m){ rk[m.name]=m; });
@@ -3505,7 +3717,8 @@ function alMapHtml(al){
     if (kcs) area+=';background:'+CPAL[kcs].bg+';border-color:'+CPAL[kcs].a;
     h+='<button class="'+cls+'" style="'+area+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+(t&&t.city?'Alliance City':t&&t.k?esc(t.k.name):'Free square')+' at '+x+', '+y+'">'+inner+'</button>';
   }
-  h+='</div></div>';
+  h+=alMarchSvg(M)+'</div></div>';
+  if ((M.mv||[]).length) h+='<p class="dur" style="margin:4px 0 0">Lines: <span style="color:var(--red)">●</span> to and from the Arena, <span style="color:var(--grass)">●</span> reinforcements, <span style="color:var(--brass)">●</span> yours. Dashed = waiting or stationed.</p>';
   if (sel){ var st=alMapAt(M,sel.x,sel.y), d=me?alDist(me, st&&st.city?alCityMid(M):sel):0, my=al.my;
     h+='<div class="acity" style="margin-top:8px">';
     if (st && st.b){ var bnm2=((ALS.cat&&ALS.cat.bldg.filter(function(z){ return z.k===st.b.k; })[0])||{n:st.b.k}).n; h+='<h4><span>'+esc(bnm2)+'</span><span class="dur">level '+((al.econ&&al.econ.lv[st.b.k])||0)+'</span></h4>'+(my.can.map?'<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="al-move" data-what="b" data-who="'+esc(st.b.k)+'">Move it</button></div>':''); }
@@ -3648,7 +3861,7 @@ function cbStats(){
     ci.push([c.name, c.x, c.y, S.th, S.wall||0, sumT(t), bl]);
   }); });
   RES.forEach(function(k,j){ re[j]+=(S.alBox&&S.alBox[k])||0; }); // the private Warehouse box is still the player's
-  return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:0, pr:Math.floor(S.prestige||0), tth:totalTH(), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
+  return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:0, pr:Math.floor(S.prestige||0), tth:totalTH(), mth:S.cities.reduce(function(a,c){ return Math.max(a,c.th||1); },1), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
     pg:Math.round(pg), lo:Math.round((S.stats&&S.stats.loot)||0), hA:hA, hI:hI, ci:ci, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
 }
 // is there a newer save from another device? Then it wins: load it (this device's copy is kept for Undo)
@@ -3921,7 +4134,9 @@ var WC_TIERS=[
   {k:"def_s", name:"Defense: Skirmishes", note:"Now you hold the walls. Spend a prestige budget on troops this city owns and on any fortifications the puzzle allows, then face the waves. Losses count in prestige, forts included."},
   {k:"def_m", name:"Defense: Assaults", note:"Three waves, bigger budgets. Every wave fights what the last one left of your garrison and forts."},
   {k:"def_l", name:"Defense: Onslaughts", note:"Four huge waves and endgame budgets. Expect to need a large army, star sets and the right trick."},
-  {k:"def_x", name:"Defense: Trick Shots", note:"One-off defenses, each built around a single quirk of the battlefield. The obvious defense fails every one of them."}
+  {k:"def_x", name:"Defense: Trick Shots", note:"One-off defenses, each built around a single quirk of the battlefield. The obvious defense fails every one of them."},
+  {k:"tech_e", name:"Tech Puzzles: Drills", note:"The army and the city are fixed; your own city doesn’t matter here. Set two research levels within the budget and fight. Exactly one combination does it, and you can find it by trying them all."},
+  {k:"tech_h", name:"Tech Puzzles: Workshops", note:"Three research levels to set, one budget, one answer. Too many combinations to try them all: work out what each research does to this fight."}
 ];
 var WC=[];
 (function(){
@@ -3936,6 +4151,57 @@ var WC=[];
     goals:[{cap:null},{cap:comm[L]},{cap:mast[L]}],
     rewards:[wcR(50000*L, 10000*L, {s150:1, gemD:10*n}), {res:QR(0,0,0,0,0), items:{s480:1, gemF:5*n, ingot:n}}, {res:QR(0,0,0,0,0), items:mastRw[L]}]}); }
 })();
+/* Tech Puzzles: a fixed army against a fixed NPC city. The player sets the research levels in "free" (0 to 10, at most B levels in total);
+   every other research is fixed at "base". No hero, no gear, no city buffs. Each puzzle was searched (tp/gen.js in the dev bundle)
+   so that exactly one combination within the budget wins losing "cap" or fewer, with the War College seed. */
+var TP_NAME={military_tradition:"Military Tradition", iron_working:"Iron Working", medicine:"Medicine", compass:"Compass", horseback_riding:"Horseback Riding", archery:"Archery"};
+var TP_DATA=[
+{"id":"tp1","tier":"tech_e","name":"Drill 1: Ballista Line","L":4,"t":[0,0,0,0,0,0,0,0,0,2400,0,0],"free":["military_tradition","archery"],"base":{"iron_working":0,"medicine":0,"compass":0,"horseback_riding":0},"B":4,"cap":1050},
+{"id":"tp2","tier":"tech_e","name":"Drill 2: Archer Screen","L":3,"t":[0,1,0,0,0,4000,0,0,0,0,0,0],"free":["compass","archery"],"base":{"military_tradition":8,"iron_working":8,"medicine":8,"horseback_riding":8},"B":7,"cap":2750},
+{"id":"tp3","tier":"tech_e","name":"Drill 3: Three Warriors","L":4,"t":[0,3,0,0,0,0,0,0,0,400,0,0],"free":["military_tradition","archery"],"base":{"iron_working":10,"medicine":10,"compass":10,"horseback_riding":10},"B":7,"cap":3},
+{"id":"tp4","tier":"tech_e","name":"Drill 4: Catapult Battery","L":5,"t":[0,0,0,0,0,0,0,0,0,0,0,400],"free":["military_tradition","archery"],"base":{"iron_working":6,"medicine":6,"compass":6,"horseback_riding":6},"B":9,"cap":0},
+{"id":"tp5","tier":"tech_e","name":"Drill 5: Pike Wall","L":4,"t":[0,0,0,8000,0,0,0,400,0,0,0,0],"free":["compass","horseback_riding"],"base":{"military_tradition":4,"iron_working":4,"medicine":4,"archery":4},"B":13,"cap":7000},
+{"id":"tp6","tier":"tech_e","name":"Drill 6: Two Warriors","L":3,"t":[0,2,0,0,0,4000,0,0,0,0,0,0],"free":["military_tradition","archery"],"base":{"iron_working":5,"medicine":5,"compass":5,"horseback_riding":5},"B":14,"cap":3000},
+{"id":"tp7","tier":"tech_h","name":"Workshop 1: Sword and Bow","L":3,"t":[0,0,0,0,6000,600,0,0,0,0,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":8,"compass":8,"horseback_riding":8},"B":15,"cap":6000},
+{"id":"tp8","tier":"tech_h","name":"Workshop 2: Short Purse","L":4,"t":[0,0,0,0,8000,800,0,0,0,0,0,0],"free":["iron_working","medicine","compass"],"base":{"military_tradition":10,"horseback_riding":10,"archery":10},"B":9,"cap":7000},
+{"id":"tp9","tier":"tech_h","name":"Workshop 3: One Warrior","L":5,"t":[0,1,0,0,0,0,0,0,0,400,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":4,"compass":4,"horseback_riding":4},"B":22,"cap":13},
+{"id":"tp10","tier":"tech_h","name":"Workshop 4: Five Hundred Engines","L":5,"t":[0,0,0,0,0,0,0,0,0,500,0,0],"free":["iron_working","horseback_riding","archery"],"base":{"military_tradition":2,"medicine":2,"compass":2},"B":23,"cap":28},
+{"id":"tp11","tier":"tech_h","name":"Workshop 5: Iron Rain","L":5,"t":[0,0,0,0,10000,3000,0,0,0,0,0,0],"free":["military_tradition","iron_working","compass"],"base":{"medicine":10,"horseback_riding":10,"archery":10},"B":18,"cap":12000},
+{"id":"tp12","tier":"tech_h","name":"Workshop 6: Long Volley","L":7,"t":[0,3,0,0,0,15000,0,0,0,0,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":10,"compass":10,"horseback_riding":10},"B":16,"cap":13000}];
+TP_DATA.forEach(function(d){ var hard=d.tier==="tech_h";
+  WC.push({id:d.id, tier:d.tier, name:d.name, kind:"tech", L:d.L, waves:1, ban:[], t:d.t, free:d.free, base:d.base, B:d.B, tag:d.tag||"",
+    goals:[{cap:d.cap}], rewards:[hard?{res:QR(0,0,0,0,0), items:{gemF:10+2*d.L, s480:1, ingot:1}}:wcR(20000*d.L, 5000*d.L, {s150:1, gemD:3*d.L})]}); });
+var tpDraft={};
+function tpDraftOf(p){ if (!tpDraft[p.id]){ var o={}; p.free.forEach(function(k){ o[k]=0; }); tpDraft[p.id]=o; } return tpDraft[p.id]; }
+function tpUsed(p){ var d=tpDraftOf(p), n=0; p.free.forEach(function(k){ n+=d[k]||0; }); return n; }
+function tpResearch(p){ var r={}, d=tpDraftOf(p); SIMK.forEach(function(k){ r[k]=p.free.indexOf(k)>=0 ? (d[k]||0) : (p.base[k]||0); }); return r; }
+function tpRun(p){
+  var used=tpUsed(p); if (used>p.B){ toast("That’s "+used+" levels: the budget is "+p.B); return; }
+  var r=tpResearch(p), A={troops:p.t.slice(), research:r, hero:{intel:0}, life_modifier:1, defence_modifier:1, attack_modifier:1+0.05*(r.military_tradition||0)}, D=wcDef(p);
+  var r0=wcRng(WC_SEED), rec=[], rnd=function(){ var v=r0(); rec.push(v); return v; }, snapA=JSON.stringify(A), snapD=JSON.stringify(D), o=SIM.fight(A,D,{rand:rnd}), l=0, k=0;
+  for (var i=0;i<12;i++){ l+=A.troops[i]-o.attacker[i]; k+=D.troops[i]-o.defender[i]; }
+  var lv=p.free.map(function(k2){ return TP_NAME[k2]+" "+(r[k2]||0); }).join(", ");
+  wcFinish(p,{won:o.result===1, lost:l, waves:1, log:[{won:o.result===1, lost:l, killed:k, forts:D.fortifications.map(function(n,j){ return n-o.forts[j]; }).reduce(function(a,b){ return a+b; },0), left:o.defender.reduce(function(a,b){ return a+b; },0), rounds:o.rounds, hero:lv}], rp:[{A:snapA, D:snapD, rands:rec.slice(), mine:"A"}]});
+}
+function tpSheet(p){
+  var d=tpDraftOf(p), got=wcGot(p), out=wcOut[p.id], used=tpUsed(p), over=used>p.B;
+  var h='<div class="head lbhead"><span class="ico">'+ICON.academy+'</span><div style="flex:1"><h2>'+esc(p.name)+'</h2><div class="sub">War College · Tech Puzzle · one wave</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  if (p.tag) h+='<p class="hint" style="margin:0"><i>'+esc(p.tag)+'</i></p>';
+  h+='<div class="effect"><b>Defenders:</b> '+esc(wcDefText(p))+' <span class="dur">All their research is level '+p.L+'.</span></div>';
+  h+='<div class="effect"><b>Your army:</b> '+esc(p.t.map(function(n,i){ return n?fmt(n)+" "+uname(i,n):""; }).filter(Boolean).join(", "))+'. <span class="dur">No hero, no gear, no buffs.</span></div>';
+  var fixed=SIMK.filter(function(k){ return p.free.indexOf(k)<0; }), same=fixed.every(function(k){ return (p.base[k]||0)===(p.base[fixed[0]]||0); });
+  h+='<p class="hint">'+(same?'Your other research is all level '+(p.base[fixed[0]]||0)+'.':'Your other research: '+fixed.map(function(k){ return TP_NAME[k]+' '+(p.base[k]||0); }).join(", ")+'.')+'</p>';
+  h+='<div class="gearlist"><div class="gearrow'+(got?' t3':'')+'"><span class="gn"><span style="font:400 1rem var(--body);color:var(--brass)">'+(got?'★':'☆')+'</span> '+esc(wcGoalText(p,0))+'</span><span class="dur" style="grid-column:1/-1">'+(got?'Solved. ':'Reward: ')+esc(rewardText(p.rewards[0]))+'</span></div></div>';
+  h+='<div class="unit"><h4>Research</h4><span class="own'+(over?' badc':'')+'">'+used+' / '+p.B+' levels</span>'+
+    '<div style="grid-column:1/-1">'+p.free.map(function(k){ var v=d[k]||0;
+      return '<div class="farmadd" style="justify-content:space-between;margin:4px 0"><span>'+TP_NAME[k]+'</span><span style="display:flex;align-items:center;gap:8px"><button class="btn ghost small" data-act="tp-step" data-k="'+k+'" data-d="-1"'+(v<=0?' disabled':'')+' aria-label="Lower '+TP_NAME[k]+'">−</button><b style="min-width:2ch;text-align:center">'+v+'</b><button class="btn ghost small" data-act="tp-step" data-k="'+k+'" data-d="1"'+(v>=10?' disabled':'')+' aria-label="Raise '+TP_NAME[k]+'">+</button></span></div>'; }).join("")+'</div></div>';
+  if (out){ var x=out.log[0]; h+='<div class="section" style="margin:0"><h3 class="'+(out.rating?'okc':'badc')+'" style="margin:0 0 4px">'+(out.rating?'Solved':out.won?'Won, but that’s not it':'Defeat')+': lost '+fmt(out.lost)+'</h3>'+
+      '<p class="dur" style="margin:2px 0">'+esc(x.hero)+': '+(x.won?'won':'did not break them')+', lost '+fmt(x.lost)+', killed '+fmt(x.killed)+(x.forts?', destroyed '+fmt(x.forts)+' fortifications':'')+(x.won?'':', '+fmt(x.left)+' defenders left')+', '+x.rounds+' rounds. <button class="link strong" data-act="wc-replay" data-wave="0">War Wizard</button></p>'+
+      (out.paid.length?'<p class="effect okc">'+out.paid.map(esc).join("<br>")+'</p>':'')+'</div>'; }
+  h+='<div class="upbtns" style="grid-template-columns:1fr"><button class="btn" data-act="wc-run"'+(over?' disabled':'')+'>Fight</button></div>'+
+    '<p class="why">'+(over?'Over the budget by '+(used-p.B)+' level'+(used-p.B>1?'s':''):'')+'</p><button class="closebtn" data-act="close">Back to War College</button>';
+  return h;
+}
 // Sieges: player-style cities, each built with one weak spot. Data generated from the tested designs (see README).
 var WC_SIEGES=[{"id":"ss_trebfort","tier":"siege_s","name":"Treb Fort (Outpost)","allow":[0,1,3,4,7,8,10],"waves":3,"caps":[270,200,110],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[1000,333,333,333,1000],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_trebfort","tier":"siege_m","name":"Treb Fort (Stronghold)","allow":[0,1,3,4,7,8,10],"waves":5,"caps":[null,490,300],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[2100,700,700,700,2100],"W":6,"r":{"military_tradition":8,"archery":8,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_trebfort","tier":"siege_l","name":"Treb Fort (Citadel)","allow":[0,1,3,4,7,8,10],"waves":6,"caps":[null,1700,950],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[5500,1833,1833,1833,5500],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_keep","tier":"siege_s","name":"Archer Keep (Outpost)","allow":[0,1,2,3,4,5],"waves":3,"caps":[2800,2100,1200],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,6000,0,3000,0,18000,0,0,0,0,0,0],"f":[1200,400,400,200,600],"W":4,"r":{"military_tradition":6,"archery":3,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_keep","tier":"siege_m","name":"Archer Keep (Stronghold)","allow":[0,1,2,3,4,5],"waves":5,"caps":[null,4800,3700],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,20000,0,10000,0,60000,0,0,0,0,0,0],"f":[3000,1000,1000,500,1500],"W":6,"r":{"military_tradition":8,"archery":3,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_keep","tier":"siege_l","name":"Archer Keep (Citadel)","allow":[0,1,2,3,4,5],"waves":6,"caps":[null,290000,72000],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,80000,0,40000,0,240000,0,0,0,0,0,0],"f":[8684,2894,2894,1447,4342],"W":10,"r":{"military_tradition":10,"archery":3,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_hedge","tier":"siege_s","name":"Pike Hedge (Outpost)","allow":[0,1,2,3,4,5,7,8],"waves":3,"caps":[5000,3700,950],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,36000,0,4500,0,0,0,0,0,0],"f":[724,2173,289,362,434],"W":4,"r":{"military_tradition":6,"archery":4,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_hedge","tier":"siege_m","name":"Pike Hedge (Stronghold)","allow":[0,1,2,3,4,5,7,8],"waves":5,"caps":[null,3600,2000],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,120000,0,15000,0,0,0,0,0,0],"f":[1521,4565,608,760,913],"W":6,"r":{"military_tradition":8,"archery":4,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_hedge","tier":"siege_l","name":"Pike Hedge (Citadel)","allow":[0,1,2,3,4,5,7,8],"waves":6,"caps":[null,320000,190000],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,480000,0,60000,0,0,0,0,0,0],"f":[3985,11956,1594,1992,2391],"W":10,"r":{"military_tradition":10,"archery":4,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_battery","tier":"siege_s","name":"Siege Battery (Outpost)","allow":[0,1,2,3,4,7,8],"waves":3,"caps":[16000,12000,6200],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,6000,0,0,0,0,0,0,0,2400,0,4500],"f":[400,0,120,0,240],"W":2,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_battery","tier":"siege_m","name":"Siege Battery (Stronghold)","allow":[0,1,2,3,4,7,8],"waves":5,"caps":[null,42000,21000],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,20000,0,0,0,0,0,0,0,8000,0,15000],"f":[545,0,163,0,327],"W":2,"r":{"military_tradition":8,"archery":8,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_battery","tier":"siege_l","name":"Siege Battery (Citadel)","allow":[0,1,2,3,4,7,8],"waves":6,"caps":[null,140000,86000],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,80000,0,0,0,0,0,0,0,32000,0,60000],"f":[545,0,163,0,327],"W":2,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_trapfield","tier":"siege_s","name":"Trap Field (Outpost)","allow":[0,1,3,4,5,7,8],"waves":3,"caps":[5100,3700,2000],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,4500,7500,0,0,0,0,0,0],"f":[5000,0,555,833,0],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_trapfield","tier":"siege_m","name":"Trap Field (Stronghold)","allow":[0,1,3,4,5,7,8],"waves":5,"caps":[null,14000,5600],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,15000,25000,0,0,0,0,0,0],"f":[18000,0,2000,3000,0],"W":8,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.95,"hint":100,"life":1,"fb":1.9}},{"id":"sl_trapfield","tier":"siege_l","name":"Trap Field (Citadel)","allow":[0,1,3,4,5,7,8],"waves":6,"caps":[null,49000,20000],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,60000,100000,0,0,0,0,0,0],"f":[27500,0,3055,4583,0],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_seat","tier":"siege_s","name":"Warlord's Seat (Outpost)","allow":[0,1,2,3,4,5,7,8],"waves":3,"caps":[14000,9900,1400],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,15000,6000,12000,0,3000,0,0,0,0],"f":[2000,1400,600,200,400],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":3.8,"hint":150,"life":1,"fb":1.6}},{"id":"sm_seat","tier":"siege_m","name":"Warlord's Seat (Stronghold)","allow":[0,1,2,3,4,5,7,8],"waves":5,"caps":[null,32000,3300],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,50000,20000,40000,0,10000,0,0,0,0],"f":[4285,3000,1285,428,857],"W":6,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":3.95,"hint":150,"life":1,"fb":1.9}},{"id":"sl_seat","tier":"siege_l","name":"Warlord's Seat (Citadel)","allow":[0,1,2,3,4,5,7,8],"waves":6,"caps":[null,360000,190000],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,200000,80000,160000,0,40000,0,0,0,0],"f":[11224,7857,3367,1122,2244],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":4,"hint":150,"life":1,"fb":2}}];
 var WC_SIEGE_RW={siege_s:[{gemD:20,s60:1},{gemF:5,ingot:1},{gemF:10,mithril:1}],
@@ -3946,9 +4212,9 @@ WC_SIEGES.forEach(function(d){
   WC.push({id:d.id, tier:d.tier, name:d.name, kind:"siege", spec:d.spec, waves:d.waves, ban:ban, allow:d.allow, tag:d.tag, hint:d.hint,
     goals:d.caps.map(function(c){ return {cap:c}; }), rewards:WC_SIEGE_RW[d.tier].map(function(it){ return {res:QR(0,0,0,0,0), items:it}; })});
 });
-function wcDef(p){ if (p.kind!=="siege") return wcBase(p.kind,p.L); var c=p.spec;
+function wcDef(p){ if (p.kind==="tech") return wcBase("npc",p.L); if (p.kind!=="siege") return wcBase(p.kind,p.L); var c=p.spec;
   return {troops:c.t.slice(), fortifications:c.f.slice(), wallLevel:c.W, research:c.r, hero:{intel:c.hint}, life_modifier:c.life, defence_modifier:1, attack_modifier:c.am, fortBonus:c.fb, trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25}; }
-function wcRuleText(p){ if (p.kind!=="siege") return p.ban.length?"no siege engines":""; return "only "+p.allow.map(function(i){ return uname(i,2); }).join(", ").replace(/, ([^,]*)$/," and $1"); }
+function wcRuleText(p){ if (p.kind==="tech") return "fixed army"; if (p.kind!=="siege") return p.ban.length?"no siege engines":""; return "only "+p.allow.map(function(i){ return uname(i,2); }).join(", ").replace(/, ([^,]*)$/," and $1"); }
 // Defense puzzles: hold the city against fixed waves with a prestige budget. Data generated from the tested designs (see README).
 var WC_DEFS=[{"id":"ds_field","tier":"def_s","name":"Open Field (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":3,"budget":84000,"spec":{"R":8},"waves":[[0,0,0,0,3500,0,0,5250,0,0,0,0],[0,10500,0,5250,0,0,0,0,0,0,0,0]],"caps":[null,5,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dm_field","tier":"def_m","name":"Open Field (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":240000,"spec":{"R":8},"waves":[[0,0,0,0,10000,0,0,15000,0,0,0,0],[0,30000,0,15000,0,0,0,0,0,0,0,0],[0,0,0,0,10000,0,0,10000,4000,0,0,0]],"caps":[null,7,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dl_field","tier":"def_l","name":"Open Field (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":8,"budget":720000,"spec":{"R":8},"waves":[[0,0,0,0,30000,0,0,45000,0,0,0,0],[0,90000,0,45000,0,0,0,0,0,0,0,0],[0,0,0,0,30000,0,0,30000,12000,0,0,0],[0,0,0,0,45000,0,0,0,24000,0,1500,0]],"caps":[null,110,82],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"ds_horse","tier":"def_s","name":"Horse Lords (Skirmish)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":4,"budget":157500,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,8750,0,0,0,0],[0,0,0,0,0,0,0,5250,1750,0,0,0]],"caps":[null,4,0],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dm_horse","tier":"def_m","name":"Horse Lords (Assault)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":6,"budget":450000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,25000,0,0,0,0],[0,0,0,0,0,0,0,15000,5000,0,0,0],[0,0,0,0,0,0,0,0,10000,0,0,0]],"caps":[null,4,0],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dl_horse","tier":"def_l","name":"Horse Lords (Onslaught)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":9,"budget":1350000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,75000,0,0,0,0],[0,0,0,0,0,0,0,45000,15000,0,0,0],[0,0,0,0,0,0,0,0,30000,0,0,0],[0,0,0,0,0,0,0,60000,30000,0,0,0]],"caps":[null,790000,130000],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"ds_horde","tier":"def_s","name":"The Horde (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":131250,"spec":{"R":8},"waves":[[0,21000,0,0,7000,0,0,0,0,0,0,0],[0,0,0,7000,10500,0,0,0,0,0,0,0]],"caps":[null,64,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dm_horde","tier":"def_m","name":"The Horde (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":375000,"spec":{"R":8},"waves":[[0,60000,0,0,20000,0,0,0,0,0,0,0],[0,0,0,20000,30000,0,0,0,0,0,0,0],[0,40000,0,30000,0,0,0,0,0,0,0,0]],"caps":[null,64,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dl_horde","tier":"def_l","name":"The Horde (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1125000,"spec":{"R":8},"waves":[[0,180000,0,0,60000,0,0,0,0,0,0,0],[0,0,0,60000,90000,0,0,0,0,0,0,0],[0,120000,0,90000,0,0,0,0,0,0,0,0],[0,60000,0,60000,120000,0,0,0,0,0,0,0]],"caps":[null,120000,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"ds_train","tier":"def_s","name":"Siege Train (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":5,"budget":157500,"spec":{"R":8},"waves":[[0,7000,0,0,0,0,0,0,0,0,525,0],[0,3500,0,0,0,0,0,0,0,700,0,525]],"caps":[null,18000,8000],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dm_train","tier":"def_m","name":"Siege Train (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":7,"budget":450000,"spec":{"R":8},"waves":[[0,20000,0,0,0,0,0,0,0,0,1500,0],[0,10000,0,0,0,0,0,0,0,2000,0,1500],[0,0,0,10000,0,0,0,0,0,0,2000,1500]],"caps":[null,76000,88],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dl_train","tier":"def_l","name":"Siege Train (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":10,"budget":1350000,"spec":{"R":8},"waves":[[0,60000,0,0,0,0,0,0,0,0,4500,0],[0,30000,0,0,0,0,0,0,0,6000,0,4500],[0,0,0,30000,0,0,0,0,0,0,6000,4500],[0,0,0,0,30000,0,0,0,0,9000,0,6000]],"caps":[null,500000,200000],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"ds_arrows","tier":"def_s","name":"Arrow Storm (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":157500,"spec":{"R":8,"arch":10},"waves":[[0,1750,0,0,0,10500,0,0,0,0,0,0],[0,0,0,1750,0,10500,0,0,0,0,0,0]],"caps":[null,30000,13000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dm_arrows","tier":"def_m","name":"Arrow Storm (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":450000,"spec":{"R":8,"arch":10},"waves":[[0,5000,0,0,0,30000,0,0,0,0,0,0],[0,0,0,5000,0,30000,0,0,0,0,0,0],[0,0,0,0,5000,40000,0,0,0,0,0,0]],"caps":[null,200000,87000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dl_arrows","tier":"def_l","name":"Arrow Storm (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1350000,"spec":{"R":8,"arch":10},"waves":[[0,15000,0,0,0,90000,0,0,0,0,0,0],[0,0,0,15000,0,90000,0,0,0,0,0,0],[0,0,0,0,15000,120000,0,0,0,0,0,0],[0,15000,0,15000,0,120000,0,0,0,0,0,0]],"caps":[null,930000,490000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"ds_gates","tier":"def_s","name":"Shut Gates (Skirmish)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":5,"budget":105000,"spec":{"R":8},"waves":[[0,10500,0,0,0,0,0,0,0,0,350,0],[0,0,0,0,0,0,0,7000,0,0,0,0]],"caps":[null,2400,2100],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dm_gates","tier":"def_m","name":"Shut Gates (Assault)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":7,"budget":300000,"spec":{"R":8},"waves":[[0,30000,0,0,0,0,0,0,0,0,1000,0],[0,0,0,0,0,0,0,20000,0,0,0,0],[0,0,0,0,10000,0,0,0,0,1500,0,800]],"caps":[null,8600,7500],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dl_gates","tier":"def_l","name":"Shut Gates (Onslaught)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":10,"budget":900000,"spec":{"R":8},"waves":[[0,90000,0,0,0,0,0,0,0,0,3000,0],[0,0,0,0,0,0,0,60000,0,0,0,0],[0,0,0,0,30000,0,0,0,0,4500,0,2400],[0,0,0,0,0,0,0,0,15000,0,6000,0]],"caps":[null,55000,31000],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dx_engineers","tier":"def_x","name":"Engineers' Duel","allow":[0,9,10,11],"forts":"none","fallow":[],"W":5,"budget":500000,"spec":{"R":8},"waves":[[0,30000,0,0,10000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,15000,0,0,0,0],[0,0,0,10000,0,15000,0,0,0,0,0,0]],"caps":[null,99,76],"tag":"Only siege engines answer the call. The enemy brings a bit of everything.","hint":"Ballistas do the killing. One Ram in front takes the first hits, and one Catapult behind makes the battlefield long enough for the Ballistas to finish the job. More Rams or Catapults are wasted budget."},{"id":"dx_shortfield","tier":"def_x","name":"Short Field","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":250000,"spec":{"R":8,"arch":10},"waves":[[0,0,0,0,0,20000,0,8000,0,0,0,0],[0,5000,0,0,0,0,0,8000,0,2500,0,0]],"caps":[null,110000,45000],"tag":"Their archers have Archery 10, with cavalry and ballistas behind. You may build traps, abatis and logs.","hint":"A trap or abatis stretches the battlefield, and a long field helps whoever shoots better. Below Archery 10, build none: meet them with a wall of Warriors and some Pikemen, plus one each of Scout, Swordsman, Archer, Cataphract, Ballista and Catapult to draw volleys. With Archery 10 and strong gear, archers and traps start to win instead."},{"id":"dx_cuts","tier":"def_x","name":"Thousand Cuts","allow":[0,1,2,3,4,5,7,8],"forts":"build","fallow":[0,1,3,4],"W":6,"budget":75000,"spec":{"R":8},"waves":[[0,0,0,0,4000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,3000,0,0,0,0],[0,0,0,5000,0,0,0,0,0,0,0,0],[0,8000,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,4000,0,0,0,0],[0,0,0,0,6000,0,0,0,1500,0,0,0]],"caps":[null,2300,30],"tag":"Six small waves, one after another, on a tight budget. Nothing heals in between.","hint":"Archers do the killing, but every wave chips at them. Keep a reserve of about 1,300 Warriors to soak what gets through, and build a single abatis for field length."},{"id":"dx_skeleton","tier":"def_x","name":"Skeleton Crew","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":125000,"spec":{"R":8},"waves":[[0,60000,0,20000,0,0,0,0,0,0,0,0]],"caps":[null,92,0],"tag":"Eighty thousand infantry against a tiny budget. Every prestige point counts.","hint":"Spend nearly all of it. Archers do the killing behind one each of Worker, Warrior, Pikeman, Swordsman and Ram, with a few hundred Ballistas mixed in."}];
 var WC_DEF_RW={def_s:[{gemD:20,s60:1},{gemF:5,ingot:1},{gemF:10,mithril:1}],
@@ -4005,6 +4271,7 @@ function wcGot(p){ return (wcSt().got[p.id]||0); } // ratings earned (and paid) 
 function wcStars(){ var n=0; WC.forEach(function(p){ n+=wcGot(p); }); return n; }
 function wcMaxStars(){ var n=0; WC.forEach(function(p){ n+=p.goals.length; }); return n; }
 function wcGoalText(p,g){ var nm=WC_NAMES[p.goals.length===1?0:g], c=p.goals[g].cap;
+  if (p.kind==="tech") return "Solve it: win "+(c===0?"without losing a troop":"losing "+fmt(c)+" or fewer")+", with at most "+p.B+" research levels in "+p.free.map(function(k){ return TP_NAME[k]; }).join(", ").replace(/, ([^,]*)$/," and $1");
   if (p.kind==="defense") return nm+": "+(c==null?"hold the city":c===0?"hold without losing anything":"hold, losing "+fmt(c)+" prestige or fewer"); return nm+": "+(c==null?"win":c===0?"win without losing a troop":"win losing "+fmt(c)+" or fewer"); }
 function wcRating(p,res){ if (!res.won) return 0; var r=0; p.goals.forEach(function(g,i){ if (g.cap==null || res.lost<=g.cap) r=i+1; }); return r; }
 function wcDefText(p){ var b=wcDef(p), parts=[]; U.forEach(function(u,i){ if (b.troops[i]) parts.push(fmt(b.troops[i])+" "+uname(i,b.troops[i])); });
@@ -4068,11 +4335,11 @@ function viewCollege(){
 }
 function wcSheet(p){
   if (p.kind==="defense") return wcdSheet(p);
+  if (p.kind==="tech") return tpSheet(p);
   var d=wcDraftOf(p), got=wcGot(p), b=wcSt().best[p.id], cap=armyCap(), heroes=wcHeroes(), out=wcOut[p.id];
   var h='<div class="head lbhead"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>'+p.name+'</h2><div class="sub">War College · up to '+p.waves+' wave'+(p.waves>1?'s':'')+(wcRuleText(p)?' · '+wcRuleText(p):'')+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
   if (p.tag) h+='<p class="hint" style="margin:0"><i>'+esc(p.tag)+'</i></p>';
   h+='<div class="effect"><b>Defenders:</b> '+esc(wcDefText(p))+(p.kind==="siege"?' <span class="dur">'+(p.spec.t.some(function(n){ return n>0; })?'Gate open.':'Gate shut.')+' Archery '+p.spec.r.archery+', research '+p.spec.r.medicine+'.</span>':'')+'</div>';
-  if (p.hint) h+='<details class="det" data-det="wchint"><summary><b>Hint</b> <span class="dur">the weak spot</span></summary><p class="hint">'+esc(p.hint)+'</p></details>';
   h+='<div class="gearlist">'+p.goals.map(function(g,i){ var done=i<got, nm=WC_NAMES[p.goals.length===1?0:i];
     return '<div class="gearrow'+(done?' t3':'')+'"><span class="gn"><span style="font:400 1rem var(--body);color:var(--brass)">'+(done?'★':'☆')+'</span> '+esc(wcGoalText(p,i).replace(nm+": ",nm+" — "))+'</span><span class="dur" style="grid-column:1/-1">'+(done?'Earned. ':'Reward: ')+esc(rewardText(p.rewards[i]))+'</span></div>'; }).join("")+'</div>';
   if (b) h+='<p class="dur">Your best: lost '+fmt(b.lost)+' in '+b.waves+' wave'+(b.waves>1?'s':'')+'.</p>';
@@ -4101,7 +4368,6 @@ function wcdSheet(p){
   if (p.tag) h+='<p class="hint" style="margin:0"><i>'+esc(p.tag)+'</i></p>';
   h+='<div class="effect"><b>Attackers</b> <span class="dur">(research '+z.spec.R+(z.spec.arch!=null&&z.spec.arch!==z.spec.R?', Archery '+z.spec.arch:'')+')</span>'+z.waves.map(function(w,i){ return '<br>Wave '+(i+1)+': '+esc(wcdWaveText(p,i)); }).join("")+'</div>';
   h+='<p class="dur" style="margin:0">Budget '+fmt(z.budget)+' prestige · walls level '+z.W+' for this fight'+(okF.length?' (fort space '+fmt(wcdCap(p))+')':'')+(shut?' · the gate stays shut: only fortifications fight':'')+'</p>';
-  if (p.hint) h+='<details class="det" data-det="wchint"><summary><b>Hint</b> <span class="dur">the trick</span></summary><p class="hint">'+esc(p.hint)+'</p></details>';
   h+='<div class="gearlist">'+p.goals.map(function(g,i){ var done=i<got, nm=WC_NAMES[i];
     return '<div class="gearrow'+(done?' t3':'')+'"><span class="gn"><span style="font:400 1rem var(--body);color:var(--brass)">'+(done?'★':'☆')+'</span> '+esc(wcGoalText(p,i).replace(nm+": ",nm+" — "))+'</span><span class="dur" style="grid-column:1/-1">'+(done?'Earned. ':'Reward: ')+esc(rewardText(p.rewards[i]))+'</span></div>'; }).join("")+'</div>';
   if (b) h+='<p class="dur">Your best: held, losing '+fmt(b.lost)+' prestige.</p>';
@@ -4537,12 +4803,13 @@ function migrate(s){
   if (s.notifOff && s.notifOff.build && s.notifOff.fort===undefined) s.notifOff.fort=true; // 0.1.110: fortifications got their own notification switch; anyone who had silenced "buildings and fortifications" keeps both silenced
   if (!s.alMember && Array.isArray(s.cities)) s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); // 0.1.88: lending can only exist inside an alliance; this frees builders and Academies stuck as "lent" after leaving or switching off multiplayer
   s.dragons=s.dragons||{}; s.shopSeen=s.shopSeen||[]; s.giftSeen=s.giftSeen||[];
+  if (Array.isArray(s.cities)) s.cities.forEach(function(cc){ if (cc.wallHero===undefined) cc.wallHero=null; }); // 0.1.115: the wall hero post starts empty (until now the mayor led the defense)
   s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; FRAMES_FOR_ALL.forEach(function(f){ if (s.frames.indexOf(f)<0) s.frames.push(f); });
   return s;
 }
 var CITY_PLOTS=28; // 7 rows of 4
 var AUTO_ORDER=[9,11,10,5,8,7,6,4,3,2,1,0]; // default auto-train priority: siege, then archers, then the rest
-var CITY_KEYS = ["autoHeal","alAcad","alBld","tg","fg","autoFort","trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
+var CITY_KEYS = ["autoHeal","alAcad","alBld","tg","fg","autoFort","trainer","researcher","reserve","gate","goals","gorder","wounded","autoTrain","autoMayor","wallHero","builds","bq","rq","presets","wall","forts","fortQ","name","res","pop","tax","th","inside","fields","build","research","troops","train","mayor","heroes","innOffers","innRefreshAt"];
 function C(){ return S.cities[S.cur]; }
 var techVer=0, techCache={key:"",o:null};
 // Research is empire-wide: levels live in S.techG. A city only enjoys a level its own Academy can support.
@@ -4564,7 +4831,7 @@ function newCity(id,name,x,y){
   for (i=0;i<CITY_PLOTS;i++) inside.push(null); for (i=0;i<44;i++) fields.push(null);
   Object.keys(TECH).forEach(function(k){ tech[k]=0; });
   return {id:id,name:name,x:x,y:y,res:{food:10000,lumber:10000,stone:10000,iron:10000,gold:10000},pop:100,tax:20,th:1,inside:inside,fields:fields,tech:tech,
-    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],tg:[],fg:[],autoFort:false,autoHeal:false,alAcad:false,alBld:0,mayor:null,trainer:null,researcher:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
+    build:null,research:null,troops:[0,0,0,0,0,0,0,0,0,0,0,0],train:[],tg:[],fg:[],autoFort:false,autoHeal:false,alAcad:false,alBld:0,mayor:null,trainer:null,researcher:null,wallHero:null,heroes:[],innOffers:[],innRefreshAt:0,wall:0,forts:[0,0,0,0,0],fortQ:null,builds:[],bq:[],rq:[],presets:newPresets(),autoMayor:true,goals:[0,0,0,0,0,0,0,0,0,0,0,0],gorder:AUTO_ORDER.slice(),wounded:[],autoTrain:false,gate:"open",reserve:{food:0,lumber:0,stone:0,iron:0,gold:0}};
 }
 var NPRESETS=10;
 function newPresets(){ var a=[]; for (var i=0;i<NPRESETS;i++) a.push({name:"Preset "+(i+1), t:[0,0,0,0,0,0,0,0,0,0,0,0], hero:0, farm:[], auto:false, idx:0, stopOnLoss:true}); return a; }
@@ -4987,11 +5254,11 @@ function viewHeroes(){
   if (!cap && !il && !S.heroes.length && !S.waiting.length)
     return '<div class="empty-state"><p>Build a Feasting Hall to house heroes and an Inn to hire them. Legendary heroes won on the wheel wait at the gate until you have room; lesser ones move on.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
   var mb=mayorBonus(), anyOff=OFFICES.some(function(o){ return officer(o[0]); });
-  h+='<div class="section"><div class="shead"><h3>Offices</h3><span class="dur">'+OFFICES.filter(function(o){ return officer(o[0]); }).length+' of 3 filled</span></div>'+
-    '<p class="hint">Three jobs, three heroes. Office holders stay home (they never appear in march lists) and earn experience while they serve. Appoint from a hero\u2019s page.</p><div class="gearlist">'+
-    OFFICES.map(function(o){ var oh=officer(o[0]), eff = o[0]==="mayor" ? 'production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster' : o[0]==="trainer" ? 'training '+pct(mb.train)+' faster' : 'research '+pct(1-1/(1+mb.research))+' faster';
+  h+='<div class="section"><div class="shead"><h3>Offices</h3><span class="dur">'+OFFICES.filter(function(o){ return officer(o[0]); }).length+' of '+OFFICES.length+' filled</span></div>'+
+    '<p class="hint">Four jobs, four heroes. Office holders stay home (they never appear in march lists) and earn experience while they serve. Appoint from a hero\u2019s page. The wall hero leads your troops whenever this city is attacked: with no wall hero, no hero leads the defense. The wall hero keeps working even when the treasury is empty.</p><div class="gearlist">'+
+    OFFICES.map(function(o){ var oh=officer(o[0]), eff = o[0]==="mayor" ? 'production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster' : o[0]==="trainer" ? 'training '+pct(mb.train)+' faster' : o[0]==="wallHero" ? 'leading the defense' : 'research '+pct(1-1/(1+mb.research))+' faster';
       return '<div class="gearrow"><span class="gn">'+o[1]+'</span><span class="gb">'+(oh?esc(oh.name)+' ('+STATN[o[2]].slice(0,3)+' '+hs(oh,o[2])+')':'vacant')+'</span><span class="dur" style="grid-column:1/-1">'+o[3]+' ('+STATN[o[2]]+').'+(oh?' Now: '+eff+'.':'')+'</span></div>'; }).join("")+'</div>';
-  if (anyOff && S.res.gold<=0 && salary()>0) h+='<p class="warn">Your treasury is empty, so your office holders have stopped working. Raise taxes or trade for gold.</p>';
+  if (anyOff && S.res.gold<=0 && salary()>0) h+='<p class="warn">Your treasury is empty, so your mayor, trainer and researcher have stopped working (the wall hero stays on the wall). Raise taxes or trade for gold.</p>';
   var bp=bestFor("pol"), bi=bestFor("int"), ba=bestFor("atk");
   h+='<label class="chk" style="margin-top:8px"><input type="checkbox" id="automayor"'+(S.autoMayor?' checked':'')+'> Auto-swap the best hero into each job</label>'+
     (S.autoMayor?'<p class="hint">Each time something starts, the best hero at home briefly takes that office, then hands it back. Your appointed mayor still sets production.</p>'+
@@ -6387,7 +6654,7 @@ var IV={st:null, at:0, skew:0, busy:0, err:"", search:0, lastPoll:0, lastSearch:
 function invShown(){ return !!LB_URL && mpShown(); } // open to every multiplayer player (0.1.71; was testers only)
 function invOk(){ return invShown() && cbOn(); }
 function invPost(path, body){
-  body=body||{}; body.name=S.cloud.name; body.token=S.cloud.token;
+  body=body||{}; body.name=S.cloud.name; body.token=S.cloud.token; body.ver=APP_VERSION;
   return fetch(LB_URL+"/inv/"+path,{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), cache:"no-store"})
     .then(function(r){ return r.json().catch(function(){ return {error:"Server error "+r.status}; }).then(function(j){ j._st=r.status; return j; }); },
           function(){ return {error:"Can’t reach the server. Check your connection.", _st:0}; });
@@ -6496,7 +6763,7 @@ function shopSheet(){
 function invCityPack(ci){
   var o=null;
   withCity(ci, function(){
-    var c=C(), m=mayorActive(), cp=S.troops.slice(); cp[0]=0; cp[6]=0;
+    var c=C(), m=wallHero(), cp=S.troops.slice(); cp[0]=0; cp[6]=0;
     o={id:c.id, name:c.name, x:c.x, y:c.y, th:S.th, troops:cp, forts:S.forts.slice(), wall:S.wall||0, gate:S.gate==="closed"?"closed":"open",
       res:{food:Math.floor(S.res.food),lumber:Math.floor(S.res.lumber),stone:Math.floor(S.res.stone),iron:Math.floor(S.res.iron),gold:Math.floor(S.res.gold)},
       prot:Math.floor(warehouseProtect()), r:simResearch(), mt:S.tech.militarytradition||0, inf:S.tech.informatics||0, rally:Math.max(1,bLevel("rally")), beacon:bLevel("beacon"),
@@ -6517,6 +6784,8 @@ function invHold(c, d){ // a city that is away: its clocks stand still
   var all=[c.build, c.research, c.fortQ, c.trainer, c.researcher].concat(c.builds||[], c.train||[]);
   all.forEach(function(o){ if (o && typeof o==="object" && o.end!=null){ o.end+=d; if (o.start!=null) o.start+=d; } });
 }
+// "0.1.115" style version compare: is a older than b?
+function verLess(a,b){ var x=String(a||"0").split("."), y=String(b||"0").split("."); for (var i=0;i<Math.max(x.length,y.length);i++){ var d=(parseInt(x[i],10)||0)-(parseInt(y[i],10)||0); if (d) return d<0; } return false; }
 function invTake(j){
   IV.err=j.error||"";
   if (j.now) IV.skew=j.now-Date.now();
@@ -6631,7 +6900,8 @@ function invSection(){
     var sh=p.safeHours||72;
     h+='<div class="farmadd"><label for="ivsafe" class="dur">After I\u2019m invaded, keep me safe for</label><select id="ivsafe">'+[[24,"24 hours"],[72,"72 hours"],[168,"7 days"],[336,"14 days"]].map(function(o){ return '<option value="'+o[0]+'"'+(sh===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join("")+'</select></div>'+
       '<p class="hint">Your choice: a short cooldown means more invasions (and more War Marks), a long one means fewer. It starts counting when an invasion against you ends.</p>';
-    var cs=invCitySel(), why=invWhy()||(cs.n?"":"No city has troops to send")||"";
+    var mv=IV.st&&IV.st.minVer, old=mv&&verLess(APP_VERSION,mv);
+    var cs=invCitySel(), why=(old?"Update Ibory to "+mv+" or newer to start an invasion":"")||invWhy()||(cs.n?"":"No city has troops to send")||"";
     if (IV.search){
       var si=IV.searchInfo;
       h+='<p class="hint"><b>Searching…</b> '+(si&&si.band?'looking within ±'+Math.round(si.band*100)+'% of your strength; the range widens the longer it takes. ':'')+'It checks again every 20 seconds while this game is open; you can close it and come back.</p>'+
@@ -7106,6 +7376,7 @@ function viewAlliance(){
   if (invShown()) h+=collapsify("ev_inv", invSection(), true);
   if (pvShown()) h+=collapsify("ev_pvp", pvSection(), true); // PvP: testers only for now (dev tools or the tester code)
   h+=collapsify("ev_chal", chalSection(), A.rep>=REP_MAX);
+  if (soloArOn()) h+='<div id="soloar"></div>'+soloArenaHtml();
   if (A.log.length) h+='<details class="section det" data-det="alog"'+(DET.alog?' open':'')+'><summary><b>Kingdom log</b></summary>'+A.log.slice(0,25).map(function(l){ return '<p class="hint">'+gameClock(l.at)+': '+esc(l.t)+'</p>'; }).join("")+'</details>';
   return h;
 }
@@ -7324,7 +7595,7 @@ function meSheet(){
   h+='<input type="file" id="meimg" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif,.heic,.heif" hidden>';
   h+='<p class="hint">Your picture is cropped to a small square and kept in your save. With a cloud save, the members of your alliance see it and your frame on the Members list.</p>';
   cosSync(); var coins=COS?COS.coins:null;
-  h+='<div class="h3" style="margin-top:8px">Cosmetics</div><div class="rgrid"><span>Cosmo Coins <b>'+(coins?fmt(coins.balance):'\u2014')+'</b></span>'+(coins?'<span class="dur">Next free coin in '+fmtT(coins.nextIn)+'</span>':'')+'</div><div class="btnrow" style="margin:6px 0"><button class="btn ghost small" data-act="iv-shop-open">Get Cosmo Coins (War Marks shop)</button></div>'+(COS&&COS.allFree?'<p class="hint">Everything here is free during the beta, for life if you are a tester.</p>':'');
+  h+='<div class="h3" style="margin-top:8px">Cosmetics</div><div class="rgrid"><span>Cosmo Coins <b>'+(coins?fmt(coins.balance):'\u2014')+'</b></span>'+(coins?'<span class="dur">'+(coins.needTH?'A free coin a day starts once one of your cities has a level '+coins.needTH+' Town Hall':'Next free coin in '+fmtT(coins.nextIn))+'</span>':'')+'</div><div class="btnrow" style="margin:6px 0"><button class="btn ghost small" data-act="iv-shop-open">Get Cosmo Coins (War Marks shop)</button></div>'+(COS&&COS.allFree?'<p class="hint">Everything here is free during the beta, for life if you are a tester.</p>':'');
   var lookRow=function(kind,label){ var cur=me[kind]||"", D=COSM[kind];
     return '<div class="h3" style="margin-top:8px">'+label+'</div><div class="farmadd"><button class="chipbtn wide'+(!cur?' on':'')+'" data-act="me-look" data-kind="'+kind+'" data-v="">None</button>'+Object.keys(D).map(function(k){ var has=cosHas(kind,k), pr=cosPrice(kind,k), buy=!has&&pr>=0;
       return '<button class="chipbtn wide'+(cur===k&&has?' on':'')+'" data-act="'+(buy?'me-cosbuy':'me-look')+'" data-kind="'+kind+'" data-v="'+k+'"'+(!has&&!buy?' disabled':'')+' title="'+esc(D[k].desc)+'">'+(kind==="city"?'<span class="lookcity" style="background:'+CPAL[k].bg+';width:22px;height:22px;display:inline-flex;vertical-align:middle;margin-right:4px">'+cosCastleSvg(k)+'</span>':'')+esc(D[k].name)+(has?'':buy?' \u00b7 '+pr+' coins':' (locked)')+'</button>'; }).join("")+'</div>'; };
@@ -8860,7 +9131,8 @@ document.addEventListener("click",function(e){
     if (RP.f>=RP.res.trace.length-1) RP.f=0; RP.play=true;
     rpTimer=setInterval(function(){ if (!RP || !sheet.open || !sheetFor || sheetFor.kind!=="replay"){ rpStop(); return; } RP.f++; if (RP.f>=RP.res.trace.length-1){ RP.f=RP.res.trace.length-1; rpStop(); } lastSheet=""; renderSheet(); }, 1100);
     lastSheet=""; renderSheet(); return; }
-  if (act==="wc-run"){ var wx=wcById(sheetFor&&sheetFor.id); if (!wx) return; wcRun(wx); sheetBody.scrollTop=0; return; }
+  if (act==="wc-run"){ var wx=wcById(sheetFor&&sheetFor.id); if (!wx) return; if (wx.kind==="tech") tpRun(wx); else wcRun(wx); sheetBody.scrollTop=0; return; }
+  if (act==="tp-step"){ var tpx=wcById(sheetFor&&sheetFor.id); if (!tpx || tpx.kind!=="tech") return; var tpd=tpDraftOf(tpx), tk=a.dataset.k; tpd[tk]=Math.max(0,Math.min(10,(tpd[tk]||0)+(+a.dataset.d))); lastSheet=""; renderSheet(); return; }
   if (act==="lb-cat"){ lbFetch(a.dataset.cat); return; }
   if (act==="lb-mp"){ lbMpSel=+a.dataset.v; lbFetch(); return; }
   if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
@@ -8979,6 +9251,8 @@ document.addEventListener("click",function(e){
     sim.def.preset="custom"; sim.def.t=tc.t.map(function(n,i){ return n+mine[i]; }); sim.def.f=tc.f.slice(); sim.def.wall=tc.wall; sim.def.r={military_tradition:0,iron_working:tc.r.iron_working||0,medicine:tc.r.medicine||0,compass:0,horseback_riding:0,archery:tc.r.archery||0}; sim.def.hatk=Math.round(((tc.am||1)-1)*100); sim.def.eng=0; sim.def.hint=0; simOut=null;
     tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
+  if (act==="sar-up"){ sarUpgrade(); return; }
+  if (act==="sar-summon"){ var sat=a.dataset.type; sarSummon(sat, +(ARL[sat]||0) || Math.min(sarState().lv, (sarState().best[sat]||0)+1)); return; }
   if (act.indexOf("al-")===0){
     if (act==="al-cloud"){ DET.cloud=true; goPage("settings"); return; }
     if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); if (ALS.sub==="list") alList(); return; }
@@ -8986,6 +9260,7 @@ document.addEventListener("click",function(e){
     if (act==="al-view"){ alViewOpen(a.dataset.aid); return; }
     if (act==="al-box-in"){ alBoxMove(1); return; }
     if (act==="al-box-out"){ alBoxMove(-1); return; }
+    if (act==="al-arena-go" && soloArOn()){ tab="alliance"; lastView=""; refresh(); setTimeout(function(){ var e=document.getElementById("soloar"); if (e) e.scrollIntoView({behavior:"smooth"}); },50); return; }
     if (act==="al-arena-go"){ tab="guild"; ALS.sub="arena"; lastView=""; refresh(); ALS.last=0; alSync(); return; }
     if (act==="al-arena-send"){ var smid=+a.dataset.mid; if (!arById(smid)){ toast("The window has closed"); return; } openMarch(homeTileId(),"arena",smid); return; }
     if (act==="al-summon"){ var smt=a.dataset.type, sml=Math.max(1, +(ARL[smt]||0) || Math.min((alMine().econ.lv.arena||1), ((arMon().best[smt]||0)+1))); alDo("/al/summon",{type:smt, lv:sml},"Summoned! 5 minutes to march"); return; }
@@ -9208,12 +9483,14 @@ document.addEventListener("click",function(e){
   if (act==="teleport"){
     var tt=a.dataset.tile, tq=TILE_BY[tt];
     if (!(S.items.teleport>0) || !tq || tq.k!=="flat" || S.map.owned[tt] || (C().fieldCap && !hasHC(16))) return;
-    if (S.marches.some(function(m){ return m.city===C().id || (TILE_BY[m.tile] && TILE_BY[m.tile].city===C().id); })){ toast("Recall this city\u2019s marches first"); return; }
+    // only this city's OWN marches block a teleport. Marches from your other cities that are heading here turn around and go home;
+    // ones already on their way home (a delivery that has arrived) don't matter at all
+    if (S.marches.some(function(m){ return m.city===C().id; })){ toast("Recall this city\u2019s marches first"); return; }
     if (armedTile!=="tp"+tt){ armedTile="tp"+tt; renderTileInfo(); return; }
-    armedTile=null; var oldId=C().x+","+C().y; S.map.flat[oldId]=true; if (HC_AT[oldId]) S.map.hcTaken[oldId]=true;
+    armedTile=null; var tpTurned=tpTurnBack(C().id); var oldId=C().x+","+C().y; S.map.flat[oldId]=true; if (HC_AT[oldId]) S.map.hcTaken[oldId]=true;
     delete S.map.flat[tt]; delete S.map.npc[tt]; delete S.map.hit[tt]; delete S.map.loy[tt];
     C().x=tq.x; C().y=tq.y; S.items.teleport--; miniDirty=true; selTile=tt;
-    centerOn(tq.x,tq.y); toast(S.name+" has moved to ("+tq.x+", "+tq.y+")"); refresh(); return;
+    centerOn(tq.x,tq.y); toast(S.name+" has moved to ("+tq.x+", "+tq.y+")"+(tpTurned?"; "+tpTurned+" march"+(tpTurned>1?"es":"")+" heading here turned back home":"")); save(); refresh(); return;
   }
   if (act==="taunt"){ if (!tauntsLeft()){ toast("You have talked enough trash today"); return; } var o=TAUNTS.slice().sort(function(){ return Math.random()-0.5; }).slice(0,3); openSheet({kind:"taunt",tile:a.dataset.tile,opts:o}); return; }
   if (act==="taunt-send"){
@@ -9230,7 +9507,7 @@ document.addEventListener("click",function(e){
   if (act==="threat-open"){ openSheet({kind:"threat",ai:a.dataset.ai}); return; }
   if (act==="threat-sim"){
     var tw=S.aiWar.filter(function(x){ return x.ai===a.dataset.ai && x.city===C().id; }).sort(function(x,y){ return y.t.reduce(function(p,c){return p+c;},0)-x.t.reduce(function(p,c){return p+c;},0); })[0]; if (!tw) return;
-    var dm=mayorActive(); if (!sim) initSim();
+    var dm=wallHero(); if (!sim) initSim();
     sim.atk={t:tw.t.slice(), r:{military_tradition:0,iron_working:tw.r.iron_working||0,medicine:tw.r.medicine||0,compass:tw.r.compass||0,horseback_riding:tw.r.horseback_riding||0,archery:tw.r.archery||0}, hatk:Math.round((tw.am-1)*100), hint:0, life:1};
     sim.def={preset:"custom", t:S.troops.slice(), f:S.forts.slice(), wall:S.wall||0, r:simResearch(), hatk:hsB(dm,"atk",1), hint:hsB(dm,"int",1), life:setLife(dm,1), eng:S.tech.engineering||0};
     simOut=null; closeSheet(); tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
@@ -9386,7 +9663,7 @@ document.addEventListener("click",function(e){
     var fc={}; for (var fk in FORTS[fb2].cost) fc[fk]=FORTS[fb2].cost[fk]*fn; pay(fc,1);
     S.fortQ={f:fb2,n:fn,start:S.gt,end:S.gt+fortTime(fb2)*fn}; fortAmt[fb2]=0; toast("Building "+fmt(fn)+" "+FORTS[fb2].name); lastView=""; refresh(); return; }
   if (act==="cancel-fort" && S.fortQ){ var cq=S.fortQ, rc2={}; for (var ck2 in FORTS[cq.f].cost) rc2[ck2]=FORTS[cq.f].cost[ck2]*cq.n; pay(rc2,-1); S.fortQ=null; toast("Fortification work cancelled. Resources returned."); refresh(); return; }
-  if (act==="sim-mydef"){ var md=mayorActive(); if (!sim) initSim(); sim.def={preset:"custom", t:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.slice(), f:S.forts.slice(), wall:S.wall||0, r:simResearch(), hatk:hsB(md,"atk",1), hint:hsB(md,"int",1), life:setLife(md,1), eng:S.tech.engineering||0};
+  if (act==="sim-mydef"){ var md=wallHero(); if (!sim) initSim(); sim.def={preset:"custom", t:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.slice(), f:S.forts.slice(), wall:S.wall||0, r:simResearch(), hatk:hsB(md,"atk",1), hint:hsB(md,"int",1), life:setLife(md,1), eng:S.tech.engineering||0};
     simOut=null; lastView=""; renderView(true); toast("Loaded "+S.name+"\u2019s defenses"); return; }
   if (act==="sim-opt-stop"){ loStop(); loUi(false); toast("Optimizing stopped"); return; }
   if (act==="sim-opt"){
@@ -9459,7 +9736,7 @@ document.addEventListener("click",function(e){
   if (act==="pt"){ var hh=heroById(sheetFor.id); if (hh && hh.pts>0){ hh[a.dataset.stat]++; hh.pts--; } refresh(); return; }
   if (act==="office"||act==="mayor"){ var role=a.dataset.role||"mayor", oh=heroById(sheetFor.id); if (!oh) return; if (oh.away){ toast("That hero is away on a march"); return; }
     OFFICES.forEach(function(o){ if (S[o[0]]===oh.id) S[o[0]]=null; }); S[role]=oh.id;
-    toast(oh.name+" is now "+role); save(); lastSheet=""; refresh(); return; }
+    var ofl=OFFICES.filter(function(o){ return o[0]===role; })[0]; toast(oh.name+" is now "+(ofl?ofl[1].toLowerCase():role)); save(); lastSheet=""; refresh(); return; }
   if (act==="unoffice"||act==="unmayor"){ OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; }); save(); lastSheet=""; refresh(); return; }
   if (act==="tome"){
     var bkk=a.dataset.book||"tome", th=heroById(sheetFor.id); if (!th || !(S.items[bkk]>0)) return;
