@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.113
+Version 0.1.114
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.114** The one-time "One name everywhere" sheet is retried on every scores sync and after every cloud save, and asks the server (`/me/name`) if it has not reported the name yet, so it appears whichever of Worker or game was updated first. Worker: admin page fixed (a quote in the new delete prompt broke the page script, so Load did nothing).
 - **0.1.113** One name everywhere. The cloud account is now *the* account: its username is your name on the high scores, in world and alliance chat, on the alliance roster and in reports (server: `backups.display`; the login name never changes, so nothing keyed on the account moves). Settings "Your name" changes it everywhere through `/me/rename` (first change free, then once every 30 days; names can't collide with another account's login or display name). New board rows need an account (`/submit` answers `needAccount`; rows from before keep working). The separate "name on the boards" box is gone while signed in. Existing signed-in players whose lord name or boards name differed get a one-time sheet to keep the account name or change it for free. Chat no longer swaps names client-side. Worker: `/me/name`, `/me/rename`, `keysByName`/`toKey` so kick, promote, gifts, `/player` and `/me/get` work by in-game name. Deploy the Worker first. Admin page: "Delete" on a high-scores row removes it for good (not just hides it); "Delete account" on the Saves tab removes a cloud account and everything on it (board rows, profile, alliance membership, invasions, shop, chat), handing its alliance to the next member or disbanding an empty one. Saves tab shows the in-game name under the login name.
 - **0.1.112** Map tab: "Occupy flats" panel. Pick a flat level, a march preset and "Take N"; one tap sends that preset to the nearest free flats of that level (skips flats already marched on). Capped by free Rally Spot marches and room to hold (Town Hall). Stops on missing troops, food, a named hero, and refuses if 5 practice fights against that flat level aren't all won. Settings kept in `S.occ`.
 - **0.1.111** Invasion help text says invasions never target your own alliance. Worker: matchmaking excludes alliance mates.

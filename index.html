@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.113";
+var APP_VERSION = "0.1.114";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2922,7 +2922,7 @@ function lbAvatar(r){ // a small picture for each high scores row: yours straigh
 }
 // (a removed save keeps checking in below, so an admin restoring it takes effect)
 function lbSync(force){
-  profSync(); mpTell(); lbAutoJoin(); if (!lbOn() && !(LB_URL && S.lb && S.lb.on && S.lb.removed)) return; if (cbOn()) nameFollow(); else if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
+  profSync(); mpTell(); lbAutoJoin(); if (!lbOn() && !(LB_URL && S.lb && S.lb.on && S.lb.removed)) return; if (cbOn()){ nameFollow(); setTimeout(nameOneMaybe, 1500); } else if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
   try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),mp:S.mp?1:0,cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
     .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); if (d.locked) mpLock(); } else if (d && d.ok){ if (S.lb.removed||S.lb.needAcct){ S.lb.removed=false; S.lb.needAcct=0; save(); } if (S.mpLocked) mpUnlock(); } else if (d && d.needAccount){ if (!S.lb.needAcct){ S.lb.needAcct=1; save(); } } }).catch(function(){}); } catch(e){}
 }
@@ -3692,7 +3692,10 @@ function nameOneNote(){
   if (!other || i.renamed) S.nameOneAsked=1; else S.nameOneOther=String(other).slice(0,20);
   save();
 }
+var nameAskedAt=0;
 function nameOneMaybe(){
+  if (cbOn() && !S.nameOneAsked && !(S.cloud.info&&S.cloud.info.display!=null) && Date.now()-nameAskedAt>60000){ nameAskedAt=Date.now(); // the server hasn't said yet: ask it
+    alPost("/me/name",{}).then(function(d){ if (d && d.ok && d.display){ S.cloud.info=S.cloud.info||{}; S.cloud.info.display=d.display; S.cloud.info.renamed=d.renamed||0; S.cloud.display=d.display; save(); nameOneNote(); nameFollow(); setTimeout(nameOneMaybe, 500); } }).catch(function(){}); return; }
   nameOneNote(); if (!cbOn() || S.nameOneAsked || S.nameOneOther==null || navigator.webdriver) return;
   if (sheetFor) { setTimeout(nameOneMaybe, 15000); return; }
   openSheet({kind:"nameone", other:S.nameOneOther});
@@ -3734,7 +3737,7 @@ function cbSave(auto, opt){
     return fetch(LB_URL+"/backup/save",{method:"POST", cache:"no-store", keepalive:!!opt.leaving && pk.body.length<60000, headers:hd, body:pk.body});
   }).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
     CB.busy=false;
-    if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; if (o.d.info.display) S.cloud.display=o.d.info.display; nameOneNote(); CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
+    if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; if (o.d.info.display) S.cloud.display=o.d.info.display; nameOneNote(); setTimeout(nameOneMaybe, 1500); CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
     if (o.st===409 && o.d && o.d.conflict){ // another device saved since: don't overwrite it, ask which game to keep
       CB.conflict=o.d.info; cbUi(""); if (!sheetFor || onPage("settings")) openSheet({kind:"cbconflict"}); return; }
     if (o.st===403){ S.cloud.token=null; save(); }
