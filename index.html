@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.105";
+var APP_VERSION = "0.1.107";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2857,10 +2857,11 @@ function lbAvatar(r){ // a small picture for each high scores row: yours straigh
   var pf = r.me ? S.me : (r.pu||r.fr) ? {img: r.pu ? LB_URL+"/me/img?k="+encodeURIComponent(r.ck)+"&v="+r.pu : "", frame:r.fr} : {};
   return avatarHtml(pf||{}, r.name, true);
 }
+// (a removed save keeps checking in below, so an admin restoring it takes effect)
 function lbSync(force){
-  profSync(); mpTell(); lbAutoJoin(); if (!lbOn()) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
+  profSync(); mpTell(); lbAutoJoin(); if (!lbOn() && !(LB_URL && S.lb && S.lb.on && S.lb.removed)) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
   try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),mp:S.mp?1:0,cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
-    .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); } }).catch(function(){}); } catch(e){}
+    .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); if (d.locked) mpLock(); } else if (d && d.ok){ if (S.lb.removed){ S.lb.removed=false; save(); } if (S.mpLocked) mpUnlock(); } }).catch(function(){}); } catch(e){}
 }
 function lbFetch(cat){
   if (!LB_URL) return; lbCat=cat||lbCat; lbBusy=true; lbErr=""; lastSheet=""; renderSheet();
@@ -2877,8 +2878,12 @@ function alOn(){ return cbOn(); }
    S.mpOn: multiplayer features shown (alliances, invasions, PvP); off = the classic single-player game. S.wcOn: world chat shown.
    S.mp: this save is on the multiplayer high scores. Set (after a warning) by founding, applying to or joining an alliance, invasions or PvP. Never goes back.
    S.mpIntro: the first-open explanation was answered. S.mpGrace: a player already in an alliance made their one free choice. */
-function mpShown(){ return S.mpOn!==false; }
-function wcShown(){ return S.wcOn!==false; }
+function mpShown(){ return !S.mpLocked && S.mpOn!==false; }
+function wcShown(){ return !S.mpLocked && S.wcOn!==false; }
+// An account an admin removed from the high scores is locked to single player: the server refuses it alliances, invasions, PvP and world chat.
+// The server says so ({locked:1}) and the phone switches those features off until the account is restored (the next score save clears it).
+function mpLock(){ if (S.mpLocked) return; S.mpLocked=1; S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); S.alAcad=false; S.alBld=0; if (S.pvp) { try { pvClear(); } catch(e){} } save(); lastSheet=""; lastView=""; try { renderDock(); refresh(); } catch(e){} toast("This account is locked to single player"); }
+function mpUnlock(){ if (!S.mpLocked) return; S.mpLocked=0; save(); lastSheet=""; lastView=""; try { renderDock(); refresh(); } catch(e){} toast("Multiplayer is available to this account again"); }
 var MP_ACTS={"al-create":"Founding an alliance", "al-apply":"Applying to an alliance", "iv-optin":"Joining invasions", "iv-find":"Launching an invasion", "pv-create":"Starting a PvP match", "pv-join":"Joining a PvP match"};
 var mpPending=null, mpGraceAsked=false;
 function mpGo(why){ if (!S.mp){ S.mp=true; S.mpWhy=why||"chose"; S.mpAt=Date.now(); save(); lbData={}; lbLastSync=0; mpListMe(); } mpTell(); }
@@ -2891,7 +2896,7 @@ function mpInAlliance(){ return !!(alMine() || S.alMember); }
 function mpNeedsGrace(){ return !S.mp && !S.mpGrace && mpInAlliance(); }
 function alMine(){ return ALS.d && ALS.d.member && ALS.d.al ? ALS.d.al : null; }
 function alPost(path, body){ var b={name:S.cloud.name, token:S.cloud.token}; for (var k in body) b[k]=body[k];
-  return cbPost(path,b).then(function(r){ return r.json().then(function(d){ if (!r.ok && !d.error) d.error="Server error"; return d; }); }); }
+  return cbPost(path,b).then(function(r){ return r.json().then(function(d){ if (!r.ok && !d.error) d.error="Server error"; if (d && d.locked) mpLock(); return d; }); }); }
 function alUnread(){ var al=alMine(); if (!al) return 0; var seen=S.alSeen||0, n=0; ALS.chat.forEach(function(c){ if (c.id>seen && !c.sys && c.name!==S.cloud.name) n++; }); return n; }
 function alSync(){
   if (!alOn() || ALS.busy) return; ALS.busy=true; ALS.last=Date.now();
@@ -3471,7 +3476,7 @@ function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() &&
 var WCH={lines:[], top:0, last:0, busy:false, mutedUntil:0, err:"", more:false, oldBusy:false};
 function wcUnread(){ var seen=S.wcSeen||0, me=S.cloud&&S.cloud.name, n=0; WCH.lines.forEach(function(l){ if (l.id>seen && l.name!==me && !l.sys) n++; }); return n; }
 function wcSync(){
-  if (WCH.busy || !cbOn()) return; WCH.busy=true;
+  if (WCH.busy || !cbOn() || S.mpLocked) return; WCH.busy=true;
   var firstLoad=!WCH.top;
   alPost("/wc/sync",{since:WCH.top}).then(function(d){ WCH.busy=false; WCH.last=Date.now(); if (d.error){ WCH.err=d.error; renderDock(); return; } WCH.err="";
     if (firstLoad) WCH.more=(d.lines||[]).length>=80; // a full first page means there may be older messages
@@ -6707,7 +6712,7 @@ function pvPost(path, body){
   var my=++PV.seq;
   return fetch(LB_URL+"/pvp/"+path,{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), cache:"no-store"})
     .then(function(r){ return r.json().catch(function(){ return {error:"Server error "+r.status}; }).then(function(j){ j._st=r.status; return j; }); })
-    .then(function(j){ if (j.view && my>PV.got){ PV.got=my; pvTake(j.view); } return j; },
+    .then(function(j){ if (j && j.locked) mpLock(); if (j.view && my>PV.got){ PV.got=my; pvTake(j.view); } return j; },
           function(){ return {error:"Can’t reach the server. Check your connection.", _st:0}; });
 }
 function pvTake(v){
@@ -8283,7 +8288,7 @@ function renderSheetCore(){
       '<div class="btnrow"><button class="btn ghost small" data-act="force-update">Update now</button></div><div class="hint">Gets the newest version of the game and reloads. Your save is not touched.</div>'+
       '<div class="sub" id="storstat">'+storageStatus()+'</div>'+
       '<div><div class="h3" style="margin-bottom:6px">Multiplayer</div><div class="speeds"><button data-act="mp-set" data-v="on" aria-pressed="'+mpShown()+'">On</button><button data-act="mp-set" data-v="off" aria-pressed="'+!mpShown()+'">Off: single player</button></div>'+
-        '<div class="hint">Off hides alliances, invasions and PvP. Your high scores: <b>'+(S.mp?'multiplayer boards (for good)':'single-player boards')+'</b>.</div></div>'+
+        (S.mpLocked?'<div class="hint" style="color:var(--bad,#c0392b)">This account was removed from the high scores, so it is locked to single player: no alliances, invasions, PvP or world chat.</div>':'')+'<div class="hint">Off hides alliances, invasions and PvP. Your high scores: <b>'+(S.mp?'multiplayer boards (for good)':'single-player boards')+'</b>.</div></div>'+
       (alMine()?'<div><div class="h3" style="margin-bottom:6px">Watchtower alerts</div>'+wtTypeBtns()+'</div>':'')+
       '<div><div class="h3" style="margin-bottom:6px">World chat</div><div class="speeds"><button data-act="wc-set" data-v="on" aria-pressed="'+wcShown()+'">Shown</button><button data-act="wc-set" data-v="off" aria-pressed="'+!wcShown()+'">Hidden</button></div></div>'+
       '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
@@ -8684,7 +8689,7 @@ document.addEventListener("click",function(e){
   if (act==="mp-intro"){ var mpwc=document.getElementById("mpiwc"); S.mpIntro=1; S.mpOn = a.dataset.v==="on"; if (!S.mpOn && mpwc) S.wcOn=!mpwc.checked; save(); closeSheet(); lastView=""; refresh(); renderDock();
     toast(S.mpOn?"Multiplayer is on. You can switch any time in Settings":"Single player it is. You can switch any time in Settings");
     if (mpNeedsGrace()) setTimeout(function(){ openSheet({kind:"mpgrace"}); },400); return; }
-  if (act==="mp-set"){ S.mpOn = a.dataset.v==="on"; if (!S.mpOn) S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); renderDock(); if (!S.mpOn && mpNeedsGrace()) openSheet({kind:"mpgrace"}); return; }
+  if (act==="mp-set"){ if (S.mpLocked){ toast("This account is locked to single player"); return; } S.mpOn = a.dataset.v==="on"; if (!S.mpOn) S.cities.forEach(function(c){ c.alAcad=false; c.alBld=0; }); save(); lastSheet=""; renderSheet(); lastView=""; refresh(); renderDock(); if (!S.mpOn && mpNeedsGrace()) openSheet({kind:"mpgrace"}); return; }
   if (act==="wc-set"){ S.wcOn = a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); renderDock(); return; }
   if (act==="mp-grace-go"){ S.mpGrace=1; mpGo("alliance"); closeSheet(); toast("You stay in your alliance, on the multiplayer high scores"); return; }
   if (act==="mp-grace-leave"){ var ga=alMine(); if (!ga){ ALS.last=0; toast("Checking your alliance\u2026 try again in a moment"); return; }
@@ -8883,8 +8888,8 @@ document.addEventListener("click",function(e){
     if (act==="al-movehere"){ alDo("/al/move",{what:"me", x:+a.dataset.x, y:+a.dataset.y},"Your kingdom moved"); return; }
     if (act==="al-help"){ if (ALS.helping) return; ALS.helping=true; alPost("/al/help",{}).then(function(d){ ALS.helping=false; if (d.error) toast(d.error); else toast(d.helped?"You helped "+d.helped+" project"+(d.helped>1?"s":""):"Nothing to help right now"); ALS.last=0; alSync(); }).catch(function(){ ALS.helping=false; toast("Couldn\u2019t reach the server"); }); return; }
     if (act==="al-create"){ var an=document.getElementById("alname"), at2=document.getElementById("altag"), ad=document.getElementById("aldesc");
-      alDo("/al/create",{alName:an?an.value:"", tag:at2?at2.value:"", desc:ad?ad.value:""},"Alliance founded"); return; }
-    if (act==="al-apply"){ var am=document.getElementById("alappmsg"); alDo("/al/apply",{aid:a.dataset.aid, msg:am?am.value:""},"Application sent"); return; }
+      alDo("/al/create",{alName:an?an.value:"", tag:at2?at2.value:"", desc:ad?ad.value:"", lid:lbOn()?S.lb.id:undefined, lt:lbOn()?S.lb.token:undefined},"Alliance founded"); return; }
+    if (act==="al-apply"){ var am=document.getElementById("alappmsg"); alDo("/al/apply",{aid:a.dataset.aid, msg:am?am.value:"", lid:lbOn()?S.lb.id:undefined, lt:lbOn()?S.lb.token:undefined},"Application sent"); return; }
     if (act==="al-unapply"){ alDo("/al/unapply",{aid:a.dataset.aid},"Application withdrawn"); return; }
     if (act==="al-accept"){ alDo("/al/accept",{who:a.dataset.who},a.dataset.who+" joined"); return; }
     if (act==="al-reject"){ alDo("/al/reject",{who:a.dataset.who},"Application turned down"); return; }
@@ -9178,9 +9183,9 @@ document.addEventListener("click",function(e){
     lastSheet=""; renderSheet(); return; }
   if (act==="pv-create" || act==="pv-join"){ if (pvWhy() || PV.busy || pvOn()) return; var pc=document.getElementById("pvcity"), pci=pc?+pc.value:S.cur, psn=pvSnap(pci);
     if (!sumT(psn.troops)){ PV.err="That city has no troops to bring"; lastView=""; refresh(); return; }
-    if (act==="pv-create"){ pvStart("create", {snap:psn, rid:pvId().id, rtok:pvId().token}, pci); return; }
+    if (act==="pv-create"){ pvStart("create", {snap:psn, rid:pvId().id, rtok:pvId().token, lid:S.lb&&S.lb.id, cn:cbOn()?S.cloud.name:undefined, ct:cbOn()?S.cloud.token:undefined}, pci); return; }
     var pcd=(PV.code||"").replace(/[^A-Z0-9]/g,""); if (pcd.length!==6){ PV.err="Match codes are 6 letters and numbers"; lastView=""; refresh(); return; }
-    pvStart("join", {code:pcd, snap:psn, rid:pvId().id, rtok:pvId().token}, pci); return; }
+    pvStart("join", {code:pcd, snap:psn, rid:pvId().id, rtok:pvId().token, lid:S.lb&&S.lb.id, cn:cbOn()?S.cloud.name:undefined, ct:cbOn()?S.cloud.token:undefined}, pci); return; }
   if (act==="pv-board"){ pvBoardLoad(true); openSheet({kind:"pvboard"}); return; }
   if (act==="pv-newid"){ S.pvpId=null; pvId(); PV.idClash=false; PV.err=""; PV.board.at=0; save(); toast("Fresh PvP rating: you start again at 1,000"); lastView=""; refresh(); return; }
   if (act==="pv-ready"){ if (!pvOn() || !PV.v) return; var prm=PV.v.players[PV.v.me]||{}; pvPost("ready", pvWith({ready:!prm.ready})).then(function(j){ PV.err=j.error||""; lastView=""; refresh(); }); return; }
