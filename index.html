@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.103";
+var APP_VERSION = "0.1.105";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4682,8 +4682,9 @@ ledger.innerHTML = RES.map(function(k){ return '<div class="res" title="'+RNAME[
 function troopList(t){ var p=[]; for (var i=0;i<12;i++) if (t[i]>0) p.push(fmt(t[i])+" "+uname(i,t[i])); return p.join(", ")||"no troops"; }
 function marchHeroName(m){ if (!m.hero) return ""; var c=S.cities[cityIndex(m.city)], hs=(c&&c.heroes)||[]; for (var i=0;i<hs.length;i++) if (hs[i].id===m.hero) return hs[i].name; var h=heroById(m.hero); return h?h.name:""; }
 function marchSummary(m){
-  var bits=[fmt(sumT(m.t))+" troops: "+troopList(m.t)], hn=marchHeroName(m), carry={}; if (m.rep) bits.push("repeating");
-  if (hn) bits.push("led by "+hn); else if (m.mission!=="transport" && m.mission!=="scout" && m.mission!=="reinforce" && m.mission!=="allyguard" && m.mission!=="hide") bits.push("no hero");
+  var bits=[], hn=marchHeroName(m), carry={}; // the leading hero comes first, so marches are easy to tell apart at a glance
+  if (hn) bits.push("Led by "+hn); else if (m.mission!=="transport" && m.mission!=="scout" && m.mission!=="reinforce" && m.mission!=="allyguard" && m.mission!=="hide") bits.push("No hero");
+  bits.push(fmt(sumT(m.t))+" troops: "+troopList(m.t)); if (m.rep) bits.push("repeating");
   RES.forEach(function(k){ var n=((m.cargo&&m.cargo[k])||0)+((m.loot&&m.loot[k])||0); if (n>0) carry[k]=n; });
   var cs=RES.filter(function(k){ return carry[k]; }).map(function(k){ return fmt(carry[k])+" "+RNAME[k].toLowerCase(); });
   if (cs.length) bits.push((m.phase==="back"?"bringing home ":"carrying ")+cs.join(", "));
@@ -6189,7 +6190,7 @@ function bfMarchPanel(){
     var what=m.back?'Returning from '+nm:(m.kind==="reinforce"?'Reinforcing ':m.kind==="scout"?'Scouting ':'Attacking ')+nm;
     h+='<div class="bfm"><div class="bfmh"><b>'+what+'</b><span class="qtime">'+bfMin(Math.max(0,m.arr-bf.t))+'</span></div>'+
       '<div class="bfbar"><span style="width:'+Math.round(f*100)+'%"></span></div>'+
-      '<p class="dur" style="margin:2px 0">'+fmt(sumT(m.t))+' troops: '+esc(bfPresetText({t:m.t}))+'.'+(hn?' Led by '+esc(hn)+'.':'')+' '+(m.back?'Home':'Lands')+' at '+bfMin(m.arr)+' on the battle clock.</p>'+
+      '<p class="dur" style="margin:2px 0">'+(hn?'Led by '+esc(hn)+'. ':'')+fmt(sumT(m.t))+' troops: '+esc(bfPresetText({t:m.t}))+'.'+' '+(m.back?'Home':'Lands')+' at '+bfMin(m.arr)+' on the battle clock.</p>'+
       '<div class="btnrow">'+(m.back?'':'<button class="btn ghost small" data-act="bf-mrecall" data-m="'+m.id+'">Recall</button>')+
       '<button class="btn ghost small" data-act="bf-hasten" data-m="'+m.id+'"'+(sp>0?'':' disabled')+'>Speed up ('+sp+')</button></div></div>'; });
   var held=[]; bf.b.forEach(function(B,bi){ if (B.gar[0] && sumT(B.gar[0])) held.push({bi:bi, n:sumT(B.gar[0])}); });
@@ -8406,7 +8407,7 @@ function renderSheetCore(){
     var hr=heroById(sheetFor.id);
     if (!hr){ closeSheet(); return; }
     var isM = S.mayor===hr.id, need=xpNeed(hr.level);
-    var renameRow = hr.fixedName ? '<p class="hint">'+esc(hr.name)+' keeps this name.</p>' : hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
+    var renameRow = hr.fixedName ? '<p class="hint">'+esc(hr.name)+' keeps this name.</p>' : hr.tier==="queen" ? '<div><label class="sub" for="hname">Name</label><div style="display:flex;align-items:center;gap:6px"><b>Queen</b><input type="text" id="hname" maxlength="22" style="flex:1" value="'+esc(hr.name.replace(/^Queen\s+/i,""))+'"></div></div>' : hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
     h='<div class="head">'+shield(hr,48)+'<div><h2 id="hname-h">'+esc(hr.name)+'</h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase():'')+'</div></div></div>';
     h+=renameRow;
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
@@ -9403,7 +9404,7 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.pfield==="name"){ S.presets[sheetFor.p].name=e.target.value.trim()||("Preset "+(sheetFor.p+1)); save(); }
   if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); updateWaveInfo(); }
   if (e.target.id==="wgap"){ waveDraft.gap=Math.max(0,+e.target.value||0); updateWaveInfo(); }
-  if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic" && !rh.fixedName){ rh.name=e.target.value.replace(/\s+/g," ").trim()||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
+  if (e.target.id==="hname" && sheetFor && sheetFor.kind==="hero"){ var rh=heroById(sheetFor.id); if (rh && rh.tier!=="historic" && !rh.fixedName){ var nv=e.target.value.replace(/\s+/g," ").trim(); if (rh.tier==="queen"){ nv=nv.replace(/^queen\s+/i,""); rh.name=nv?"Queen "+nv:rh.name; } else rh.name=nv||rh.name; var hh2=document.getElementById("hname-h"); if (hh2) hh2.textContent=rh.name; save(); } }
   if (e.target.id==="gname"){ var ng=forgeGear(); if (ng){ ng.nm=e.target.value.replace(/\s+/g," ").trim().slice(0,28)||undefined; if (!ng.nm) delete ng.nm; save(); } }
   if (e.target.dataset.gsn!=null && sheetFor && sheetFor.kind==="hero"){ var nh=heroById(sheetFor.id); if (nh){ nh.gearSetNames=nh.gearSetNames||[]; nh.gearSetNames[+e.target.dataset.gsn]=e.target.value.replace(/\s+/g," ").trim().slice(0,24); save(); } }
   if (e.target.dataset && e.target.dataset.wct && sheetFor && sheetFor.kind==="wc"){ var wcp2=wcById(sheetFor.id); if (wcp2){ var wpart=e.target.dataset.wct.split(":"), wdr=wcDraftOf(wcp2), wv=wdr.waves[+wpart[0]];
