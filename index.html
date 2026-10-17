@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.107";
+var APP_VERSION = "0.1.108";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -8189,7 +8189,7 @@ function updateTabArrows(){
 }
 function renderCityBar(){
   var el=document.getElementById("citybar"), h="";
-  if (S.cities.length>1) h='<button data-act="allcities" aria-pressed="false">All cities</button>'+S.cities.map(function(c,i){ return '<button data-act="city-go" data-city="'+i+'" aria-pressed="'+(i===S.cur)+'">'+esc(c.name)+(c.away?' (away)':'')+'</button>'; }).join("");
+  if (S.cities.length>1) h='<button data-act="allcities" aria-pressed="false" aria-label="All cities" title="All cities">ALL</button>'+S.cities.map(function(c,i){ return '<button data-act="city-go" data-city="'+i+'" aria-pressed="'+(i===S.cur)+'">'+esc(c.name)+(c.away?' (away)':'')+'</button>'; }).join("");
   if (el.innerHTML!==h) el.innerHTML=h;
 }
 function queueVis(){ var qd=document.querySelector(".queue"); if (qd) qd.style.display=(tab==="city"||tab==="bldg")?"":"none"; }
