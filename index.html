@@ -467,6 +467,8 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .avatar.f-rock{--fa:#4b3f36;--fb:#a89a8a;--fg:rgba(120,105,90,.5);--fc:#8c7d6d}
 .avatar.f-leaf{--fa:#2f6b2a;--fb:#9bd35a;--fg:rgba(130,200,70,.5);--fc:#4aa43a}
 .avatar.f-halloween{--fa:#3a1a52;--fb:#ff8a1f;--fg:rgba(255,130,30,.55);--fc:#ff8a1f}
+.avatar.f-warbringer{--fa:#5a1410;--fb:#c0392b;--fg:rgba(192,57,43,.55);--fc:#e0563f}
+.avatar.f-warlord{--fa:#141414;--fb:#d4af37;--fg:rgba(212,175,55,.6);--fc:#d4af37}
 .avatar.f-automaton{--fa:#46576a;--fb:#3fe0e8;--fg:rgba(63,224,232,.5);--fc:#3fc9d2}
 .avatar .fbadge{position:absolute;right:-9px;bottom:-9px;width:30px;height:30px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--fb,var(--brass));color:var(--fc,var(--grass))}
 .avatar .fbadge svg{width:18px;height:18px}
@@ -691,7 +693,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.119";
+var APP_VERSION = "0.1.121";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2881,7 +2883,7 @@ var BUFF_ITEM=0.20, BUFF_ITEM_MS=24*3600000;
 function hornOn(){ return S.hornUntil && S.gt<S.hornUntil; }
 function corsOn(){ return S.corsUntil && S.gt<S.corsUntil; }
 function bDefend(){ return (1+ACH_PCT*achLv("kill"))*(corsOn()?1+(S.corsPow||BUFF_ITEM):1)*(1+alFx("def")); }
-function bTrain(){ return 1+ACH_PCT*achLv("train"); }
+function bTrain(){ return (1+ACH_PCT*achLv("train"))*(awTrainOn()?1.15:1); } // Drill Sergeants: a lost war's consolation
 function bHeroXp(){ return (1+ACH_PCT*achLv("hero"))*(1+alFx("heroxp")); }
 function bItems(){ return 1+ACH_PCT*achLv("medal"); }
 function bResearch(){ return (1+ACH_PCT*achLv("tech"))*(1+alFx("research")); }
@@ -3111,7 +3113,7 @@ function viewAllianceList(mineId){
   h+=L.map(function(a){ var full=a.members>=a.cap;
     return '<div class="acity"><h4><span role="button" tabindex="0" class="link" data-act="al-view" data-aid="'+esc(a.id)+'">#'+a.rank[sk]+' '+esc(a.name)+'</span><span class="dur">['+esc(a.tag)+']</span><span style="flex:1"></span>'+(mineId===a.id?'<span class="badge">your alliance</span>':mineId?'':applied[a.id]?'<span class="dur">applied</span>':full?'<span class="dur">full</span>':'<button class="link strong" data-act="al-apply" data-aid="'+esc(a.id)+'">Apply</button>')+'</h4>'+
       (a.desc?'<p class="hint" style="margin:0 0 4px">'+esc(a.desc)+'</p>':'')+
-      '<div class="rgrid"><span>Members <b>'+a.members+'</b> <span class="dur">/ '+a.cap+' \u00b7 #'+a.rank.members+'</span></span><span>Prestige <b>'+fmt(a.prestige)+'</b> <span class="dur">#'+a.rank.prestige+'</span></span><span>Cities <b>'+fmt(a.cities)+'</b> <span class="dur">#'+a.rank.cities+'</span></span><span>Honor <b>'+fmt(a.honor)+'</b> <span class="dur">#'+a.rank.honor+'</span></span></div></div>'; }).join("")+'</div>';
+      '<div class="rgrid"><span>Members <b>'+a.members+'</b> <span class="dur">/ '+a.cap+' \u00b7 #'+a.rank.members+'</span></span><span>Prestige <b>'+fmt(a.prestige)+'</b> <span class="dur">#'+a.rank.prestige+'</span></span><span>Cities <b>'+fmt(a.cities)+'</b> <span class="dur">#'+a.rank.cities+'</span></span><span>Honor <b>'+fmt(a.honor)+'</b> <span class="dur">#'+a.rank.honor+'</span></span>'+(a.war&&(a.war.w||a.war.l||a.war.d)?'<span>Wars <b>'+a.war.w+'\u2013'+a.war.l+'</b> <span class="dur">rating '+a.war.rating+'</span>'+awTierBadge(a.war.tier)+'</span>':'')+'</div></div>'; }).join("")+'</div>';
   if (mineId) return h;
   h+='<details class="section det" data-det="alfound"'+(DET.alfound?' open':'')+'><summary><b>Found an alliance</b></summary>'+
     '<div><label class="sub" for="alname">Name</label><input id="alname" type="text" maxlength="24" placeholder="3 to 24 characters"></div>'+
@@ -3124,7 +3126,7 @@ function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
   if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
   var hp=ALS.d.help||{projects:[],canHelp:0};
-  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["reinf","Reinforce"+((al.reinf&&al.reinf.here&&al.reinf.here.length)?" ("+al.reinf.here.length+")":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["reinf","Reinforce"+((al.reinf&&al.reinf.here&&al.reinf.here.length)?" ("+al.reinf.here.length+")":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["war",!AW_ON?"War (coming soon)":"War"+((AWS.d&&AWS.d.war&&AWS.d.war.status!=="settled"&&AWS.d.war.status!=="over")?" \u2022":AWS.d&&AWS.d.round?" (sign-ups)":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
@@ -3144,6 +3146,8 @@ function viewMyAlliance(al){
     h+=alArenaHtml(al);
   } else if (sub==="reinf"){
     h+=alReinfHtml(al);
+  } else if (sub==="war"){
+    h+=AW_ON?awHtml(al):'<div class="section"><h3>Alliance War</h3><p class="hint">Coming soon: alliance against alliance, with attackers, defenders and goalkeepers, a wall to break, and rewards for the whole alliance.</p><div class="btnrow"><button class="btn" disabled>Coming soon</button></div></div>';
   } else if (sub==="trade"){
     h+=alTradeHtml(al);
   } else if (sub==="map"){
@@ -3681,6 +3685,167 @@ function arSend(){
     S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:ALS.aid, mid:r.mid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, ends:r.ends, st:"out"});
     save(); toast("Marching to the Arena: arrives in "+fmtT(r.arrive-Date.now())); closeSheet(); lastView=""; refresh(); ALS.last=0; alSync(); })
     .catch(function(){ ALS.arSending=false; if (gb) gb.disabled=false; toast("Couldn’t reach the server. Check your connection."); });
+}
+/* ---------- Alliance Wars (0.1.120): sign up, give troops, scout, attack, man the wall; the server runs the war ---------- */
+var AW_ON=false; // Alliance Wars are finished but parked: flip to true (and set AW_ON=1 on the Worker) to switch them on
+var AWS={d:null, last:0, busy:false, err:"", role:"attacker", city:-1, hero:0, give:{to:"", from:-1, t:{}}, atk:{target:"", t:{}}, wall:{t:{}}, open:{hours:"24", practice:false, quick:false}, applied:{}};
+var AW_ROLE={attacker:"Attacker", defender:"Defender", keeper:"Goalkeeper"}, AW_ROLE_TXT={attacker:"Attacks with the troops given to them. Can’t be attacked.", defender:"Only defends, with the troops given to them. No reinforcements.", keeper:"Attacks and defends, and can move troops onto the wall."};
+function awSync(){
+  if (!AW_ON) return;
+  if (AWS.busy || !alOn() || !mpShown()) return; AWS.busy=true;
+  alPost("/aw/sync",{}).then(function(d){ AWS.busy=false; AWS.last=Date.now(); if (d.error){ AWS.err=d.error; if (tab==="guild" && ALS.sub==="war") renderView(); return; } AWS.err=""; AWS.d=d; awApply(d.ledger||[]); if (tab==="guild" && ALS.sub==="war"){ lastView=""; renderView(true); } })
+    .catch(function(){ AWS.busy=false; AWS.last=Date.now(); });
+}
+function awPoll(){ if (!AW_ON || document.hidden || !alOn() || !mpShown() || !alMine()) return; var w=AWS.d&&AWS.d.war, live=w&&(w.status==="scouting"||w.status==="fighting"||w.status==="waiting");
+  var gap = tab==="guild" && ALS.sub==="war" ? (live?5000:15000) : (live?30000:120000); if (Date.now()-AWS.last>=gap) awSync(); }
+setInterval(awPoll, 1000);
+// what the server owes this game: troops back (and wounded to the Medic Camp), rewards. Each row once, then told to the server.
+function awApply(rows){
+  S.awDone=S.awDone||{}; var ids=[], msgs=[];
+  rows.forEach(function(r){ if (r.applied || S.awDone[r.id]) return; S.awDone[r.id]=Date.now(); ids.push(r.id);
+    if (r.kind==="back"){ var ci=cityIndex(r.city); if (ci<0) ci=S.cur; var c=S.cities[ci], n=0, w=0, wb=null;
+      withCity(ci,function(){ for (var i=0;i<12;i++){ S.troops[i]+=r.back[i]||0; n+=r.back[i]||0; } });
+      for (var j=0;j<12;j++){ var x=(r.wounded&&r.wounded[j])||0; if (x){ if (!wb) wb=woundBucket(c); wb.t[j]+=x; w+=x; } }
+      msgs.push((r.why||"Troops back from the war")+": "+fmt(n)+" home in "+c.name+(w?", "+fmt(w)+" wounded in the Medic Camp":"")); }
+    else if (r.kind==="reward"){ withCity(S.cur,function(){ for (var k in (r.res||{})) S.res[k]=(S.res[k]||0)+r.res[k]; }); for (var it in (r.items||{})) if (r.items[it]) S.items[it]=(S.items[it]||0)+r.items[it];
+      (r.frames||[]).forEach(function(f){ S.frames=S.frames||[]; if (S.frames.indexOf(f)<0) S.frames.push(f); msgs.push("New frame earned: "+((FRAMES[f]||{}).name||f)+"!"); });
+      msgs.push((r.why||"War reward")+". Rewards added to "+S.name+"."); }
+  });
+  var cut=Date.now()-30*864e5; for (var k2 in S.awDone) if (S.awDone[k2]<cut) delete S.awDone[k2];
+  if (!ids.length) return; save(); msgs.forEach(function(m){ note("alliance", m); }); flushFinished();
+  alPost("/aw/applied",{ids:ids}).catch(function(){});
+}
+function awTrainOn(){ return S.awTrain && S.awTrain>Date.now(); }
+function awDo(path, body, ok){ if (AWS.posting) return; AWS.posting=true;
+  return alPost(path, body||{}).then(function(r){ AWS.posting=false; if (r.error){ toast(r.error); return r; } if (ok) toast(ok); AWS.last=0; awSync(); return r; })
+    .catch(function(){ AWS.posting=false; toast("Couldn’t reach the server"); return {error:"net"}; }); }
+function awTroops(t){ var p=[]; (t||[]).forEach(function(n,i){ if (n) p.push(fmt(n)+" "+uname(i,n)); }); return p.join(", ")||"none"; }
+function awAgo(t){ var s=Math.max(0,(Date.now()-t)/1000); return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':Math.floor(s/3600)+' h ago'; }
+function awTime(ms){ return fmtT(Math.max(0,ms)); }
+function awInputs(prefix, have, vals){ return '<div class="tpgrid">'+U.map(function(u,i){ if (!have[i] && !vals[i]) return ''; return '<label class="dur" for="'+prefix+i+'">'+u.name+' <span class="dur">(have '+fmt(have[i]||0)+')</span></label><input type="number" min="0" inputmode="numeric" id="'+prefix+i+'" value="'+(vals[i]||"")+'" placeholder="0">'; }).join("")+'</div>'; }
+function awT(vals){ var t=Z12(); for (var i=0;i<12;i++) t[i]=Math.max(0,Math.floor(+vals[i]||0)); return t; }
+function awTierBadge(tier){ return tier?' <span class="badge" style="background:'+({Bronze:"#a8703c",Silver:"#8e9aa3",Gold:"#c9a227",Diamond:"#4fb9d6"}[tier]||"var(--brass)")+';color:#1f2421">'+tier+'</span>':''; }
+function awHtml(al){
+  var d=AWS.d; if (!d){ if (!AWS.busy) setTimeout(awSync,0); return '<div class="section"><p class="hint">'+(AWS.err?esc(AWS.err):'Loading the war room…')+'</p></div>'; }
+  var h='<div class="section"><div class="shead"><h3>Alliance War</h3><span class="dur">'+d.w+' won · '+d.l+' lost'+(d.d?' · '+d.d+' drawn':'')+' · rating '+d.rating+awTierBadge(d.tier)+'</span></div>'+
+    '<p class="hint">Two alliances, one hour of scouting, then one hour of fighting. Players sign up as <b>attackers</b>, <b>defenders</b> or <b>goalkeepers</b> (at least 6, split evenly), and the whole alliance gives troops to their garrisons and to the Alliance City wall. Troops really die (the normal wound rule applies) and survivors go back to whoever gave them. The wall can’t be hit until one of its defenders falls, and takes half damage until a second one does. Points are the prestige of everything killed; breaking the enemy wall is worth everything that ever stood on it.</p>'+
+    '<p class="dur" style="margin:0">Your war points: <b>'+fmt(d.me.pts)+'</b> over '+d.me.wars+' war'+(d.me.wars===1?'':'s')+' ('+d.me.wins+' won). Frames: Warbringer at 2,000'+(d.me.frames.indexOf("warbringer")>=0?' ✓':'')+', Warlord at 20,000'+(d.me.frames.indexOf("warlord")>=0?' ✓':'')+'.'+(d.me.wb?' Field Surgeons ready: +10 points of wounded rate after your next war.':'')+(awTrainOn()?' Drill Sergeants: troops train 15% faster until '+gameClockReal(S.awTrain)+'.':'')+'</p></div>';
+  // a loser's consolation still to pick
+  (d.ledger||[]).filter(function(r){ return r.console && !r.picked; }).forEach(function(r){
+    h+='<div class="section" style="border:1px solid var(--brass)"><h3>Consolation</h3><p class="hint">'+esc(r.why)+'. Pick one:</p><div class="btnrow"><button class="btn small" data-act="aw-console" data-id="'+r.id+'" data-pick="train">Drill Sergeants: troops train 15% faster for 7 days</button><button class="btn small ghost" data-act="aw-console" data-id="'+r.id+'" data-pick="wound">Field Surgeons: +10 points of wounded rate after your next war</button></div></div>'; });
+  var rd=d.round;
+  if (!rd) h+=awOpenHtml(d);
+  else if (rd.status==="signup") h+=awSignupHtml(d, rd);
+  else if (rd.status==="queued") h+='<div class="section"><h3>Looking for an opponent</h3><p class="hint">Sign-ups are closed. The war starts as soon as another alliance is ready (within a day, or every troop given comes back).</p>'+(d.lead?'<div class="btnrow"><button class="btn ghost small danger" data-act="aw-cancel">Call it off</button></div>':'')+'</div>';
+  if (d.war) h+=awWarHtml(d, d.war);
+  if (d.wars && d.wars.length) h+='<div class="section"><h3>Past wars</h3>'+d.wars.map(function(w){ return '<div class="bq"><span><b class="'+(w.res==="win"?'okc':w.res==="loss"?'badc':'')+'">'+(w.res==="win"?'Won':w.res==="loss"?'Lost':'Drew')+'</b> against '+esc(w.vs)+' ['+esc(w.tag)+']'+(w.practice?' <span class="dur">(practice)</span>':'')+'<br><span class="dur">'+fmt(w.pts)+' to '+fmt(w.opp)+'</span></span><span class="dur">'+alTime(w.at)+'</span></div>'; }).join("")+'</div>';
+  var recent=(d.ledger||[]).filter(function(r){ return r.kind==="reward"; }).slice(0,5);
+  if (recent.length) h+='<div class="section"><h3>Your war rewards</h3>'+recent.map(function(r){ return '<p class="dur" style="margin:2px 0">'+esc(r.why)+': '+esc(rewardText({res:r.res, items:r.items}))+'</p>'; }).join("")+'</div>';
+  return h;
+}
+function gameClockReal(ms){ var d=new Date(ms); return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function awOpenHtml(d){
+  if (!d.lead) return '<div class="section"><p class="hint">No war is going. The founder or an officer can open sign-ups here.</p></div>';
+  var o=AWS.open;
+  return '<div class="section"><h3>Start a war</h3><p class="hint">Open sign-ups for the alliance. When they close, the war starts as soon as another alliance is ready. A <b>practice war</b> is against a computer alliance built to match yours: any number can sign up, nothing dies for real and there are no rewards, so it’s for learning the ropes.</p>'+
+    '<div class="farmadd"><label class="dur" for="aw-hours">Sign-ups close in</label><select id="aw-hours">'+[["0.25","15 minutes"],["1","1 hour"],["2","2 hours"],["4","4 hours"],["8","8 hours"],["12","12 hours"],["24","24 hours"],["48","48 hours"]].map(function(x){ return '<option value="'+x[0]+'"'+(o.hours===x[0]?' selected':'')+'>'+x[1]+'</option>'; }).join("")+'</select></div>'+
+    '<label class="chk"><input type="checkbox" id="aw-practice"'+(o.practice?' checked':'')+'> Practice war against the computer</label>'+(o.practice?'<label class="chk"><input type="checkbox" id="aw-quick"'+(o.quick?' checked':'')+'> Quick: 5 minutes of scouting, 10 of fighting</label>':'')+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn" data-act="aw-open">Open sign-ups</button></div></div>';
+}
+function awSignupHtml(d, rd){
+  var mine=rd.sign.filter(function(s){ return s.me; })[0], h='<div class="section"><div class="shead"><h3>'+(rd.practice?'Practice war sign-ups':'War sign-ups')+'</h3><span class="dur">close in <b class="arleft" data-ends="'+rd.closes+'">'+awTime(rd.closes-Date.now())+'</b></span></div>';
+  h+='<p class="'+(rd.why?'why':'okc')+'" style="margin:0 0 6px">'+(rd.why?esc(rd.why):'Ready: '+rd.sign.length+' players, split evenly.')+'</p>';
+  ["attacker","defender","keeper"].forEach(function(role){ var L=rd.sign.filter(function(s){ return s.role===role; });
+    h+='<div class="h3" style="margin-top:6px">'+AW_ROLE[role]+'s ('+L.length+')</div><p class="dur" style="margin:0 0 2px">'+AW_ROLE_TXT[role]+'</p>'+(L.length?L.map(function(s){
+      return '<div class="bq"><span><b>'+esc(s.name)+'</b>'+(s.me?' <span class="dur">(you)</span>':'')+'<br><span class="dur">'+esc(s.city)+(s.hero?', led by '+esc(s.hero):', no hero')+' · '+fmt(s.n)+' troops given</span></span>'+
+        (d.lead?'<select data-awmove="'+esc(s.name)+'" aria-label="Move '+esc(s.name)+'">'+["attacker","defender","keeper"].map(function(r){ return '<option value="'+r+'"'+(r===s.role?' selected':'')+'>'+AW_ROLE[r]+'</option>'; }).join("")+'</select>':'')+'</div>'; }).join(""):'<p class="dur">Nobody yet.</p>'); });
+  h+='<p class="dur" style="margin-top:6px">The wall: '+fmt(rd.wallN)+' troops given.</p></div>';
+  // my sign-up
+  if (AWS.city<0 || !S.cities[AWS.city]) AWS.city=S.cur; var hs0=withCity(AWS.city,function(){ return S.heroes.slice(); });
+  if (mine){ if (!AWS.inited){ AWS.role=mine.role; AWS.inited=true; } }
+  h+='<div class="section"><h3>'+(mine?'Your sign-up':'Sign up')+'</h3><p class="hint">Your garrison fights with the research and buffs of the city you pick here, led by the hero you pick (their stats when the war starts). Troops come from anyone in the alliance, you included, below.</p>'+
+    '<div class="farmadd"><label class="dur" for="aw-role">Role</label><select id="aw-role">'+["attacker","defender","keeper"].map(function(r){ return '<option value="'+r+'"'+(r===AWS.role?' selected':'')+'>'+AW_ROLE[r]+'</option>'; }).join("")+'</select>'+
+    '<label class="dur" for="aw-city">City</label><select id="aw-city">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===AWS.city?' selected':'')+'>'+esc(c.name)+'</option>'; }).join("")+'</select></div>'+
+    '<div class="farmadd"><label class="dur" for="aw-hero">Hero</label><select id="aw-hero"><option value="0">No hero</option>'+hs0.map(function(x){ return '<option value="'+x.id+'"'+(x.id===AWS.hero?' selected':'')+'>'+esc(x.name)+', Atk '+hs(x,"atk")+', Int '+hs(x,"int")+'</option>'; }).join("")+'</select></div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="aw-signup">'+(mine?'Update':'Sign up')+'</button>'+(mine?'<button class="btn ghost small" data-act="aw-drop">Drop out</button>':'')+'</div></div>';
+  // give troops
+  var targets=rd.sign.map(function(s){ return s.name; }).concat(["wall"]); if (targets.indexOf(AWS.give.to)<0) AWS.give.to=targets[0];
+  if (AWS.give.from<0 || !S.cities[AWS.give.from]) AWS.give.from=S.cur; var have=withCity(AWS.give.from,function(){ return S.troops.slice(); });
+  h+='<div class="section"><h3>Give troops</h3><p class="hint">They leave your city now and come back after the war (what’s left of them; the fallen are wounded at the normal rate). You can take them back until sign-ups close.'+(rd.practice?' This is a practice war: they all come back.':'')+'</p>'+
+    '<div class="farmadd"><label class="dur" for="aw-to">To</label><select id="aw-to">'+targets.map(function(x){ return '<option value="'+esc(x)+'"'+(x===AWS.give.to?' selected':'')+'>'+(x==="wall"?'The Alliance City wall':esc(x))+'</option>'; }).join("")+'</select>'+
+    '<label class="dur" for="aw-from">From</label><select id="aw-from">'+S.cities.map(function(c,i){ return '<option value="'+i+'"'+(i===AWS.give.from?' selected':'')+'>'+esc(c.name)+'</option>'; }).join("")+'</select></div>'+
+    awInputs("aw-g", have, AWS.give.t)+'<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="aw-give">Give</button></div>';
+  if (rd.mine.length) h+='<div class="h3" style="margin-top:8px">What you’ve given</div>'+rd.mine.map(function(g){ return '<div class="bq"><span>To <b>'+(g.to==="wall"?'the wall':esc(g.to))+'</b><br><span class="dur">'+awTroops(g.t)+'</span></span><div class="qacts"><button class="link" data-act="aw-take" data-id="'+g.id+'">Take back</button></div></div>'; }).join("");
+  h+='</div>';
+  if (d.lead) h+='<div class="section"><div class="btnrow"><button class="btn small" data-act="aw-close"'+(rd.why?' disabled':'')+'>'+(rd.practice?'Start the practice war now':'Close sign-ups now')+'</button><button class="btn ghost small danger" data-act="aw-cancel">Call it off</button></div></div>';
+  return h;
+}
+function awWarHtml(d, w){
+  var now=Date.now(), st=w.status, me=w.me, mg=w.us.gar.filter(function(g){ return g.k===me.key; })[0];
+  var phase = st==="waiting" ? 'starts in <b class="arleft" data-ends="'+w.t0+'">'+awTime(w.t0-now)+'</b>' : st==="scouting" ? 'scouting, the fight starts in <b class="arleft" data-ends="'+w.scoutEnd+'">'+awTime(w.scoutEnd-now)+'</b>' : st==="fighting" ? 'fighting, <b class="arleft" data-ends="'+w.endAt+'">'+awTime(w.endAt-now)+'</b> left' : 'over';
+  var h='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>'+(w.practice?'Practice war':'War')+' against '+esc(w.them.name)+' ['+esc(w.them.tag)+']</h3><span class="dur">'+phase+'</span></div>'+
+    '<div class="rgrid"><span>'+esc(w.us.name)+' <b>'+fmt(w.us.pts)+'</b></span><span>'+esc(w.them.name)+' <b>'+fmt(w.them.pts)+'</b></span></div>'+
+    (w.winner?'<p class="'+(w.winner==="us"?'okc':w.winner==="them"?'badc':'')+'" style="margin:6px 0 0"><b>'+(w.winner==="us"?'Victory!':w.winner==="them"?'Defeat.':'A draw.')+'</b> Troops and rewards are on their way.</p>':'')+'</div>';
+  // the enemy
+  var canAtk = st==="fighting" && mg && mg.role!=="defender";
+  h+='<div class="section"><h3>The enemy</h3><p class="hint">Scouting shows a target’s troops as they were at that moment (you have '+me.scoutsLeft+' scout'+(me.scoutsLeft===1?'':'s')+' left).</p>';
+  var tw=w.them.wall; h+='<div class="bq"><span><b>Their wall</b> <span class="dur">level '+tw.lv+'</span><br><span class="dur">'+(tw.broken?'Broken!':tw.rule==="closed"?'Can’t be hit until one of their defenders falls':tw.rule==="half"?'Takes half damage until a second defender falls':'Open to attack')+(tw.intel?' · scouted '+alAgo(tw.intel.at)+': '+awTroops(tw.intel.t)+(tw.intel.allies&&tw.intel.allies.length?'; goalkeepers on it: '+tw.intel.allies.map(function(a){ return esc(a.name)+' ('+awTroops(a.t)+')'; }).join("; "):''):'')+'</span></span><div class="qacts">'+
+    (st!=="over"&&me.scoutsLeft>0&&st!=="waiting"?'<button class="link" data-act="aw-scout" data-t="wall">Scout</button>':'')+(canAtk&&!tw.broken&&tw.rule!=="closed"?'<button class="link strong" data-act="aw-aim" data-t="wall">Attack</button>':'')+'</div></div>';
+  w.them.gar.forEach(function(g){ if (g.role==="attacker") return;
+    h+='<div class="bq"><span><b>'+esc(g.name)+'</b> <span class="dur">'+AW_ROLE[g.role]+'</span>'+(g.fallen?' <span class="badc">fallen</span>':'')+'<br><span class="dur">'+(g.intel?'Scouted '+awAgo(g.intel.at)+(g.intel.hero?', led by '+esc(g.intel.hero):'')+': '+awTroops(g.intel.t):'Not scouted')+' · killed '+fmt(g.kills)+' pts</span></span><div class="qacts">'+
+      (st!=="over"&&!g.fallen&&me.scoutsLeft>0&&st!=="waiting"?'<button class="link" data-act="aw-scout" data-t="'+esc(g.k)+'">Scout</button>':'')+(canAtk&&!g.fallen?'<button class="link strong" data-act="aw-aim" data-t="'+esc(g.k)+'">Attack</button>':'')+'</div></div>'; });
+  var ea=w.them.gar.filter(function(g){ return g.role==="attacker"; }); if (ea.length) h+='<p class="dur">Their attackers: '+ea.map(function(g){ return esc(g.name)+' ('+fmt(g.kills)+' pts)'; }).join(", ")+'.</p>';
+  h+='</div>';
+  // my garrison and actions
+  if (mg){
+    h+='<div class="section"><h3>Your garrison ('+AW_ROLE[mg.role]+')</h3><p class="dur" style="margin:0">'+awTroops(mg.t)+(mg.hero?' · led by '+esc(mg.hero):'')+' · killed '+fmt(mg.kills)+' pts, lost '+fmt(mg.lost)+' pts</p>'+
+      (mg.out&&mg.out.length?mg.out.map(function(m){ return '<p class="dur" style="margin:2px 0">'+fmt(m.n)+' troops '+(m.back?'coming back':'marching on '+(m.target==="wall"?'their wall':esc(((w.them.gar.filter(function(g){ return g.k===m.target; })[0])||{}).name||"?")))+', '+awTime(m.arr-now)+'</p>'; }).join(""):'');
+    if (canAtk){ var tg=AWS.atk.target, tn=tg==="wall"?"their wall":((w.them.gar.filter(function(g){ return g.k===tg; })[0])||{}).name;
+      h+='<div class="h3" style="margin-top:8px">Attack'+(tn?' '+esc(tn):'')+'</div>'+(tg?awInputs("aw-a", mg.t, AWS.atk.t)+'<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="aw-attack">Send</button><button class="btn ghost small" data-act="aw-aim" data-t="">Cancel</button></div><p class="dur">They land in about '+(w.quick?'15 seconds':'a minute')+'.</p>':'<p class="dur">Tap Attack next to a target above.</p>'); }
+    if (mg.role==="keeper" && (st==="scouting"||st==="fighting") && !w.us.wall.broken){ var on=(w.us.wall.allies||[]).filter(function(a){ return a.key===me.key; })[0];
+      h+='<div class="h3" style="margin-top:8px">The wall</div><p class="dur">Troops on the wall fight with your research and hero, and don’t use a march.'+(on?' On it now: '+awTroops(on.t)+'.':'')+'</p>'+awInputs("aw-w", awAdd(mg.t, on?on.t:Z12()), AWS.wall.t)+
+        '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="aw-wall">Move onto the wall</button>'+(on?'<button class="btn ghost small" data-act="aw-wallback">Take off the wall</button>':'')+'</div>'; }
+    h+='</div>'; }
+  // our side
+  var uw=w.us.wall;
+  h+='<div class="section"><h3>Our side</h3><div class="bq"><span><b>Our wall</b> <span class="dur">level '+uw.lv+'</span><br><span class="dur">'+(uw.broken?'Broken':awTroops(uw.t)+(uw.allies&&uw.allies.length?'; goalkeepers on it: '+uw.allies.map(function(a){ return esc(a.name)+' ('+fmt(a.n)+')'; }).join(", "):''))+'</span></span></div>'+
+    w.us.gar.map(function(g){ return '<div class="bq"><span><b>'+esc(g.name)+'</b> <span class="dur">'+AW_ROLE[g.role]+'</span>'+(g.fallen?' <span class="badc">fallen</span>':'')+'<br><span class="dur">'+fmt(g.n)+' of '+fmt(g.t0n)+' troops · killed '+fmt(g.kills)+' pts, lost '+fmt(g.lost)+'</span></span></div>'; }).join("")+'</div>';
+  if (w.reps && w.reps.length) h+='<div class="section"><h3>Battles</h3>'+w.reps.map(function(r,i){ return '<div class="bq"><span><b class="'+(r.ours?(r.won?'okc':'badc'):(r.won?'badc':'okc'))+'">'+esc(r.from)+(r.won?' broke ':' hit ')+esc(r.target)+'</b>'+(r.half?' <span class="dur">(half damage)</span>':'')+(r.broke?' <span class="'+(r.ours?'okc':'badc')+'">wall broken!</span>':'')+'<br><span class="dur">'+r.rounds+' rounds · killed '+fmt(r.kPts)+' pts, lost '+fmt(r.lPts)+' pts · '+alTime(r.t)+'</span></span>'+(r.cap?'<div class="qacts"><button class="link strong" data-act="aw-ww" data-i="'+i+'">War Wizard</button></div>':'')+'</div>'; }).join("")+'</div>';
+  if (w.log && w.log.length) h+='<details class="section det" data-det="awlog"'+(DET.awlog?' open':'')+'><summary><b>War log</b></summary>'+w.log.map(function(l){ return '<p class="dur" style="margin:2px 0">'+alTime(l.t)+' '+esc(l.txt)+'</p>'; }).join("")+'</details>';
+  return h;
+}
+function awAdd(a,b){ return a.map(function(n,i){ return n+(b[i]||0); }); }
+function awAct(act, a){
+  var d=AWS.d; if (!d) return false;
+  if (act==="aw-open"){ awDo("/aw/open",{hours:+AWS.open.hours, practice:AWS.open.practice, quick:AWS.open.quick}, "Sign-ups are open"); return true; }
+  if (act==="aw-cancel"){ if (!confirm("Call off the war? Every troop given comes back.")) return true; awDo("/aw/cancel",{}, "Called off"); return true; }
+  if (act==="aw-close"){ awDo("/aw/close",{}, d.round&&d.round.practice?"The practice war has begun":"Sign-ups closed: looking for an opponent"); return true; }
+  if (act==="aw-signup"){ var ci=AWS.city<0?S.cur:AWS.city, pack=invCityPack(ci); awDo("/aw/signup",{role:AWS.role, city:S.cities[ci].id, hero:AWS.hero, pack:pack}, "Signed up as "+AW_ROLE[AWS.role].toLowerCase()); return true; }
+  if (act==="aw-drop"){ awDo("/aw/drop",{}, "You dropped out"); return true; }
+  if (act==="aw-give"){ var gi=AWS.give.from, t=awT(AWS.give.t); if (!t.some(function(n){ return n>0; })){ toast("Pick some troops"); return true; }
+    var short=withCity(gi,function(){ return t.some(function(n,i){ return n>S.troops[i]; }); }); if (short){ toast("Not enough troops in "+S.cities[gi].name); return true; }
+    var cid=S.cities[gi].id, back=function(){ withCity(cityIndex(cid),function(){ t.forEach(function(n,i){ S.troops[i]+=n; }); }); save(); };
+    withCity(gi,function(){ t.forEach(function(n,i){ S.troops[i]-=n; }); }); save();
+    alPost("/aw/give",{to:AWS.give.to, city:cid, t:t}).then(function(r){ if (r.error){ back(); toast(r.error); return; } AWS.give.t={}; toast("Given to "+(AWS.give.to==="wall"?"the wall":AWS.give.to)); AWS.last=0; awSync(); })
+      .catch(function(){ back(); toast("Couldn’t reach the server"); }); return true; }
+  if (act==="aw-take"){ awDo("/aw/take",{id:+a.dataset.id}, "Taken back: they’re on their way home"); return true; }
+  if (act==="aw-scout"){ awDo("/aw/scout",{target:a.dataset.t}, "Scouted"); return true; }
+  if (act==="aw-aim"){ AWS.atk.target=a.dataset.t; AWS.atk.t={}; lastView=""; renderView(true); return true; }
+  if (act==="aw-attack"){ var at=awT(AWS.atk.t); awDo("/aw/attack",{target:AWS.atk.target, t:at}, "Marching!").then(function(r){ if (r && !r.error){ AWS.atk.t={}; } }); return true; }
+  if (act==="aw-wall" || act==="aw-wallback"){ awDo("/aw/wall",{t:awT(AWS.wall.t), back:act==="aw-wallback"}, act==="aw-wall"?"Troops are on the wall":"Troops are off the wall").then(function(r){ if (r && !r.error) AWS.wall.t={}; }); return true; }
+  if (act==="aw-console"){ var pick=a.dataset.pick; awDo("/aw/console",{id:+a.dataset.id, pick:pick}).then(function(r){ if (r && r.ok){ if (pick==="train"){ S.awTrain=r.until; save(); toast("Drill Sergeants: troops train 15% faster for 7 days"); } else toast("Field Surgeons: ready for your next war"); } }); return true; }
+  if (act==="aw-ww"){ var rp=d.war&&d.war.reps[+a.dataset.i]; if (rp&&rp.cap) rpOpenCap(rp.cap, {sub:rp.from+" vs "+rp.target, mine:rp.ours?"A":"D"}); return true; }
+  return false;
+}
+function awChange(e){
+  var id=e.target.id||""; if (id.indexOf("aw-")!==0 && !(e.target.dataset && e.target.dataset.awmove)) return false;
+  if (e.target.dataset && e.target.dataset.awmove){ awDo("/aw/move",{who:e.target.dataset.awmove, role:e.target.value}, "Moved "+e.target.dataset.awmove); return true; }
+  var v=e.target.value;
+  if (id==="aw-hours"){ AWS.open.hours=v; return true; } if (id==="aw-practice"){ AWS.open.practice=e.target.checked; e.target.blur(); lastView=""; renderView(true); return true; } if (id==="aw-quick"){ AWS.open.quick=e.target.checked; return true; }
+  if (id==="aw-role"){ AWS.role=v; return true; } if (id==="aw-city"){ AWS.city=+v; AWS.hero=0; e.target.blur(); lastView=""; renderView(true); return true; } if (id==="aw-hero"){ AWS.hero=+v; return true; }
+  if (id==="aw-to"){ AWS.give.to=v; return true; } if (id==="aw-from"){ AWS.give.from=+v; e.target.blur(); lastView=""; renderView(true); return true; }
+  if (id.indexOf("aw-g")===0){ AWS.give.t[+id.slice(4)]=v; return true; } if (id.indexOf("aw-a")===0){ AWS.atk.t[+id.slice(4)]=v; return true; } if (id.indexOf("aw-w")===0){ AWS.wall.t[+id.slice(4)]=v; return true; }
+  return false;
 }
 /* the alliance map: the Alliance City and one square per member's kingdom */
 function alCs(M){ return M.cs||1; }
@@ -7554,6 +7719,7 @@ var COSM={ // cosmetics: look only, never changes how the game plays. Prices and
   frame:{bughunter:{name:"Bug Hunter", desc:"For the beta testers who hunted bugs", icon:"bug"}, fire:{name:"Fire", desc:"Flames round your picture", icon:"cfire"}, water:{name:"Water", desc:"A cool blue ring", icon:"cwater"}, rock:{name:"Rock", desc:"Solid grey stone", icon:"crock"}, leaf:{name:"Leaf", desc:"Fresh leaf green", icon:"cleaf"}, halloween:{name:"Halloween", desc:"Pumpkin orange and witch purple", icon:"cpump"}, automaton:{name:"Automaton", desc:"Steel with a cyan glow", icon:"cbot"}},
   city:{bughunter:{name:"Bug Hunter", desc:"A mossy castle with a ladybug on the gate"}, halloween:{name:"Halloween", desc:"Witch-hat towers and a pumpkin at the gate"}, automaton:{name:"Automaton", desc:"A clockwork castle with a glowing visor"}},
   march:{bughunter:{name:"Bug Hunter", desc:"A little bug marches for you"}, halloween:{name:"Halloween", desc:"A bat flutters ahead of your army"}, automaton:{name:"Automaton", desc:"A tin robot marches for you"}}};
+COSM.frame.warbringer={name:"Warbringer", desc:"Earned with 2,000 alliance-war points", icon:"rally"}; COSM.frame.warlord={name:"Warlord", desc:"Earned with 20,000 alliance-war points", icon:"crest"};
 var FRAMES=COSM.frame;
 var CPAL={bughunter:{bg:"#2f5a2a",w:"#a8d98a",d:"#6fa653",a:"#e8c34a"}, halloween:{bg:"#2b1a3a",w:"#8a68a8",d:"#5d4278",a:"#ff8a1f"}, automaton:{bg:"#26343d",w:"#b4c4d0",d:"#7d909e",a:"#3fe0e8"}};
 function cosCastleSvg(st, px){ // one castle drawing used on the alliance map, in the Me sheet and (as a picture) on the world map; original art
@@ -9336,6 +9502,7 @@ document.addEventListener("click",function(e){
   }
   if (act==="sar-up"){ sarUpgrade(); return; }
   if (act==="sar-summon"){ var sat=a.dataset.type; sarSummon(sat, +(ARL[sat]||0) || Math.min(sarState().lv, (sarState().best[sat]||0)+1)); return; }
+  if (act.indexOf("aw-")===0 && AW_ON && awAct(act,a)) return;
   if (act.indexOf("al-")===0){
     if (act==="al-cloud"){ DET.cloud=true; goPage("settings"); return; }
     if (act==="al-sub"){ if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.sub=a.dataset.v; ALS.armed=null; lastView=""; renderView(true); ALS.last=0; alSync(); if (ALS.sub==="list") alList(); return; }
@@ -9887,6 +10054,7 @@ document.addEventListener("click",function(e){
 });
 document.addEventListener("input",function(e){
   if (invInput(e)) return;
+  if (e.target.id && /^aw-[gaw]\d+$/.test(e.target.id)){ awChange(e); return; }
   if (e.target.id==="dtq"){ DT.q=e.target.value; var dl=document.getElementById("dtlist"); if (dl) dl.innerHTML=dtListHtml(); return; }
   if (e.target.id && e.target.id.indexOf("rf-")===0){ RF.t[+e.target.id.slice(3)]=e.target.value; return; }
   if (e.target.id && e.target.id.indexOf("tp-")===0){ TP.res[e.target.id.slice(3)]=e.target.value; tpPreview(); return; }
@@ -9936,6 +10104,7 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
 document.addEventListener("change",function(e){
+  if (AW_ON && awChange(e)) return;
   if (e.target.id==="tpto"){ TP.to=e.target.value; return; }
   if (e.target.id==="rfto"){ RF.to=e.target.value; lastView=""; renderView(true); return; }
   if (e.target.id==="rfcity"){ RF.city=+e.target.value; return; }
