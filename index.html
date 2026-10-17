@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.111";
+var APP_VERSION = "0.1.112";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2170,6 +2170,7 @@ function viewMap(){
     '<div class="finder"><div class="h3">Find nearest</div><select id="findtype">'+opts+'</select><select id="findlvl">'+lv+'</select><button class="btn small" data-act="map-find">Find</button>'+
     '<div class="legend">'+Object.keys(VTYPES).map(function(k){ return '<span><i style="background:'+VTYPES[k].col+'"></i>'+VTYPES[k].name+'</span>'; }).join("")+'<span><i style="background:#4a4541"></i>NPC</span><span><i style="background:#2c6763"></i>AI lord</span><span><i style="background:'+HC_COL[12]+'"></i>HC 12</span><span><i style="background:'+HC_COL[14]+'"></i>HC 14</span><span><i style="background:'+HC_COL[16]+'"></i>HC 16</span><span><i style="background:'+HC_COL[18]+'"></i>Atlantis</span><span><i style="background:var(--brass)"></i>Yours</span></div>'+
     '</div></div><p class="hint">Drag to pan, pinch or use + and \u2212 to zoom, tap the overview to jump. Historic cities sit on a grid: level 12s every 24 tiles, 14s and state capitals every 66, and Atlantis at the center (198, 198).</p></div>'+
+    occPanel()+
     '<div id="tileinfo"></div><div id="marchbox"></div><div class="section"><div class="act"><span class="dur">Every battle you fight is kept in Reports.</span><button class="btn ghost small" data-act="tab" data-tab="reports">Battle reports</button></div></div>';
 }
 function centerOn(x,y){ var c=document.getElementById("mapc"); if (!c) { mv.x=x; mv.y=y; return; } mv.x=x+0.5-c.clientWidth/mv.z/2; mv.y=y+0.5-c.clientHeight/mv.z/2; clampView(); }
@@ -2323,6 +2324,68 @@ function findNearest(type, lvl){
   }
   return best;
 }
+/* ---------- occupy flats: one tap sends a preset to the nearest free flats of a chosen level ---------- */
+function occSet(){ var o=S.occ=S.occ||{lvl:1,p:0,n:1}; o.lvl=Math.max(1,Math.min(10,+o.lvl||1)); o.p=Math.max(0,Math.min(S.presets.length-1,+o.p||0)); o.n=Math.max(1,Math.min(99,Math.floor(+o.n||1))); return o; }
+function occPendingHere(){ var me=C().id; return S.marches.filter(function(m){ return m.city===me && m.mission==="occupy" && (m.phase==="out"||m.phase==="wait"); }).length; }
+function occRoom(){ return Math.max(0, S.th-ownedIds().length-occPendingHere()); }
+function occTargeted(){ var s={}; S.marches.forEach(function(m){ if (m.mission==="occupy"||m.mission==="found") s[m.tile]=1; }); return s; }
+function findFlats(lvl, n){ // the n nearest free flats of this level that no army is already walking to
+  var home=S.map.home, skip=occTargeted(), c=[];
+  for (var r=1; r<Math.max(MAPW,MAPH); r++){
+    for (var dx=-r; dx<=r; dx++) for (var dy=-r; dy<=r; dy++){
+      if (Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;
+      var x=home[0]+dx, y=home[1]+dy; if (x<0||y<0||x>=MAPW||y>=MAPH) continue;
+      var q=tileAt(x,y); if (q.k!=="flat" || q.L!==lvl || S.map.owned[q.id] || skip[q.id]) continue;
+      c.push({q:q, d:dx*dx+dy*dy}); }
+    if (c.length>=n){ c.sort(function(a,b){ return a.d-b.d; }); if (r>Math.sqrt(c[n-1].d)+1) break; }
+  }
+  c.sort(function(a,b){ return a.d-b.d; }); return c.slice(0,n).map(function(e){ return e.q; });
+}
+function occInfoText(){
+  var rl=rallyLv(), free=Math.max(0,rl-rallyUsed());
+  return "Free marches: "+free+" of "+rl+". Room to hold: "+occRoom()+" (Town Hall "+S.th+", "+ownedIds().length+" held).";
+}
+function occPanel(){
+  var o=occSet(), pr=S.presets[o.p], lv="", pp="";
+  for (var i=1;i<=10;i++) lv+='<option value="'+i+'"'+(o.lvl===i?' selected':'')+'>Level '+i+'</option>';
+  S.presets.forEach(function(p,pi){ pp+='<option value="'+pi+'"'+(o.p===pi?' selected':'')+'>'+(pi+1)+'. '+esc(p.name)+(presetTotal(p)?'':' (empty)')+'</option>'; });
+  var hh=pr.hero===HERO_BEST?"Best attack (free hero)":pr.hero===HERO_ANY?"Any free hero":pr.hero>0?(heroById(pr.hero)?esc(heroById(pr.hero).name):"a hero who is gone"):"No hero";
+  return '<div class="section" id="occsec"><div class="shead"><h3>Occupy flats</h3><span class="dur">'+esc(S.name)+'</span></div>'+
+    '<p class="hint">Finds the nearest free flats of the level you pick and sends the chosen preset to occupy each one. It stops when it runs out of free marches, room to hold, troops, rations or heroes, or if the preset would lose.</p>'+
+    '<div class="farmadd"><label class="dur" for="occlvl">Flat level</label><select id="occlvl">'+lv+'</select><label class="dur" for="occpre">Preset</label><select id="occpre">'+pp+'</select><label class="dur" for="occn">Take</label><input type="number" id="occn" min="1" max="'+Math.max(1,rallyLv())+'" value="'+o.n+'" style="width:4.5em"></div>'+
+    '<p class="dur" id="occpreset" style="margin:4px 0">'+(presetTotal(pr)?presetSummary(pr)+'. Hero: '+hh+'.':'This preset has no troops. Edit it in the Army tab.')+'</p>'+
+    '<div class="act"><span class="dur" id="occinfo">'+occInfoText()+'</span><button class="btn" data-act="occ-go">Occupy flats</button></div></div>';
+}
+function occupyFlats(){
+  var o=occSet(), pr=S.presets[o.p], rl=rallyLv();
+  if (!rl){ toast("Build a Rally Spot first"); return; }
+  if (!presetTotal(pr)){ toast("That preset has no troops"); return; }
+  if (presetTotal(pr)>armyCap()){ toast("That preset is over the "+fmt(armyCap())+"-troop march limit"); return; }
+  var free=rl-rallyUsed(), room=occRoom(), want=Math.min(o.n, free, room);
+  if (free<=0){ toast("Rally Spot is full ("+rl+" marches)"); return; }
+  if (room<=0){ toast("No room to hold more: Town Hall "+S.th+" holds "+S.th+" valleys and flats"); return; }
+  var list=findFlats(o.lvl, want);
+  if (!list.length){ toast("No free level "+o.lvl+" flats found"); return; }
+  var sent=0, why="";
+  for (var k=0;k<list.length;k++){
+    var q=list[k];
+    if (!presetReady(pr)){ why="the troops for another march aren’t home"; break; }
+    var ph=presetHero(pr), phid=ph&&!ph.away&&!isOfficer(ph)?ph.id:0;
+    if (pr.hero>0 && !phid){ why="the preset’s hero isn’t free"; break; }
+    var tm=travelMs(pr.t,q,phid,"occupy");
+    if (S.res.food<marchFood(pr.t,"occupy",tm)){ why="not enough food for rations"; break; }
+    if (sent===0){ // one check before anything leaves: would this army beat a flat of this level?
+      var cur=current(q), A={troops:pr.t.slice(), research:simResearch(), hero:{intel:hsB(ph,"int")}, life_modifier:setLife(ph), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(ph,"atk")/100+bAttack())}, wins=0;
+      for (var s=0;s<5;s++){ var r=SIM.fight(A,{troops:cur.t,fortifications:cur.f,wallLevel:cur.wall,research:cur.r,attack_modifier:cur.am||1,fortBonus:cur.fb||1,hero:{intel:cur.hint||0}}); if (r.result===1) wins++; }
+      if (wins<5){ toast("That preset lost "+(5-wins)+" of 5 practice fights against a level "+o.lvl+" flat, so nothing was sent"); return; }
+    }
+    launchMarch(q.id,"occupy",pr.t.slice(),phid,{}); sent++;
+  }
+  if (sent){ save(); var nt=sent<o.n ? (why?"stopped: "+why : list.length<want?"only "+list.length+" free in reach" : free<o.n?"you only had "+free+" free marches" : room<o.n?"room to hold "+room : "") : "";
+    toast("Sent "+sent+" "+(sent===1?"army":"armies")+" to occupy level "+o.lvl+" flats"+(nt?" ("+nt+")":"")); }
+  else toast("Nothing sent: "+(why||"no flats"));
+  lastView=""; refresh();
+}
 function troopRows(t, forts, wall){
   var h='';
   t.forEach(function(n,i){ if (n>0) h+='<span>'+U[i].name+' <b>'+fmt(n)+'</b></span>'; });
@@ -2459,7 +2522,7 @@ function renderReports(){
   });
   el.innerHTML=h+'</div>';
 }
-function mapDynamic(){ renderTileInfo(); renderMarchBox(); drawMap(); }
+function mapDynamic(){ renderTileInfo(); renderMarchBox(); drawMap(); var oi=document.getElementById("occinfo"); if (oi) oi.textContent=occInfoText(); }
 function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && !isOfficer(h); }); }
 function marchHeroes(){ return freeHeroes().sort(function(a,b){ return hs(b,"atk")-hs(a,"atk") || b.level-a.level; }); }
 function openMarch(tile, mission, mid){
@@ -9036,6 +9099,7 @@ document.addEventListener("click",function(e){
   }
   if (act==="map-zoom"){ zoomTo(mv.z*(+a.dataset.z>0?1.35:1/1.35)); return; }
   if (act==="map-home"){ centerOn(S.map.home[0],S.map.home[1]); selectTile(S.map.home[0]+","+S.map.home[1],false); return; }
+  if (act==="occ-go"){ occupyFlats(); return; }
   if (act==="map-find"){ var ft=document.getElementById("findtype").value, fl=+document.getElementById("findlvl").value, fq=findNearest(ft,fl);
     if (!fq){ toast("None found"); return; } selectTile(fq.id,true); return; }
   if (act==="armory-filter"){ armoryFilter=a.dataset.slot; lastView=""; renderView(true); return; }
@@ -9449,6 +9513,9 @@ document.addEventListener("change",function(e){
   if (e.target.id==="tpfrom"){ TP.from=+e.target.value; lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.arlv!=null){ ARL[e.target.dataset.arlv]=+e.target.value; e.target.blur(); lastView=""; renderView(true); return; }
   if (e.target.dataset && e.target.dataset.alrank!=null){ var arw=e.target.dataset.alrank, arv=+e.target.value; e.target.blur(); alDo("/al/setrank",{who:arw, rank:arv}, arw+"\u2019s rank changed"); return; }
+  if (e.target.id==="occlvl"){ occSet().lvl=+e.target.value; save(); return; }
+  if (e.target.id==="occpre"){ occSet().p=+e.target.value; save(); lastView=""; renderView(true); return; }
+  if (e.target.id==="occn"){ var onv=Math.max(1,Math.min(Math.max(1,rallyLv()),Math.floor(+e.target.value)||1)); occSet().n=onv; e.target.value=onv; save(); return; }
   if (e.target.id==="ivcity"){ IV.pickCity=+e.target.value; return; }
   if (e.target.id==="ivhero"){ IV.hero=+e.target.value; return; }
   if (e.target.id==="ivsafe"){ var sv=+e.target.value; e.target.blur(); invPost("setsafe",{hours:sv}).then(function(j){ if (!j.error) toast("Cooldown after being invaded: "+(sv>=168?sv/24+" days":sv+" hours")); invTake(j); }); return; }
