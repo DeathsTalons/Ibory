@@ -712,7 +712,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.129";
+var APP_VERSION = "0.1.130";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2993,7 +2993,7 @@ function grantBeta(){
 /* ---------- high scores (Cloudflare Worker) ---------- */
 var LB_URL = "https://ibory-scores.ibory-reports.workers.dev"; // the Worker address, e.g. "https://ibory-scores.yourname.workers.dev" (empty hides syncing)
 var LB_HC=[12,14,16,18], lbData={}, lbCat="prestige", lbBusy=false, lbErr="", lbLastSync=0;
-var LB_CATS=[["prestige","Prestige"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Kingdom rep"],["college","War College"]]
+var LB_CATS=[["prestige","Prestige"],["power","Power"],["kills","Troops killed"],["deaths","Troops lost"],["hero","Top hero"],["stars","Star set"],["cities","Cities"],["rep","Kingdom rep"],["college","War College"]]
   .concat(LB_HC.map(function(L){ return ["hc"+L,"First L"+L+" historic"]; }));
 var lbMpSel=null; // which boards are open: null follows this save (single until it does something multiplayer)
 function lbMp(){ return lbMpSel==null ? (S.mp?1:0) : lbMpSel; }
@@ -3017,7 +3017,7 @@ function lbStats(){
   var hc={}; LB_HC.forEach(function(L){ if (S.hcSeen[L]) hc[L]=true; });
   var gev=(S.starLog||[]).filter(function(e){ return e.at>Date.now()-3500000; }).map(function(e){ return {at:e.at, st:e.st, nm:e.nm}; }); // every 11+ star hit of the last hour, for the world chat
   return {prestige:Math.floor(S.prestige||0), deaths:Math.floor((S.stats&&S.stats.lostT)||0), killsBy:achStore().kills.map(function(x){ return Math.floor(x||0); }),
-    hero:hero, heroName:heroName, heroId:heroId, heroStats:heroStats, stars:bestGearSet(), gearEv:gev, college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc};
+    hero:hero, heroName:heroName, heroId:heroId, heroStats:heroStats, stars:bestGearSet(), gearEv:gev, college:wcStars(), cities:S.cities.length, rep:Math.floor((S.alliance&&S.alliance.rep)||0), hc:hc, power:powerOf(true).total};
 }
 function lbHeroSt(r){ // the top hero's stats under its name: yours from the save, others as sent to the server
   var a = r.me ? lbStats().heroStats : String(r.hst||"").split(",").map(Number); if (!a || a.length<3 || a.some(function(x){ return !isFinite(x); })) return "";
@@ -4223,14 +4223,28 @@ function cbLoadState(obj, cloud, at, rev){ // swap the running game for a downlo
   document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh();
 }
 // a small summary sent with every cloud save; the server compares each hour's with the last to spot edited saves
+// every troop a city owns: home, marching or stationed away, reinforcing an ally, at the Arena, on an invasion, and waiting in the Medic Camp
+function cityArmy(c){ var t=S.troops.slice();
+  (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,j){ t[j]+=n; }); });
+  S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,j){ t[j]+=n; }); });
+  var rfd=rfData(); if (rfd) (rfd.mine||[]).forEach(function(x){ if (x.fromCity===c.id && x.st!=="home" && x.st!=="done") (x.t||[]).forEach(function(n,j){ t[j]+=n; }); }); // out reinforcing an ally
+  (S.alArena||[]).forEach(function(m){ if (m.city!==c.id) return; if (m.st==="out") m.t.forEach(function(n,j){ t[j]+=n; }); else for (var j=0;j<12;j++) t[j]+=(m.back[j]||0)+(m.wounded[j]||0); });
+  if (c.away && c.away.t) c.away.t.forEach(function(n,j){ t[j]+=n||0; }); // out on an invasion
+  return t; }
+/* ---------- power (0.1.130): what a player could fight with right now. Prestige only ever grows; power drops when troops die.
+   Power = the prestige value of every troop owned (see cityArmy) + every hero's power. Invasions and alliance wars match by it. */
+var HERO_PW_ATK=1000, HERO_PW_INT=1000, HERO_PW_POL=200;
+function heroPower(h){ return h ? Math.round(hs(h,"atk")*HERO_PW_ATK+hs(h,"int")*HERO_PW_INT+hs(h,"pol")*HERO_PW_POL) : 0; }
+var PW_CACHE={at:0, v:null};
+function powerOf(fresh){ if (!fresh && PW_CACHE.v && Date.now()-PW_CACHE.at<3000) return PW_CACHE.v;
+  var ar=[0,0,0,0,0,0,0,0,0,0,0,0], hp=0, hn=0;
+  S.cities.forEach(function(c,i){ withCity(i, function(){ cityArmy(c).forEach(function(n,j){ ar[j]+=n; }); }); (c.heroes||[]).forEach(function(h){ hp+=heroPower(h); hn++; }); });
+  var tp=Math.round(ar.reduce(function(a,n,j){ return a+n*PREST_U[j]; },0));
+  PW_CACHE={at:Date.now(), v:{troops:tp, heroes:hp, n:hn, total:tp+hp, ar:ar}}; return PW_CACHE.v; }
 function cbStats(){
   var ar=[0,0,0,0,0,0,0,0,0,0,0,0], re=[0,0,0,0,0], pg=0, hA=0, hI=0, ci=[];
   S.cities.forEach(function(c, i){ withCity(i, function(){
-    var t=S.troops.slice(); // the army: home, marching or stationed away, and waiting in the Medic Camp
-    (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,j){ t[j]+=n; }); });
-    S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,j){ t[j]+=n; }); });
-    var rfd=rfData(); if (rfd) (rfd.mine||[]).forEach(function(x){ if (x.fromCity===c.id && x.st!=="home" && x.st!=="done") (x.t||[]).forEach(function(n,j){ t[j]+=n; }); }); // out reinforcing an ally
-    (S.alArena||[]).forEach(function(m){ if (m.city!==c.id) return; if (m.st==="out") m.t.forEach(function(n,j){ t[j]+=n; }); else for (var j=0;j<12;j++) t[j]+=(m.back[j]||0)+(m.wounded[j]||0); });
+    var t=cityArmy(c);
     t.forEach(function(n,j){ ar[j]+=n; });
     RES.forEach(function(k,j){ re[j]+=S.res[k]||0; });
     var r=rates(); pg+=Math.max(0,(r.food||0)+upkeep())+Math.max(0,r.lumber||0)+Math.max(0,r.stone||0)+Math.max(0,r.iron||0)+Math.max(0,r.gold||0);
@@ -4240,7 +4254,7 @@ function cbStats(){
   }); });
   RES.forEach(function(k,j){ re[j]+=(S.alBox&&S.alBox[k])||0; }); // the private Warehouse box is still the player's
   return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:0, pr:Math.floor(S.prestige||0), tth:totalTH(), mth:S.cities.reduce(function(a,c){ return Math.max(a,c.th||1); },1), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
-    pg:Math.round(pg), lo:Math.round((S.stats&&S.stats.loot)||0), hA:hA, hI:hI, ci:ci, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
+    pg:Math.round(pg), lo:Math.round((S.stats&&S.stats.loot)||0), hA:hA, hI:hI, ci:ci, hp:powerOf(true).heroes, hn:powerOf().n, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
 }
 // is there a newer save from another device? Then it wins: load it (this device's copy is kept for Undo)
 function cbCheck(){
@@ -5540,7 +5554,7 @@ function tickText(){
     el.className = r[k]<0 ? "neg" : "";
   });
   document.getElementById("pop").textContent = fmt(S.pop)+" / "+fmt(popCap());
-  var ll=document.getElementById("lordline"), lh='<b>'+TITLES[S.title].name+(S.lord?' '+esc(S.lord):'')+'</b>'+(S.rank?', '+RANKS[S.rank].name:'')+', '+fmt(S.prestige)+' prestige';
+  var ll=document.getElementById("lordline"), lh='<b>'+TITLES[S.title].name+(S.lord?' '+esc(S.lord):'')+'</b>'+(S.rank?', '+RANKS[S.rank].name:'')+', '+fmt(S.prestige)+' prestige \u00b7 '+fmt(powerOf().total)+' power';
   if (ll.innerHTML!==lh) ll.innerHTML=lh;
   var hav=document.getElementById("hdav"), hah=avatarHtml(S.me,S.lord||(S.lb&&S.lb.name)||S.name,"hd"); if (hav && hav._h!==hah){ hav.innerHTML=hah; hav._h=hah; }
   document.getElementById("staff").textContent = pct(r.staff);
@@ -8089,7 +8103,7 @@ function playerSheet(){
   var rows='';
   if (d.hero){ var st=String(d.hero.st||"").split(",").map(Number); rows+=row("Top hero",(d.hero.hid&&d.hero.hu?heroPortrait({id:d.hero.hid, name:d.hero.name, tier:"legendary"},40,{k:d.ck, hu:d.hero.hu})+' ':'')+esc(d.hero.name)+' <span class="dur">level '+d.hero.lv+'</span>'); if (st.length>=3 && st.every(isFinite)) rows+=row("Hero stats",'Attack '+fmt(st[1])+' · Intelligence '+fmt(st[2])+' · Politics '+fmt(st[0])); }
   else rows+=row("Top hero","none yet");
-  rows+=row("Prestige",fmt(d.prestige))+row("Troops killed",fmt(d.kills))+row("Troops lost",fmt(d.deaths))+row("Cities",d.cities)+row("Best star set",d.stars)+row("War College stars",fmt(d.college||0));
+  rows+=row("Prestige",fmt(d.prestige))+(d.power?row("Power",fmt(d.power)):'')+row("Troops killed",fmt(d.kills))+row("Troops lost",fmt(d.deaths))+row("Cities",d.cities)+row("Best star set",d.stars)+row("War College stars",fmt(d.college||0));
   rows+=row("Historic cities taken",d.hc&&d.hc.length?d.hc.map(function(L){ return "Level "+L; }).join(", "):"none");
   if (d.mp) rows+=row("Invasion honor",fmt(d.honor||0));
   rows+=row("Board",d.mp?"Multiplayer":"Single player")+row("Last synced",alAgo(d.seen))+(d.joined?row("On the boards since",new Date(d.joined).toLocaleDateString()):"");
@@ -8415,10 +8429,13 @@ function viewTitles(){
   if (!S.lord) return '<div class="section"><h3>Who rules here?</h3><p class="hint">Set your name in Settings (top right) and the realm will address you by title.</p></div>'+viewTitlesBody(t,nt,nr);
   return viewTitlesBody(t,nt,nr);
 }
+function powerHtml(){ var p=powerOf(true);
+  return '<div class="act" style="margin-top:10px"><div><div class="bigstat">'+fmt(p.total)+'</div><span class="dur">power</span></div><div style="text-align:right"><span class="dur">Troops <b>'+fmt(p.troops)+'</b><br>'+p.n+' heroes <b>'+fmt(p.heroes)+'</b></span></div></div>'+
+    '<p class="hint" style="margin-top:6px">Power is what you could fight with right now: the prestige value of every troop you own (home, marching, reinforcing, at the Arena, on an invasion or wounded in the Medic Camp) plus your heroes (1,000 per point of attack and intelligence, 200 per point of politics, gear included). Unlike prestige it drops when troops die. Invasions and alliance wars pair players by power.</p>'; }
 function viewTitlesBody(t,nt,nr){
   var h='<div class="section"><div class="shead"><h3>'+t.name+(S.lord?' '+esc(S.lord):'')+'</h3><span class="dur">Rank: '+RANKS[S.rank].name+'</span></div>'+
     '<div class="act" style="margin-top:6px"><div><div class="bigstat">'+fmt(S.prestige)+'</div><span class="dur">prestige</span></div><div style="text-align:right"><div class="bigstat">'+S.cities.length+' / '+fmt(cityCap())+'</div><span class="dur">cities allowed'+(hasHC(18)?' (Atlantis: one per historic city on the map)':'')+'</span></div></div>'+
-    '<p class="hint" style="margin-top:8px">Prestige comes from every building level, research level and trained troop in all your cities. Found new cities on Flats from the Map.</p></div>';
+    '<p class="hint" style="margin-top:8px">Prestige comes from every building level, research level and trained troop in all your cities, and never goes down. Found new cities on Flats from the Map.</p>'+powerHtml()+'</div>';
   h+='<div class="section"><h3>Medal case</h3><div class="medals">'+MEDALS.map(function(m,i){ return '<div class="medal">'+medalIcon(i)+'<b>'+(S.medals[m[0]]||0)+'</b><span>'+m[1]+'</span></div>'; }).join("")+'</div>'+
     '<p class="hint" style="margin-top:8px">Medals are rare, just like the original: under 1% of victories drop one. Low valleys give Cross and Rose, mid valleys and low NPC cities give Lion, Honor and Courage, high valleys give Wisdom and Nation, level 5+ NPCs add Freedom, and Justice comes only from level 10 NPCs and historic cities. Valleys and AI lords never drop Freedom or Justice. Tap any target on the map to see what it drops. Level 5 to 9 NPC cities sometimes drop a Junior Medal Box instead, and level 10s a Medium or Senior one.</p></div>';
   h+='<div class="section"><h3>'+(nr?'Next rank: '+nr.name:'Highest rank reached')+'</h3>'+(nr?questCard(nr,false,"rankup","Promote to "+nr.name):'<p class="hint">You are a General. Only titles remain.</p>')+'</div>';
