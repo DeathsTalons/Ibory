@@ -691,7 +691,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.117";
+var APP_VERSION = "0.1.118";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3747,7 +3747,53 @@ function fillAlChat(){
 var dockPin=false, dockOpen=false, dockCh="world";
 try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorage.getItem("ibory-dock-open")==="1"; dockCh=localStorage.getItem("ibory-dock-ch")||"world"; } catch(e){}
 function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); localStorage.setItem("ibory-dock-ch",dockCh); } catch(e){} }
-function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); return c; }
+function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); if (dmOn()) c.push("dm"); return c; }
+/* ---------- private messages: anyone to anyone, text only, kept 30 days on the server, and the admin can read them ---------- */
+var DMS={lines:[], top:0, reads:{}, blocks:[], last:0, busy:false, err:"", open:null, first:true, mutedUntil:0};
+function dmOn(){ return mpShown() && cbOn() && !S.mpLocked; }
+function dmBlocked(k){ return DMS.blocks.some(function(b){ return b.k===k; }); }
+function dmUnread(k){ var n=0; DMS.lines.forEach(function(l){ if (!l.me && (k==null || l.k===k) && l.id>(DMS.reads[l.k]||0) && !dmBlocked(l.k)) n++; }); return n; }
+function dmViewing(k){ return dockOpen && dockCh==="dm" && DMS.open && DMS.open.k===k && !document.hidden; }
+function dmThread(o){ var nm=String(o.name||"").toLowerCase(); return DMS.lines.filter(function(l){ return o.k ? l.k===o.k : String(l.name).toLowerCase()===nm; }); }
+function dmSync(){
+  if (DMS.busy || !dmOn()) return; DMS.busy=true;
+  alPost("/dm/sync",{since:DMS.top}).then(function(d){ DMS.busy=false; DMS.last=Date.now(); if (d.error){ DMS.err=d.error; renderDock(); return; } DMS.err="";
+    var have={}, fresh=[]; DMS.lines.forEach(function(l){ have[l.id]=1; });
+    (d.lines||[]).forEach(function(l){ if (have[l.id]) return; DMS.lines.push(l); if (l.id>DMS.top) DMS.top=l.id; if (!l.me) fresh.push(l); });
+    DMS.lines.sort(function(a,b){ return a.id-b.id; });
+    for (var k in (d.reads||{})) DMS.reads[k]=Math.max(DMS.reads[k]||0, d.reads[k]);
+    DMS.blocks=d.blocks||[]; DMS.mutedUntil=d.mutedUntil||0;
+    if (DMS.open && !DMS.open.k){ var th=dmThread(DMS.open); if (th.length) DMS.open.k=th[0].k; }
+    if (!DMS.first){ var shown=0; fresh.forEach(function(l){ if (dmViewing(l.k) || dmBlocked(l.k) || shown>=3) return; note("dm","Message from "+l.name+": "+l.text); shown++; }); if (shown) flushFinished(); }
+    DMS.first=false; if (DMS.open && DMS.open.k && dmViewing(DMS.open.k)) dmMarkRead(DMS.open.k); renderDock(); })
+  .catch(function(){ DMS.busy=false; DMS.last=Date.now(); });
+}
+function dmTick(){
+  if (!dmOn()) return; if (document.hidden && !S.phoneNotif) return;
+  var gap = DMS.open && dockOpen && dockCh==="dm" ? 4000 : dockOpen && dockCh==="dm" ? 8000 : 30000;
+  if (Date.now()-DMS.last>=gap) dmSync();
+}
+setInterval(dmTick, 1000);
+function dmMarkRead(k){ var top=0; DMS.lines.forEach(function(l){ if (l.k===k && !l.me && l.id>top) top=l.id; }); if (!top || top<=(DMS.reads[k]||0)) return; DMS.reads[k]=top; alPost("/dm/read",{k:k, id:top}).catch(function(){}); }
+function dmSend(){ var i=document.getElementById("dockin"); if (!i || !DMS.open) return; var t=i.value.trim(); if (!t) return; i.value="";
+  alPost("/dm/send",{to:DMS.open.name, k:DMS.open.k||undefined, text:t}).then(function(d){ if (d.error){ toast(d.error); i.value=t; return; }
+    var l=d.line; DMS.open={k:l.k, name:l.name}; if (!l.id) DMS.last=0; else if (!DMS.lines.some(function(x){ return x.id===l.id; })){ DMS.lines.push(l); if (l.id>DMS.top) DMS.top=l.id; } renderDock(); })
+  .catch(function(){ toast("Couldn’t reach the server"); i.value=t; }); }
+function dmWith(k, name){ DMS.open={k:k||"", name:name}; dockCh="dm"; dockOpen=true; dockSave(); renderDock(); if (DMS.open.k) dmMarkRead(DMS.open.k); setTimeout(function(){ var i=document.getElementById("dockin"); if (i) i.focus(); var b=document.getElementById("dkmsgs"); if (b) b.scrollTop=b.scrollHeight; },60); DMS.last=0; }
+function dmBlock(on){ var o=DMS.open; if (!o) return; alPost("/dm/block",{k:o.k||undefined, to:o.name, on:!!on}).then(function(d){ if (d.error){ toast(d.error); return; } toast(on?o.name+" is blocked: you won’t see their messages":o.name+" is unblocked"); DMS.last=0; dmSync(); }).catch(function(){ toast("Couldn’t reach the server"); }); }
+function dmHtml(){
+  if (DMS.open){ var o=DMS.open, th=dmThread(o), blk=o.k&&dmBlocked(o.k);
+    return '<div class="farmadd" style="justify-content:space-between;margin:0 0 6px"><button class="link" data-act="dm-back">‹ All messages</button><b>'+esc(o.name)+'</b><button class="link" data-act="dm-block" data-on="'+(blk?0:1)+'">'+(blk?'Unblock':'Block')+'</button></div>'+
+      (th.length?th.map(function(l){ return '<div class="alm"><span class="dur">'+alTime(l.at)+'</span> <b>'+(l.me?'You':esc(l.name))+'</b> '+esc(l.text)+'</div>'; }).join(""):'<p class="hint">No messages yet. Say hello.</p>');
+  }
+  var conv={}, order=[]; DMS.lines.forEach(function(l){ if (!conv[l.k]){ conv[l.k]={k:l.k, name:l.name, last:l}; order.push(l.k); } conv[l.k].last=l; conv[l.k].name=l.name; });
+  order=order.filter(function(k){ return !dmBlocked(k); }).sort(function(a,b){ return conv[b].last.id-conv[a].last.id; });
+  var h='<div class="farmadd" style="margin:0 0 6px"><input id="dmto" type="text" maxlength="20" autocomplete="off" placeholder="Player name" style="width:auto;flex:1"><button class="btn small" data-act="dm-new">New message</button></div>';
+  h+=order.length?order.map(function(k){ var c=conv[k], n=dmUnread(k);
+    return '<button class="bq" style="width:100%;text-align:left" data-act="dm-open" data-k="'+esc(k)+'" data-nm="'+esc(c.name)+'"><span><b>'+esc(c.name)+'</b>'+(n?' <span class="badge">'+n+' new</span>':'')+'<br><span class="dur">'+(c.last.me?'You: ':'')+esc(String(c.last.text).slice(0,60))+'</span></span><span class="dur">'+alTime(c.last.at)+'</span></button>'; }).join(""):'<p class="hint">'+(DMS.last?'No private messages yet. Type a player’s name above, or tap a name in chat, on the high scores or on an alliance roster.':'Loading…')+'</p>';
+  if (DMS.blocks.length) h+='<p class="dur" style="margin:8px 0 2px">Blocked: '+DMS.blocks.map(function(b){ return esc(b.name)+' <button class="link" data-act="dm-unblock" data-k="'+esc(b.k)+'" data-nm="'+esc(b.name)+'">unblock</button>'; }).join(", ")+'</p>';
+  return h;
+}
 /* ---------- world chat: everyone with a cloud save; lives in the chat dock next to alliance chat ---------- */
 var WCH={lines:[], top:0, last:0, busy:false, mutedUntil:0, err:"", more:false, oldBusy:false};
 function wcUnread(){ var seen=S.wcSeen||0, n=0; WCH.lines.forEach(function(l){ if (l.id>seen && !isMe(l.name) && !l.sys) n++; }); return n; }
@@ -3787,19 +3833,26 @@ function renderDock(){
   var chans=dockChans(), chip=document.getElementById("chatchip");
   if (chip){ var cd=chans.length?"":"none"; if (chip.style.display!==cd) chip.style.display=cd; }
   if (chans.length && chans.indexOf(dockCh)<0) dockCh=chans[0];
-  var unW=wcShown()?wcUnread():0, unA=(chans.indexOf("al")>=0)?alUnread():0;
-  setText(document.getElementById("chatbadge"), (unW+unA)?String(Math.min(99,unW+unA)):"");
+  var unW=wcShown()?wcUnread():0, unA=(chans.indexOf("al")>=0)?alUnread():0, unD=(chans.indexOf("dm")>=0)?dmUnread():0;
+  setText(document.getElementById("chatbadge"), (unW+unA+unD)?String(Math.min(99,unW+unA+unD)):"");
   var onAlPage = tab==="guild" && ALS.sub==="chat" && dockCh==="al";
   var show = chans.length && (dockPin || dockOpen) && !onAlPage && !document.body.classList.contains("bfmode");
   if (!show){ if (el.style.display!=="none"){ el.style.display="none"; document.body.classList.remove("dock"); } return; }
   if (el.style.display!=="block"){ el.style.display="block"; document.body.classList.add("dock"); }
   el.classList.toggle("open", dockOpen);
   setText(document.getElementById("dkpin"), dockPin?"Unpin":"Pin");
-  var tabsH=chans.length>1 ? chans.map(function(c){ var n=c==="world"?unW:unA; return '<button class="chipbtn'+(c===dockCh?' on':'')+'" data-act="dock-ch" data-ch="'+c+'">'+(c==="world"?"World":"Alliance")+(n&&c!==dockCh?' ('+n+')':'')+'</button>'; }).join("") : '<b>'+(dockCh==="world"?"World chat":"Alliance chat")+'</b>';
+  var tabsH=chans.length>1 ? chans.map(function(c){ var n=c==="world"?unW:c==="al"?unA:unD; return '<button class="chipbtn'+(c===dockCh?' on':'')+'" data-act="dock-ch" data-ch="'+c+'">'+(c==="world"?"World":c==="al"?"Alliance":"Messages")+(n&&c!==dockCh?' ('+n+')':'')+'</button>'; }).join("") : '<b>'+(dockCh==="world"?"World chat":dockCh==="al"?"Alliance chat":"Messages")+'</b>';
   var tb=document.getElementById("dktabs"); if (tb && tb.innerHTML!==tabsH) tb.innerHTML=tabsH;
-  var inp=document.getElementById("dockin"); if (inp){ var ph=dockCh==="world"?"Message everyone":"Message your alliance"; if (inp.placeholder!==ph) inp.placeholder=ph; }
+  var inp=document.getElementById("dockin"); if (inp){ var ph=dockCh==="world"?"Message everyone":dockCh==="dm"?(DMS.open?"Message "+DMS.open.name:""):"Message your alliance"; if (inp.placeholder!==ph) inp.placeholder=ph; }
   var fm=document.getElementById("dkform"), hint="", canSay=true, msgs, hh, lastTxt;
-  if (dockCh==="world"){
+  if (dockCh==="dm"){
+    hint="Private messages are kept 30 days and can be read by the game’s admin.";
+    if (!DMS.open) canSay=false; else if (DMS.open.k && dmBlocked(DMS.open.k)){ canSay=false; hint="You’ve blocked "+DMS.open.name+". Unblock them to reply."; }
+    else if (DMS.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(DMS.mutedUntil)+"."; }
+    if (DMS.err) hint=DMS.err;
+    hh=dmHtml(); var ld=DMS.lines.filter(function(l){ return !l.me && !dmBlocked(l.k); }).pop(); lastTxt=ld?ld.name+": "+ld.text:"No private messages";
+    setText(document.getElementById("dkch"), "Messages");
+  } else if (dockCh==="world"){
     if (!cbOn()){ canSay=false; hint="World chat needs a cloud save. Set one up in Settings, then come back."; }
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
@@ -3817,10 +3870,10 @@ function renderDock(){
   setText(document.getElementById("dkhint"), hint);
   var fd=canSay?"":"none"; if (fm && fm.style.display!==fd) fm.style.display=fd;
   if (dockOpen){
-    if (dockCh==="world"){ if (WCH.top>(S.wcSeen||0)) S.wcSeen=WCH.top; } else if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
+    if (dockCh==="world"){ if (WCH.top>(S.wcSeen||0)) S.wcSeen=WCH.top; } else if (dockCh==="dm"){ if (DMS.open && DMS.open.k) dmMarkRead(DMS.open.k); } else if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
     var box=document.getElementById("dkmsgs"); if (box && box._sig!==dockCh+hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig || box._sig.indexOf(dockCh)!==0; var kp=box._keep; box._keep=null; box.innerHTML=hh; box._sig=dockCh+hh; if (kp) box.scrollTop=kp.t+(box.scrollHeight-kp.h); else if (atBottom) box.scrollTop=box.scrollHeight; }
     setText(document.getElementById("dkn"), "");
-  } else { var un=dockCh==="world"?unW:unA; setText(document.getElementById("dkn"), un?String(un):""); }
+  } else { var un=dockCh==="world"?unW:dockCh==="dm"?unD:unA; setText(document.getElementById("dkn"), un?String(un):""); }
 }
 function alOlder(){ // load the 60 messages before the oldest one shown
   if (ALS.oldBusy || !ALS.chat.length) return; ALS.oldBusy=true; fillAlChat(); renderDock();
@@ -4934,7 +4987,7 @@ function rates(){
 /* ---------- time ---------- */
 var finished = [], finCats = []; // messages from the game loop, and each one's notification type
 var NOTE_TYPES=[["build","Buildings finished"],["fort","Fortifications finished"],["research","Research finished"],["train","Troops trained"],["heroes","Heroes (level ups, captures, arrivals)"],
-  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Kingdom, wars and events"],["day","New day"]];
+  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Kingdom, wars and events"],["day","New day"],["dm","Private messages"]];
 function note(cat,msg){ finished.push(msg); finCats[finished.length-1]=cat; }
 function noteOn(cat){ return !(S.notifOff&&S.notifOff[cat||"other"]); }
 function shownFinished(){ var out=[]; finished.forEach(function(m,i){ if (noteOn(finCats[i])) out.push(m); }); finished=[]; finCats=[]; return out; }
@@ -7572,6 +7625,7 @@ function playerSheet(){
   var pf=(d.pu||d.fr)&&d.ck ? {img: d.pu ? LB_URL+"/me/img?k="+encodeURIComponent(d.ck)+"&v="+d.pu : "", frame:d.fr} : {};
   var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
   h+='<div class="mehead">'+avatarHtml(pf,nm)+'<div style="display:grid;gap:4px;min-width:0"><b style="font:700 1.1rem var(--display);overflow-wrap:anywhere">'+esc(nm)+'</b>'+(d.alliance?'<span class="dur">['+esc(d.alliance.tag)+'] '+esc(d.alliance.name)+(d.alliance.rank?' · '+esc(d.alliance.rank):'')+'</span>':'<span class="dur">No alliance</span>')+'</div></div>';
+  if (dmOn() && !isMe(nm) && (d.ck||nm)) h+='<div class="btnrow" style="margin:6px 0"><button class="btn small" data-act="dm-with" data-k="'+esc(d.ck||"")+'" data-nm="'+esc(nm)+'">Send a message</button></div>';
   if (!d.found){ return h+'<p class="hint">This player hasn’t sent any scores to the high scores yet, so there’s nothing more to show.</p>'; }
   var rows='';
   if (d.hero){ var st=String(d.hero.st||"").split(",").map(Number); rows+=row("Top hero",esc(d.hero.name)+' <span class="dur">level '+d.hero.lv+'</span>'); if (st.length>=3 && st.every(isFinite)) rows+=row("Hero stats",'Attack '+fmt(st[1])+' · Intelligence '+fmt(st[2])+' · Politics '+fmt(st[0])); }
@@ -9086,7 +9140,7 @@ document.addEventListener("click",function(e){
     return; }
   if (act==="chat-open"){ var dkv=document.getElementById("chatdock"); if (dockOpen && dkv && dkv.style.display==="block"){ dockOpen=false; dockSave(); renderDock(); return; } // tapping the chat icon while chat is open closes it
     dockOpen=true; dockSave(); var chs=dockChans(); if (chs.indexOf(dockCh)<0 && chs.length) dockCh=chs[0]; renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb0=document.getElementById("dkmsgs"); if (dkb0) dkb0.scrollTop=dkb0.scrollHeight; return; }
-  if (act==="dock-ch"){ dockCh=a.dataset.ch; dockSave(); renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else ALS.last=0; var dkb1=document.getElementById("dkmsgs"); if (dkb1) dkb1.scrollTop=dkb1.scrollHeight; return; }
+  if (act==="dock-ch"){ dockCh=a.dataset.ch; dockSave(); renderDock(); if (dockCh==="world"){ WCH.last=0; wcTick(); } else if (dockCh==="dm"){ DMS.last=0; } else ALS.last=0; var dkb1=document.getElementById("dkmsgs"); if (dkb1) dkb1.scrollTop=dkb1.scrollHeight; return; }
   if (act==="dock-close"){ dockOpen=false; dockSave(); renderDock(); return; }
   if (act==="dock-pin"){ dockPin=!dockPin; dockSave(); renderDock(); toast(dockPin?"Chat pinned to the bottom of every page":"Chat unpinned"); return; }
   if (act.indexOf("iv-")===0 && invAct(act,a)) return;
@@ -9513,7 +9567,13 @@ document.addEventListener("click",function(e){
     simOut=null; closeSheet(); tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
   if (act==="dock-toggle"){ dockOpen=!dockOpen; dockSave(); renderDock(); if (dockOpen){ var dkb=document.getElementById("dkmsgs"); if (dkb) dkb.scrollTop=dkb.scrollHeight; ALS.last=0; } return; }
-  if (act==="dock-send"){ if (dockCh==="world") wcSend(); else alSend("dockin"); return; }
+  if (act==="dock-send"){ if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); return; }
+  if (act==="dm-open"){ dmWith(a.dataset.k, a.dataset.nm); return; }
+  if (act==="dm-back"){ DMS.open=null; renderDock(); return; }
+  if (act==="dm-new"){ var dmi=document.getElementById("dmto"), dmv=dmi?dmi.value.trim():""; if (!dmv){ toast("Type a player’s name first"); return; } if (isMe(dmv)){ toast("That’s you"); return; } dmWith("", dmv); return; }
+  if (act==="dm-block"){ var dbon=a.dataset.on==="1"; if (dbon && !confirm("Block "+(DMS.open&&DMS.open.name)+"? You won’t see their messages and they can’t message you.")) return; dmBlock(dbon); return; }
+  if (act==="dm-unblock"){ DMS.open={k:a.dataset.k, name:a.dataset.nm}; dmBlock(false); DMS.open=null; return; }
+  if (act==="dm-with"){ closeSheet(); dmWith(a.dataset.k, a.dataset.nm); return; }
   if (act==="march-repeat"){
     var rpm=S.marches.filter(function(x){ return x.id===+a.dataset.m; })[0]; if (!rpm) return;
     rpm.rep=!rpm.rep; if (rpm.rep){ rpm.t0=rpm.t0||rpm.t.slice(); rpm.hero0=rpm.hero0!=null?rpm.hero0:(rpm.hero||0); }
@@ -9833,7 +9893,7 @@ document.addEventListener("input",function(e){
     if (e.target.dataset.sim==="def" && sim.def.preset!=="custom"){ sim.def.preset="custom"; var sel=document.getElementById("npcsel"); if (sel) sel.value="custom"; }
   }
 });
-document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else alSend("dockin"); } });
+document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
 document.addEventListener("change",function(e){
   if (e.target.id==="tpto"){ TP.to=e.target.value; return; }
   if (e.target.id==="rfto"){ RF.to=e.target.value; lastView=""; renderView(true); return; }
