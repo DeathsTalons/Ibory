@@ -693,7 +693,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.121";
+var APP_VERSION = "0.1.122";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1705,7 +1705,11 @@ function resolveMarch(m){
   var r=SIM.fight(A,D), won=r.result===1, xp=0, i;
   for (i=0;i<12;i++) xp += (cur.t[i]-r.defender[i])*KILLXP[i];
   for (i=0;i<5;i++) xp += (cur.f[i]-r.forts[i])*FORTXP[i];
-  xp=Math.round(xp); var ups = hero ? giveXp(hero, xp) : 0;
+  xp=Math.round(xp);
+  // valleys and flats (always at full garrison): half the experience, and a tile only gives experience once an hour
+  var xpWait=0; if (VTYPES[q.k] && hero && xp>0){ S.vxp=S.vxp||{}; var vlast=S.vxp[q.id];
+    if (vlast!=null && S.gt-vlast < VXP_GAP){ xpWait=vlast+VXP_GAP-S.gt; xp=0; } else { xp=Math.round(xp*VXP_MULT); S.vxp[q.id]=S.gt; for (var vk in S.vxp) if (S.gt-S.vxp[vk]>VXP_GAP) delete S.vxp[vk]; S.vxp[q.id]=S.gt; } }
+  var ups = hero && xp ? giveXp(hero, xp) : 0; xp = hero ? Math.round(xp*bHeroXp()) : xp; // the report shows what the hero really got, achievement and alliance bonuses included
   var loot={food:0,lumber:0,stone:0,iron:0,gold:0};
   if (won){
     var cap=0; for (i=0;i<12;i++) cap += r.attacker[i]*LOAD[i]*loadMul();
@@ -1775,7 +1779,7 @@ function resolveMarch(m){
   if (m.rep && (!won || (m.rsl && lost>0))){ m.rep=false; note("march","Repeat stopped at "+tileName(q)+": "+(won?"lost "+fmt(lost)+" troops":"the attack failed")); }
   if (m.preset!=null){ var pr=C().presets[m.preset]; if (pr && pr.auto && pr.stopOnLoss && (lost>0 || !won)){ pr.auto=false; note("march",pr.name+" auto-farm paused: "+(won?"lost "+fmt(lost)+" troops":"the attack failed")+" at "+tileName(q)); } }
   var rep={id:S.nextMarchId++, at:S.gt, tile:q.id, name:tileName(q), result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(),
-    had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
+    had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, xpWait:xpWait, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
   addReport(rep);
   if (histHero){ rep.historic=histHero.name; note("heroes",histHero.name+" was captured and joins you!"); }
   if (founded){ rep.founded=founded; note("march",(m.mission!=="found"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
@@ -2568,7 +2572,7 @@ function renderReports(){
     var v = r.result===1 ? (r.lost?"Victory":"Flawless victory") : r.result===3 ? "Stalemate" : "Defeat";
     var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
     h+='<details class="rep"><summary><b class="'+(r.result===1?'okc':'badc')+'">'+v+'</b> at '+esc(r.name)+(r.medal>=0?', '+MEDALS[r.medal][1]+' medal':'')+(r.gate?', gates shut':'')+(r.drops&&r.drops.length?', '+r.drops.join(", "):'')+(loot?', '+fmt(loot)+' loot':'')+(r.occupied?', valley taken':'')+'</summary>'+
-      '<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
+      '<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience'+(r.xpWait?' (this tile gave experience less than an hour ago: more in '+fmtT(realMs(r.xpWait))+')':'')+'.':' No hero led this army.')+'</p>'+reportTable(r)+
       (loot?'<div class="us" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'')+'</details>';
   });
   el.innerHTML=h+'</div>';
@@ -4769,6 +4773,7 @@ function genHero(tier, level, spikeStat){
   return {id:S.nextHeroId++, name:name, tier:tier, level:level, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:base};
 }
 function xpNeed(L){ return 100*L*L; }
+var VXP_GAP=3600e3, VXP_MULT=0.5; // valley/flat experience: once an hour per tile, at half
 function giveXp(h, xp){
   xp=Math.round(xp*bHeroXp());
   h.xp += xp; var up=0;
@@ -6043,7 +6048,7 @@ function warCityBattle(m){
     note("alliance","You took "+b.name+"\u2019s war camp! They are out of the war.");
     miniDirty=true;
   } else note("alliance",b.name+"\u2019s war camp held. You lost "+fmt(sumT(lostT))+" troops.");
-  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(xp)});
+  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"\u2019s war camp", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:sumT(lostT), hero:hero?hero.name:null, xp:Math.round(Math.round(xp)*bHeroXp())});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
@@ -6220,7 +6225,7 @@ function chalCityBattle(m){
       if (!c.cities.length) chalDefeated(c, "lost every city before the siege");
     } else note("alliance",nm+" held. You lost "+fmt(lost)+" troops, and thinned theirs by "+fmt(sumT(killedOf(base.t, r.defender)))+".");
   }
-  addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
+  addReport({id:S.nextMarchId++, at:S.gt, name:nm, tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:[], lost:lost, hero:hero?hero.name:null, xp:Math.round(Math.round(xp)*bHeroXp())});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
@@ -7559,7 +7564,7 @@ function bullyCampBattle(m){
     gain=Math.min(600, 1500*dmg); if (gain>=10) addRep(gain, "battered "+b.name+"'s stronghold");
     note("alliance",b.name+"'s stronghold held. You lost "+fmt(lost)+" troops"+(gain>=10?", but wore it down (+"+fmt(Math.round(gain))+" rep)":"")+".");
   }
-  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(xp)});
+  addReport({id:S.nextMarchId++, at:S.gt, name:b.name+"'s stronghold", tile:q.id, result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(), had:base.t.slice(), eleft:r.defender.slice(), forts:base.f.slice(), fleft:r.forts.slice(), loot:loot, medal:-1, drops:drops, lost:lost, hero:hero?hero.name:null, xp:Math.round(Math.round(xp)*bHeroXp())});
   var saved=surgeonHeal(m.t, r.attacker); woundFrom(m.city, m.t, saved, true);
   if (!saved.some(function(n){ return n>0; })){ if (hero) hero.away=false; return false; }
   m.t=saved; m.loot=loot; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
@@ -8021,7 +8026,7 @@ function reportDetailBase(r){
     U.map(function(u,i){ if (!r.sent[i] && !r.had[i]) return ''; var a1=r.sent[i]-r.left[i], a2=r.had[i]-r.eleft[i]; return '<tr><td>'+u.name+'</td><td>'+fmt(r.sent[i])+'</td><td class="'+(a1?'loss':'')+'">'+fmt(a1)+'</td><td>'+fmt(r.had[i])+'</td><td class="'+(a2?'ok':'')+'">'+fmt(a2)+'</td></tr>'; }).join("")+
     FORTN.map(function(n,k){ if (!r.forts[k]) return ''; var lf=r.forts[k]-r.fleft[k]; return '<tr><td>Your '+n+'</td><td>'+fmt(r.forts[k])+'</td><td class="'+(lf?'loss':'')+'">'+fmt(lf)+'</td><td></td><td></td></tr>'; }).join("")+'</tbody></table></div>'+allyRepHtml(r);
   var loot=RES.reduce(function(a,k){ return a+(r.loot[k]||0); },0);
-  return woundLine(r)+modsLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience.':' No hero led this army.')+'</p>'+reportTable(r)+
+  return woundLine(r)+modsLine(r)+'<p class="hint">'+r.rounds+' rounds.'+(r.hero?' '+esc(r.hero)+' led and earned '+fmt(r.xp)+' experience'+(r.xpWait?' (this tile gave experience less than an hour ago: more in '+fmtT(realMs(r.xpWait))+')':'')+'.':' No hero led this army.')+'</p>'+reportTable(r)+
     (loot?'<div class="us" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 14px">'+RES.map(function(k){ return r.loot[k]?'<span>'+RNAME[k]+' <b>'+fmt(r.loot[k])+'</b></span>':''; }).join("")+'</div>':'');
 }
 function fillRepList(){
