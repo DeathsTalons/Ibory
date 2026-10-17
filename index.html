@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.108";
+var APP_VERSION = "0.1.110";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4426,6 +4426,7 @@ function migrate(s){
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   if (s.v===47){ s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  if (s.notifOff && s.notifOff.build && s.notifOff.fort===undefined) s.notifOff.fort=true; // 0.1.110: fortifications got their own notification switch; anyone who had silenced "buildings and fortifications" keeps both silenced
   if (!s.alMember && Array.isArray(s.cities)) s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); // 0.1.88: lending can only exist inside an alliance; this frees builders and Academies stuck as "lent" after leaving or switching off multiplayer
   s.dragons=s.dragons||{}; s.shopSeen=s.shopSeen||[]; s.giftSeen=s.giftSeen||[];
   s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; FRAMES_FOR_ALL.forEach(function(f){ if (s.frames.indexOf(f)<0) s.frames.push(f); });
@@ -4557,7 +4558,7 @@ function rates(){
 
 /* ---------- time ---------- */
 var finished = [], finCats = []; // messages from the game loop, and each one's notification type
-var NOTE_TYPES=[["build","Buildings and fortifications finished"],["research","Research finished"],["train","Troops trained"],["heroes","Heroes (level ups, captures, arrivals)"],
+var NOTE_TYPES=[["build","Buildings finished"],["fort","Fortifications finished"],["research","Research finished"],["train","Troops trained"],["heroes","Heroes (level ups, captures, arrivals)"],
   ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Kingdom, wars and events"],["day","New day"]];
 function note(cat,msg){ finished.push(msg); finCats[finished.length-1]=cat; }
 function noteOn(cat){ return !(S.notifOff&&S.notifOff[cat||"other"]); }
@@ -4597,7 +4598,7 @@ function completeResearch(){
 }
 function completeFort(){
   var q=S.fortQ; S.forts[q.f]+=q.n; addPrestige(Math.round(q.n*FORTS[q.f].prest));
-  note("build",fmt(q.n)+" "+FORTS[q.f].name+" built"); S.fortQ=null;
+  note("fort",fmt(q.n)+" "+FORTS[q.f].name+" built"); S.fortQ=null;
 }
 function completeTrain(ti){
   var t=S.train[ti]; S.troops[t.u]+=t.n; achStore().trained[t.u]+=t.n; addPrestige(Math.round(t.n*PREST_U[t.u]));
@@ -4732,9 +4733,8 @@ function queueSummary(){
   var n=S.builds.length, soon=Infinity;
   S.builds.forEach(function(x){ soon=Math.min(soon,x.end); });
   if (S.research) soon=Math.min(soon, S.research.end);
-  if (S.fortQ) soon=Math.min(soon, S.fortQ.end);
   var lent=S.alBld||0, alJobs=lent+(S.alAcad?1:0), free=BUILDERS-n-lent; // builders and the Academy lent to the alliance count as running work
-  var jobs=n+(S.research?1:0)+(S.fortQ?1:0)+alJobs;
+  var jobs=n+(S.research?1:0)+alJobs; // fortification batches are not counted as jobs here
   var lead = jobs ? jobs+" job"+(jobs>1?"s":"")+" running" : (BUILDERS-n)+" builder"+(BUILDERS-n>1?"s":"")+" free";
   var tail = !jobs ? (S.bq.length? S.bq.length+" queued" : "tap a plot to build") : (soon===Infinity ? "helping the alliance" : "next in "+fmtT(realMs(soon-S.gt)));
   if (!jobs && S.bq.length) lead="Builders free";
@@ -4751,10 +4751,13 @@ function renderQueue(){
       (lentB?'<div class="qrow"><span class="qlabel">'+(lentB>1?lentB+' builders are':'One builder is')+' building for the alliance</span><div class="qacts"><button class="link" data-act="al-lendbld" data-ci="'+S.cur+'" data-n="0">Bring home</button></div></div>':'')+
       (freeB>0?'<div class="qrow idle">'+(freeB>1?freeB+' builders are free.':'One builder is free.')+'</div>':'');
   } else { qb.className="qrow idle"; qb.textContent="Both builders are free. Tap a plot to build or upgrade."+(S.bq.length?" "+S.bq.length+" queued (waiting on resources or requirements).":""); }
+  var qparts=[]; // everything counted as a running job shows here: research and a lent Academy
   if (S.research){
     var r=S.research;
-    qr.className="qrow"; qr.innerHTML='<span class="qlabel">Researching '+esc(TECH[r.tech].name)+' level '+r.to+'</span><span class="qtime" id="qr-t"></span><div class="bar"><i id="qr-bar"></i></div><div class="qacts">'+'<button class="link strong" data-act="speedup" data-target="research" id="qr-sp">Speed up</button>'+'<button class="link" data-act="cancel-research">Cancel</button></div>';
-  } else if (S.alAcad && academyLv()>0){ qr.className="qrow"; qr.innerHTML='<span class="qlabel">Academy is researching for the alliance</span><div class="qacts"><button class="link" data-act="al-lendacad" data-ci="'+S.cur+'">Bring home</button></div>'; }
+    qparts.push('<div class="qrow"><span class="qlabel">Researching '+esc(TECH[r.tech].name)+' level '+r.to+'</span><span class="qtime" id="qr-t"></span><div class="bar"><i id="qr-bar"></i></div><div class="qacts">'+'<button class="link strong" data-act="speedup" data-target="research" id="qr-sp">Speed up</button>'+'<button class="link" data-act="cancel-research">Cancel</button></div></div>');
+  }
+  if (S.alAcad){ qparts.push('<div class="qrow"><span class="qlabel">Academy is researching for the alliance</span><div class="qacts"><button class="link" data-act="al-lendacad" data-ci="'+S.cur+'">Bring home</button></div></div>'); }
+  if (qparts.length){ qr.className="qstack"; qr.innerHTML=qparts.join(""); }
   else if (academyLv()>0){ qr.className="qrow idle"; qr.textContent="Academy is idle."; }
   else { qr.className=""; qr.innerHTML=""; }
   var qq=document.getElementById("q-queues"); if (qq){ var qh=queuesHtml(); if (qq._sig!==qh){ qq.innerHTML=qh; qq._sig=qh; wireDetails(qq); } }
