@@ -688,7 +688,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.112";
+var APP_VERSION = "0.1.113";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2922,9 +2922,9 @@ function lbAvatar(r){ // a small picture for each high scores row: yours straigh
 }
 // (a removed save keeps checking in below, so an admin restoring it takes effect)
 function lbSync(force){
-  profSync(); mpTell(); lbAutoJoin(); if (!lbOn() && !(LB_URL && S.lb && S.lb.on && S.lb.removed)) return; if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
+  profSync(); mpTell(); lbAutoJoin(); if (!lbOn() && !(LB_URL && S.lb && S.lb.on && S.lb.removed)) return; if (cbOn()) nameFollow(); else if (S.lb.nameAuto) S.lb.name=lbAutoName(); var now=Date.now(); if (!force && now-lbLastSync<5*60000) return; lbLastSync=now;
   try { fetch(LB_URL+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({id:S.lb.id,token:S.lb.token,name:S.lb.name,ver:APP_VERSION,s:lbStats(),mp:S.mp?1:0,cn:cbOn()?S.cloud.name:undefined,ct:cbOn()?S.cloud.token:undefined})})
-    .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); if (d.locked) mpLock(); } else if (d && d.ok){ if (S.lb.removed){ S.lb.removed=false; save(); } if (S.mpLocked) mpUnlock(); } }).catch(function(){}); } catch(e){}
+    .then(function(r){ return r.json(); }).then(function(d){ if (d && d.removed){ S.lb.removed=true; save(); if (d.locked) mpLock(); } else if (d && d.ok){ if (S.lb.removed||S.lb.needAcct){ S.lb.removed=false; S.lb.needAcct=0; save(); } if (S.mpLocked) mpUnlock(); } else if (d && d.needAccount){ if (!S.lb.needAcct){ S.lb.needAcct=1; save(); } } }).catch(function(){}); } catch(e){}
 }
 function lbFetch(cat){
   if (!LB_URL) return; lbCat=cat||lbCat; lbBusy=true; lbErr=""; lastSheet=""; renderSheet();
@@ -2960,7 +2960,7 @@ function mpNeedsGrace(){ return !S.mp && !S.mpGrace && mpInAlliance(); }
 function alMine(){ return ALS.d && ALS.d.member && ALS.d.al ? ALS.d.al : null; }
 function alPost(path, body){ var b={name:S.cloud.name, token:S.cloud.token}; for (var k in body) b[k]=body[k];
   return cbPost(path,b).then(function(r){ return r.json().then(function(d){ if (!r.ok && !d.error) d.error="Server error"; if (d && d.locked) mpLock(); return d; }); }); }
-function alUnread(){ var al=alMine(); if (!al) return 0; var seen=S.alSeen||0, n=0; ALS.chat.forEach(function(c){ if (c.id>seen && !c.sys && c.name!==S.cloud.name) n++; }); return n; }
+function alUnread(){ var al=alMine(); if (!al) return 0; var seen=S.alSeen||0, n=0; ALS.chat.forEach(function(c){ if (c.id>seen && !c.sys && !isMe(c.name)) n++; }); return n; }
 function alSync(){
   if (!alOn() || ALS.busy) return; ALS.busy=true; ALS.last=Date.now();
   var sendJobs=!!alMine(), jobs=sendJobs?alMyJobs():null; if (jobs) ALS.jobSig=jobs.map(function(j){ return j.ref; }).join("|");
@@ -3100,7 +3100,7 @@ function viewMyAlliance(al){
     h+=alMapHtml(al);
   } else if (sub==="members"){
     if (Date.now()-profAt>60000) profFetch(al.members.map(function(m){ return m.name; }));
-    h+='<div class="section">'+al.members.map(function(m){ var me=m.name===S.cloud.name, below=m.rank>my.rank;
+    h+='<div class="section">'+al.members.map(function(m){ var me=isMe(m.name), below=m.rank>my.rank;
       var acts='';
       if (!me && below && my.can.promote){ acts+='<select data-alrank="'+esc(m.name)+'" aria-label="Rank for '+esc(m.name)+'">'+rk.map(function(r,i){ return i>my.rank && i>0 ? '<option value="'+i+'"'+(i===m.rank?' selected':'')+'>'+esc(r.n)+'</option>' : ''; }).join("")+'</select>'; }
       if (!me && below && my.can.chat) acts+= m.muted ? '<button class="link" data-act="al-mute" data-who="'+esc(m.name)+'" data-min="0">Unmute</button>' : '<button class="link" data-act="al-mute" data-who="'+esc(m.name)+'" data-min="60">Mute 1 h</button>';
@@ -3182,7 +3182,7 @@ function alTradeHtml(al){
   if (!tr.lv) h+='<p class="hint">Your alliance has no Trading Post yet. It’s built from the Alliance City page with construction points, like the other alliance buildings. Then members can send each other resources.</p>';
   else {
     h+='<p class="hint">Level '+tr.lv+'. '+Math.round(tr.fee*100)+'% of every shipment is lost on the way. In the next 24 hours you can still send '+fmt(Math.max(0,tr.limit-tr.sent))+' and receive '+fmt(Math.max(0,tr.limit-tr.got))+' (limit '+fmt(tr.limit)+' each way). Shipments you receive land in '+esc(S.cities[0].name)+'.</p>';
-    var others=al.members.filter(function(m){ return m.name!==S.cloud.name; });
+    var others=al.members.filter(function(m){ return !isMe(m.name); });
     if (!others.length) h+='<p class="hint">Nobody else is in your alliance yet.</p>';
     else {
       if (!TP.to || !others.some(function(m){ return m.name===TP.to; })) TP.to=others[0].name; if (!S.cities[TP.from]) TP.from=S.cur;
@@ -3480,7 +3480,7 @@ function alInCity(M, x, y){ var c=alCs(M); return x>=M.city[0] && y>=M.city[1] &
 function alCityMid(M){ var c=alCs(M); return {x:M.city[0]+(c-1)/2, y:M.city[1]+(c-1)/2}; }
 function alBldgAt(M, x, y){ var sz=M.bs||3; for (var i=0;i<(M.b||[]).length;i++){ var b=M.b[i]; if (x>=b.x && y>=b.y && x<b.x+sz && y<b.y+sz) return b; } return null; }
 function alMapAt(M, x, y){ if (alInCity(M,x,y)) return {city:true}; var bb=alBldgAt(M,x,y); if (bb) return {b:bb}; for (var i=0;i<M.k.length;i++) if (M.k[i].x===x && M.k[i].y===y) return {k:M.k[i]}; return null; }
-function alMyTile(M){ for (var i=0;i<M.k.length;i++) if (M.k[i].name===S.cloud.name) return M.k[i]; return null; }
+function alMyTile(M){ for (var i=0;i<M.k.length;i++) if (isMe(M.k[i].name)) return M.k[i]; return null; }
 function alDist(a, b){ return a&&b ? Math.round(Math.hypot(a.x-b.x, a.y-b.y)*10)/10 : 0; }
 function alInitials(n){ var p=String(n).trim().split(/\s+/); return (p.length>1 ? p[0][0]+p[1][0] : String(n).slice(0,2)).toUpperCase(); }
 function alMapCenter(el){ var M=alMine()&&alMine().map; if (!M) return; var me=alMyTile(M)||alCityMid(M), cs=46; el.scrollLeft=Math.max(0, me.x*cs-el.clientWidth/2+cs/2); el.scrollTop=Math.max(0, me.y*cs-el.clientHeight/2+cs/2); }
@@ -3498,8 +3498,8 @@ function alMapHtml(al){
     if (t && t.b && !bTop) continue;
     if (bTop){ var bnm=((ALS.cat&&ALS.cat.bldg.filter(function(z){ return z.k===t.b.k; })[0])||{n:t.b.k}).n, bon=sel&&alBldgAt(M,sel.x,sel.y)===t.b;
       h+='<button class="alt bldg'+(bon?' sel':'')+'" style="grid-row:'+(y+1)+' / span '+(M.bs||3)+';grid-column:'+(x+1)+' / span '+(M.bs||3)+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+esc(bnm)+'">'+(t.b.k==="wh"?ICON.warehouse:t.b.k==="arena"?ICON.rally:t.b.k==="watch"?ICON.beacon:t.b.k==="trade"?ICON.market:ICON.academy)+'<span class="altl">'+esc(bnm)+'</span></button>'; continue; }
-    var on=sel&&(t&&t.city ? alInCity(M,sel.x,sel.y) : sel.x===x&&sel.y===y), cls='alt'+(on?' sel':'')+(t&&t.city?' city':t&&t.k?(t.k.name===S.cloud.name?' mine':' kd')+(kcs?' cz':''):'')+(mv&&!t?' free':'');
-    var kpf = t&&t.k ? (t.k.name===S.cloud.name ? S.me : PROF[String(t.k.name).toLowerCase()]) : null, kcs = kpf&&kpf.city&&CPAL[kpf.city]&&(t.k.name!==S.cloud.name||myLook("city")) ? kpf.city : "";
+    var on=sel&&(t&&t.city ? alInCity(M,sel.x,sel.y) : sel.x===x&&sel.y===y), cls='alt'+(on?' sel':'')+(t&&t.city?' city':t&&t.k?(isMe(t.k.name)?' mine':' kd')+(kcs?' cz':''):'')+(mv&&!t?' free':'');
+    var kpf = t&&t.k ? (isMe(t.k.name) ? S.me : PROF[String(t.k.name).toLowerCase()]) : null, kcs = kpf&&kpf.city&&CPAL[kpf.city]&&(!isMe(t.k.name)||myLook("city")) ? kpf.city : "";
     var inner = t&&t.city ? ICON.townhall+'<span class="altl">Alliance City</span>' : kcs ? cosCastleSvg(kcs) : t&&t.k ? '<span>'+esc(alInitials(t.k.name))+'</span>' : '';
     var area = 'grid-row:'+(y+1)+(cityTop?' / span '+alCs(M):'')+';grid-column:'+(x+1)+(cityTop?' / span '+alCs(M):'');
     if (kcs) area+=';background:'+CPAL[kcs].bg+';border-color:'+CPAL[kcs].a;
@@ -3510,7 +3510,7 @@ function alMapHtml(al){
     h+='<div class="acity" style="margin-top:8px">';
     if (st && st.b){ var bnm2=((ALS.cat&&ALS.cat.bldg.filter(function(z){ return z.k===st.b.k; })[0])||{n:st.b.k}).n; h+='<h4><span>'+esc(bnm2)+'</span><span class="dur">level '+((al.econ&&al.econ.lv[st.b.k])||0)+'</span></h4>'+(my.can.map?'<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="al-move" data-what="b" data-who="'+esc(st.b.k)+'">Move it</button></div>':''); }
     else if (st && st.city) h+='<h4><span>Alliance City</span><span class="dur">('+M.city[0]+', '+M.city[1]+') to ('+(M.city[0]+alCs(M)-1)+', '+(M.city[1]+alCs(M)-1)+')</span></h4><p class="hint" style="margin:0">Where members will donate resources for alliance research and buildings (next update). '+(me?'It\u2019s '+d+' squares from your kingdom.':'')+'</p>'+(my.can.map?'<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="al-move" data-what="city">Move the city</button></div>':'');
-    else if (st && st.k){ var mm=rk[st.k.name]||{}, mine=st.k.name===S.cloud.name;
+    else if (st && st.k){ var mm=rk[st.k.name]||{}, mine=isMe(st.k.name);
       h+='<h4><span>'+esc(st.k.name)+(mine?' <span class="dur">(you)</span>':'')+'</span>'+(mm.rank!=null?'<span class="badge">'+esc(al.ranks[mm.rank].n)+'</span>':'')+'<span class="dur">('+sel.x+', '+sel.y+')</span></h4>'+
         '<div class="rgrid"><span>Prestige <b>'+fmt(mm.prestige||0)+'</b></span><span>Cities <b>'+(mm.cities||0)+'</b></span>'+(mine?'':'<span>Distance <b>'+d+'</b> squares</span>')+'<span class="dur">'+alAgo(mm.seen)+'</span></div>'+
         (mine?'<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="al-move" data-what="me">Move my kingdom</button></div>':my.can.map?'<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="al-move" data-what="member" data-who="'+esc(st.k.name)+'">Move their kingdom</button></div>':''); }
@@ -3523,7 +3523,7 @@ function fillAlChat(){
   var el=document.getElementById("alchat"); if (!el) return;
   var al=alMine(), my=al&&al.my, hh=ALS.chat.length?chatOlderBtn('al')+ALS.chat.map(function(c){
     if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
-    var canDel=!c.del && (c.name===S.cloud.name || (my&&my.can.chat));
+    var canDel=!c.del && (isMe(c.name) || (my&&my.can.chat));
     return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+plChat(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
   if (el._sig===hh) return;
   var atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40 || !el._sig;
@@ -3537,7 +3537,7 @@ function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"
 function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); return c; }
 /* ---------- world chat: everyone with a cloud save; lives in the chat dock next to alliance chat ---------- */
 var WCH={lines:[], top:0, last:0, busy:false, mutedUntil:0, err:"", more:false, oldBusy:false};
-function wcUnread(){ var seen=S.wcSeen||0, me=S.cloud&&S.cloud.name, n=0; WCH.lines.forEach(function(l){ if (l.id>seen && l.name!==me && !l.sys) n++; }); return n; }
+function wcUnread(){ var seen=S.wcSeen||0, n=0; WCH.lines.forEach(function(l){ if (l.id>seen && !isMe(l.name) && !l.sys) n++; }); return n; }
 function wcSync(){
   if (WCH.busy || !cbOn() || S.mpLocked) return; WCH.busy=true;
   var firstLoad=!WCH.top;
@@ -3656,7 +3656,7 @@ function cbCheck(){
   if (!cbOn() || CB.busy || CB.checking) return; CB.checking=true;
   cbPost("/backup/info",{name:S.cloud.name, token:S.cloud.token}).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
     CB.checking=false; var d=o.d; if (o.st===403 && S.cloud){ S.cloud.token=null; save(); return; } if (!d || !d.ok) return;
-    S.cloud.info=d.info; var L=d.info.latest, mine=S.cloud.rev||0;
+    S.cloud.info=d.info; if (d.info.display) S.cloud.display=d.info.display; nameOneNote(); nameFollow(); setTimeout(nameOneMaybe, 2500); var L=d.info.latest, mine=S.cloud.rev||0;
     if (!L || (d.info.rev||0)<=mine) return;
     var other=!L.dev || L.dev==="legacy" || L.dev!==cbDev(), later=L.at>(S.cloud.last||0)+1000;
     if (other && later) cbRestore("latest", {auto:true, at:L.at});
@@ -3664,6 +3664,47 @@ function cbCheck(){
   }).catch(function(){ CB.checking=false; });
 }
 function cbOn(){ return !!(LB_URL && S.cloud && S.cloud.token); }
+/* ---------- one name everywhere ----------
+   Signed in, the account's in-game name (server: backups.display) is THE name: lord's name, high scores, chat, alliances, reports.
+   The login name (S.cloud.name) never changes and is what every request is signed with. Not signed in, the lord's name from Settings is used locally. */
+function cbName(){ if (!cbOn()) return ""; var i=S.cloud.info||{}; return String(i.display||S.cloud.display||"").slice(0,20); } // "" until the server has said what it is
+function myName(){ return cbName() || (S.lord||"").replace(/\s+/g," ").trim() || (S.lb&&S.lb.name) || ""; }
+function isMe(n){ var m=myName(); return !!(n && m && String(n).toLowerCase()===String(m).toLowerCase()); }
+function nameFollow(){ nameOneNote(); var n=cbName(); if (!n) return false; var ch=false; if (S.lord!==n){ S.lord=n; ch=true; } if (S.lb && S.lb.name!==n){ S.lb.name=n; S.lb.nameAuto=true; ch=true; } if (ch){ save(); try { tickText(); } catch(e){} } return ch; }
+function nameNext(){ var i=S.cloud&&S.cloud.info; return i&&i.renamed ? i.renamed+30*86400e3 : 0; } // when the name can change again (the first change is free)
+function nameSave(v, from){ // change the in-game name on the server, then everywhere on this device
+  v=String(v||"").replace(/\s+/g," ").trim().slice(0,20); if (v.length<2){ toast("Names need 2 to 20 characters"); return; }
+  if (!cbOn()){ S.lord=v; save(); tickText(); lastView=""; refresh(); return; }
+  if (v===cbName()){ S.nameOneAsked=1; save(); if (from==="one") closeSheet(); toast("That\u2019s already your name"); return; }
+  if (CB.busy) return; CB.busy=true; cbUi("Changing your name\u2026", true);
+  alPost("/me/rename",{display:v}).then(function(d){ CB.busy=false;
+    if (!d || !d.ok){ cbUi((d&&d.error)||"Couldn\u2019t change the name"); toast((d&&d.error)||"Couldn\u2019t change the name"); return; }
+    S.cloud.info=S.cloud.info||{}; S.cloud.info.display=d.display; S.cloud.info.renamed=d.renamed||Date.now(); S.cloud.display=d.display; S.nameOneAsked=1; save();
+    nameFollow(); cbUi("", true); if (from==="one") closeSheet(); toast("You\u2019re now "+d.display+" everywhere"); lbData={}; lbLastSync=0; lbSync(true); lastView=""; lastSheet=""; refresh(); renderSheet();
+  }).catch(function(){ CB.busy=false; cbUi("Couldn\u2019t reach the server. Check your connection."); });
+}
+// After the update that made one name everywhere: a signed-in player whose lord's name or boards name differed from the account name gets one free pick.
+// nameOneNote remembers that old name the first time the server reports the account name (before nameFollow overwrites it); nameOneMaybe shows the sheet.
+function nameOneNote(){
+  if (!cbOn() || S.nameOneAsked || S.nameOneOther!=null) return; var i=S.cloud.info; if (!i || i.display==null) return; // the server hasn't told us yet
+  var n=String(i.display), lo=function(x){ return String(x||"").replace(/\s+/g," ").trim().toLowerCase(); };
+  var other=(S.lord&&lo(S.lord)!==lo(n))?S.lord:((S.lb&&S.lb.name&&!S.lb.nameAuto&&lo(S.lb.name)!==lo(n))?S.lb.name:"");
+  if (!other || i.renamed) S.nameOneAsked=1; else S.nameOneOther=String(other).slice(0,20);
+  save();
+}
+function nameOneMaybe(){
+  nameOneNote(); if (!cbOn() || S.nameOneAsked || S.nameOneOther==null || navigator.webdriver) return;
+  if (sheetFor) { setTimeout(nameOneMaybe, 15000); return; }
+  openSheet({kind:"nameone", other:S.nameOneOther});
+}
+function nameOneSheet(){
+  var n=cbName(), o=(sheetFor&&sheetFor.other)||"";
+  return '<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>One name everywhere</h2><div class="sub">High scores, chat and alliances now share it</div></div></div>'+
+    '<p class="hint">Your account name, <b>'+esc(n)+'</b>, is now your name everywhere in Ibory: on the high scores, in chat, in your alliance and in reports. You used <b>'+esc(o)+'</b> in some of those. Keep <b>'+esc(n)+'</b>, or change it now for free (after that, once every 30 days). Your login name and password stay the same either way.</p>'+
+    '<div><label for="onename" class="sub">Name everywhere</label><input id="onename" type="text" maxlength="20" value="'+esc(o.slice(0,20))+'"></div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn" data-act="nm-keep">Keep '+esc(n)+'</button><button class="btn ghost" data-act="nm-save" data-from="one"'+(CB.busy?' disabled':'')+'>Change to the name above</button></div>'+
+    (CB.msg?'<p class="'+(CB.good?'dur':'why')+'" style="margin:6px 0 0">'+esc(CB.msg)+'</p>':'');
+}
 function cbB64(buf){ var b=new Uint8Array(buf), s="", i; for (i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null, b.subarray(i,i+0x8000)); return btoa(s); }
 function cbUnB64(t){ var s=atob(t), b=new Uint8Array(s.length); for (var i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return b; }
 function cbPack(str){ if (!window.CompressionStream) return Promise.resolve({enc:"plain", body:str});
@@ -3677,7 +3718,8 @@ function cbSignIn(name, pass){
   if (CB.busy) return; CB.busy=true; cbUi("Connecting\u2026", true);
   cbPost("/backup/account",{name:name, pass:pass}).then(function(r){ return r.json(); }).then(function(d){
     CB.busy=false; if (!d || !d.ok){ cbUi((d&&d.error)||"Couldn\u2019t reach the backup server"); return; }
-    S.cloud={name:d.info.name, token:d.token, last:d.info.latest?d.info.latest.at:0, info:d.info}; save();
+    S.cloud={name:d.info.name, token:d.token, last:d.info.latest?d.info.latest.at:0, info:d.info, display:d.info.display||""}; if (d.created) S.nameOneAsked=1; save();
+    nameOneNote(); nameFollow(); lbLastSync=0; setTimeout(function(){ lbSync(true); nameOneMaybe(); }, 800);
     if (d.created || !d.info.latest){ CB.found=null; cbSave(false); }
     else { CB.found=d.info; cbUi("Signed in. This account already has a backup.", true); }
   }).catch(function(){ CB.busy=false; cbUi("Couldn\u2019t reach the backup server. Check your connection."); });
@@ -3692,7 +3734,7 @@ function cbSave(auto, opt){
     return fetch(LB_URL+"/backup/save",{method:"POST", cache:"no-store", keepalive:!!opt.leaving && pk.body.length<60000, headers:hd, body:pk.body});
   }).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
     CB.busy=false;
-    if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
+    if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; if (o.d.info.display) S.cloud.display=o.d.info.display; nameOneNote(); CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
     if (o.st===409 && o.d && o.d.conflict){ // another device saved since: don't overwrite it, ask which game to keep
       CB.conflict=o.d.info; cbUi(""); if (!sheetFor || onPage("settings")) openSheet({kind:"cbconflict"}); return; }
     if (o.st===403){ S.cloud.token=null; save(); }
@@ -3802,12 +3844,12 @@ function cbAskSheet(){
 function cbWhen(t){ return t?new Date(t).toLocaleString(undefined,{weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}):"never"; }
 function cbSection(){
   if (!LB_URL) return "";
-  var h='<details class="det" data-det="cloud"'+(DET.cloud||!cbOn()?' open':'')+'><summary><b>Cloud backup</b> <span class="dur">'+(cbOn()?'on, as '+esc(S.cloud.name):'off')+'</span></summary>';
+  var h='<details class="det" data-det="cloud"'+(DET.cloud||!cbOn()?' open':'')+'><summary><b>Account and cloud save</b> <span class="dur">'+(cbOn()?'signed in as '+esc(myName()):'not signed in')+'</span></summary>';
   if (!cbOn()){
-    h+='<p class="hint">Keep a copy of your game online, so a lost phone or a reinstalled computer can\u2019t take it. Pick a backup name and a password and <b>write them down</b>: they\u2019re the only way to get your game back. On a new device, enter the same name and password here to restore it.</p>'+
-      '<div><label for="cbname" class="sub">Backup name</label><input id="cbname" type="text" maxlength="20" autocomplete="username" value="'+esc(CB.nameDraft||(S.cloud&&S.cloud.name)||(S.lb&&S.lb.name)||"")+'" placeholder="2 to 20 characters"></div>'+
+    h+='<p class="hint">One account does it all: it keeps a copy of your game online (so a lost phone or a reinstalled computer can\u2019t take it), and its username is <b>your name everywhere in Ibory</b>: the high scores, world chat, alliances and reports. Pick a username and a password and <b>write them down</b>: they\u2019re the only way to get your game back. On a new device, sign in with the same username and password to restore it.</p>'+
+      '<div><label for="cbname" class="sub">Username (your name in the game, 2 to 20 characters)</label><input id="cbname" type="text" maxlength="20" autocomplete="username" value="'+esc(CB.nameDraft||(S.cloud&&S.cloud.name)||(S.lord||"").trim()||(S.lb&&S.lb.name)||"")+'" placeholder="2 to 20 characters"></div>'+
       '<div><label for="cbpass" class="sub">Password</label><input id="cbpass" type="password" maxlength="64" autocomplete="current-password" placeholder="At least 4 characters"></div>'+
-      '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="cb-signin"'+(CB.busy?' disabled':'')+'>Turn on, or sign in</button></div>';
+      '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="cb-signin"'+(CB.busy?' disabled':'')+'>Create the account, or sign in</button></div>';
   } else {
     var inf=S.cloud.info||{};
     if (CB.found && CB.found.latest){
@@ -3815,7 +3857,7 @@ function cbSection(){
         '<div class="btnrow"><button class="btn small" data-act="cb-restore" data-v="latest">'+(armed==="cbr-latest"?'Tap again to replace this game':'Restore that backup')+'</button><button class="btn ghost small" data-act="cb-force">'+(armed==="cbforce"?'Tap again to overwrite it':'Back up this game over it')+'</button></div>';
     } else {
       var un=cbUndoInfo();
-      h+='<p class="hint">Saving to the cloud as <b>'+esc(S.cloud.name)+'</b> every hour while the game is open, and when you switch away. Open the game on another device signed in with the same name and it picks up your newest save. Latest save: <b>'+cbWhen(inf.latest&&inf.latest.at)+'</b>'+(inf.older?'. Older copy: '+cbWhen(inf.older.at):'')+'.</p>'+
+      h+='<p class="hint">Signed in as <b>'+esc(S.cloud.name)+'</b>'+(myName().toLowerCase()!==String(S.cloud.name).toLowerCase()?' (your name in the game is <b>'+esc(myName())+'</b>; change it under Your name below)':'')+'. Saving to the cloud every hour while the game is open, and when you switch away. Open the game on another device signed in with the same name and it picks up your newest save. Latest save: <b>'+cbWhen(inf.latest&&inf.latest.at)+'</b>'+(inf.older?'. Older copy: '+cbWhen(inf.older.at):'')+'.</p>'+
         (CB.conflict?'<p class="why">Another device saved at '+cbWhen(CB.conflict.latest&&CB.conflict.latest.at)+' while this one was playing.</p><div class="btnrow"><button class="btn small" data-act="cb-pull">Load the other device\u2019s game</button><button class="btn ghost small" data-act="cb-force">'+(armed==="cbforce"?'Tap again to overwrite it':'Keep this device\u2019s game')+'</button></div>':'')+
         (un?'<p class="dur" style="margin:4px 0">A newer game was loaded over this device\u2019s game on '+cbWhen(un.at)+'.</p><div class="btnrow"><button class="btn ghost small" data-act="cb-undo">'+(armed==="cbundo"?'Tap again to bring it back':'Undo: bring back that game')+'</button></div>':'')+
         '<div class="btnrow"><button class="btn small" data-act="cb-save"'+(CB.busy?' disabled':'')+'>Back up now</button>'+
@@ -3834,10 +3876,10 @@ function lbSheet(){
   if (!LB_URL) return h+'<p class="hint">High scores aren\u2019t switched on in this version yet.</p><button class="closebtn" data-act="close">Close</button>';
   var listed=lbOn();
   if (S.lb && S.lb.removed) h+='<p class="hint">This save was removed from the high scores, so it isn\u2019t listed. You can still browse the boards.</p>';
-  else if (!listed){
-    h+='<details class="det" data-det="lbjoin"'+(DET.lbjoin?' open':'')+'><summary><b>'+(S.lb&&S.lb.optedOut?'You left the high scores':'You\u2019re not on the boards')+'</b> <span class="dur">tap to '+(S.lb&&S.lb.optedOut?'rejoin':'join')+'</span></summary>'+'<p class="hint">'+(S.lb&&S.lb.optedOut?'You left the high scores. Rejoin any time.':'Join to put your realm on the boards.')+' Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, kingdom reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
-      '<div><label for="lbname" class="sub">Name on the boards (2 to 20 characters)</label><input id="lbname" type="text" maxlength="20" value="'+esc((S.lb&&S.lb.name)||S.lord||"")+'" placeholder="Your name"></div>'+
-      '<div class="upbtns"><button class="btn" data-act="lb-join">'+(S.lb&&S.lb.optedOut?'Rejoin the high scores':'Join the high scores')+'</button></div></details>';
+  else if (!listed || (S.lb&&S.lb.needAcct&&!cbOn())){
+    h+='<details class="det" data-det="lbjoin"'+(DET.lbjoin||!cbOn()?' open':'')+'><summary><b>'+(S.lb&&S.lb.optedOut&&!listed?'You left the high scores':'You\u2019re not on the boards')+'</b> <span class="dur">tap to '+(S.lb&&S.lb.optedOut?'rejoin':'join')+'</span></summary>'+'<p class="hint">'+(S.lb&&S.lb.optedOut?'You left the high scores. Rejoin any time.':'Join to put your realm on the boards.')+' Ibory sends your name and these numbers only: prestige, kills by troop type, troops lost, your highest hero level, best star set, cities, kingdom reputation, and which levels of historic city you\u2019ve taken. They update when you open the game and every few minutes while you play.</p>'+
+      (cbOn()?'<p class="hint">You\u2019ll be listed as <b>'+esc(myName())+'</b>, your account name (change it in Settings).</p><div class="upbtns"><button class="btn" data-act="lb-join">'+(S.lb&&S.lb.optedOut?'Rejoin the high scores':'Join the high scores')+'</button></div>'
+        :'<p class="hint">The high scores use your account name, so you need an account first. It\u2019s a username and a password, and it also keeps your game safe in the cloud.</p><div class="upbtns"><button class="btn" data-act="cb-ask-yes">Set up an account</button></div>')+'</details>';
   }
   var d=lbData[lbKey()];
   h+='<div class="speeds" style="margin-bottom:8px"><button data-act="lb-mp" data-v="0" aria-pressed="'+!lbMp()+'">Single player</button><button data-act="lb-mp" data-v="1" aria-pressed="'+!!lbMp()+'">Multiplayer</button></div>'+
@@ -3851,11 +3893,11 @@ function lbSheet(){
     else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn" data-act="pl-open" role="button" data-k="'+esc(r.ck||"")+'" data-pid="'+(r.pid||0)+'"'+(r.me?' data-me="1"':'')+' data-nm="'+esc(r.name)+'">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
-  if (!listed){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
+  if (!listed || (S.lb&&S.lb.needAcct&&!cbOn())){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
   h+='<div class="upbtns" style="grid-template-columns:1fr 1fr"><button class="btn ghost small" data-act="lb-refresh">Refresh</button><button class="btn ghost small" data-act="lb-sync">Send my scores now</button></div>';
-  h+='<details class="det" data-det="lbme"'+(DET.lbme?' open':'')+'><summary><b>Your entry</b> <span class="dur">as '+esc(S.lb.name)+'</span></summary>'+'<p class="hint">Everyone is listed automatically. Your name '+(S.lb.nameAuto?'follows your lord\u2019s name until you set one here':'is the one you set')+'. Leaving removes you from every board, and you won\u2019t be added back unless you rejoin.</p>'+
-    '<div><label for="lbname" class="sub">Name on the boards</label><input id="lbname" type="text" maxlength="20" value="'+esc(S.lb.name)+'"></div>'+
-    '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="lb-rename">Save name</button><button class="btn ghost small danger" data-act="lb-leave">'+(armed==="lbleave"?'Tap again to leave':'Leave the high scores')+'</button></div></details>';
+  h+='<details class="det" data-det="lbme"'+(DET.lbme?' open':'')+'><summary><b>Your entry</b> <span class="dur">as '+esc(S.lb.name)+'</span></summary>'+'<p class="hint">'+(cbOn()?'You\u2019re listed under your account name. To change it, change your name in Settings.':'Everyone is listed automatically. Your name '+(S.lb.nameAuto?'follows your lord\u2019s name until you set one here':'is the one you set')+'.')+' Leaving removes you from every board, and you won\u2019t be added back unless you rejoin.</p>'+
+    (cbOn()?'':'<div><label for="lbname" class="sub">Name on the boards</label><input id="lbname" type="text" maxlength="20" value="'+esc(S.lb.name)+'"></div>')+
+    '<div class="btnrow" style="margin-top:6px">'+(cbOn()?'':'<button class="btn ghost small" data-act="lb-rename">Save name</button>')+'<button class="btn ghost small danger" data-act="lb-leave">'+(armed==="lbleave"?'Tap again to leave':'Leave the high scores')+'</button></div></details>';
   return h+'<button class="closebtn" data-act="close">Close</button>';
 }
 /* ---------- War College: battle puzzles ----------
@@ -7224,12 +7266,12 @@ function dropsSheet(){
 /* ---------- player profiles: tap a name (high scores, chat, alliance lists) to see that player ---------- */
 var PLC={}, plBusy=false;
 function plName(name, pid, me){ return '<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(String(name||"").toLowerCase())+'"'+(pid?' data-pid="'+pid+'"':'')+(me?' data-me="1"':'')+' data-nm="'+esc(name)+'">'+esc(name)+'</span>'; }
-// chat shows each player's high-score name, not their cloud save name: looked up once per player through /player (by cloud name) and kept for 10 minutes
+// chat lines already carry each player's one in-game name (0.1.113). The /player lookup stays so their picture can be shown; kept for 10 minutes
 var DNM={}, dnmQ=[], dnmBusy=false, DNM_TTL=600000;
 function chatName(n){ if (!n) return n; var k=String(n).toLowerCase();
-  if (S.cloud && S.cloud.name && k===String(S.cloud.name).toLowerCase()) return (S.lb && S.lb.name && !S.lb.removed && S.lb.on!==false) ? S.lb.name : n;
+  if (isMe(n)) return n;
   var c=DNM[k]; if (!c || Date.now()-c.at>=DNM_TTL){ if (dnmQ.indexOf(k)<0) dnmQ.push(k); setTimeout(dnmPump,0); }
-  return (c && c.n) || n; }
+  return n; }
 function dnmPump(){ if (dnmBusy || !dnmQ.length || !LB_URL) return; var k=dnmQ.shift(), c=DNM[k];
   if (c && Date.now()-c.at<DNM_TTL){ dnmPump(); return; }
   DNM[k]={n:(c&&c.n)||"", at:Date.now()}; dnmBusy=true;
@@ -7238,7 +7280,7 @@ function dnmPump(){ if (dnmBusy || !dnmQ.length || !LB_URL) return; var k=dnmQ.s
     if (d && !d.error && !d.gone && (d.pu||d.fr) && d.ck) DNM[k].pf={img: d.pu ? LB_URL+"/me/img?k="+encodeURIComponent(d.ck)+"&v="+d.pu : "", frame:d.fr||""};
     if (d && !d.error) PLC["k"+k]={d:d,at:Date.now()};
     try { fillAlChat(); renderDock(); } catch(e){} dnmPump(); }).catch(function(){ dnmBusy=false; setTimeout(dnmPump,3000); }); }
-function plChat(name){ var dn=chatName(name), k=String(name||"").toLowerCase(), mine=S.cloud && S.cloud.name && k===String(S.cloud.name).toLowerCase(), c=DNM[k], pf=mine?S.me:(c&&c.pf);
+function plChat(name){ var dn=chatName(name), k=String(name||"").toLowerCase(), mine=isMe(name), c=DNM[k], pf=mine?S.me:(c&&c.pf);
   return avatarHtml(pf||{},dn,"xs")+'<span class="pln" role="button" tabindex="0" data-act="pl-open" data-k="'+esc(k)+'" data-nm="'+esc(dn)+'">'+esc(dn)+'</span>'; }
 function plKey(k,pid){ return pid ? "p"+pid : "k"+k; }
 function plOpen(k,pid,nm){
@@ -8357,7 +8399,10 @@ function renderSheetCore(){
         (S.mpLocked?'<div class="hint" style="color:var(--bad,#c0392b)">This account was removed from the high scores, so it is locked to single player: no alliances, invasions, PvP or world chat.</div>':'')+'<div class="hint">Off hides alliances, invasions and PvP. Your high scores: <b>'+(S.mp?'multiplayer boards (for good)':'single-player boards')+'</b>.</div></div>'+
       (alMine()?'<div><div class="h3" style="margin-bottom:6px">Watchtower alerts</div>'+wtTypeBtns()+'</div>':'')+
       '<div><div class="h3" style="margin-bottom:6px">World chat</div><div class="speeds"><button data-act="wc-set" data-v="on" aria-pressed="'+wcShown()+'">Shown</button><button data-act="wc-set" data-v="off" aria-pressed="'+!wcShown()+'">Hidden</button></div></div>'+
-      '<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="24" placeholder="What the realm calls you"></div>'+
+      (cbOn()?'<div><label for="dispname" class="sub">Your name (everywhere: high scores, chat, alliances)</label><input id="dispname" type="text" value="'+esc(myName())+'" maxlength="20"></div>'+
+        '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="nm-save"'+(CB.busy?' disabled':'')+'>Change my name</button></div>'+
+        '<div class="hint">'+(nameNext()>Date.now()?'You can change it again on '+cbWhen(nameNext())+'.':(S.cloud.info&&S.cloud.info.renamed?'Once every 30 days.':'Your first change is free; after that, once every 30 days.'))+' Your login name stays <b>'+esc(S.cloud.name)+'</b>.</div>'
+        :'<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="20" placeholder="What the realm calls you"></div><div class="hint">Sign in to an account (above) and this becomes your name on the high scores, in chat and in alliances too.</div>')+
       '<div><label for="allyname" class="sub">Kingdom name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
       '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
@@ -8383,6 +8428,8 @@ function renderSheetCore(){
     h=cbConflictSheet();
   } else if (sheetFor.kind==="cbask"){
     h=cbAskSheet();
+  } else if (sheetFor.kind==="nameone"){
+    h=nameOneSheet();
   } else if (sheetFor.kind==="recover"){
     h=recoverSheet();
   } else if (sheetFor.kind==="tgline"){
@@ -8543,7 +8590,7 @@ function renderSheetCore(){
   if (sheetFor && sheetFor.kind==="waves") updateWaveInfo();
   var cn=document.getElementById("cn");
   var ln=document.getElementById("lordname");
-  if (ln) ln.addEventListener("input",function(){ S.lord=ln.value.replace(/\s+/g," ").trim(); tickText(); save(); });
+  if (ln) ln.addEventListener("input",function(){ S.lord=ln.value.replace(/\s+/g," ").trim().slice(0,20); tickText(); save(); });
   var rnA=document.getElementById("allyname"), rnR=document.getElementById("realmname");
   if (rnA) rnA.addEventListener("input",function(){ renameAlly(rnA.value); });
   if (rnR) rnR.addEventListener("input",function(){ renameRealm(rnR.value); });
@@ -8814,11 +8861,14 @@ document.addEventListener("click",function(e){
   if (act==="lb-cat"){ lbFetch(a.dataset.cat); return; }
   if (act==="lb-mp"){ lbMpSel=+a.dataset.v; lbFetch(); return; }
   if (act==="lb-sync"){ lbSync(true); toast("Scores sent"); setTimeout(function(){ lbFetch(); },1500); return; }
-  if (act==="lb-join"){ var jn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim();
+  if (act==="lb-join"){ if (!cbOn()){ closeSheet(); DET.cloud=true; goPage("settings"); toast("Set up your account first"); return; } var jn=myName();
     if (jn.length<2){ lbErr="Pick a name of 2 to 20 characters."; lastSheet=""; renderSheet(); return; }
-    S.lb={id:lbHex(16), token:lbHex(16), name:jn.slice(0,20), on:true, nameAuto:false}; lbErr=""; save(); lbSync(true); toast("You\u2019re on the high scores"); setTimeout(function(){ lbFetch("prestige"); },1500); lastSheet=""; renderSheet(); return; }
-  if (act==="lb-rename"){ var rn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim(); if (rn.length<2){ toast("Names need 2 to 20 characters"); return; }
+    if (S.lb && S.lb.id && S.lb.token && !S.lb.removed){ S.lb.on=true; S.lb.optedOut=false; S.lb.name=jn.slice(0,20); S.lb.nameAuto=true; S.lb.needAcct=0; } // keep the row we already have
+    else S.lb={id:lbHex(16), token:lbHex(16), name:jn.slice(0,20), on:true, nameAuto:true}; lbErr=""; save(); lbLastSync=0; lbSync(true); toast("You\u2019re on the high scores"); setTimeout(function(){ lbFetch("prestige"); },1500); lastSheet=""; renderSheet(); return; }
+  if (act==="lb-rename"){ if (cbOn()){ toast("Change your name in Settings"); return; } var rn=((document.getElementById("lbname")||{}).value||"").replace(/\s+/g," ").trim(); if (rn.length<2){ toast("Names need 2 to 20 characters"); return; }
     S.lb.name=rn.slice(0,20); S.lb.nameAuto=false; save(); lbSync(true); toast("Name saved"); setTimeout(function(){ lbFetch(); },1500); return; }
+  if (act==="nm-save"){ var nv=((document.getElementById(a.dataset.from==="one"?"onename":"dispname")||{}).value||""); nameSave(nv, a.dataset.from); return; }
+  if (act==="nm-keep"){ S.nameOneAsked=1; save(); nameFollow(); closeSheet(); lbData={}; lbLastSync=0; lbSync(true); toast("You\u2019re "+myName()+" everywhere"); lastView=""; refresh(); return; }
   if (act==="lb-leave"){ if (armed!=="lbleave"){ armed="lbleave"; lastSheet=""; renderSheet(); return; } armed=null;
     var lv={id:S.lb.id, token:S.lb.token}; S.lb.on=false; S.lb.optedOut=true; save(); try { fetch(LB_URL+"/leave",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(lv)}); } catch(e){}
     lbData={}; toast("You left the high scores"); lastSheet=""; renderSheet(); return; }
@@ -8856,7 +8906,7 @@ document.addEventListener("click",function(e){
   if (act==="cb-ask-yes"){ DET.cloud=true; goPage("settings"); setTimeout(function(){ var d=document.querySelector('details[data-det="cloud"]'); if (d){ d.open=true; d.scrollIntoView({block:"start"}); } var n=document.getElementById("cbname"); if (n) n.focus(); }, 120); return; }
   if (act==="cb-ask-later"){ S.cloudAsk=Date.now()+3*86400e3; save(); closeSheet(); toast("You can turn on cloud saves any time in Settings"); return; }
   if (act==="cb-restore"){ var slot=a.dataset.v; if (armed!=="cbr-"+slot){ armed="cbr-"+slot; lastSheet=""; renderSheet(); return; } armed=null; cbRestore(slot); return; }
-  if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; var keepName=S.cloud&&S.cloud.name; S.cloud={name:keepName}; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
+  if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; var keepName=S.cloud&&S.cloud.name, keepDisp=cbName(); S.cloud={name:keepName, display:keepDisp}; if (S.lb && S.lb.needAcct) S.lb.needAcct=0; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
   if (act==="save-import"){
     var inp=document.getElementById("saveinput"), code=(inp&&inp.value||"").trim(), obj=null;
     try { obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,""))))); } catch(e){ obj=null; }
@@ -8885,7 +8935,7 @@ document.addEventListener("click",function(e){
   if (act==="rf-recall"){ rfMove("/al/reinf/recall", a.dataset.id); return; }
   if (act==="rf-home"){ rfMove("/al/reinf/home", a.dataset.id); return; }
   if (act==="chat-older"){ if (a.dataset.ch==="world") wcOlder(); else alOlder(); return; }
-  if (act==="pl-open"){ var pe=a; if (pe.getAttribute("data-me")==="1" || (S.cloud && S.cloud.name && String(S.cloud.name).toLowerCase()===pe.getAttribute("data-k") && !pe.getAttribute("data-pid"))){ closeSheet(); ALS.last=0; goPage("me"); return; } plOpen(pe.getAttribute("data-k")||"", +pe.getAttribute("data-pid")||0, pe.getAttribute("data-nm")||""); return; }
+  if (act==="pl-open"){ var pe=a; if (pe.getAttribute("data-me")==="1" || (cbOn() && (String(S.cloud.name).toLowerCase()===pe.getAttribute("data-k") || String(myName()).toLowerCase()===pe.getAttribute("data-k")) && !pe.getAttribute("data-pid"))){ closeSheet(); ALS.last=0; goPage("me"); return; } plOpen(pe.getAttribute("data-k")||"", +pe.getAttribute("data-pid")||0, pe.getAttribute("data-nm")||""); return; }
   if (act==="me"){ ALS.last=0; goPage("me"); return; }
   if (act==="me-look"){ S.me=S.me||{img:"",frame:""}; var lk=a.dataset.kind, lv=a.dataset.v||""; if (COSM[lk] && (!lv || (COSM[lk][lv] && cosHas(lk,lv)))){ S.me[lk]=lv; save(); profSync(); applyTheme(); lastSheet=""; renderSheet(); requestDraw(); } return; }
   if (act==="me-uitheme"){ S.me=S.me||{}; S.me.ui=S.me.ui===false; save(); applyTheme(); lastSheet=""; renderSheet(); requestDraw(); return; }

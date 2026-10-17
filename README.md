@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.75
+Version 0.1.113
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -19,9 +19,28 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 48.
+Settings has save codes and Save to file / Load from file. Current save version: 48 (the last `migrate` step is `if (s.v===47){ ... s.v=48; }`).
 
 ## Release notes
+### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.113** One name everywhere. The cloud account is now *the* account: its username is your name on the high scores, in world and alliance chat, on the alliance roster and in reports (server: `backups.display`; the login name never changes, so nothing keyed on the account moves). Settings "Your name" changes it everywhere through `/me/rename` (first change free, then once every 30 days; names can't collide with another account's login or display name). New board rows need an account (`/submit` answers `needAccount`; rows from before keep working). The separate "name on the boards" box is gone while signed in. Existing signed-in players whose lord name or boards name differed get a one-time sheet to keep the account name or change it for free. Chat no longer swaps names client-side. Worker: `/me/name`, `/me/rename`, `keysByName`/`toKey` so kick, promote, gifts, `/player` and `/me/get` work by in-game name. Deploy the Worker first. Admin page: "Delete" on a high-scores row removes it for good (not just hides it); "Delete account" on the Saves tab removes a cloud account and everything on it (board rows, profile, alliance membership, invasions, shop, chat), handing its alliance to the next member or disbanding an empty one. Saves tab shows the in-game name under the login name.
+- **0.1.112** Map tab: "Occupy flats" panel. Pick a flat level, a march preset and "Take N"; one tap sends that preset to the nearest free flats of that level (skips flats already marched on). Capped by free Rally Spot marches and room to hold (Town Hall). Stops on missing troops, food, a named hero, and refuses if 5 practice fights against that flat level aren't all won. Settings kept in `S.occ`.
+- **0.1.111** Invasion help text says invasions never target your own alliance. Worker: matchmaking excludes alliance mates.
+- **0.1.110** Fortifications are not counted as running jobs; notifications split into "Buildings finished" and "Fortifications finished" (`note("fort")`, migrate keeps an old "off" setting).
+- **0.1.109** Queue panel explains lent builders and a lent Academy as running jobs ("4 jobs running").
+- **0.1.108** "All cities" tab label shortened to "ALL".
+- **0.1.107** Creating or applying to an alliance needs a high-scores listing and a cloud account (Worker checks `onBoard`).
+- **0.1.106** Accounts removed from the leaderboard are locked to single player (no alliance, PvP, invasions, chat, multiplayer switch). Worker returns `removed/locked`; game calls `mpLock()`/`mpUnlock()`.
+- **0.1.105** March info shows "Led by X" (or "No hero") first.
+- **0.1.104** Renaming the Queen keeps the "Queen" prefix.
+- **0.1.103** Lion medals added to the Medium Medal Box.
+- **0.1.102** Wheel: Michelangelo's Script (0.5%) and all three medal boxes (0.2% each).
+- **0.1.101** Builds that take under 5 minutes give no amulets. **0.1.100** Fortifications give no amulets.
+- **0.1.99** Hero trainer/mayor speed bonus scaled down (`Math.pow(0.9975, ...)` in `trainTime` and `mayorBonus`).
+- **0.1.98** AI lords drop only resources unless their garrison is full.
+- **0.1.96-0.1.97** Chat announcements for historic-city captures and every 11+ star forge hit (Worker, system lines in world chat; `lbStats().gearEv`).
+- **0.1.95** Freedom and Justice medals removed from valley and AI-lord drops. `sw.js` restored (it shipped EMPTY in 0.1.88 to 0.1.94 by mistake: always check it is non-empty before zipping).
+
 ### 0.1.75 (0.2.0 playtest)
 - Heroes: Reset points works once per hero per day (the day turns over at midnight UTC). The button shows how long is left. No save version or Worker change.
 
