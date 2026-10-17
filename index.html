@@ -535,6 +535,14 @@ body.bfmode #chatdock{display:none!important}
 .alm:last-child{border-bottom:0}
 .alm.sys{color:var(--muted);font-style:italic}
 .alm .link{padding:0 4px}
+.alm a.clink{color:var(--brass);text-decoration:underline;word-break:break-all}
+.rxs{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0 1px}
+.rxc{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:1px 7px;font-size:.85rem;line-height:1.5;color:var(--ink)}
+.rxc.on{border-color:var(--brass);background:color-mix(in srgb,var(--brass) 22%,transparent)}
+.rxbar{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:4px 0;padding:4px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.rxbar .rxq{font-size:1.15rem;background:none;border:0;padding:2px 4px}
+.rxbar input{width:84px;padding:4px 6px;font-size:1rem}
+.rxbar .rxwho{flex-basis:100%;font-size:.8rem;color:var(--muted)}
 .tgline{background:var(--panel2);border-radius:10px;padding:8px 12px;margin-top:6px;border-left:4px solid transparent}
 .tgline.on{border-left-color:var(--brass)}
 .tgline.done{opacity:.75}
@@ -704,7 +712,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.128";
+var APP_VERSION = "0.1.129";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3063,7 +3071,8 @@ function alSync(){
   if (!alOn() || ALS.busy) return; ALS.busy=true; ALS.last=Date.now();
   var sendJobs=!!alMine(), jobs=sendJobs?alMyJobs():null; if (jobs) ALS.jobSig=jobs.map(function(j){ return j.ref; }).join("|");
   var sb={since:ALS.top}, firstChat=!ALS.top; if (alMine()){ sb.thr=wtThreats(); sb.hc=rfCities(); if (S.alRfLoss&&S.alRfLoss.length) sb.rl=S.alRfLoss.slice(0,50); } if (jobs){ sb.proj=jobs.map(function(j){ return {ref:j.ref, kind:j.kind, label:j.label, end:j.end}; }); S.alGive=S.alGive||{r:0,c:0}; sb.give={r:Math.floor(S.alGive.r), c:Math.floor(S.alGive.c)}; } if (!ALS.cat) sb.cat=1;
-  alPost("/al/sync",sb).then(function(d){ ALS.busy=false;
+  var arf=rxFromOf(ALS.chat); sb.rxFrom=arf;
+  alPost("/al/sync",sb).then(function(d){ ALS.busy=false; if (d && !d.error) rxTake("a", d.rx, arf);
     if (d.error){ ALS.err=d.error; alRender(); return; }
     ALS.err=""; var aid=d.member?d.member.aid:null; if (d.cat) ALS.cat=d.cat;
     if (aid && d.al && d.al.econ){ S.alMember=true; S.alFx=d.al.econ.fx||{}; }
@@ -4022,8 +4031,8 @@ function fillAlChat(){
   var al=alMine(), my=al&&al.my, hh=ALS.chat.length?chatOlderBtn('al')+ALS.chat.map(function(c){
     if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
     var canDel=!c.del && (isMe(c.name) || (my&&my.can.chat));
-    return '<div class="alm"><span class="dur">'+alTime(c.at)+'</span> <b>'+plChat(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':esc(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
-  if (el._sig===hh) return;
+    return '<div class="alm"'+(c.del?'':rxMsgAttr("a",c.id))+'><span class="dur">'+alTime(c.at)+'</span> <b>'+plChat(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':linkify(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+(c.del?'':rxTail("a",c.id))+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+  if (el._sig===hh || rxTyping()) return;
   var atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40 || !el._sig;
   var kp=el._keep; el._keep=null; el.innerHTML=hh; el._sig=hh; if (kp) el.scrollTop=kp.t+(el.scrollHeight-kp.h); else if (atBottom) el.scrollTop=el.scrollHeight;
   if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
@@ -4032,6 +4041,32 @@ function fillAlChat(){
 var dockPin=false, dockOpen=false, dockCh="world";
 try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorage.getItem("ibory-dock-open")==="1"; dockCh=localStorage.getItem("ibory-dock-ch")||"world"; } catch(e){}
 function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); localStorage.setItem("ibory-dock-ch",dockCh); } catch(e){} }
+/* ---------- chat links and reactions (0.1.129): links open after a check; any emoji as a reaction in world, alliance and private chat ---------- */
+function linkify(t){ t=String(t==null?"":t); var re=/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+\.[^\s<>"]+)/gi, out="", last=0, m;
+  while ((m=re.exec(t))){ var u=m[0], tail=""; while (/[.,!?;:)\]'"]$/.test(u) && !(u.slice(-1)===")" && u.indexOf("(")>=0)){ tail=u.slice(-1)+tail; u=u.slice(0,-1); }
+    var href=/^www\./i.test(u)?"https://"+u:u; out+=esc(t.slice(last,m.index))+'<a class="clink" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer nofollow ugc" data-act="open-link" data-u="'+esc(href)+'">'+esc(u)+'</a>'+esc(tail); last=m.index+m[0].length; }
+  return out+esc(t.slice(last)); }
+function linkHost(u){ try { return new URL(u).host; } catch(e){ return u; } }
+var RX={w:{}, a:{}, d:{}}, RXSEL="", RX_QUICK=["\ud83d\udc4d","\u2764\ufe0f","\ud83d\ude02","\ud83d\ude2e","\ud83d\ude22","\ud83d\udd25","\u2694\ufe0f","\ud83c\udfc6"];
+function rxTake(ch, map, from){ if (!map) return; var R=RX[ch]; for (var id in R) if (+id>=from) delete R[id]; for (var k in map) R[k]=map[k]; }
+function rxFromOf(list){ var n=list.length; return n ? list[Math.max(0,n-150)].id : 0; }
+function rxOne(e){ e=String(e||"").trim(); if (!e) return ""; try { if (window.Intl && Intl.Segmenter){ var it=new Intl.Segmenter().segment(e)[Symbol.iterator]().next(); e=it.value?it.value.segment:e; } else e=Array.from(e)[0]; } catch(x){ e=Array.from(e)[0]; }
+  return (/[A-Za-z0-9\s<>&"']/.test(e.replace(/[#*0-9]\ufe0f?\u20e3/g,"")) || !/[\u2190-\u2bff\u3030\u303d\u3297\u3299\u20e3]|[\ud83c-\ud83e][\udc00-\udfff]/.test(e)) ? "" : e; }
+function rxTail(ch, id){ var L=RX[ch][id]||[], sel=RXSEL===ch+":"+id, h="";
+  if (L.length) h+='<div class="rxs">'+L.map(function(r){ return '<button class="rxc'+(r[2]?' on':'')+'" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+esc(r[0])+'" title="'+esc(r[3])+'" aria-label="'+esc(r[0])+' '+r[1]+(r[2]?', including you':'')+'">'+esc(r[0])+' '+r[1]+'</button>'; }).join("")+'</div>';
+  if (sel) h+='<div class="rxbar">'+RX_QUICK.map(function(q){ return '<button class="rxq" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+q+'" aria-label="React '+q+'">'+q+'</button>'; }).join("")+
+    '<input id="rxin" type="text" autocomplete="off" enterkeyhint="send" placeholder="Any emoji" aria-label="Type any emoji"><button class="btn small" data-act="rx-any" data-ch="'+ch+'" data-id="'+id+'">React</button><button class="link" data-act="rx-close">Close</button>'+
+    (L.length?'<div class="rxwho">'+L.map(function(r){ return esc(r[0])+' '+esc(r[3]); }).join(" \u00b7 ")+'</div>':'')+'</div>';
+  return h; }
+function rxMsgAttr(ch, id){ return ' data-act="rx-sel" data-ch="'+ch+'" data-id="'+id+'"'; }
+function rxRefresh(){ renderDock(); if (typeof fillAlChat==="function") fillAlChat(); }
+function rxSend(ch, id, e, on){ var key=ch+":"+id, L=(RX[ch][id]||[]).map(function(r){ return r.slice(); }), f=null;
+  L.forEach(function(r){ if (r[0]===e) f=r; });
+  if (on){ if (f){ if (!f[2]){ f[1]++; f[2]=1; } } else L.push([e,1,1,"You"]); } else if (f && f[2]){ f[1]--; f[2]=0; if (!f[1]) L=L.filter(function(r){ return r!==f; }); }
+  var before=RX[ch][id]; RX[ch][id]=L; rxRefresh();
+  alPost("/rx",{ch:ch, id:+id, e:e, on:on?1:0}).then(function(d){ if (d.error){ RX[ch][id]=before; toast(d.error); } else RX[ch][id]=d.rx||[]; rxRefresh(); })
+    .catch(function(){ RX[ch][id]=before; toast("Couldn\u2019t reach the server"); rxRefresh(); }); }
+function rxTyping(){ var i=document.activeElement; return !!(i && i.id==="rxin"); }
 function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); if (dmOn()) c.push("dm"); return c; }
 /* ---------- private messages: anyone to anyone, text only, kept 30 days on the server, and the admin can read them ---------- */
 var DMS={lines:[], top:0, reads:{}, blocks:[], last:0, busy:false, err:"", open:null, first:true, mutedUntil:0};
@@ -4042,7 +4077,8 @@ function dmViewing(k){ return dockOpen && dockCh==="dm" && DMS.open && DMS.open.
 function dmThread(o){ var nm=String(o.name||"").toLowerCase(); return DMS.lines.filter(function(l){ return o.k ? l.k===o.k : String(l.name).toLowerCase()===nm; }); }
 function dmSync(){
   if (DMS.busy || !dmOn()) return; DMS.busy=true;
-  alPost("/dm/sync",{since:DMS.top}).then(function(d){ DMS.busy=false; DMS.last=Date.now(); if (d.error){ DMS.err=d.error; renderDock(); return; } DMS.err="";
+  var drf=rxFromOf(DMS.lines);
+  alPost("/dm/sync",{since:DMS.top, rxFrom:drf}).then(function(d){ DMS.busy=false; DMS.last=Date.now(); if (d.error){ DMS.err=d.error; renderDock(); return; } DMS.err=""; rxTake("d", d.rx, drf);
     var have={}, fresh=[]; DMS.lines.forEach(function(l){ have[l.id]=1; });
     (d.lines||[]).forEach(function(l){ if (have[l.id]) return; DMS.lines.push(l); if (l.id>DMS.top) DMS.top=l.id; if (!l.me) fresh.push(l); });
     DMS.lines.sort(function(a,b){ return a.id-b.id; });
@@ -4072,7 +4108,7 @@ function dmBlock(on){ var o=DMS.open; if (!o) return; alPost("/dm/block",{k:o.k|
 function dmHtml(){
   if (DMS.open){ var o=DMS.open, th=dmThread(o), blk=o.k&&dmBlocked(o.k);
     return '<div class="farmadd" style="justify-content:space-between;margin:0 0 6px"><button class="link" data-act="dm-back">‹ All messages</button><b>'+esc(o.name)+'</b><button class="link" data-act="dm-block" data-on="'+(blk?0:1)+'">'+(blk?'Unblock':'Block')+'</button></div>'+
-      (th.length?th.map(function(l){ return '<div class="alm"><span class="dur">'+alTime(l.at)+'</span> <b>'+(l.me?'You':esc(l.name))+'</b> '+esc(l.text)+'</div>'; }).join(""):'<p class="hint">No messages yet. Say hello.</p>');
+      (th.length?th.map(function(l){ return '<div class="alm"'+(l.id?rxMsgAttr("d",l.id):'')+'><span class="dur">'+alTime(l.at)+'</span> <b>'+(l.me?'You':esc(l.name))+'</b> '+linkify(l.text)+(l.id?rxTail("d",l.id):'')+'</div>'; }).join(""):'<p class="hint">No messages yet. Say hello.</p>');
   }
   var conv={}, order=[]; DMS.lines.forEach(function(l){ if (!conv[l.k]){ conv[l.k]={k:l.k, name:l.name, last:l}; order.push(l.k); } conv[l.k].last=l; conv[l.k].name=l.name; });
   order=order.filter(function(k){ return !dmBlocked(k); }).sort(function(a,b){ return conv[b].last.id-conv[a].last.id; });
@@ -4088,7 +4124,8 @@ function wcUnread(){ var seen=S.wcSeen||0, n=0; WCH.lines.forEach(function(l){ i
 function wcSync(){
   if (WCH.busy || !cbOn() || S.mpLocked) return; WCH.busy=true;
   var firstLoad=!WCH.top;
-  alPost("/wc/sync",{since:WCH.top}).then(function(d){ WCH.busy=false; WCH.last=Date.now(); if (d.error){ WCH.err=d.error; renderDock(); return; } WCH.err="";
+  var wrf=rxFromOf(WCH.lines);
+  alPost("/wc/sync",{since:WCH.top, rxFrom:wrf}).then(function(d){ WCH.busy=false; WCH.last=Date.now(); if (d.error){ WCH.err=d.error; renderDock(); return; } WCH.err=""; rxTake("w", d.rx, wrf);
     if (firstLoad) WCH.more=(d.lines||[]).length>=80; // a full first page means there may be older messages
     var gone={}; (d.gone||[]).forEach(function(id){ gone[id]=1; }); (d.lines||[]).forEach(function(l){ if (l.del) gone[l.id]=1; });
     WCH.lines=WCH.lines.concat((d.lines||[]).filter(function(l){ return !l.del; })).filter(function(l){ return !gone[l.id]; }).slice(-1000);
@@ -4145,13 +4182,13 @@ function renderDock(){
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
     msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?(lw.sys?lw.text:chatName(lw.name)+": "+lw.text):(cbOn()?"No messages yet":"Sign in to chat");
-    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ if (c.sys) return '<div class="alm sys">'+esc(c.text)+'</div>'; return '<div class="alm"><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ if (c.sys) return '<div class="alm sys">'+esc(c.text)+'</div>'; return '<div class="alm"'+rxMsgAttr("w",c.id)+'><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+linkify(c.text)+rxTail("w",c.id)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
     setText(document.getElementById("dkch"), "World");
   } else {
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
     lastTxt=la?chatName(la.name)+": "+la.text:"No messages yet";
-    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"><b>'+plChat(c.name)+'</b> '+esc(c.text)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"'+rxMsgAttr("a",c.id)+'><b>'+plChat(c.name)+'</b> '+linkify(c.text)+rxTail("a",c.id)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
   setText(document.getElementById("dklast"), lastTxt);
@@ -4159,7 +4196,7 @@ function renderDock(){
   var fd=canSay?"":"none"; if (fm && fm.style.display!==fd) fm.style.display=fd;
   if (dockOpen){
     if (dockCh==="world"){ if (WCH.top>(S.wcSeen||0)) S.wcSeen=WCH.top; } else if (dockCh==="dm"){ if (DMS.open && DMS.open.k) dmMarkRead(DMS.open.k); } else if (ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
-    var box=document.getElementById("dkmsgs"); if (box && box._sig!==dockCh+hh){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig || box._sig.indexOf(dockCh)!==0; var kp=box._keep; box._keep=null; box.innerHTML=hh; box._sig=dockCh+hh; if (kp) box.scrollTop=kp.t+(box.scrollHeight-kp.h); else if (atBottom) box.scrollTop=box.scrollHeight; }
+    var box=document.getElementById("dkmsgs"); if (box && box._sig!==dockCh+hh && !rxTyping()){ var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40 || !box._sig || box._sig.indexOf(dockCh)!==0; var kp=box._keep; box._keep=null; box.innerHTML=hh; box._sig=dockCh+hh; if (kp) box.scrollTop=kp.t+(box.scrollHeight-kp.h); else if (atBottom) box.scrollTop=box.scrollHeight; }
     setText(document.getElementById("dkn"), "");
   } else { var un=dockCh==="world"?unW:dockCh==="dm"?unD:unA; setText(document.getElementById("dkn"), un?String(un):""); }
 }
@@ -9573,6 +9610,11 @@ document.addEventListener("click",function(e){
     openSheet({kind:"plot",w:p.dataset.w,i:+p.dataset.i}); return; }
   var a=e.target.closest("[data-act]"); if (!a || a.disabled) return;
   var act=a.dataset.act;
+  if (act==="open-link"){ e.preventDefault(); var lu=a.dataset.u||""; if (!/^https?:\/\//i.test(lu)) return; if (window.confirm("Open this link in your browser?\n\n"+linkHost(lu)+"\n\nOnly open links from players you trust.")) { try { window.open(lu,"_blank","noopener,noreferrer"); } catch(x){} } return; }
+  if (act==="rx-sel"){ if (e.target.closest(".rxbar") || window.getSelection && String(window.getSelection())) return; var rk=a.dataset.ch+":"+a.dataset.id; RXSEL=RXSEL===rk?"":rk; rxRefresh(); return; }
+  if (act==="rx-close"){ RXSEL=""; rxRefresh(); return; }
+  if (act==="rx-tog"){ var rch=a.dataset.ch, rid=a.dataset.id, re2=a.dataset.e, mineR=(RX[rch][rid]||[]).some(function(r){ return r[0]===re2 && r[2]; }); if (a.classList.contains("rxq")) RXSEL=""; rxSend(rch, rid, re2, !mineR); return; }
+  if (act==="rx-any"){ var rin=document.getElementById("rxin"), one=rxOne(rin&&rin.value); if (!one){ toast("Type one emoji (switch to your emoji keyboard)"); return; } if (rin) rin.blur(); RXSEL=""; rxSend(a.dataset.ch, a.dataset.id, one, true); return; }
   if (MP_ACTS[act] && !S.mp){ mpPending=a; openSheet({kind:"mpwarn", act:act}); return; } // multiplayer actions move you to the multiplayer high scores: ask first
   if (act==="mp-warn-ok"){ var mpa=mpPending, mpk=sheetFor&&sheetFor.act; mpPending=null; mpGo(MP_ACTS[mpk]||"chose"); closeSheet(); toast("You\u2019re on the multiplayer high scores now"); if (mpa && document.contains(mpa)) mpa.click(); return; }
   if (act==="mp-intro"){ var mpwc=document.getElementById("mpiwc"); S.mpIntro=1; S.mpOn = a.dataset.v==="on"; if (!S.mpOn && mpwc) S.wcOn=!mpwc.checked; save(); closeSheet(); lastView=""; refresh(); renderDock();
@@ -10382,7 +10424,7 @@ document.addEventListener("input",function(e){
     if (e.target.dataset.sim==="def" && sim.def.preset!=="custom"){ sim.def.preset="custom"; var sel=document.getElementById("npcsel"); if (sel) sel.value="custom"; }
   }
 });
-document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
+document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="rxin"){ e.preventDefault(); var rb=document.querySelector('.rxbar [data-act="rx-any"]'); if (rb) rb.click(); return; } if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
 document.addEventListener("change",function(e){
   if (e.target.id==="bm-label"){ var bmb=bmAt(selTile); if (bmb){ bmb.n=e.target.value.trim().slice(0,40); save(); bmRefresh(); } return; }
   if (AW_ON && awChange(e)) return;
