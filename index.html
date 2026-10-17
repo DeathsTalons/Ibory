@@ -271,6 +271,8 @@ select,input[type=number],input[type=text]{font:inherit;color:var(--ink);backgro
 
 /* Heroes */
 .herolist{display:grid;gap:8px;margin-top:10px}
+.wchip{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 10px 4px 4px;cursor:pointer;min-width:0}
+.wchip>span:last-child{display:grid;line-height:1.2;min-width:0}.wchip b{font:700 .95rem var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wchip .dur{font-size:.75rem}
 .hcard{display:grid;grid-template-columns:76px 1fr;gap:12px;align-items:center;background:var(--panel2);border:1px solid transparent;border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
 .hcard:hover{border-color:var(--line)}
 .hcb{min-width:0;display:grid;gap:3px}.hct{display:flex;align-items:center;gap:6px}.hct .hn{font:700 1.05rem/1.2 var(--display);overflow-wrap:anywhere;flex:1}
@@ -702,7 +704,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.123";
+var APP_VERSION = "0.1.124";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -5467,9 +5469,20 @@ function plotHtml(w,i,s){
   return '<button class="plot'+(busy?' busy':'')+'" data-w="'+w+'" data-i="'+i+'" aria-label="'+DEF[s.type].name+' level '+s.level+'"><span class="ico">'+ICON[s.type]+'</span><span class="nm">'+nm+'</span>'+lv+'</button>';
 }
 var arrange=null;
+// the wall hero on the city screen: their card, or a button to pick one
+function wallChip(){ var h=officer("wallHero");
+  if (h) return '<div class="wchip" role="button" tabindex="0" data-act="hero" data-id="'+h.id+'">'+heroPortrait(h,40)+'<span><span class="dur">Wall hero</span><b>'+esc(h.name)+'</b><span class="dur">Atk '+hs(h,"atk")+' \u00b7 Int '+hs(h,"int")+'</span></span></div>';
+  return '<button class="btn small" data-act="wh-pick">Assign a wall hero</button>'; }
+function whPickSheet(){
+  var free=S.heroes.filter(function(x){ return !x.away && !isOfficer(x); }).sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); });
+  var h='<div class="head"><span class="ico">'+ICON.walls+'</span><div><h2>Wall hero</h2><div class="sub">Leads '+esc(S.name)+'\u2019s troops whenever the city is attacked</div></div></div>'+
+    '<p class="hint">With no wall hero, no hero leads the defense. Attack makes the defenders hit harder, intelligence makes them harder to kill. Office holders and marching heroes aren\u2019t listed.</p>';
+  h+=free.length?'<div class="herolist">'+free.map(function(x){ return '<div class="hcard" style="grid-template-columns:56px 1fr auto">'+heroPortrait(x,56)+'<div class="hcb"><b class="hn" style="font:700 1rem var(--display)">'+esc(x.name)+'</b><div class="dur"><span style="color:'+TIERS[x.tier].color+';font-weight:700">'+TIERS[x.tier].name+'</span> \u00b7 Lv '+x.level+'</div><div class="hcs"><span>Atk <b>'+hs(x,"atk")+'</b></span><span>Int <b>'+hs(x,"int")+'</b></span></div></div><button class="btn small" data-act="wh-set" data-id="'+x.id+'">Choose</button></div>'; }).join("")+'</div>'
+    :'<p class="why">No free heroes in '+esc(S.name)+'. Hire one at the Inn, try the wheel, or wait for a march to come home.</p>';
+  return h+'<button class="closebtn" data-act="close">Close</button>'; }
 function arrangeBar(w){
   var on=arrange && arrange.w===w;
-  return '<div class="arrbar'+(on?' on':'')+'"><span class="dur">'+(on?(arrange.sel==null?'Tap a building to pick it up.':'Now tap where it should go. Tapping another building swaps them.'):'')+'</span><button class="btn '+(on?'':'ghost ')+'small" data-act="arrange" data-aw="'+w+'">'+(on?'Done':'Rearrange')+'</button></div>';
+  return '<div class="arrbar'+(on?' on':'')+'">'+(!on && w==="in" ? wallChip() : '<span class="dur">'+(on?(arrange.sel==null?'Tap a building to pick it up.':'Now tap where it should go. Tapping another building swaps them.'):'')+'</span>')+'<button class="btn '+(on?'':'ghost ')+'small" data-act="arrange" data-aw="'+w+'">'+(on?'Done':'Rearrange')+'</button></div>';
 }
 function swapPlots(w,a,b){
   var arr = w==="in" ? S.inside : S.fields, t=arr[a]; arr[a]=arr[b]; arr[b]=t;
@@ -9123,6 +9136,8 @@ function renderSheetCore(){
   } else if (sheetFor.kind==="preset"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=presetSheet(sheetFor.p);
+  } else if (sheetFor.kind==="whpick"){
+    h=whPickSheet();
   } else if (sheetFor.kind==="msg"){
     h='<div class="head"><span class="ico">'+ICON.crest+'</span><div><h2>'+esc(sheetFor.title||"")+'</h2></div></div><p>'+esc(sheetFor.body||"")+'</p><button class="closebtn" data-act="close">OK</button>';
   } else if (sheetFor.kind==="waves"){
@@ -10114,6 +10129,8 @@ document.addEventListener("click",function(e){
   }
   if (act==="spin10"){ doSpin10(); return; }
   if (act==="hero"){ openSheet({kind:"hero",id:+a.dataset.id}); return; }
+  if (act==="wh-pick"){ openSheet({kind:"whpick"}); return; }
+  if (act==="wh-set"){ var whh=heroById(+a.dataset.id); if (!whh || whh.away || isOfficer(whh)) return; S.wallHero=whh.id; save(); closeSheet(); lastView=""; refresh(); toast(whh.name+" now holds the walls of "+S.name); return; }
   if (act==="hero-fav"){ var fh=heroById(+a.dataset.id); if (fh){ fh.fav=!fh.fav; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); toast(fh.fav?fh.name+" is a favourite":fh.name+" is no longer a favourite"); } return; }
   if (act==="hero-pic"){ var hfi=document.getElementById("heroimgf"); if (hfi) hfi.click(); return; }
   if (act==="hero-picdel"){ var hpd=heroById(sheetFor&&sheetFor.id); if (hpd) heroImageRemove(hpd); return; }

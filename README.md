@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.123
+Version 0.1.124
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.124** City screen: the wall hero's card sits next to Rearrange (tap it for their page); with no wall hero, an "Assign a wall hero" button opens a picker of free heroes, strongest attack first.
 - **0.1.123** Hero overhaul. One big card per row with a portrait: an uploaded picture (96x96 JPEG, kept in localStorage outside the save and on the server, seen by everyone on profiles and the hero board; admin "Hero pictures" tab removes one for good) or an original drawn portrait (helm, face, beard, plume vary by hero; crown for historic/queen/mythic; frame in the tier colour). Sort by + then by (level, attack, intelligence, politics, tier, star set, gear bonus, troops killed, free first, name), remembered per city; favourites (star) pinned to the top and can't be dismissed. Auto level-up per hero: a pol : atk : int ratio (0-9 each), spends unused points when turned on and every level after. Service record per hero (battles led and won, defenses led and held as wall hero, troops killed, prestige destroyed, troops lost, valleys/flats and NPC cities beaten, best battle), counted from this version on. Worker: hero_imgs table, GET /me/heroimg?k=&h=, POST /me/heroimg {hid, img}, /me/heroimgs; players.hero_id for the top hero.
 - **0.1.122** Hero experience: the Court of Generals achievement (and alliance hero-xp research) always applied, but battle reports showed the experience before the bonus, so it looked the same at every tier; reports now show what the hero really got (city attacks, war/challenge cities, bully camps). Valleys and flats (still a full garrison every hit): half experience, and each tile gives experience once an hour (`S.vxp`, `VXP_GAP`, `VXP_MULT`); the report says when it gives experience again.
 - **0.1.121** Alliance Wars parked behind "Coming soon": the War tab shows a disabled Coming soon button, nothing polls the server. To switch on: `AW_ON=true` in index.html and the Worker variable `AW_ON=1` (the Worker answers every /aw/* call with "coming soon" until then).
