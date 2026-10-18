@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.158
+Version 0.1.159
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.159** Darker flats (olive brown). Pixel-art settlements: NPC cities (red roofs) and AI lords (teal) are a camp at levels 1–3, a town at 4–6, a walled city at 7–9 and a fortress at 10; historic cities are fortresses with gold trim in their level's colour (12 red, 14 purple, 16 blue, 18 gold). 16×16 like the valleys (SET_ROWS), no outlines, solid drop shadows, a level badge in the corner, and the same pale wash while an NPC refills. Plain colours in Settings turns them off too.
 - **0.1.158** Pixel-art valleys on the world map: grassland, forest, lake, swamp, desert, hill and flat each have three 16×16 tiles (VAL_TILES, picked by position) drawn crisp from zoom 8 up. A refilling tile is washed out over its empty part, and level numbers get a dark outline. Settings → Map tiles switches between Pixel art and Plain colours (S.pixTiles).
 - **0.1.157** Grass on every empty square of the alliance map: four little 15×15 pixel tiles (tufts, a daisy, a pebble, red flowers) made once at runtime as CSS backgrounds and spread by square, with dark green seams. Member kingdoms are now parchment tokens with a brown border (yours in gold) so they stand out on the grass.
 - **0.1.156** Pixel-art alliance buildings: the Alliance City, University, Alliance Warehouse, Monster Arena, Watchtower, War Memorial, Warden's Arsenal, Sanctuary of Grace and Trading Post each have a 45×45 sprite (a small diorama on grass, one shared palette and light from the top left), drawn crisp on the alliance map with the name on a small label. Sprites are palette-letter rows in AL_SPR, baked once into data URLs.
