@@ -746,7 +746,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.165";
+var APP_VERSION = "0.1.166";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1616,6 +1616,15 @@ function bgTile(k, v){ var key=k+v; if (BG_CV[key]!==undefined) return BG_CV[key
 function decoIsBg(k){ var d=DECOS[String(k).split("|")[0]]; return !!(d&&d.bg); }
 function bgAt(id){ var l=S.deco&&S.deco.at[id]; if (!l) return ""; for (var i=0;i<l.length;i++){ var k=String(l[i]).split("|")[0]; if (DECOS[k]&&DECOS[k].bg) return k; } return ""; }
 // draws a tile's background instead of its own look; true when it did (valleys, flats, NPC cities, AI lords, historic cities)
+/* hiding under decorations (0.1.166): a hidden valley, flat, NPC city, AI lord or historic city shows only ground (its background, or its terrain,
+   or grassland under a settlement): no settlement, level, refill wash or outline. It still works and still opens its popup when tapped.
+   S.decoHide: decorated tiles hide by themselves; S.deco.hide[id]: 1 always hide, 0 always show (set per tile or with the area box). */
+function decoHideable(q){ return !!q && (!!VTYPES[q.k] || q.k==="npc" || q.k==="ai" || q.k==="hc"); }
+function decoHid(q){ if (!decoHideable(q) || !S.deco) return false; var o=S.deco.hide&&S.deco.hide[q.id]; if (o===1) return true; if (o===0) return false; var l=S.deco.at[q.id]; return !!S.decoHide && !!(l&&l.length); }
+function hideDraw(g, q, tx, ty, x, y, z){ var v=((tx*7919+ty*104729)>>>0)%3, kind=VTYPES[q.k]?q.k:"grass", bk=bgAt(q.id), px0=Math.floor(x), py0=Math.floor(y), cv=null;
+  if (pixTiles() && z>=8) cv=bk?bgTile(bk,v):valTile(kind,v);
+  if (cv){ g.imageSmoothingEnabled=false; g.drawImage(cv, px0, py0, Math.ceil(x+z)-px0, Math.ceil(y+z)-py0); g.imageSmoothingEnabled=true; }
+  else { g.fillStyle=VTYPES[kind].col; g.fillRect(x,y,z,z); } }
 function bgDraw(g, q, tx, ty, x, y, z, detail){ var bk=bgAt(q.id); if (!bk || !pixTiles() || z<8) return false; var nums=mapNums();
   var ok=VTYPES[q.k]||q.k==="npc"||q.k==="ai"||q.k==="hc"; if (!ok) return false;
   var cv=bgTile(bk, ((tx*7919+ty*104729)>>>0)%3); if (!cv) return false; var px0=Math.floor(x), py0=Math.floor(y);
@@ -1642,14 +1651,17 @@ var CLR={on:false, a:"", b:""};
 function clrRect(){ if (!CLR.a) return null; var p=CLR.a.split(","), q=(CLR.b||CLR.a).split(","); return {x0:Math.min(+p[0],+q[0]), x1:Math.max(+p[0],+q[0]), y0:Math.min(+p[1],+q[1]), y1:Math.max(+p[1],+q[1])}; }
 function decoClear(r, doIt){ var D=decoS(), n=0, t=0; Object.keys(D.at).forEach(function(id){ var xy=id.split(","), x=+xy[0], y=+xy[1], l=D.at[id]; if (r && (x<r.x0||x>r.x1||y<r.y0||y>r.y1)) return; if (!l||!l.length) return; t++; n+=l.length;
     if (doIt){ l.forEach(function(e){ var k=String(e).split("|")[0]; if (DECOS[k] && !DECOS[k].pack) D.inv[k]=(D.inv[k]||0)+1; }); delete D.at[id]; } });
+  if (doIt && D.hide){ for (var hid in D.hide){ var hxy=hid.split(","), hx=+hxy[0], hy=+hxy[1]; if (!r || (hx>=r.x0&&hx<=r.x1&&hy>=r.y0&&hy<=r.y1)) delete D.hide[hid]; } save(); } // clearing also puts back what was hidden there
   if (doIt && n){ miniDirty=true; save(); } return {n:n, t:t}; }
+function decoHideArea(r, v){ var D=decoS(), n=0; if (!D.hide) D.hide={}; for (var y=r.y0;y<=r.y1;y++) for (var x=r.x0;x<=r.x1;x++){ if (x<0||y<0||x>=MAPW||y>=MAPH) continue; var q=tileAt(x,y); if (!decoHideable(q)) continue; D.hide[q.id]=v; n++; } if (n) save(); return n; }
 function clrTap(tid){ if (!CLR.a || CLR.b){ CLR.a=tid; CLR.b=""; } else CLR.b=tid; paintBar(); drawMap(); }
 function clrBar(el){ var r=clrRect(), c=r&&CLR.b?decoClear(r,false):null, ph;
-  if (!CLR.a) ph='<span style="flex:1">Tap one corner of the area to clear</span>';
+  if (!CLR.a) ph='<span style="flex:1">Tap one corner of the area</span>';
   else if (!CLR.b) ph='<span style="flex:1">Now tap the opposite corner <span class="dur">(the same tile again for just that one)</span></span>';
-  else ph='<span style="flex:1">'+(c.n?'Clear <b>'+fmt(c.n)+'</b> decoration'+(c.n===1?'':'s')+' on '+fmt(c.t)+' tile'+(c.t===1?'':'s')+'? <span class="dur">'+(r.x1-r.x0+1)+'\u00d7'+(r.y1-r.y0+1)+'</span>':'Nothing to clear in this box. Tap a new corner.')+'</span>'+(c.n?'<button class="btn small" data-act="clr-go">Clear</button>':'');
+  else ph='<span style="flex:1 1 100%">'+(r.x1-r.x0+1)+'\u00d7'+(r.y1-r.y0+1)+' area: '+(c.n?'<b>'+fmt(c.n)+'</b> decoration'+(c.n===1?'':'s')+' on '+fmt(c.t)+' tile'+(c.t===1?'':'s'):'no decorations')+'. <span class="dur">Tap a new corner to start over.</span></span>'+
+    (c.n?'<button class="btn small" data-act="clr-go">Clear</button>':'')+'<button class="btn ghost small" data-act="clr-hide" data-v="1">Hide what\u2019s there</button><button class="btn ghost small" data-act="clr-hide" data-v="0">Show</button>';
   ph+='<button class="btn ghost small" data-act="clr-stop">Cancel</button>';
-  if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.hidden=false; }
+  if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.style.flexWrap="wrap"; el.hidden=false; }
 var DECO_Q=""; // the Decorate sheet's search box
 function decoMatch(txt, q){ q=String(q||"").trim().toLowerCase(); return !q || String(txt).toLowerCase().indexOf(q)>=0; }
 function decoFilter(){ var root=document.getElementById("decofind"); if (!root) return; var box=root.parentNode, q=DECO_Q, any=false;
@@ -1657,7 +1669,7 @@ function decoFilter(){ var root=document.getElementById("decofind"); if (!root) 
   box.querySelectorAll(".decogrp").forEach(function(gp){ var vis=[].some.call(gp.querySelectorAll(".decocell"), function(c){ return c.style.display!=="none"; }); gp.style.display=vis?"":"none"; if (vis) any=true; if (q.trim() && vis && gp.tagName==="DETAILS") gp.open=true; });
   box.querySelectorAll(".decoshop").forEach(function(r){ var ok=decoMatch(r.dataset.n,q); r.style.display=ok?"":"none"; if (ok) any=true; });
   var none=document.getElementById("decnone"); if (none) none.hidden=any || !q.trim(); }
-function paintBar(){ var el=document.getElementById("paintbar"); if (!el) return; if (CLR.on){ clrBar(el); return; } if (!PAINT.k){ if (!el.hidden){ el.hidden=true; el.innerHTML=""; el._h=""; } return; }
+function paintBar(){ var el=document.getElementById("paintbar"); if (!el) return; if (CLR.on){ clrBar(el); return; } el.style.flexWrap=""; if (!PAINT.k){ if (!el.hidden){ el.hidden=true; el.innerHTML=""; el._h=""; } return; }
   var ph='<span>'+decoIcon(PAINT.k,22)+'</span><span style="flex:1">Tap tiles to place <b>'+esc(DECOS[PAINT.k].n)+'</b>'+(PAINT.n===Infinity?'':': '+PAINT.n+' left')+'</span><button class="btn small" data-act="paint-stop">Done</button>';
   if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.hidden=false; }
 function decoBuy(pid){ if (cosBusy) return; if (!cbOn()){ toast("Sign in to your cloud save first (Settings)"); return; } cosBusy=true; var pk=DPACKS.filter(function(x){ return x[0]===pid; })[0];
@@ -2592,6 +2604,7 @@ function drawMap(){
   var myCity=myLook("city"), myMarch=myLook("march"), numOk=mapNums();
   for (var ty=y0; ty<=y1; ty++) for (var tx=x0; tx<=x1; tx++){ try {
     var q=tileAt(tx,ty), x=(tx-mv.x)*z, y=(ty-mv.y)*z;
+    if (decoHid(q)){ hideDraw(g, q, tx, ty, x, y, z); continue; }
     if (bgDraw(g, q, tx, ty, x, y, z, detail)){}
     else if (q.k==="home" && myCity){ var cpl=CPAL[myCity]; g.fillStyle=cpl.bg; g.fillRect(x,y,z,z); var cim=z>=9?cosCastleImg(myCity):null; if (cim && cim.complete && cim.naturalWidth) g.drawImage(cim,x+z*.05,y+z*.05,z*.9,z*.9);
       if (q.city===C().id){ g.strokeStyle=brass; g.lineWidth=Math.max(1.5,z/10); g.strokeRect(x+1.5,y+1.5,z-3,z-3); } }
@@ -4744,6 +4757,9 @@ function decoSheet(tid){ var D=decoS(), q=TILE_BY[tid], here=D.at[tid]||[], inv=
         (here.length>1?'<button class="btn ghost small" data-act="deco-layer" data-tile="'+tid+'" data-i="'+i+'" data-d="1"'+(i===here.length-1?' disabled':'')+' aria-label="Bring forward">\u25b2</button><button class="btn ghost small" data-act="deco-layer" data-tile="'+tid+'" data-i="'+i+'" data-d="-1"'+(i===0?' disabled':'')+' aria-label="Send back">\u25bc</button>':'')+
         (d.spr&&!d.road&&!d.wall&&!d.bg?'<button class="btn ghost small" data-act="deco-flip" data-tile="'+tid+'" data-i="'+i+'" aria-label="Flip">\u21c4</button>':'')+
         '<button class="btn ghost small" data-act="deco-take" data-tile="'+tid+'" data-i="'+i+'">Pick up</button></div>'; }).join("")+'</div>':'<p class="dur">Nothing yet.</p>');
+  if (decoHideable(q)){ var ho=D.hide&&D.hide[tid], hs=ho===1?"1":ho===0?"0":"a";
+    h+='<div class="h3" style="margin-top:8px">What\u2019s under the decorations <span class="dur">'+(decoHid(q)?'hidden now':'showing now')+'</span></div><div class="speeds">'+[["a","Follow setting"],["0","Always show"],["1","Always hide"]].map(function(o){ return '<button data-act="deco-hide" data-tile="'+tid+'" data-v="'+o[0]+'" aria-pressed="'+(hs===o[0])+'">'+o[1]+'</button>'; }).join("")+'</div>'+
+      '<p class="hint" style="margin-top:4px">Hidden shows only the ground here: no '+(VTYPES[q.k]?'level or refill':'settlement or level')+'. It still works when you tap it. The setting is in Settings \u2192 Decorated tiles ('+(S.decoHide?'hide':'show')+').</p>'; }
   var owned=DPACKS.filter(function(pk){ return cosHas("decopack",pk[0]); }), shop=DPACKS.filter(function(pk){ return !cosHas("decopack",pk[0]); }), loose=Object.keys(DECOS).filter(function(k){ return !DECOS[k].pack && (D.inv[k]||0)>0; });
   if (owned.length||loose.length) h+='<div class="farmadd" style="margin-top:8px"><label for="decon" class="sub">How many to place</label><select id="decon">'+[1,2,3,5,10,20,50,0].map(function(n){ return '<option value="'+n+'"'+(n===DECO_N?' selected':'')+'>'+(n||'Until I tap Done')+'</option>'; }).join("")+'</select><span class="dur">tap one: it goes here, then tap more tiles</span></div>';
   var q=DECO_Q, qOn=!!String(q).trim(), pn=function(pk){ return pk[1]+" "+pk[2].map(function(it){ return it[1]; }).join(" "); };
@@ -4755,8 +4771,8 @@ function decoSheet(tid){ var D=decoS(), q=TILE_BY[tid], here=D.at[tid]||[], inv=
   if (!owned.length && !loose.length) h+='<p class="dur" style="margin-top:8px">You haven\u2019t unlocked any decorations yet.</p>';
   if (shop.length) h+='<div class="h3" style="margin-top:10px">Decoration packs</div><p class="hint" style="margin-top:0">Unlock a pack once and place everything in it on as many tiles as you like.'+(COS&&COS.allFree?' Free during the beta.':'')+'</p>'+shop.map(function(pk){
       return '<div class="decoshop" data-n="'+esc(pn(pk))+'"'+(decoMatch(pn(pk),q)?'':' style="display:none"')+'><div class="decoprev">'+pk[2].slice(0,6).map(function(it){ return '<span>'+decoIcon(it[0],26)+'</span>'; }).join("")+'</div><div class="decoshopr"><span><b>'+esc(pk[1])+'</b> <span class="dur">'+pk[2].length+' pieces \u00b7 '+decoPrice(pk[0])+' Cosmo Coins</span></span><button class="btn ghost small" data-act="deco-buy" data-pack="'+pk[0]+'">'+(COS&&COS.allFree?'Get (free)':'Buy')+'</button></div></div>'; }).join("");
-  var all=decoClear(null,false); if (all.n) h+='<div class="h3" style="margin-top:12px">Clear decorations</div><p class="hint" style="margin-top:0">Take everything off an area of your map. Event pieces go back to your bag; pack pieces stay unlocked.</p>'+
-    '<div class="btnrow"><button class="btn ghost small" data-act="clr-start" data-tile="'+tid+'">Clear an area</button><button class="btn ghost small" data-act="clr-all">Clear the whole map ('+fmt(all.n)+')</button></div>';
+  var all=decoClear(null,false); h+='<div class="h3" style="margin-top:12px">Areas</div><p class="hint" style="margin-top:0">Pick a box on the map (starting here), then clear its decorations or hide what\u2019s under them. Event pieces you clear go back to your bag; pack pieces stay unlocked.</p>'+
+    '<div class="btnrow"><button class="btn ghost small" data-act="clr-start" data-tile="'+tid+'">Choose an area</button>'+(all.n?'<button class="btn ghost small" data-act="clr-all">Clear the whole map ('+fmt(all.n)+')</button>':'')+'</div>';
   return h; }
 function gifSheet(){ var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Send a GIF</h2><div class="sub">'+(GIFS.by?'via '+esc(GIFS.by):'search for anything')+'</div></div></div>'+
     '<div class="farmadd"><input id="gifq" type="search" value="'+esc(GIFS.q)+'" placeholder="Search GIFs" enterkeyhint="search" style="width:auto;flex:1"><button class="btn small" data-act="gif-search">Search</button></div>';
@@ -9929,6 +9945,7 @@ function renderSheetCore(){
       (alMine()?'<div><div class="h3" style="margin-bottom:6px">Watchtower alerts</div>'+wtTypeBtns()+'</div>':'')+
       '<div><div class="h3" style="margin-bottom:6px">Map tiles</div><div class="speeds"><button data-act="pix-set" data-v="on" aria-pressed="'+pixTiles()+'">Pixel art</button><button data-act="pix-set" data-v="off" aria-pressed="'+!pixTiles()+'">Plain colours</button></div><div class="hint">How valleys, flats, NPC cities, AI lords and historic cities look on your map.</div></div>'+
       '<div><div class="h3" style="margin-bottom:6px">Level numbers on the map</div><div class="speeds"><button data-act="nums-set" data-v="on" aria-pressed="'+mapNums()+'">Shown</button><button data-act="nums-set" data-v="off" aria-pressed="'+!mapNums()+'">Hidden</button></div><div class="hint">Hidden keeps the map clean for decorating; tap a tile to see its level.</div></div>'+
+      '<div><div class="h3" style="margin-bottom:6px">Decorated tiles</div><div class="speeds"><button data-act="dhide-set" data-v="off" aria-pressed="'+!S.decoHide+'">Show what\u2019s there</button><button data-act="dhide-set" data-v="on" aria-pressed="'+!!S.decoHide+'">Hide under decorations</button></div><div class="hint">Hide covers valleys, flats, NPC cities, AI lords and historic cities that have a decoration on them, so only the ground shows. They still work: tap one to attack it. Single tiles and areas can be set either way from Decorate.</div></div>'+
       '<div><div class="h3" style="margin-bottom:6px">World chat</div><div class="speeds"><button data-act="wc-set" data-v="on" aria-pressed="'+wcShown()+'">Shown</button><button data-act="wc-set" data-v="off" aria-pressed="'+!wcShown()+'">Hidden</button></div></div>'+
       (cbOn()?'<div><label for="dispname" class="sub">Your name (everywhere: high scores, chat, alliances)</label><input id="dispname" type="text" value="'+esc(myName())+'" maxlength="20"></div>'+
         '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="nm-save"'+(CB.busy?' disabled':'')+'>Change my name</button></div>'+
@@ -10354,12 +10371,15 @@ document.addEventListener("click",function(e){
   if (act==="chat-gif"){ if (!cbOn()){ toast("Sign in to your cloud save first"); return; } if (a.dataset.tgt!=="al" && dockCh==="dm" && !DMS.open){ toast("Open a conversation first"); return; } GIFS.tgt=a.dataset.tgt; openSheet({kind:"gif"}); if (!GIFS.list.length) gifLoad(false); return; }
   if (act==="gif-search"){ var gq=document.getElementById("gifq"); GIFS.q=gq?gq.value.trim():""; gifLoad(false); return; }
   if (act==="gif-more"){ gifLoad(true); return; }
+  if (act==="dhide-set"){ S.decoHide=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="nums-set"){ S.mapNums=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="pix-set"){ S.pixTiles=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="deco-open"){ cosSync(); openSheet({kind:"deco", tile:a.dataset.tile}); return; }
   if (act==="deco-buy"){ decoBuy(a.dataset.pack); return; }
   if (act==="paint-stop"){ PAINT.k=""; PAINT.n=0; paintBar(); return; }
   if (act==="clr-start"){ PAINT.k=""; PAINT.n=0; CLR={on:true, a:a.dataset.tile||"", b:""}; closeSheet(); MPOP.hide=true; renderTileInfo(); paintBar(); drawMap(); return; }
+  if (act==="deco-hide"){ var Dh=decoS(), ht=a.dataset.tile, hv=a.dataset.v; if (!Dh.hide) Dh.hide={}; if (hv==="a") delete Dh.hide[ht]; else Dh.hide[ht]=+hv; save(); lastSheet=""; renderSheet(); drawMap(); return; }
+  if (act==="clr-hide"){ var hr=clrRect(), hn=decoHideArea(hr, +a.dataset.v); CLR={on:false, a:"", b:""}; toast(hn?(a.dataset.v==="1"?"Hid ":"Showing ")+fmt(hn)+" tile"+(hn===1?"":"s"):"Nothing here to hide"); paintBar(); drawMap(); return; }
   if (act==="clr-stop"){ CLR={on:false, a:"", b:""}; paintBar(); drawMap(); return; }
   if (act==="clr-go"){ var cg=decoClear(clrRect(), true); CLR={on:false, a:"", b:""}; toast(cg.n?"Cleared "+fmt(cg.n)+" decoration"+(cg.n===1?"":"s"):"Nothing to clear"); paintBar(); drawMap(); return; }
   if (act==="clr-all"){ var ca=decoClear(null,false); if (!ca.n){ toast("Nothing to clear"); return; } if (!confirm("Clear all "+fmt(ca.n)+" decorations on your map? Event pieces go back to your bag.")) return; decoClear(null,true); toast("Map cleared"); lastSheet=""; renderSheet(); renderTileInfo(); drawMap(); return; }
