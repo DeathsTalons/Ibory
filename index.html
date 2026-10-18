@@ -448,6 +448,8 @@ table.gt th,table.gt td{padding:5px 8px;text-align:right;border-bottom:1px solid
 table.gt th:first-child,table.gt td:first-child{text-align:left}
 @media (max-width:560px){ table.gt th:first-child,table.gt td:first-child{white-space:normal;overflow-wrap:anywhere} } /* 0.1.168: the earlier phone rule lost to the nowrap above, so long troop lists pushed inputs off the screen */
 .sheet{grid-template-columns:minmax(0,1fr)} /* nothing in a sheet may widen it past the screen */
+.arwbar{height:12px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;margin:2px 0 4px}.arwbar div{height:100%;background:var(--red)}
+tr.arwon td{background:rgba(200,160,70,.14)}
 .wvlist{display:grid;grid-template-columns:minmax(0,1fr);margin-top:4px;min-width:0}.wvrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}.wvt{flex:1;min-width:0;line-height:1.25}
 .wvt .wvs{display:block;margin-left:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wvrow input.wvn{width:60px;flex:none;text-align:center}.wvrow input.wvtime{width:132px;flex:none}
 .wvctl{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;align-items:end}.wvctl label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:2px}.wvctl input,.wvctl select{width:100%}
@@ -751,7 +753,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.170";
+var APP_VERSION = "0.1.171";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4030,22 +4032,28 @@ function sarMon(){ var A=sarState(); return {free:sarFreeLeft(), freeMax:SAR.fre
   live:A.live.map(function(c){ return {id:c.id, type:c.type, lv:c.lv, by:c.by, at:c.at, ends:c.ends, joins:c.joins.map(function(j){ return {name:myName()||"You", n:sumT(j.t), arrive:j.arrive, mine:true}; })}; }),
   recent:A.recent}; }
 // the fight, exactly as the Worker runs it
-function sarFight(T,L,joins){
-  var hp=sarHp(T,L), hp0=hp, dmg=sarDmg(T,L), stacks=[];
+function sarFight(T,L,joins,tr){
+  var hp=sarHp(T,L), hp0=hp, dmg=sarDmg(T,L), stacks=[], trace=tr?{hp:[hp], out:[]}:null;
   joins.forEach(function(j,ji){ var st; try { st=SIM.stats(j.side||{}); } catch(e){ st=null; }
     j.t.forEach(function(n,i){ if (n>0 && st) stacks.push({ji:ji,i:i,n:n,n0:n,atk:st[i].attack,life:Math.max(1,st[i].life),def:Math.max(0.05,st[i].defense),cls:SAR_CLASS[i]}); }); });
   var rounds=0;
   for (var r=0;r<SAR.rounds && hp>0;r++){
     var alive=stacks.filter(function(x){ return x.n>0; }); if (!alive.length) break;
     rounds++; var out=0, bulk=0;
-    alive.forEach(function(x){ var m=x.cls===T.weak?SAR.weakX:T.only?SAR.onlyX:SAR.otherX; out+=x.n*x.atk*m; bulk+=x.n*x.life; });
+    alive.forEach(function(x){ var m=x.cls===T.weak?SAR.weakX:T.only?SAR.onlyX:SAR.otherX, d=x.n*x.atk*m; out+=d; bulk+=x.n*x.life; if (trace){ x.d=x.d||[]; x.d[r]=d; } });
     alive.forEach(function(x){ var take=dmg*(x.n*x.life/bulk)*(x.cls===T.hits?SAR.hitsX:1); x.n=Math.max(0, x.n-Math.floor(take/(x.life*x.def))); });
     hp-=out;
+    if (trace){ trace.hp.push(Math.max(0,hp)); trace.out.push(out); stacks.forEach(function(x){ x.ns=x.ns||[x.n0]; x.ns[r+1]=x.n; }); }
   }
   var res=joins.map(function(j){ return {back:j.t.slice(), wounded:j.t.map(function(){ return 0; })}; });
   stacks.forEach(function(x){ res[x.ji].back[x.i]=x.n; res[x.ji].wounded[x.i]=x.n0-x.n; });
-  return {win:hp<=0, hpLeft:Math.max(0,Math.round(hp)), hp0:hp0, rounds:rounds, res:res};
+  if (trace) trace.st=stacks.map(function(x){ var ns=(x.ns||[x.n0]).slice(0,rounds+1); for (var k=1;k<ns.length;k++) if (ns[k]==null) ns[k]=ns[k-1]; var d=[]; for (var k2=0;k2<rounds;k2++) d.push(Math.round((x.d&&x.d[k2])||0)); return {ji:x.ji, i:x.i, n:ns, d:d}; });
+  return {win:hp<=0, hpLeft:Math.max(0,Math.round(hp)), hp0:hp0, rounds:rounds, res:res, trace:trace, dmg:dmg};
 }
+// War Wizard view of a single-player Arena fight: the same shape the Worker answers for the alliance Arena (/al/arena/ww); every march is yours
+function sarWwView(T,L,joins){ var f=sarFight(T,L,joins,true), R0=f.rounds, me={};
+  f.trace.st.forEach(function(x){ var o=me[x.i]||(me[x.i]={i:x.i, n:new Array(R0+1).fill(0), d:new Array(R0).fill(0)}); x.n.forEach(function(v,k){ o.n[k]+=v; }); x.d.forEach(function(v,k){ o.d[k]+=v; }); });
+  return {k:T.k, n:T.n, lv:L, hp0:f.hp0, win:f.win, rounds:R0, blow:f.dmg, hp:f.trace.hp.map(Math.round), out:f.trace.out.map(Math.round), me:Object.keys(me).map(function(k){ return me[k]; }), oth:[], np:0}; }
 function sarTick(){
   if (!S.soloAr) return;
   if (!soloArOn()){ sarWipe(); return; }
@@ -4063,7 +4071,8 @@ function sarTick(){
         if (o){ m.st="back"; m.back=o.back.slice(); m.wounded=o.wounded.slice(); m.home=now+(m.travel||60000); }
         else if (m.mid===c.id){ m.st="back"; m.back=m.t.slice(); m.wounded=m.t.map(function(){ return 0; }); m.home=now+(m.travel||60000); } });
       if (!joins.length) note("alliance","Nobody reached the level "+c.lv+" "+T.n+" in time. It wandered off.");
-      else { var smy=(S.alArena||[]).filter(function(m){ return mine[m.ref]; }); arReward({type:c.type, lv:c.lv, win:f.win, reward:rw, rounds:f.rounds, hpLeft:f.hpLeft, hp0:f.hp0, players:[myName()||"You"], marches:joins.length, mine:mine, solo:1}, smy[0], smy); }
+      else { var smy=(S.alArena||[]).filter(function(m){ return mine[m.ref]; }), sww=null; try { sww=sarWwView(T,c.lv,joins); } catch(e){}
+        arReward({type:c.type, lv:c.lv, win:f.win, reward:rw, rounds:f.rounds, hpLeft:f.hpLeft, hp0:f.hp0, players:[myName()||"You"], marches:joins.length, mine:mine, solo:1, ww:sww}, smy[0], smy); }
     });
     A.recent=A.recent.filter(function(r){ return now-r.at<86400e3; }).slice(0,SAR.keep);
   }
@@ -4205,7 +4214,8 @@ function arReport(r, myM, T){
   mine.forEach(function(x){ if (x.hero){ var h=null; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(y){ if (y.name===x.hero) h=y; }); }); if (h) heroRec(h, {won:!!r.win, killed:[], lost:x.wounded, label:"the Arena ("+T.n+")"}); } });
   var rw=r.win?(r.reward||{items:{},res:{}}):null, g=[]; if (rw){ for (var k in rw.items) g.push(fmt(rw.items[k])+" "+((ITEMS[k]&&ITEMS[k].name)||k)); var rs=0; for (var q in rw.res) rs+=rw.res[q]; if (rs) g.push(fmt(rw.res.food||0)+" of each resource"); }
   var id=S.nextMarchId++, name="Arena: level "+r.lv+" "+T.n;
-  var rep={id:id, at:S.gt, arena:1, name:name, result:r.win?1:2, type:r.type, lv:r.lv, rounds:r.rounds||0, hpLeft:r.hpLeft||0, hp0:r.hp0||0, reward:rw, players:r.players||[], marches:r.marches||mine.length, mine:mine, solo:!!r.solo, weak:"", def:0};
+  var rep={id:id, at:S.gt, arena:1, name:name, result:r.win?1:2, type:r.type, lv:r.lv, rounds:r.rounds||0, hpLeft:r.hpLeft||0, hp0:r.hp0||0, reward:rw, players:r.players||[], marches:r.marches||mine.length, mine:mine, solo:!!r.solo, weak:"", def:0,
+    aww: r.solo ? (r.ww?{v:r.ww}:null) : (ALS.aid && r.id!=null ? {aid:ALS.aid, mid:r.id} : null)}; // War Wizard (0.1.171): the solo fight's rounds, or which alliance fight to ask the Worker for
   S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
   S.log.unshift({id:id, at:S.gt, sc:0, n:name, tile:null, r:r.win?1:2, d:0, l:0, k:0, lo:0, m:-1, g:g, h:null, f:null, o:0, c:mine[0]?mine[0].city:C().name, ar:1, wd:wd, sent:sent}); trimKeepFav(S.log, LOG_CAP);
 }
@@ -4217,6 +4227,27 @@ function arenaRepHtml(r){
     return '<div class="h3" style="margin-top:8px">Your march'+(r.mine.length>1?' '+(i+1):'')+' <span class="dur">from '+esc(x.city)+(x.hero?', led by '+esc(x.hero):'')+'</span></div><div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Troop</th><th>Sent</th><th>Unhurt</th><th>Wounded</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>'; }).join("");
   return h+'<p class="hint">Nobody dies at the Arena: the wounded wait in their city\u2019s Medic Camp (heal them within 24 hours).</p>';
 }
+/* ---------- War Wizard for Arena fights (0.1.171): no dice, so it's the fight run again with every round written down.
+   v = {n, lv, hp0, win, rounds, blow, hp:[strength before round 1, after 1, ...], out:[damage each round], me:[{i, n:[alive at the start of each round..., at the end], d:[damage each round]}], oth (everyone else, same shape), np} */
+var ARW={v:null, r:0, back:null, busy:false};
+function arwOpen(v, back){ ARW.v=v; ARW.r=v.rounds; ARW.back=back||null; openSheet({kind:"arww"}); }
+function arwSheet(){ var v=ARW.v, r=ARW.r, R0=v.rounds, before=v.hp[Math.max(0,r-1)], after=v.hp[r], pct=v.hp0?Math.max(0,Math.min(100,after/v.hp0*100)):0;
+  var h='<div class="head lbhead"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>War Wizard</h2><div class="sub">Level '+v.lv+' '+esc(v.n)+' \u00b7 '+(r===0?'before the fight':'round '+r+' of '+R0)+'</div></div></div>';
+  h+='<div class="arwbar"><div style="width:'+pct.toFixed(1)+'%"></div></div><div class="mestats">'+
+    '<div class="merow"><span>Monster strength</span><b>'+fmt(after)+' <span class="dur">of '+fmt(v.hp0)+'</span></b></div>'+
+    (r?'<div class="merow"><span>Damage this round</span><b>'+fmt(v.out[r-1])+'</b></div>':'')+
+    '<div class="merow"><span>Its blow each round</span><b>'+fmt(v.blow)+' <span class="dur">shared out over the troops</span></b></div>'+
+    (r===R0?'<div class="merow"><span>Result</span><b>'+(v.win?'<span class="okc">It fell</span>':'<span class="badc">It survived with '+Math.round(pct)+'%</span>')+'</b></div>':'')+'</div>';
+  h+='<div class="btnrow" style="justify-content:space-between;margin:2px 0"><button class="btn ghost small" data-act="arww-r" data-d="-1"'+(r<=0?' disabled':'')+'>\u25c0 Round</button><span class="dur">'+(r===0?'start':r+' / '+R0)+'</span><button class="btn ghost small" data-act="arww-r" data-d="1"'+(r>=R0?' disabled':'')+'>Round \u25b6</button></div>';
+  var tbl=function(title, list){ if (!list.length) return ''; var rows=list.slice().sort(function(a,b){ return a.i-b.i; }).map(function(u){ var at=u.n[Math.max(0,r-1)], end=u.n[r], lost=r?Math.max(0,at-end):0;
+      return '<tr><td>'+U[u.i].name+'</td><td>'+fmt(r?at:u.n[0])+'</td><td>'+(r?fmt(u.d[r-1]||0):'\u2013')+'</td><td>'+(r?fmt(lost):'\u2013')+'</td></tr>'; }).join("");
+    return '<div class="h3" style="margin-top:6px">'+title+'</div><div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Troop</th><th>'+(r?'Fighting':'Sent')+'</th><th>Damage</th><th>Wounded</th></tr></thead><tbody>'+rows+'</tbody></table></div>'; };
+  h+=tbl(v.oth.length?'Your troops':'Your troops (every march)', v.me)+tbl('Everyone else <span class="dur">'+v.np+' player'+(v.np===1?'':'s')+'</span>', v.oth);
+  var mine=function(k){ var s=0; v.me.forEach(function(u){ s+=u.d[k]||0; }); return s; }, mineW=function(k){ var s=0; v.me.forEach(function(u){ s+=Math.max(0,u.n[k]-u.n[k+1]); }); return s; };
+  h+='<div class="h3" style="margin-top:8px">Round by round</div><div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>'+(v.oth.length?'Rd':'Round')+'</th><th>'+(v.oth.length?'Left':'Strength left')+'</th><th>'+(v.oth.length?'All dmg':'Damage')+'</th>'+(v.oth.length?'<th>Yours</th>':'')+'<th>'+(v.oth.length?'Wounded':'Your wounded')+'</th></tr></thead><tbody>'+
+    v.out.map(function(o,k){ return '<tr'+(k+1===r?' class="arwon"':'')+'><td><button class="link" data-act="arww-go" data-r="'+(k+1)+'">'+(k+1)+'</button></td><td>'+fmt(v.hp[k+1])+'</td><td>'+fmt(o)+'</td>'+(v.oth.length?'<td>'+fmt(mine(k))+'</td>':'')+'<td>'+fmt(mineW(k))+'</td></tr>'; }).join("")+'</tbody></table></div>';
+  h+='<p class="hint">Every round each troop type hits the monster, then the monster\u2019s blow is shared over everyone by how many they are and how tough. Nobody dies at the Arena: the wounded go to the Medic Camp.</p>';
+  return h+'<button class="closebtn" data-act="arww-back">'+(ARW.back&&ARW.back.kind==="report"?'Back to the report':'Close')+'</button>'; }
 // every second: marches that came home; a march whose result never came back returns whole after 15 minutes
 function arTick(){
   var L=S.alArena; if (!L || !L.length) return; var now=Date.now(), ch=false;
@@ -9992,6 +10023,8 @@ function renderSheetCore(){
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
     h=marchSheet();
+  } else if (sheetFor.kind==="arww"){
+    if (!ARW.v){ closeSheet(); return; } h=arwSheet();
   } else if (sheetFor.kind==="replay"){
     if (!RP){ closeSheet(); return; } h=rpSheet();
   } else if (sheetFor.kind==="cbconflict"){
@@ -10085,7 +10118,7 @@ function renderSheetCore(){
     var rex=[]; if (rc.l) rex.push("lost "+fmt(rc.l)); if (rc.k) rex.push("killed "+fmt(rc.k)); if (rc.lo) rex.push((rc.d?"lost ":"")+fmt(rc.lo)+" loot"); if (rc.m>=0) rex.push(MEDALS[rc.m][1]+" medal"); if (rc.g.length) rex.push(rc.g.join(", ")); if (rc.h) rex.push(rc.h+" captured"); if (rc.f) rex.push(rc.f+" taken");
     h='<div id="repwrap"'+(repFit?' class="fit"':'')+'><div class="head"><span class="ico">'+ICON.rally+'</span><div><h2><span class="'+(rg?'okc':'badc')+'">'+rv+'</span> '+esc(rc.n)+'</h2><div class="sub">'+gameClock(rc.at)+(rc.c&&!rc.d&&S.cities.length>1?', from '+esc(rc.c):'')+(rex.length?'. '+rex.join(", ")+'.':'')+'</div></div></div>'+
       (rr?reportDetail(rr):'<p class="hint">Only the summary of this older battle was kept.</p>')+'</div>'+
-      '<div class="btnrow" style="margin-top:10px">'+(rr&&rr.ww?'<button class="btn small" data-act="ww-rep">War Wizard</button>':'')+'<button class="btn'+(rc.fav?'':' ghost')+' small" data-act="rep-fav">'+(rc.fav?'\u2605 Saved':'\u2606 Save report')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+(rr&&LB_URL&&!(rr.arena||rr.rally)?'<button class="btn ghost small" data-act="rep-share"'+(shareBusy?' disabled':'')+'>'+(shareBusy?'Sharing\u2026':rr.share?'Share again':'Share')+'</button>':'')+'</div>'+
+      '<div class="btnrow" style="margin-top:10px">'+(rr&&rr.ww?'<button class="btn small" data-act="ww-rep">War Wizard</button>':'')+(rr&&rr.aww?'<button class="btn small" data-act="arww-rep"'+(ARW.busy?' disabled':'')+'>War Wizard</button>':'')+'<button class="btn'+(rc.fav?'':' ghost')+' small" data-act="rep-fav">'+(rc.fav?'\u2605 Saved':'\u2606 Save report')+'</button>'+(rc.tile&&!rc.d?'<button class="btn ghost small" data-act="goto-tile" data-tile="'+rc.tile+'">Show on map</button>':'')+(rr&&LB_URL&&!(rr.arena||rr.rally)?'<button class="btn ghost small" data-act="rep-share"'+(shareBusy?' disabled':'')+'>'+(shareBusy?'Sharing\u2026':rr.share?'Share again':'Share')+'</button>':'')+'</div>'+
       (rr&&rr.share&&rr.share.url?'<div class="farmadd" style="margin-top:6px"><input type="text" readonly id="shareurl" value="'+esc(rr.share.url)+'" style="width:auto;flex:1"><button class="btn ghost small" data-act="rep-share-copy">Copy link</button></div><p class="dur" style="margin:2px 0 0">Anyone with the link can see this report until '+new Date(rr.share.until||Date.now()).toLocaleDateString(undefined,{month:"short",day:"numeric"})+'. Sharing it again keeps it 30 more days.</p>':'')+
       '<button class="closebtn" data-act="close">Close</button>';
   } else if (sheetFor.kind==="legend"){
@@ -10482,6 +10515,16 @@ document.addEventListener("click",function(e){
   if (act==="wcd-clear"){ var wdc=wcById(sheetFor&&sheetFor.id); if (!wdc) return; wcdDraft[wdc.id]=null; lastSheet=""; renderSheet(); return; }
   if (act==="wc-replay"){ var rpid=sheetFor&&sheetFor.id; rpStop(); rpOpen(rpid, +a.dataset.wave); return; }
   if (act==="ww-rep"){ var wr=sheetFor&&sheetFor.rep, wc2=sheetFor&&sheetFor.c; if (!wr || !wr.ww) return; rpStop(); rpOpenCap(wr.ww, {sub:wc2?wc2.n:"", mine:wr.def?"D":"A", back:sheetFor}); return; }
+  if (act==="arww-rep"){ var awr=sheetFor&&sheetFor.rep; if (!awr || !awr.aww || ARW.busy) return; var awBack=sheetFor;
+    if (awr.aww.v){ arwOpen(awr.aww.v, awBack); return; }
+    if (!alOn() || awr.aww.aid!==ALS.aid){ toast("Only your current alliance's fights can be replayed"); return; }
+    ARW.busy=true; lastSheet=""; renderSheet();
+    alPost("/al/arena/ww",{id:awr.aww.mid}).then(function(d){ ARW.busy=false; if (d && d.ok && d.ww){ awr.aww.v=d.ww; save(); arwOpen(d.ww, awBack); } else { toast((d&&d.error)||"Couldn\u2019t load that fight"); lastSheet=""; renderSheet(); } })
+      .catch(function(){ ARW.busy=false; toast("Can\u2019t reach the server"); lastSheet=""; renderSheet(); });
+    return; }
+  if (act==="arww-r"){ if (!ARW.v) return; ARW.r=Math.max(0, Math.min(ARW.v.rounds, ARW.r+(+a.dataset.d))); lastSheet=""; renderSheet(); return; }
+  if (act==="arww-go"){ if (!ARW.v) return; ARW.r=Math.max(0, Math.min(ARW.v.rounds, +a.dataset.r)); lastSheet=""; renderSheet(); return; }
+  if (act==="arww-back"){ var abk=ARW.back; ARW.v=null; if (abk) openSheet(abk); else closeSheet(); return; }
   if (act==="rp-back"){ rpStop(); var bk=RP&&RP.back; if (bk) openSheet(bk); else closeSheet(); return; }
   if (act==="rp-go"){ if (!RP) return; rpStop(); RP.f=Math.max(0,Math.min(RP.res.trace.length-1, +a.dataset.v)); lastSheet=""; renderSheet(); return; }
   if (act==="rp-play"){ if (!RP) return; if (RP.play){ rpStop(); lastSheet=""; renderSheet(); return; }
