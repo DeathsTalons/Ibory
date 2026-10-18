@@ -727,7 +727,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.147";
+var APP_VERSION = "0.1.148";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1713,6 +1713,41 @@ function allyTransportArrive(m){
   note("march","Delivered "+fmt(tot)+" resources to your ally "+q.ai.name);
   m.cargo={}; m.loot={}; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
+// the item and medal rolls for one victory over q (a normal attack, or each player in a rally that wiped a full garrison)
+function winDrops(q){
+  var boxKey = rollMedalBox(q), drops=[], medal=-1;
+  if (boxKey){ S.items[boxKey]=(S.items[boxKey]||0)+1; drops.push("a "+ITEMS[boxKey].name); }
+  else if (Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
+  if (q.k!=="home"){
+    var dl=q.L||1;
+    if (!VTYPES[q.k] && Math.random()<0.35+bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
+    if (!VTYPES[q.k] && dl>=5 && Math.random()<(0.04+0.01*(dl-5))+bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
+    if (q.k!=="monster" && !VTYPES[q.k]){ var bm=Math.random(), mk=null, gt=achLv("gear"), ga=0.0001*gt, gb=0.001*gt; // crafting materials: very rare, better ones only from tougher targets. Starforged adds +0.01 points a tier to mithril and starmetal, +0.1 to ingots and ore
+      var tS=0.0005+ga, tM=0.0015+(dl>=10?ga:0)+(dl>=7?ga:0), tI=0.004+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0), tO=0.008+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0)+gb;
+      if (dl>=10 && bm<tS) mk="starmetal"; else if (dl>=7 && bm<tM) mk="mithril"; else if (dl>=4 && bm<tI) mk="ingot"; else if (bm<tO) mk="ore";
+      if (mk){ S.items[mk]=(S.items[mk]||0)+1; drops.push(ITEMS[mk].name); } }
+    // experience books: very rare, better ones only from tougher targets
+    if (q.k!=="home"){ var bk=Math.random()/bItems();
+      if (dl>=10 && bk<0.0005) { S.items.annals=(S.items.annals||0)+1; drops.push("Annals of Conquest"); }
+      else if (dl>=7 && bk<0.002) { S.items.codex=(S.items.codex||0)+1; drops.push("a War Codex"); }
+      else if (dl>=4 && bk<0.005) { S.items.tome=(S.items.tome||0)+1; drops.push("a Tome of Wisdom"); }
+      else if (bk<0.01) { S.items.primer=(S.items.primer||0)+1; drops.push("a Soldier's Primer"); } }
+    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007*bItems()){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
+    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01*bItems()){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
+    if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
+      if (Math.random()<(0.12+0.04*q.L)+0.0001*achLv("gear")){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
+      S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
+    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
+    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
+    if (q.k==="npc" && dl>=5 && Math.random()<(0.005+0.001*(Math.min(dl,10)-5))*bItems()){ S.items.script=(S.items.script||0)+1; drops.push("a Michelangelo\u2019s Script"); } // 0.5% at level 5 up to 1% at level 10
+    if (q.k==="npc" && dl>=5){ var sr=Math.random()/bItems(), sk=null; // timed speed-ups: rare, bigger ones only from tougher NPCs (0.9% total at most)
+      if (dl>=10 && sr<0.001) sk="s480"; else if (dl>=7 && sr<0.003) sk="s150"; else if (sr<0.005) sk="s60"; else if (sr<0.009) sk="s15";
+      if (sk){ S.items[sk]=(S.items[sk]||0)+1; drops.push("a "+ITEMS[sk].name); } }
+    if (q.k==="npc" && dl>=10 && Math.random()<0.001*bItems()){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
+    if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015*bItems()){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
+  }
+  return {drops:drops, medal:medal, box:boxKey};
+}
 function resolveMarch(m){
   if (m.mission==="allyguard") return allyGuardArrive(m);
   if (m.mission==="transport" && TILE_BY[m.tile] && TILE_BY[m.tile].k==="ai") return allyTransportArrive(m);
@@ -1756,38 +1791,7 @@ function resolveMarch(m){
   S.map.hit[q.id]={t:r.defender, f:r.forts, res:left, at:S.gt};
   var medal=-1;
   if (won && q.k==="npc") qmax("npcWin", q.L);
-  var boxKey = won && fullGar ? rollMedalBox(q) : null;
-  var drops=[];
-  if (boxKey){ S.items[boxKey]=(S.items[boxKey]||0)+1; drops.push("a "+ITEMS[boxKey].name); }
-  else if (won && fullGar && Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
-  if (won && q.k!=="home" && fullGar){
-    var dl=q.L||1;
-    if (!VTYPES[q.k] && Math.random()<0.35+bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
-    if (!VTYPES[q.k] && dl>=5 && Math.random()<(0.04+0.01*(dl-5))+bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
-    if (q.k!=="monster" && !VTYPES[q.k]){ var bm=Math.random(), mk=null, gt=achLv("gear"), ga=0.0001*gt, gb=0.001*gt; // crafting materials: very rare, better ones only from tougher targets. Starforged adds +0.01 points a tier to mithril and starmetal, +0.1 to ingots and ore
-      var tS=0.0005+ga, tM=0.0015+(dl>=10?ga:0)+(dl>=7?ga:0), tI=0.004+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0), tO=0.008+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0)+gb;
-      if (dl>=10 && bm<tS) mk="starmetal"; else if (dl>=7 && bm<tM) mk="mithril"; else if (dl>=4 && bm<tI) mk="ingot"; else if (bm<tO) mk="ore";
-      if (mk){ S.items[mk]=(S.items[mk]||0)+1; drops.push(ITEMS[mk].name); } }
-    // experience books: very rare, better ones only from tougher targets
-    if (q.k!=="home"){ var bk=Math.random()/bItems();
-      if (dl>=10 && bk<0.0005) { S.items.annals=(S.items.annals||0)+1; drops.push("Annals of Conquest"); }
-      else if (dl>=7 && bk<0.002) { S.items.codex=(S.items.codex||0)+1; drops.push("a War Codex"); }
-      else if (dl>=4 && bk<0.005) { S.items.tome=(S.items.tome||0)+1; drops.push("a Tome of Wisdom"); }
-      else if (bk<0.01) { S.items.primer=(S.items.primer||0)+1; drops.push("a Soldier's Primer"); } }
-    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007*bItems()){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
-    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01*bItems()){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
-    if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
-      if (Math.random()<(0.12+0.04*q.L)+0.0001*achLv("gear")){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
-      S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
-    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
-    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
-    if (q.k==="npc" && dl>=5 && Math.random()<(0.005+0.001*(Math.min(dl,10)-5))*bItems()){ S.items.script=(S.items.script||0)+1; drops.push("a Michelangelo\u2019s Script"); } // 0.5% at level 5 up to 1% at level 10
-    if (q.k==="npc" && dl>=5){ var sr=Math.random()/bItems(), sk=null; // timed speed-ups: rare, bigger ones only from tougher NPCs (0.9% total at most)
-      if (dl>=10 && sr<0.001) sk="s480"; else if (dl>=7 && sr<0.003) sk="s150"; else if (sr<0.005) sk="s60"; else if (sr<0.009) sk="s15";
-      if (sk){ S.items[sk]=(S.items[sk]||0)+1; drops.push("a "+ITEMS[sk].name); } }
-    if (q.k==="npc" && dl>=10 && Math.random()<0.001*bItems()){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
-    if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015*bItems()){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
-  }
+  var wd = won && fullGar ? winDrops(q) : {drops:[], medal:-1, box:null}, boxKey=wd.box, drops=wd.drops; medal=wd.medal;
   var occ=false;
   if (won && m.mission==="occupy" && VTYPES[q.k] && ownedIds().length < S.th){ S.map.owned[q.id]=C().id; S.map.ownedL[q.id]=q.L; S.map.ownedK=S.map.ownedK||{}; S.map.ownedK[q.id]=q.k; qbump("occupy"); delete S.map.hit[q.id]; occ=true; miniDirty=true; }
   var founded=null, histHero=null, loyNote="";
@@ -3921,7 +3925,7 @@ function ryCard(){ var el=document.getElementById("tileinfo"); if (!el || !selTi
 function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="why">That target is gone.</p><button class="closebtn" data-act="close">Close</button>';
   var cur=current(q), mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||0)));
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Call the alliance</h2><div class="sub">onto '+esc(tileName(q))+' ('+q.x+', '+q.y+')</div></div></div>'+
-    '<p class="hint">Every member can march from their kingdom square to yours (you too, from any city). At the hit time, every march that made it hits this target one after another, in the order you set on the Rallies tab; each wave fights what the ones before it left. Marches still on the road turn round. Helpers get nothing but the satisfaction: no loot, no drops. When it\u2019s over you get the garrison that\u2019s left, so send your own march to take it before it refills'+(q.k==="hc"?' (historic cities refill within an hour)':'')+'. You can call one rally a week; calling it off gives the call back.</p>'+
+    '<p class="hint">Every member can march from their kingdom square to yours (you too, from any city). At the hit time, every march that made it hits this target one after another, in the order you set on the Rallies tab; each wave fights what the ones before it left. Marches still on the road turn round. If the rally wipes the garrison, everyone who got a march there in time rolls the target\u2019s full drop table on their own (medals, boxes, gems, items; the garrison has to be full when it hits, like a normal attack). No resources are looted. When it\u2019s over you get the garrison that\u2019s left, so send your own march to take it before it refills'+(q.k==="hc"?' (historic cities refill within an hour)':'')+'. You can call one rally a week; calling it off gives the call back.</p>'+
     '<p class="dur">Right now: '+fmt(sumT(cur.t))+' defenders, '+fmt(cur.f.reduce(function(a,b){ return a+b; },0))+' fortifications, wall level '+cur.wall+'. While the rally runs you can\u2019t attack it yourself except through the rally.</p>'+
     '<div class="farmadd"><label class="dur" for="rymins">Hit in</label><select id="rymins">'+[[5,"5 minutes"],[15,"15 minutes"],[30,"30 minutes"],[60,"1 hour"],[120,"2 hours"],[240,"4 hours"],[480,"8 hours"],[720,"12 hours"],[1440,"24 hours"]].map(function(o){ return '<option value="'+o[0]+'"'+(o[0]===mins?' selected':'')+'>'+o[1]+'</option>'; }).join("")+'</select></div>'+
     '<p class="dur">The waves hit at about '+trClock(S.gt+mins*60000*S.speed)+'. You can move the time or launch early from the Rallies tab.</p>'+
@@ -3963,7 +3967,7 @@ function alRallyHtml(al){
   var now=Date.now(), live=ryLive(), mine=S.alRally||[], h='';
   h+='<div class="section"><div class="shead"><h3>Rallies</h3><span class="dur">'+(Y.nextCall&&Y.nextCall>now?'your next call in '+fmtT(Y.nextCall-now):'you can call one now')+'</span></div>'+
     (((alMine()||{}).econ||{}).ars&&alMine().econ.ars.might?'<p class="dur" style="margin:0 0 4px">\u2692 The Warden rides with every wave: <b>+'+(alMine().econ.ars.might/10).toFixed(1)+'% attack</b>.</p>':'')+
-    '<p class="hint">Any member can call the alliance onto a level 10 NPC city or a historic city on their own map, once a week: tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the hit time every march that made it hits in the caller\u2019s order, each wave against what the ones before it left. Helpers get nothing but the satisfaction; the caller gets the garrison that\u2019s left and takes the city with their own march.</p></div>';
+    '<p class="hint">Any member can call the alliance onto a level 10 NPC city or a historic city on their own map, once a week: tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the hit time every march that made it hits in the caller\u2019s order, each wave against what the ones before it left. If it wipes the garrison, everyone who made it rolls the target\u2019s full drop table on their own, so each player gets different spoils. The caller also gets the garrison that\u2019s left and takes the city with their own march.</p></div>';
   live.forEach(function(R){ var g=R.garrison||{t:[],f:[]}, ord={}; (R.order||[]).forEach(function(id,i){ ord[id]=i; });
     var ms=R.marches.slice().sort(function(a,b){ return (ord[a.id]!=null?ord[a.id]:1e6+a.arrive)-(ord[b.id]!=null?ord[b.id]:1e6+b.arrive); }), mineN=R.marches.filter(function(j){ return j.mine; }).length, total=0; ms.forEach(function(j){ total+=j.n; });
     h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>'+esc(R.host)+'\u2019s '+esc(R.name)+'</h3><span class="dur">hits in <b class="arleft" data-ends="'+R.hitAt+'">'+fmtT(R.hitAt-now)+'</b></span></div>'+
@@ -3991,26 +3995,34 @@ function alRallyHtml(al){
 // results from the server: each of my marches heads home with what's left; the caller's map gets the garrison that's left
 function ryResults(Y){
   if (!Y) return; var L=S.alRally||[], ch=false; S.alRallyDone=S.alRallyDone||{};
+  S.alRallyRoll=S.alRallyRoll||{};
   (Y.recent||[]).forEach(function(r){
+    // rewards: when a rally wipes the garrison, every player who got a march there in time rolls the full drop table for that target once, on their own
+    var rk=ALS.aid+":"+r.id, fresh=Object.keys(r.mine||{}).filter(function(ref){ var m=L.filter(function(x){ return x.ref===ref; })[0], o=r.mine[ref]; return m && m.st==="out" && !o.late && !o.cancelled; }), roll=null;
+    if (fresh.length && r.win && !r.cancelled && !S.alRallyRoll[rk]){ S.alRallyRoll[rk]=Date.now();
+      roll = r.full ? winDrops({id:"rally:"+r.id, k:r.k, L:r.L}) : {drops:[], medal:-1, nofull:true}; }
     Object.keys(r.mine||{}).forEach(function(ref){ var m=L.filter(function(x){ return x.ref===ref; })[0]; if (!m || m.st!=="out") return; var o=r.mine[ref];
-      m.st="back"; m.back=(o.left||m.t).slice(); m.home=Date.now()+Math.max(0,(o.home||Date.now())-(r.hitAt||Date.now())); m.res=o; ch=true; try { ryReport(r, m, o); } catch(e){} });
+      m.st="back"; m.back=(o.left||m.t).slice(); m.home=Date.now()+Math.max(0,(o.home||Date.now())-(r.hitAt||Date.now())); m.res=o; ch=true; var rw=fresh.indexOf(ref)>=0?roll:null; if (rw) roll=null; try { ryReport(r, m, o, rw); } catch(e){} });
     var key=ALS.aid+":"+r.id; if (r.isHost && !S.alRallyDone[key]){ S.alRallyDone[key]=Date.now(); ch=true;
       var lk=S.rallyLock; if (lk && lk.rid===r.id){ var q=TILE_BY[lk.tile];
         if (q && r.final && !r.cancelled){ var cur=current(q); S.map.hit[q.id]={t:r.final.t.slice(), f:r.final.f.slice(), res:cur.res, at:S.gt}; miniDirty=true;
           note("alliance","Your rally on "+tileName(q)+" is over: "+(sumT(r.final.t)?fmt(sumT(r.final.t))+" defenders are left":"the garrison is wiped out")+". Send your march to take it before it refills"+(q.k==="hc"?" (within the hour)":"")+"."); }
         S.rallyLock=null; } } });
   if (S.rallyLock && S.rallyLock.aid===ALS.aid && !(Y.live||[]).some(function(R){ return R.id===S.rallyLock.rid; }) && !(Y.recent||[]).some(function(r){ return r.id===S.rallyLock.rid; })) { S.rallyLock=null; ch=true; } // gone without a trace
-  var cut=Date.now()-4*864e5; for (var k in S.alRallyDone) if (S.alRallyDone[k]<cut) delete S.alRallyDone[k];
+  var cut=Date.now()-4*864e5; for (var k in S.alRallyDone) if (S.alRallyDone[k]<cut) delete S.alRallyDone[k]; for (var k2 in S.alRallyRoll) if (S.alRallyRoll[k2]<cut) delete S.alRallyRoll[k2];
   if (ch){ save(); flushFinished(); refresh(); }
 }
-function ryReport(r, m, o){
+function ryReport(r, m, o, rw){
   var ci=cityIndex(m.city), hh=m.hero?heroById(m.hero):null, lost=m.t.map(function(n,i){ return Math.max(0,n-((o.left||[])[i]||0)); });
   if (hh && o.wave) heroRec(hh, {won:!!o.won, killed:o.killed||[], lost:lost, label:r.host+"\u2019s "+r.name+" (rally)"});
   var id=S.nextMarchId++, name="Rally: "+r.host+"\u2019s "+r.name;
   var rep={id:id, at:S.gt, rally:1, name:name, result:o.wave?(o.won?1:2):0, host:r.host, target:r.name, wave:o.wave||0, waves:(r.fights||[]).length, late:!!o.late, idle:!!o.idle, cancelled:!!o.cancelled, rounds:o.rounds||0,
-    sent:m.t.slice(), left:(o.left||m.t).slice(), killed:(o.killed||Z12()).slice(), city:ci>=0?S.cities[ci].name:"?", hero:hh?hh.name:"", players:r.players||[], fights:r.fights||[], def:0};
+    sent:m.t.slice(), left:(o.left||m.t).slice(), killed:(o.killed||Z12()).slice(), city:ci>=0?S.cities[ci].name:"?", hero:hh?hh.name:"", players:r.players||[], fights:r.fights||[], def:0, win:!!r.win};
+  if (rw){ rep.drops=rw.drops||[]; rep.medal=rw.medal; rep.nofull=!!rw.nofull;
+    var got=(rw.medal>=0?[MEDALS[rw.medal][1]+" medal"]:[]).concat(rw.drops||[]);
+    note("alliance","The rally on "+r.host+"\u2019s "+r.name+" wiped it out. "+(rw.nofull?"Its garrison wasn\u2019t full when it hit, so nothing dropped.":got.length?"Your share of the spoils: "+got.join(", ")+".":"Nothing dropped for you this time.")); }
   S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
-  S.log.unshift({id:id, at:S.gt, sc:0, n:name, tile:null, r:o.wave?(o.won?1:2):0, d:0, l:sumT(lost), k:sumT(o.killed||[]), lo:0, m:-1, g:[], h:null, f:null, o:0, c:rep.city, ry:1, sent:sumT(m.t)}); trimKeepFav(S.log, LOG_CAP);
+  S.log.unshift({id:id, at:S.gt, sc:0, n:name, tile:null, r:o.wave?(o.won?1:2):0, d:0, l:sumT(lost), k:sumT(o.killed||[]), lo:0, m:rw&&rw.medal>=0?rw.medal:-1, g:rw?(rw.drops||[]).slice():[], h:null, f:null, o:0, c:rep.city, ry:1, sent:sumT(m.t)}); trimKeepFav(S.log, LOG_CAP);
 }
 function rallyRepHtml(r){ var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
   var h='<div class="mestats">'+row("Target",esc(r.host)+'\u2019s '+esc(r.target))+row("Your wave",r.cancelled?'called off':r.late?'arrived too late':r.idle?'not needed (already wiped out)':(r.wave+' of '+r.waves))+
@@ -4019,6 +4031,7 @@ function rallyRepHtml(r){ var row=function(l,v){ return '<div class="merow"><spa
   h+='<div class="h3" style="margin-top:8px">Your march <span class="dur">from '+esc(r.city)+(r.hero?', led by '+esc(r.hero):'')+'</span></div><div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Troop</th><th>Sent</th><th>Left</th><th>Fallen</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>';
   var kr=[]; for (var k=0;k<12;k++) if (r.killed[k]) kr.push(fmt(r.killed[k])+' '+uname(k,r.killed[k]));
   if (kr.length) h+='<p class="dur">You killed: '+kr.join(", ")+'.</p>';
+  if (r.drops){ var got=(r.medal>=0?[MEDALS[r.medal][1]+" medal"]:[]).concat(r.drops); h+='<p class="'+(got.length?'okc':'dur')+'" style="margin:6px 0">'+(r.nofull?'The garrison wasn\u2019t full when the rally hit, so nothing dropped.':got.length?'Your spoils: '+esc(got.join(", "))+'.':'Your spoils: nothing this time.')+'</p>'; }
   if (r.fights && r.fights.length) h+='<div class="h3" style="margin-top:8px">Every wave</div>'+r.fights.map(function(f){ return '<p class="dur" style="margin:2px 0">'+f.wave+'. '+esc(f.name)+': '+(f.won?'won':'thrown back')+', killed '+fmt(f.killed)+', lost '+fmt(f.lost)+' of '+fmt(f.sent)+'</p>'; }).join("");
   return h+'<p class="hint">Some of the fallen are only wounded and wait in your city\u2019s Medic Camp (heal them within 24 hours).</p>'; }
 // every second: rally marches that came home (the fallen go through the normal wounded rule)

@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.147
+Version 0.1.148
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.148** Rally spoils: when a rally wipes the garrison, every player who got a march there in time rolls the target's full drop table once, on their own (medals, medal boxes, gems, crafting materials, books, items; same rates and bonuses as a normal win, and an NPC city's garrison must be full when the rally hits). No resources are looted, and the historic hero still comes only from the caller's own capture. Spoils show in the rally report, the battle log and a notice. Worker: rally results carry win and full.
 - **0.1.147** Add to queue keeps the building open (queue several levels in a row). While the Academy is busy, the Queue button lights up on every tech this city could start next (requirements met, not already queued or being researched elsewhere). The chat dock loses its Pin and Collapse buttons (Close stays; pinning still lives on the alliance chat page). Worker: a failed picture upload now names the reason.
 - **0.1.146** Pictures and GIFs in chat (world, alliance and private). 📷 sends a photo or screenshot (the phone shrinks it to 1280px JPEG; GIFs go as they are, up to 8 MB); GIF opens a Tenor/Giphy search. Links to Tenor, Giphy, Imgur and Discord images and our own uploads show inline; in world chat they're blurred until tapped. Tap a picture to see it big, report it or open it. Chat previews and notifications say [picture] / [GIF]. Uploads are kept 14 days. Worker: R2 bucket CHAT_IMG, chat_img table, POST /img/up (binary, X-Name/X-Token), GET /img/<id>, POST /img/report, POST /gif/search (TENOR_KEY or GIPHY_KEY), admin "Chat pictures" tab.
 - **0.1.145** Taking resources out of your Alliance Warehouse box now takes 30 minutes to reach the city (so it can't be used to move resources between cities instantly). Withdrawals show under "On the way" with a countdown and a Put back button; they still count as yours for cloud stats. Storing is unchanged.
