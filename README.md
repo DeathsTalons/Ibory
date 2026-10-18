@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.154
+Version 0.1.158
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,10 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.158** Pixel-art valleys on the world map: grassland, forest, lake, swamp, desert, hill and flat each have three 16×16 tiles (VAL_TILES, picked by position) drawn crisp from zoom 8 up. A refilling tile is washed out over its empty part, and level numbers get a dark outline. Settings → Map tiles switches between Pixel art and Plain colours (S.pixTiles).
+- **0.1.157** Grass on every empty square of the alliance map: four little 15×15 pixel tiles (tufts, a daisy, a pebble, red flowers) made once at runtime as CSS backgrounds and spread by square, with dark green seams. Member kingdoms are now parchment tokens with a brown border (yours in gold) so they stand out on the grass.
+- **0.1.156** Pixel-art alliance buildings: the Alliance City, University, Alliance Warehouse, Monster Arena, Watchtower, War Memorial, Warden's Arsenal, Sanctuary of Grace and Trading Post each have a 45×45 sprite (a small diorama on grass, one shared palette and light from the top left), drawn crisp on the alliance map with the name on a small label. Sprites are palette-letter rows in AL_SPR, baked once into data URLs.
+- **0.1.155** The University has its own page under Build (a dot when research is running; the map's University building opens it). The research tree is drawn as a tree: pick Production, Construction, Alliance or Army, and each tier is a row of nodes joined to the tier above by a connector that lights up once the tier opens. Nodes show level pips (or n / max), gold when finished, green with a progress bar while running, faded while locked; tap one for its details, cost and Research button. The Alliance City page links to it.
 - **0.1.154** The map popup on an occupied flat now has "Establish level N NPC city" (or "Switch to <city>" when another city holds it). Alliance map zoom: − / + next to its size, five levels (100% down to 28%, CSS zoom on the grid), remembered on the device; zooming keeps the same spot in the middle, and the popup follows.
 - **0.1.153** Alliance page tidied: four underlined group tabs (Chat, Build, Battle, People; a dot shows something's waiting) and only that group's pages as a chip row under them (Build: Projects, Alliance City, Map, Trade; Battle: Arena, Rallies, Reinforce, War; People: Members, Applications, Ranks, About, All alliances). Each group remembers the last page you opened. Fixed buttons overflowing their card inside collapsible sections (the walls Upgrade button): newer Chrome wraps details content in a ::details-content box the box-sizing rule didn't reach.
 - **0.1.152** Decorations are unlocks in the cosmetics shop: buy one (50 Cosmo Coins; free during the beta, COS_ALL_FREE) and place it on as many tiles as you like. The Decorate sheet lists what you own (with a Place button) and a Shop section. How many to place: 1 to 50 or "Until I tap Done". The first goes on the tile you opened, then a paint bar on the map lets you tap tile after tile without reopening the menu. Worker: `deco:deadtree` in COS_ITEMS (kind deco, owned not equipped).
