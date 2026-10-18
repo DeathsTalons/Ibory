@@ -757,7 +757,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.183";
+var APP_VERSION = "0.1.184";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2131,7 +2131,14 @@ function winDrops(q){
   }
   return {drops:drops, medal:medal, box:boxKey};
 }
+// 0.1.184: "Save this report" on the march screen: whatever reports this march's landing writes go straight under Saved
 function resolveMarch(m){
+  if (!m.keep) return resolveMarch0(m);
+  var top=S.log[0], out=resolveMarch0(m);
+  for (var i=0;i<S.log.length && S.log[i]!==top;i++) keepRep(S.log[i].id);
+  return out;
+}
+function resolveMarch0(m){
   if (m.mission==="allyguard") return allyGuardArrive(m);
   if (m.mission==="transport" && TILE_BY[m.tile] && TILE_BY[m.tile].k==="ai") return allyTransportArrive(m);
   if (m.mission==="scout") return scoutArrive(m); // scouting never turns into a battle, whatever the target
@@ -2272,7 +2279,7 @@ function repeatMarch(m){
   if (!why && hid){ var rh=heroById(hid); if (!rh || C().heroes.indexOf(rh)<0 || rh.away || isOfficer(rh)) why="the leading hero isn’t free"; }
   if (!why && S.res.food<marchFood(t,m.mission,travelMs(t,q,hid,m.mission))) why="not enough food for rations";
   if (why){ note("march","Repeat stopped at "+tileName(q)+": "+why); return; }
-  var nm=launchMarch(m.tile,m.mission,t,hid,{}); nm.rep=true; nm.rsl=!!m.rsl; nm.t0=t0.slice(); nm.hero0=hid;
+  var nm=launchMarch(m.tile,m.mission,t,hid,{}); nm.rep=true; nm.rsl=!!m.rsl; if (m.keep) nm.keep=1; nm.t0=t0.slice(); nm.hero0=hid;
 }
 
 /* ---------- presets, auto-farm, timed waves ---------- */
@@ -3232,6 +3239,7 @@ function marchSheet(){
   if (d.mission==="transport") h=h.replace('<select id="marchhero">','<select id="marchhero" hidden>');
   if ((d.mission==="attack"||d.mission==="conquer") && !d.from) h+='<label class="chk"><input type="checkbox" id="mrep"'+(d.rep?' checked':'')+'> Repeat this march: it goes out again with the same hero as soon as it’s home, sending whatever of the army survived. It keeps going through losses, but stops as soon as any troop type it was sent with has run out at home, if the attack fails, or if it can’t be fed or crewed.</label>'+(d.rep?'<label class="chk"><input type="checkbox" id="mrepl"'+(d.repl?' checked':'')+'> Stop repeating if it loses any troops</label>':'');
   if (d.mission==="occupy") h+='<label class="chk"><input type="checkbox" id="mcamp"'+(d.camp?' checked':'')+'> Stay and make camp: if it wins, this army stays on the tile as a hidden base to attack from. Nobody can join it later.</label>';
+  if (KEEP_MISSIONS[d.mission]) h+='<label class="chk"><input type="checkbox" id="mkeep"'+(d.keep?' checked':'')+'> Save this report: it goes under \u2605 Saved the moment it comes in'+(d.rep?' (every repeat\u2019s report too)':'')+'.</label>';
   var ensOpts=["ensign","msize50","msize100"].filter(function(k){ return (S.items[k]||0)>0 || ensKey(d.ensign)===k; });
   if (d.mission!=="hide" && ensOpts.length) h+='<div><label class="sub" for="mensign">Bigger march (uses one)</label><select id="mensign"><option value="">No</option>'+ensOpts.map(function(k){ return '<option value="'+k+'"'+(ensKey(d.ensign)===k?' selected':'')+'>'+ITEMS[k].name+' (+'+Math.round((ENS_MULT[k]-1)*100)+'%, '+(S.items[k]||0)+' left)</option>'; }).join("")+'</select></div>';
   h+='<p class="sub" id="marchinfo"></p><div id="marchprev"></div>';
@@ -3286,6 +3294,7 @@ function sendMarch(){
   S.marches.push({id:S.nextMarchId++, city:C().id, food:food, ensign:ek||false, tile:q.id, mission:d.mission, cargo:cargo, t:d.t.slice(), hero:hero?hero.id:0, dep:S.gt, arr:S.gt+tm, travel:tm, phase:"out", loot:{}});
   if (dcamp) S.marches[S.marches.length-1].from=dcamp.tile;
   if (d.mission==="occupy" && d.camp) S.marches[S.marches.length-1].camp=1;
+  if (d.keep && KEEP_MISSIONS[d.mission]) S.marches[S.marches.length-1].keep=1;
   if (d.rep && !dcamp && (d.mission==="attack"||d.mission==="conquer")){ var rm=S.marches[S.marches.length-1]; rm.rep=true; rm.rsl=!!d.repl; rm.t0=d.t.slice(); rm.hero0=hero?hero.id:0; }
   if (HOLD_MISSIONS[d.mission]) holdTile(q.id, S.gt, S.gt+tm);
   toast((d.mission==="transport"?"Caravan heading to ":d.mission==="reinforce"?"Reinforcements heading to ":d.mission==="station"?"Troops heading to camp at ":"Army marching on ")+(dcamp?"":"")+tileName(q)+", arrives in "+fmtT(realMs(tm)));
@@ -4356,6 +4365,7 @@ function arReport(r, myM, T){
     aww: r.solo ? (r.ww?{v:r.ww}:null) : (ALS.aid && r.id!=null ? {aid:ALS.aid, mid:r.id} : null)}; // War Wizard (0.1.171): the solo fight's rounds, or which alliance fight to ask the Worker for
   S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
   S.log.unshift({id:id, at:S.gt, sc:0, n:name, tile:null, r:r.win?1:2, d:0, l:0, k:0, lo:0, m:-1, g:g, h:null, f:null, o:0, c:mine[0]?mine[0].city:C().name, ar:1, wd:wd, sent:sent}); trimKeepFav(S.log, LOG_CAP);
+  if (myM.some(function(m){ return m.keep; })) keepRep(id);
 }
 function arenaRepHtml(r){
   var T=r.wiz?{n:r.mname||"Wizard"}:arT(r.type), pct0=r.hp0?Math.round(r.hpLeft/r.hp0*100):0, row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
@@ -4428,7 +4438,7 @@ function arSend(){
     for (var si=0;si<12;si++) S.troops[si]=Math.max(0,S.troops[si]-t[si]); if (ens && S.items[ens]>0) S.items[ens]--;
     if (hero) hero.away=true;
     sc.joins.push({ref:ref, t:t, side:side, arrive:arr});
-    S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:"solo", mid:sc.id, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:arr, travel:trv, ends:sc.ends, st:"out"});
+    S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:"solo", mid:sc.id, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:arr, travel:trv, ends:sc.ends, st:"out", keep:d.keep?1:0});
     save(); toast("Marching to the Arena: arrives in "+fmtT(trv)); closeSheet(); lastView=""; refresh(); return;
   }
   ALS.arSending=true; var gb=document.getElementById("marchgo"); if (gb) gb.disabled=true;
@@ -4437,7 +4447,7 @@ function arSend(){
     var ci=cityIndex(cid); if (ci<0) return;
     withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]=Math.max(0,S.troops[i]-t[i]); if (ens && S.items[ens]>0) S.items[ens]--; });
     if (hero) hero.away=true;
-    S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:ALS.aid, mid:r.mid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, ends:r.ends, st:"out"});
+    S.alArena=S.alArena||[]; S.alArena.push({ref:ref, aid:ALS.aid, mid:r.mid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, ends:r.ends, st:"out", keep:d.keep?1:0});
     save(); toast("Marching to the Arena: arrives in "+fmtT(r.arrive-Date.now())); closeSheet(); lastView=""; refresh(); ALS.last=0; alSync(); })
     .catch(function(){ ALS.arSending=false; if (gb) gb.disabled=false; toast("Couldn’t reach the server. Check your connection."); });
 }
@@ -4527,7 +4537,7 @@ function rySend(){
     if (r.error){ toast(r.error); if (gb) gb.disabled=false; return; }
     var ci=cityIndex(cid); withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]=Math.max(0,S.troops[i]-t[i]); if (ens && S.items[ens]>0) S.items[ens]--; });
     if (hero) hero.away=true;
-    S.alRally=S.alRally||[]; S.alRally.push({ref:ref, aid:ALS.aid, rid:r.rid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, hitAt:r.hitAt, st:"out"});
+    S.alRally=S.alRally||[]; S.alRally.push({ref:ref, aid:ALS.aid, rid:r.rid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, hitAt:r.hitAt, st:"out", keep:d.keep?1:0});
     save(); toast("Marching to the rally: arrives in "+fmtT(r.arrive-Date.now())); closeSheet(); lastView=""; refresh(); ALS.last=0; alSync(); })
     .catch(function(){ RYS.sending=false; if (gb) gb.disabled=false; toast("Couldn\u2019t reach the server. Check your connection."); });
 }
@@ -4610,6 +4620,7 @@ function ryReport(r, m, o, rw){
     note("alliance","The rally on "+r.host+"\u2019s "+r.name+" wiped it out. "+(rw.nofull?"Its garrison wasn\u2019t full when it hit, so nothing dropped.":got.length?"Your share of the spoils: "+got.join(", ")+".":"Nothing dropped for you this time.")); }
   S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
   S.log.unshift({id:id, at:S.gt, sc:0, n:name, tile:null, r:o.wave?(o.won?1:2):0, d:0, l:sumT(lost), k:sumT(o.killed||[]), lo:0, m:rw&&rw.medal>=0?rw.medal:-1, g:rw?(rw.drops||[]).slice():[], h:null, f:null, o:0, c:rep.city, ry:1, sent:sumT(m.t)}); trimKeepFav(S.log, LOG_CAP);
+  if (m.keep) keepRep(id);
 }
 function rallyRepHtml(r){ var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
   var h='<div class="mestats">'+row("Target",esc(r.host)+'\u2019s '+esc(r.target))+row("Your wave",r.cancelled?'called off':r.late?'arrived too late':r.idle?'not needed (already wiped out)':(r.wave+' of '+r.waves))+
@@ -9185,6 +9196,8 @@ function addReport(rep){
 function gameClock(t){ t+=(S.dayOff||0); var d=Math.floor(t/86400000)+1, m=Math.floor(t%86400000/60000); return "Day "+d+", "+String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); }
 // saved (favorite) reports never roll off, and keep their full battle detail
 function trimKeepFav(arr,cap){ var over=arr.length-cap; for (var i=arr.length-1;i>=0 && over>0;i--) if (!arr[i].fav){ arr.splice(i,1); over--; } }
+var KEEP_MISSIONS={attack:1, conquer:1, occupy:1, scout:1, arena:1, rally:1};
+function keepRep(id){ S.log.forEach(function(c){ if (c.id===id) c.fav=1; }); S.reports.forEach(function(r){ if (r.id===id) r.fav=1; }); var rl=document.getElementById("replist"); if (rl) rl._sig=""; }
 function repFavCount(){ return S.log.filter(function(c){ return c.fav; }).length; }
 function repMatch(c){
   if (repFilter==="pvp") return !!c.pv && (!repQuery || (c.n+" "+c.c).toLowerCase().indexOf(repQuery.toLowerCase())>=0);
@@ -11569,6 +11582,7 @@ document.addEventListener("change",function(e){
   if (e.target.id==="marchhero"){ marchDraft.hero=+e.target.value; marchDraft.preview=""; updateMarchInfo(); }
   if (e.target.id==="mcamp"){ marchDraft.camp=e.target.checked; }
   if (e.target.id==="mrep"){ marchDraft.rep=e.target.checked; lastSheet=""; renderSheet(); }
+  if (e.target.id==="mkeep"){ marchDraft.keep=e.target.checked; lastSheet=""; renderSheet(); }
   if (e.target.id==="mrepl"){ marchDraft.repl=e.target.checked; }
   if (e.target.id==="heroimgf"){ var hf0=e.target.files&&e.target.files[0]; e.target.value=""; var hfh=heroById(sheetFor&&sheetFor.id); if (hfh) heroImageFromFile(hfh, hf0); return; }
   if (e.target.id==="hsort1"||e.target.id==="hsort2"){ var hso=C().heroSort=C().heroSort||{a:"level",b:"atk"}; if (e.target.id==="hsort1") hso.a=e.target.value; else hso.b=e.target.value; e.target.blur(); save(); lastView=""; renderView(true); return; }
