@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.159
+Version 0.1.161
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,8 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.161** Walls pack (decopack:walls): Stone Wall, Stone Gate, Brick Wall, Wooden Palisade, Picket Fence and Hedge. Like roads they join their neighbours (straights, corners, T-junctions, crossings, end caps), but they stand up with a top and a front face, and sort by map row with the other pieces. Stone walls raise a small tower at every corner and end; the gate shows doors in a wall running across and a plank crossing in one running up and down. One wall per tile. The Castle pack's old one-tile wall is gone, and walls already placed turn into Stone Wall.
+- **0.1.160** Decoration packs (50 Cosmo Coins each, free in the beta; worker COS_ITEMS decopack:*): Halloween (Dead Tree, Jack-o'-Lantern, Gravestone, Witch's Cauldron, Scarecrow, Ghost, Bats), Trees (Oak, Pine, Birch, Autumn Maple, Berry Bush, Palm), Flowers (Tulips, Sunflowers, Lavender, Rose Bush, Flower Planter, Lily Pond), Castle (Stone Tower, Castle Wall that joins edge to edge, Gatehouse, Keep, Banner, Catapult), NPC Settlements (Camp, Town, Walled City, Fortress, AI Lord Fortress, Grand Fortress), Houses (Cottage, Thatched Hut, Tavern, Windmill, Chapel, Stable), Roads (Dirt Road, Cobblestone Road and Wooden Bridge that join their neighbours, Signpost, Lantern Post, Milestone), Cute (Mushroom House, Happy Slime, Heart Bush, Rainbow, Picnic Blanket, Snowman), Animals (Cow, Sheep, Horse, Chickens, Pig, Deer). 16 px a tile like the map (DSPR); trees, towers, keeps and signs stand taller than a tile. One road per tile, drawn under everything. The Decorate sheet shows owned packs as icon grids (tap to place) and the rest as pack cards with a preview.
 - **0.1.159** Darker flats (olive brown). Pixel-art settlements: NPC cities (red roofs) and AI lords (teal) are a camp at levels 1–3, a town at 4–6, a walled city at 7–9 and a fortress at 10; historic cities are fortresses with gold trim in their level's colour (12 red, 14 purple, 16 blue, 18 gold). 16×16 like the valleys (SET_ROWS), no outlines, solid drop shadows, a level badge in the corner, and the same pale wash while an NPC refills. Plain colours in Settings turns them off too.
 - **0.1.158** Pixel-art valleys on the world map: grassland, forest, lake, swamp, desert, hill and flat each have three 16×16 tiles (VAL_TILES, picked by position) drawn crisp from zoom 8 up. A refilling tile is washed out over its empty part, and level numbers get a dark outline. Settings → Map tiles switches between Pixel art and Plain colours (S.pixTiles).
 - **0.1.157** Grass on every empty square of the alliance map: four little 15×15 pixel tiles (tufts, a daisy, a pebble, red flowers) made once at runtime as CSS backgrounds and spread by square, with dark green seams. Member kingdoms are now parchment tokens with a brown border (yours in gold) so they stand out on the grass.
