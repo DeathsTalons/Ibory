@@ -712,7 +712,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.132";
+var APP_VERSION = "0.1.134";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3806,6 +3806,8 @@ function arSend(){
    Members march from their kingdom square to yours and wait; at the hit time every march that made it hits in your order, and the
    server fights each wave against what the ones before it left. You get the garrison that's left; helpers get only the satisfaction. ---------- */
 var RYS={sending:false, mins:"60", time:""};
+function ryChatBtn(t){ t=String(t||""); if (!/rally targeting/.test(t)) return ''; var arena=/Monster Arena/.test(t);
+  return (arena ? arLive().length : ryLive().length) ? ' <button class="link strong" data-act="al-go-rally"'+(arena?' data-to="arena"':'')+'>Join</button>' : ''; } // rally lines in alliance chat, while a rally is running
 function ryOn(){ return mpShown() && alOn() && !!alMine(); }
 function ryData(){ var al=alMine(); return al && al.econ && al.econ.rally; }
 function ryLive(){ var Y=ryData(), now=Date.now(); return Y ? (Y.live||[]).filter(function(R){ return now<R.hitAt; }) : []; }
@@ -4171,7 +4173,7 @@ function alMapHtml(al){
 function fillAlChat(){
   var el=document.getElementById("alchat"); if (!el) return;
   var al=alMine(), my=al&&al.my, hh=ALS.chat.length?chatOlderBtn('al')+ALS.chat.map(function(c){
-    if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+'</div>';
+    if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+ryChatBtn(c.text)+'</div>';
     var canDel=!c.del && (isMe(c.name) || (my&&my.can.chat));
     return '<div class="alm"'+(c.del?'':rxMsgAttr("a",c.id))+'><span class="dur">'+alTime(c.at)+'</span> <b>'+plChat(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':linkify(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+(c.del?'':rxTail("a",c.id))+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
   if (el._sig===hh || rxTyping()) return;
@@ -4330,7 +4332,7 @@ function renderDock(){
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
     lastTxt=la?chatName(la.name)+": "+la.text:"No messages yet";
-    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+'</div>' : '<div class="alm"'+rxMsgAttr("a",c.id)+'><b>'+plChat(c.name)+'</b> '+linkify(c.text)+rxTail("a",c.id)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+ryChatBtn(c.text)+'</div>' : '<div class="alm"'+rxMsgAttr("a",c.id)+'><b>'+plChat(c.name)+'</b> '+linkify(c.text)+rxTail("a",c.id)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
   setText(document.getElementById("dklast"), lastTxt);
@@ -9778,7 +9780,7 @@ document.addEventListener("click",function(e){
   if (act==="rx-close"){ RXSEL=""; rxRefresh(); return; }
   if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
   if (act==="ry-call"){ ryCall(); return; }
-  if (act==="al-go-rally"){ tab="guild"; ALS.sub="rally"; lastView=""; refresh(); window.scrollTo({top:0}); return; }
+  if (act==="al-go-rally"){ tab="guild"; ALS.sub=a.dataset.to==="arena"?"arena":"rally"; lastView=""; refresh(); window.scrollTo({top:0}); return; }
   if (act==="ry-send"){ var srid=+a.dataset.rid; if (!ryById(srid)){ toast("That rally has already hit"); return; } openMarch(homeTileId(),"rally",srid); return; }
   if (act==="ry-move"){ var mR=ryById(+a.dataset.rid); if (!mR) return; var ordm={}; (mR.order||[]).forEach(function(id,i){ ordm[id]=i; });
     var ids=mR.marches.slice().sort(function(x,y){ return (ordm[x.id]!=null?ordm[x.id]:1e6+x.arrive)-(ordm[y.id]!=null?ordm[y.id]:1e6+y.arrive); }).map(function(j){ return j.id; }), mi=ids.indexOf(+a.dataset.id), mj=mi+(+a.dataset.d);
