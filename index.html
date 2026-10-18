@@ -446,6 +446,11 @@ table.gt.lbt{min-width:0;table-layout:fixed} table.gt.lbt td:first-child{width:1
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
 table.gt th,table.gt td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 table.gt th:first-child,table.gt td:first-child{text-align:left}
+@media (max-width:560px){ table.gt th:first-child,table.gt td:first-child{white-space:normal;overflow-wrap:anywhere} } /* 0.1.168: the earlier phone rule lost to the nowrap above, so long troop lists pushed inputs off the screen */
+.sheet{grid-template-columns:minmax(0,1fr)} /* nothing in a sheet may widen it past the screen */
+.wvlist{display:grid;grid-template-columns:minmax(0,1fr);margin-top:4px;min-width:0}.wvrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}.wvt{flex:1;min-width:0;line-height:1.25}
+.wvt .wvs{display:block;margin-left:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wvrow input.wvn{width:60px;flex:none;text-align:center}.wvrow input.wvtime{width:132px;flex:none}
+.wvctl{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;align-items:end}.wvctl label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:2px}.wvctl input,.wvctl select{width:100%}
 table.gt th{font:700 .82rem var(--display);color:var(--muted);letter-spacing:.02em}
 table.gt input{width:88px;padding:5px 7px;text-align:right}
 table.gt tr.sub td{color:var(--muted);font-size:.82rem;padding-top:12px;border-bottom:0;font-family:var(--display)}
@@ -746,7 +751,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.166";
+var APP_VERSION = "0.1.168";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2304,23 +2309,26 @@ function wavesSheet(){ if (!waveDraft.times) waveDraft.times=[];
   var d=waveDraft, q=TILE_BY[d.tile], h='<div class="head"><span class="ico">'+ICON.hourglass+'</span><div><h2>Timed waves on '+esc(tileName(q))+'</h2><div class="sub">('+q.x+', '+q.y+'), '+tdist(q).toFixed(1)+' tiles away</div></div></div>';
   var clk=d.mode==="clock";
   h+='<div class="farmadd" style="margin-bottom:6px"><button class="chipbtn'+(clk?'':' on')+'" data-act="waves-mode" data-v="gap">One after another</button><button class="chipbtn'+(clk?' on':'')+'" data-act="waves-mode" data-v="clock">Set landing times</button></div>';
-  h+='<p class="hint">'+(clk?'Pick how many waves each preset sends, then the exact clock time each one lands, down to the second. Waves can land on the same second (they hit in the order listed). Every wave leaves now, waits at the target (no rations, can\u2019t be attacked, can be recalled) and hits at its time. Up to 24 hours of waiting.':'Pick how many waves each preset sends, in order. Every wave is timed to land the chosen number of seconds after the one before it. Troops leave home now and wait at the gate until their launch time.')+'</p>';
-  h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>';
+  h+='<p class="hint">'+(clk?'Set waves per preset, then each wave\u2019s landing time to the second (same-second waves hit in list order). Waves leave now and wait at the target: no rations, can\u2019t be attacked, can be recalled, up to 24 hours.':'Set waves per preset, in order. Each lands the chosen seconds after the one before; troops wait at the gate until they launch.')+'</p>';
+  // one line per preset: name, then travel and troops on one clipped line, and the wave count on the right (0.1.168: fits a phone screen)
+  h+='<div class="wvlist">';
   S.presets.forEach(function(pr,pi){ var ph=presetHero(pr), tm=presetTotal(pr)?travelMs(pr.t,q,ph?ph.id:0):0;
-    h+='<tr><td>'+esc(pr.name)+'<div class="dur">'+presetSummary(pr)+(tm?', travel '+fmtT(realMs(tm)):'')+'</div></td><td><input type="number" min="0" max="10" data-wave="'+pi+'" value="'+(d.n[pi]||"")+'" placeholder="0" aria-label="Waves from '+esc(pr.name)+'"></td></tr>'; });
-  h+='</tbody></table></div>';
+    h+='<div class="wvrow"><div class="wvt"><b>'+esc(pr.name)+'</b><span class="dur wvs" title="'+esc(presetSummary(pr))+'">'+(tm?'travel '+fmtT(realMs(tm))+' \u00b7 ':'')+presetSummary(pr)+'</span></div><input class="wvn" type="number" inputmode="numeric" min="0" max="10" data-wave="'+pi+'" value="'+(d.n[pi]||"")+'" placeholder="0" aria-label="Waves from '+esc(pr.name)+'"></div>'; });
+  h+='</div>';
   if (clk){ var pl0=wavePlan(true);
-    h+='<div class="mrow"><label for="wstart">First lands at</label><input type="time" step="1" id="wstart" value="'+esc(d.start||wvClock(pl0.earliest))+'"><label for="wevery">Then every (seconds)</label><input type="number" id="wevery" min="0" value="'+(d.every!=null?d.every:1)+'"></div>'+
-      '<div class="btnrow" style="margin:4px 0"><button class="btn ghost small" data-act="waves-fill">Fill in the times</button><span class="dur">Earliest any wave can land: '+wvClock(pl0.earliest)+'</span></div>';
-    if (pl0.list.length) h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+pl0.list.map(function(w,k){ var wh=w.hero?heroById(w.hero):null;
-      return '<tr><td>Wave '+(k+1)+': '+esc(S.presets[w.pi].name)+'<div class="dur">'+(wh?esc(wh.name)+', ':'')+'travel '+fmtT(realMs(w.travel))+', earliest '+wvClock(S.gt+w.travel)+'</div></td><td><input type="time" step="1" style="width:158px" data-wtime="'+k+'" value="'+esc(d.times[k]||"")+'" aria-label="Wave '+(k+1)+' lands at"></td></tr>'; }).join("")+'</tbody></table></div>';
-    h+='<div class="mrow"><label for="wmis">Mission</label>';
-  } else h+='<div class="mrow"><label for="wgap">Seconds between landings</label><input type="number" id="wgap" min="0" value="'+d.gap+'">'+
-    '<label for="wmis">Mission</label>';
-  h+='<select id="wmis"><option value="attack"'+(d.mission==="attack"?' selected':'')+'>Attack</option>'+'</select></div>';
+    h+='<div class="wvctl"><div><label for="wstart">First lands at</label><input type="time" step="1" id="wstart" value="'+esc(d.start||wvClock(pl0.earliest))+'"></div><div><label for="wevery">Then every (seconds)</label><input type="number" inputmode="numeric" id="wevery" min="0" value="'+(d.every!=null?d.every:1)+'"></div></div>'+
+      '<div class="btnrow" style="margin:0"><button class="btn ghost small" data-act="waves-fill">Fill in the times</button><span class="dur">Earliest any wave can land: '+wvClock(pl0.earliest)+'</span></div>';
+    h+='<div id="wvtimes">'+wavesTimesHtml(pl0)+'</div>';
+    h+='<div class="wvctl"><div><label for="wmis">Mission</label>';
+  } else h+='<div class="wvctl"><div><label for="wgap">Seconds between landings</label><input type="number" inputmode="numeric" id="wgap" min="0" value="'+d.gap+'"></div><div><label for="wmis">Mission</label>';
+  h+='<select id="wmis"><option value="attack"'+(d.mission==="attack"?' selected':'')+'>Attack</option>'+'</select></div></div>';
   h+='<p class="sub" id="waveinfo"></p><div class="act"><span></span><button class="btn" data-act="waves-go" id="wavego">Launch waves</button></div><button class="closebtn" data-act="close">Cancel</button>';
   return h;
 }
+// the clock-mode list of waves with their landing-time boxes; patched in place when a wave count changes, so typing never closes the keyboard
+function wavesTimesHtml(pl0){ var d=waveDraft; if (!pl0.list.length) return '';
+  return '<div class="wvlist">'+pl0.list.map(function(w,k){ var wh=w.hero?heroById(w.hero):null;
+    return '<div class="wvrow"><div class="wvt"><b>'+(k+1)+'. '+esc(S.presets[w.pi].name)+'</b><span class="dur wvs">earliest '+wvClock(S.gt+w.travel)+' \u00b7 travel '+fmtT(realMs(w.travel))+(wh?' \u00b7 '+esc(wh.name):'')+'</span></div><input class="wvtime" type="time" step="1" data-wtime="'+k+'" value="'+esc(d.times[k]||"")+'" aria-label="Wave '+(k+1)+' lands at"></div>'; }).join("")+'</div>'; }
 var waveDraft=null;
 function wavePlan(){
   var d=waveDraft, q=TILE_BY[d.tile], list=[], need=[0,0,0,0,0,0,0,0,0,0,0,0], heroUsed={};
@@ -2853,7 +2861,7 @@ function mapPop(){ var el=document.getElementById("mappop"); if (!el) return;
   var btns=[], seen={}; document.querySelectorAll('#tileinfo [data-act="march-open"], #tileinfo [data-act="city-go"], #tileinfo [data-act="npc-make"]').forEach(function(b){ var m=b.dataset.act==="city-go"?"city":b.dataset.act==="npc-make"?"npcmake":b.dataset.mission, key=m+(b.dataset.city||"");
     if (seen[key] || (m!=="city" && m!=="npcmake" && !MPOP_ACTS[m])) return; seen[key]=1; btns.push({o:m==="city"||m==="npcmake"?0:MPOP_ACTS[m], h:'<button class="btn'+(btns.length?' ghost':'')+'" data-act="'+b.dataset.act+'"'+(b.dataset.tile?' data-tile="'+b.dataset.tile+'"':'')+(b.dataset.mission?' data-mission="'+b.dataset.mission+'"':'')+(b.dataset.city?' data-city="'+b.dataset.city+'"':'')+(b.disabled?' disabled':'')+'>'+esc(b.textContent)+'</button>'}); });
   btns.sort(function(a,b){ return a.o-b.o; });
-  try { if (ryOn() && ryTargetOk(q) && !ryLocked(q.id) && !ryLive().some(function(R){ return R.mine; })){ var ryY=ryData()||{}; if (!(ryY.nextCall && ryY.nextCall>Date.now())) btns.push({o:50, h:'<button class="btn ghost" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button>'}); } } catch(e){} // only while this week's call is free
+  try { if (ryOn() && ryTargetOk(q) && !ryLocked(q.id) && !ryLive().some(function(R){ return R.mine; })){ if (!ryWait(q.k)) btns.push({o:50, h:'<button class="btn ghost" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button>'}); } } catch(e){} // only while this week's call is free
   if (q.k==="flat" && !S.map.owned[q.id] && (!C().fieldCap || hasHC(16))){ var tpn=S.items.teleport||0; // teleport this city onto an empty flat
     btns.push({o:99, h:'<button class="btn ghost" data-act="teleport" data-tile="'+q.id+'"'+(tpn?'':' disabled')+'>'+(armedTile==="tp"+q.id?'Tap again to teleport':'Teleport ('+tpn+')')+'</button>'}); }
   var bm=bmAt(q.id);
@@ -4252,7 +4260,7 @@ function arSend(){
     save(); toast("Marching to the Arena: arrives in "+fmtT(r.arrive-Date.now())); closeSheet(); lastView=""; refresh(); ALS.last=0; alSync(); })
     .catch(function(){ ALS.arSending=false; if (gb) gb.disabled=false; toast("Couldn’t reach the server. Check your connection."); });
 }
-/* ---------- Alliance rallies (0.1.131): call the alliance onto a level 10 NPC city or a historic city on your map (once a week).
+/* ---------- Alliance rallies (0.1.131): call the alliance onto a level 10 NPC city (once a day, resets at midnight Eastern) or a historic city (once a week) on your map.
    Members march from their kingdom square to yours and wait; at the hit time every march that made it hits in your order, and the
    server fights each wave against what the ones before it left. You get the garrison that's left; helpers get only the satisfaction. ---------- */
 var RYS={sending:false, mins:"60", time:""};
@@ -4263,14 +4271,17 @@ function ryData(){ var al=alMine(); return al && al.econ && al.econ.rally; }
 function ryLive(){ var Y=ryData(), now=Date.now(); return Y ? (Y.live||[]).filter(function(R){ return now<R.hitAt; }) : []; }
 function ryById(id){ return ryLive().filter(function(R){ return R.id===id; })[0]||null; }
 function ryTargetOk(q){ return q && ((q.k==="npc" && q.L>=10) || q.k==="hc"); }
+// when you can next call onto this kind of target (0 = now). Y.nc from the Worker (0.1.167); older Workers sent one weekly nextCall
+function ryWait(k){ var Y=ryData()||{}, t=Y.nc ? Y.nc[k==="hc"?"hc":k==="monster"?"mon":"npc"] : Y.nextCall; return t && t>Date.now() ? t : 0; }
+function ryRule(k){ return k==="hc" ? "One historic city rally a week" : "One level 10 NPC city rally a day"; }
 function ryLocked(tileId){ var L=S.rallyLock; return !!(L && L.tile===tileId); }
 function ryTravelEst(R){ var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M||!R) return 60000; var me=alMyTile(M), host=null; (M.k||[]).forEach(function(k){ if (k.name===R.host) host=k; });
   var d=R.mine?0:(me&&host?Math.hypot(me.x-host.x, me.y-host.y):5); return (c.travel0+c.travelTile*d)*1000/Math.min(4,Math.max(1,bMarch())); }
 function ryCard(){ var el=document.getElementById("tileinfo"); if (!el || !selTile || !ryOn()) return; var q=TILE_BY[selTile]; if (!ryTargetOk(q)) return; var sec=el.querySelector(".section"); if (!sec) return;
-  var Y=ryData()||{}, mine=ryLive().filter(function(R){ return R.mine; })[0], wait=Y.nextCall&&Y.nextCall>Date.now(), d=document.createElement("div"); d.className="btnrow"; d.style.marginTop="8px";
+  var mine=ryLive().filter(function(R){ return R.mine; })[0], wait=ryWait(q.k), d=document.createElement("div"); d.className="btnrow"; d.style.marginTop="8px";
   d.innerHTML=ryLocked(q.id) ? '<span class="dur">The alliance rally is on this target. Join it or follow it from the Alliance tab (Rallies).</span><button class="btn ghost small" data-act="al-go-rally">Open Rallies</button>'
-    : mine ? '<span class="dur">Your rally on '+esc(mine.name)+' is running.</span>' : wait ? '<span class="dur">One rally a week: your next call is in '+fmtT(Y.nextCall-Date.now())+'.</span>'
-    : '<button class="btn small" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button><span class="dur">Once a week. Your alliance hits it in waves you order.</span>';
+    : mine ? '<span class="dur">Your rally on '+esc(mine.name)+' is running.</span>' : wait ? '<span class="dur">'+ryRule(q.k)+': your next call is in '+fmtT(wait-Date.now())+'.</span>'
+    : '<button class="btn small" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button><span class="dur">'+(q.k==="hc"?'Once a week':'Once a day')+'. Your alliance hits it in waves you order.</span>';
   sec.appendChild(d); }
 function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="why">That target is gone.</p><button class="closebtn" data-act="close">Close</button>';
   var cur=current(q), mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||0)));
@@ -4315,9 +4326,9 @@ function ryStatus(m){ var now=Date.now(); return m.st==="back" ? 'coming home, '
 function alRallyHtml(al){
   var Y=ryData(); if (!Y) return '<div class="section"><p class="hint">Loading rallies\u2026</p></div>';
   var now=Date.now(), live=ryLive(), mine=S.alRally||[], h='';
-  h+='<div class="section"><div class="shead"><h3>Rallies</h3><span class="dur">'+(Y.nextCall&&Y.nextCall>now?'your next call in '+fmtT(Y.nextCall-now):'you can call one now')+'</span></div>'+
+  h+='<div class="section"><div class="shead"><h3>Rallies</h3><span class="dur">'+[["npc","NPC 10"],["hc","Historic"]].map(function(p){ var w=ryWait(p[0]); return p[1]+': '+(w?'in '+fmtT(w-now):'ready'); }).join(' \u00b7 ')+'</span></div>'+
     (((alMine()||{}).econ||{}).ars&&alMine().econ.ars.might?'<p class="dur" style="margin:0 0 4px">\u2692 The Warden rides with every wave: <b>+'+(alMine().econ.ars.might/10).toFixed(1)+'% attack</b>.</p>':'')+
-    '<p class="hint">Any member can call the alliance onto a level 10 NPC city or a historic city on their own map, once a week: tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the hit time every march that made it hits in the caller\u2019s order, each wave against what the ones before it left. If it wipes the garrison, everyone who made it rolls the target\u2019s full drop table on their own, so each player gets different spoils. The caller also gets the garrison that\u2019s left and takes the city with their own march.</p></div>';
+    '<p class="hint">Any member can call the alliance onto a level 10 NPC city or a historic city on their own map: a level 10 NPC city once a day (the call comes back at the daily reset, midnight Eastern) and a historic city once a week, counted separately. Tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the hit time every march that made it hits in the caller\u2019s order, each wave against what the ones before it left. If it wipes the garrison, everyone who made it rolls the target\u2019s full drop table on their own, so each player gets different spoils. The caller also gets the garrison that\u2019s left and takes the city with their own march.</p></div>';
   live.forEach(function(R){ var g=R.garrison||{t:[],f:[]}, ord={}; (R.order||[]).forEach(function(id,i){ ord[id]=i; });
     var ms=R.marches.slice().sort(function(a,b){ return (ord[a.id]!=null?ord[a.id]:1e6+a.arrive)-(ord[b.id]!=null?ord[b.id]:1e6+b.arrive); }), mineN=R.marches.filter(function(j){ return j.mine; }).length, total=0; ms.forEach(function(j){ total+=j.n; });
     h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>'+esc(R.host)+'\u2019s '+esc(R.name)+'</h3><span class="dur">hits in <b class="arleft" data-ends="'+R.hitAt+'">'+fmtT(R.hitAt-now)+'</b></span></div>'+
@@ -4331,7 +4342,7 @@ function alRallyHtml(al){
         (mm?'<button class="link" data-act="ry-recall" data-rid="'+R.id+'" data-ref="'+esc(j.ref)+'">Recall</button>':'')+'</div></div>'; });
     if (R.mine) h+='<div class="h3" style="margin-top:8px">Your rally</div><div class="farmadd"><label class="dur" for="rytime">Hit at</label><input id="rytime" type="time" step="1" value="'+esc(RYS.time)+'" style="width:auto;min-width:170px;max-width:none"><button class="btn small ghost" data-act="ry-time" data-rid="'+R.id+'">Set time</button></div>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="ry-now" data-rid="'+R.id+'">'+(armedTile==="rynow"+R.id?'Tap again to hit now':'Hit now')+'</button><button class="btn small ghost danger" data-act="ry-cancel" data-rid="'+R.id+'">'+(armedTile==="rycan"+R.id?'Tap again to call it off':'Call it off')+'</button></div>'+
-      '<p class="dur" style="margin:4px 0 0">Use \u25b2\u25bc to set who hits first. Hitting now sends home anyone still on the road. Calling it off sends everyone home and gives you your weekly call back.</p>';
+      '<p class="dur" style="margin:4px 0 0">Use \u25b2\u25bc to set who hits first. Hitting now sends home anyone still on the road. Calling it off sends everyone home and gives you the call back.</p>';
     h+='</div>'; });
   if (!live.length) h+='<div class="section"><p class="dur">No rally is running.</p></div>';
   var out=mine.filter(function(m){ return m.aid===ALS.aid; });
@@ -11207,7 +11218,7 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.unit!=null && e.target.tagName==="INPUT"){ var iu=+e.target.dataset.unit; trainAmt[iu]=Math.max(0,Math.floor(+e.target.value||0)); updateTrainRow(iu); }
   if (e.target.dataset.ptroop!=null){ S.presets[sheetFor.p].t[+e.target.dataset.ptroop]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.pfield==="name"){ S.presets[sheetFor.p].name=e.target.value.trim()||("Preset "+(sheetFor.p+1)); save(); }
-  if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); if (waveDraft.mode==="clock"){ e.target.blur(); lastSheet=""; renderSheet(); } else updateWaveInfo(); }
+  if (e.target.dataset.wave!=null){ waveDraft.n[+e.target.dataset.wave]=Math.max(0,Math.min(10,Math.floor(+e.target.value||0))); if (waveDraft.mode==="clock"){ var wvt=document.getElementById("wvtimes"); if (wvt){ wvt.innerHTML=wavesTimesHtml(wavePlan(true)); lastSheet=wavesSheet(); } } updateWaveInfo(); }
   if (e.target.dataset.wtime!=null && waveDraft){ waveDraft.times[+e.target.dataset.wtime]=e.target.value; updateWaveInfo(); }
   if ((e.target.id==="wstart" || e.target.id==="wevery") && waveDraft){ if (e.target.id==="wstart") waveDraft.start=e.target.value; else waveDraft.every=Math.max(0,Math.floor(+e.target.value||0)); }
   if (e.target.id==="wgap"){ waveDraft.gap=Math.max(0,+e.target.value||0); updateWaveInfo(); }
