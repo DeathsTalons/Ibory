@@ -760,7 +760,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.195";
+var APP_VERSION = "0.1.196";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -10191,7 +10191,8 @@ var sheet=document.getElementById("sheet"), sheetBody=document.getElementById("s
 var PAGES={settings:1,ach:1,quests:1,lb:1,me:1}, pageLast=""; // these four open as tabs; the same builders also work as pop-ups (used on the battlefield)
 function onPage(k){ return sheetFor ? sheetFor.kind===k : tab===k; }
 function goPage(k){ if (bfOn()||pvOn()){ openSheet({kind:k}); return; } closeSheet(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; itemsNote=""; armed=null; tab=k; lastView=""; renderView(true); window.scrollTo({top:0}); }
-function openSheet(kind){ var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal();
+var SHEET_T=0; // when a window last opened: a phone's tap sends its click after the window is already up, and that click mustn't count as tapping outside it
+function openSheet(kind){ SHEET_T=Date.now(); var keep=kind&&kind.keepScroll, foc=kind&&kind.focus; if (keep!=null) delete kind.focus; sheetFor=kind; lastSheet=""; armed=null; renderSheet(); if (!sheet.open) sheet.showModal();
   if (kind && kind.kind==="report"){ fitReport(); requestAnimationFrame(function(){ if (sheetFor===kind) fitReport(); }); } /* measure after the window is open */
   if (keep!=null) sheetBody.scrollTop=keep; else if (kind && !foc && sheetBody.scrollTop) sheetBody.scrollTop=0; }
 // back from a gear menu to the hero's sheet, scrolled to exactly where it was
@@ -10210,7 +10211,7 @@ function sheetBack(){ // a menu opened from a hero's gear returns to that hero's
   if (sheetFor && sheetFor.kind==="gearpick" && sheetFor.back!=null){ heroBack(sheetFor.back); return; }
   closeSheet();
 }
-sheet.addEventListener("click",function(e){ if (e.target===sheet) sheetBack(); });
+sheet.addEventListener("click",function(e){ if (e.target===sheet && Date.now()-SHEET_T>450) sheetBack(); }); // 0.1.196: the tap that opened it doesn't close it
 var lbSwipe=null;
 function lbHere(){ return sheetFor ? sheetFor.kind==="lb" : tab==="lb"; }
 function lbTS(e){ if (!lbHere() || e.target.closest("#lbtabs") || e.touches.length!==1) { lbSwipe=null; return; } lbSwipe={x:e.touches[0].clientX, y:e.touches[0].clientY}; }
