@@ -720,7 +720,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.141";
+var APP_VERSION = "0.1.142";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2733,7 +2733,7 @@ function updateMarchInfo(){
 function marchSheet(){
   var d=marchDraft, q=TILE_BY[d.tile], h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>'+({hide:"Hide troops in the woods around ",station:"Station troops at ",occupy:"Occupy ",found:"Found a city at ",transport:"Send resources to ",reinforce:"Reinforce ",attack:"Attack ",conquer:"Conquer ",scout:"Scout ",allyguard:"Guard "}[d.mission])+esc(tileName(q))+'</h2><div class="sub">('+q.x+', '+q.y+'), '+(function(){ var k=TRAVEL_FROM; TRAVEL_FROM=d.from?campXY(d.from):null; var v=tdist(q).toFixed(1); TRAVEL_FROM=k; return v; })()+' tiles away'+(d.from?' from your camp':'')+'</div></div></div>';
   if (d.mission==="arena"){ var acM=arById(d.mid)||{}, acT=arT(acM.type); h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Fight the level '+(acM.lv||"?")+' '+esc(acT.n)+'</h2><div class="sub">at the Monster Arena, from '+(soloArOn()?'your city':'your kingdom square')+'</div></div></div><p class="hint">'+arWeakTxt(acT)+' Losses come home wounded to '+esc(S.name)+'\u2019s Medic Camp. This march uses one of your '+arSlots()+' Arena slots, not the Rally Spot.</p>'; }
-  if (d.mission==="rally"){ var rM=ryById(d.rid)||{}; h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Join the rally on '+esc(rM.host||"?")+'\u2019s '+esc(rM.name||"target")+'</h2><div class="sub">from your kingdom square, waiting there for the hit</div></div></div><p class="hint">Your march waits at '+esc(rM.host||"the caller")+'\u2019s kingdom and hits in the order they set. No loot, no drops: just helping. Doesn\u2019t use your Rally Spot.</p>'; }
+  if (d.mission==="rally"){ var rM=ryById(d.rid)||{}; h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Join the rally on '+esc(rM.host||"?")+'\u2019s '+esc(rM.name||"target")+'</h2><div class="sub">from your kingdom square, waiting there for the hit</div></div></div><p class="hint">Your march waits at '+esc(rM.host||"the caller")+'\u2019s kingdom and hits in the order they set. No loot, no drops: just helping. Takes one of this city\u2019s Rally Spot slots until it\u2019s home: send from every city to stack up waves.</p>'; }
   var any=false, av=draftAvail(), camps=CAMP_MISSIONS[d.mission]?cityCamps().filter(function(c){ return c.tile!==d.tile; }):[];
   if (camps.length) h+='<div><label class="sub" for="marchfrom">March from</label><select id="marchfrom"><option value="">'+esc(S.name)+' (the city)</option>'+camps.map(function(c){ var cq=TILE_BY[c.tile]; return '<option value="'+c.tile+'"'+(d.from===c.tile?' selected':'')+'>Camp at '+esc(cq?tileName(cq):c.tile)+' ('+fmt(sumT(c.t))+' troops)</option>'; }).join("")+'</select></div>';
   if (d.mission==="hide") h+='<p class="hint">They slip out into the woods around the city: attackers won\u2019t find them, and Recall brings them back instantly. They hunt for their own food. Each group takes a Rally Spot slot, like any march.</p>';
@@ -2775,7 +2775,7 @@ function previewMarch(){
 }
 function cityMarches(){ var me=C().id; return S.marches.filter(function(x){ return x.city===me; }); }
 // troops hidden in the woods don't take a Rally Spot slot
-function rallyUsed(){ return cityMarches().length; }
+function rallyUsed(){ var me=C().id; return cityMarches().length+(S.alRally||[]).filter(function(m){ return m.city===me; }).length; } // alliance rally marches take a slot while they're out (0.1.142)
 function homeTileId(){ return S.map.home[0]+","+S.map.home[1]; }
 function launchMarch(tileId, mission, t, heroId, opt){
   opt=opt||{}; var q=TILE_BY[tileId], tm=travelMs(t,q,heroId,mission), dep=opt.dep!=null?opt.dep:S.gt, food=marchFood(t,mission,tm);
@@ -3915,7 +3915,8 @@ function ryWhy(n){
   if (!n) return "Choose some troops";
   if (n>armyCap(d.ensign, d.hero?heroById(d.hero):null)) return "Army limit is "+fmt(armyCap(d.ensign, d.hero?heroById(d.hero):null))+" troops";
   var av=draftAvail(); for (var i=0;i<12;i++) if (d.t[i]>av[i]) return "Not enough "+U[i].name+"s";
-  if (R.marches.filter(function(j){ return j.mine; }).length>=((ryData()||{}).per||10)) return "You have "+((ryData()||{}).per||10)+" marches in this rally already";
+  if (!rallyLv()) return "Build a Rally Spot first";
+  if (rallyUsed()>=rallyLv()) return "Rally Spot is full ("+rallyLv()+" marches from "+S.name+"): send from another city";
   if (Date.now()+ryTravelEst(R)>R.hitAt) return "Too far to make it before the waves hit";
   return ""; }
 function rySend(){
