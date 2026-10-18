@@ -446,7 +446,7 @@ table.gt.lbt{min-width:0;table-layout:fixed} table.gt.lbt td:first-child{width:1
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
 table.gt th,table.gt td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 table.gt th:first-child,table.gt td:first-child{text-align:left}
-@media (max-width:560px){ table.gt th:first-child,table.gt td:first-child{white-space:normal;overflow-wrap:anywhere} } /* 0.1.168: the earlier phone rule lost to the nowrap above, so long troop lists pushed inputs off the screen */
+table.gt.wrap1 th:first-child,table.gt.wrap1 td:first-child{white-space:normal} /* 0.1.183: only tables marked wrap1 (Edit army, the march screen) let their first column wrap; the rest keep their width and scroll sideways */
 .sheet{grid-template-columns:minmax(0,1fr)} /* nothing in a sheet may widen it past the screen */
 .arwstage{display:flex;justify-content:center;background:radial-gradient(ellipse at 50% 90%, rgba(90,140,60,.35), transparent 70%);border-radius:10px;margin-bottom:2px}.arwstage canvas{image-rendering:pixelated;max-width:100%;height:auto}
 .arwbar{height:12px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;margin:2px 0 4px}.arwbar div{height:100%;background:var(--red)}
@@ -701,6 +701,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
     <button class="speedchip" data-act="settings" data-tab="settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="chiptxt">Settings</span></button>
     <button class="speedchip iconchip helpchip" data-act="al-help" id="helpchip" style="display:none" aria-label="Help your alliance" title="Help your alliance"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V5.5a1.5 1.5 0 0 1 3 0V12M17 11.5V9a1.5 1.5 0 0 1 3 0v5c0 4-3 7-7 7-3 0-4.6-1.4-6.2-4l-2.2-3.6a1.5 1.5 0 0 1 2.6-1.5L8 14"/></svg><b id="helpn"></b></button>
     <button class="speedchip iconchip helpchip" data-act="al-arena-go" id="monchip" style="display:none" aria-label="A monster is waiting at your alliance's Arena" title="Monster Arena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19l4-14M10.5 20l3-15M16 19l3-12"/></svg><b id="monn"></b></button>
+    <button class="speedchip iconchip helpchip" data-act="ry-list" id="rychip" style="display:none" aria-label="Rallies you haven't joined" title="Rallies"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/></svg><b id="ryn"></b></button>
     <button class="speedchip iconchip helpchip wtchip" data-act="wt-open" id="wtchip" style="display:none" aria-label="Attacks heading for your alliance" title="Watchtower"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><b id="wtn"></b></button>
     </div>
   </header>
@@ -756,7 +757,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.181";
+var APP_VERSION = "0.1.183";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2319,7 +2320,7 @@ function presetSheet(pi){
   var pr=S.presets[pi], fh=S.heroes.filter(function(x){ return !isOfficer(x); });
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Edit '+esc(pr.name)+'</h2><div class="sub">'+esc(S.name)+'</div></div></div>';
   h+='<div><label class="sub" for="pname">Name</label><input type="text" id="pname" data-pfield="name" value="'+esc(pr.name)+'" maxlength="24"></div>';
-  h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
+  h+='<div class="tscroll"><table class="gt wrap1" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
   h+='<div><label class="sub" for="phero">Hero</label><select id="phero">'+heroChoiceOpts(pr.hero, fh, function(x){ return esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk"); })+'</select></div>';
   h+='<label class="chk"><input type="checkbox" id="pstop"'+(pr.stopOnLoss?' checked':'')+'> Pause auto-farm if a battle loses any troops</label>';
   h+='<div class="h3">Farm list ('+pr.farm.length+')</div>';
@@ -3215,7 +3216,7 @@ function marchSheet(){
   if (d.mission==="hide") h+='<p class="hint">They slip out into the woods around the city: attackers won\u2019t find them, and Recall brings them back instantly. They hunt for their own food. Each group takes a Rally Spot slot, like any march.</p>';
   if (d.mission==="scout") h+='<p class="hint">Only scouts go. They win if your scouts outnumber the defender\u2019s (each Informatics level counts for 10% more on either side). Success shows its army, fortifications and stockpile: rough counts below Informatics 3, exact from 3, plus research and hero from 6. Many targets keep no scouts at all.</p>';
   if (d.mission!=="transport" && d.mission!=="scout") h+='<div class="farmadd"><span class="dur">Load preset:</span>'+S.presets.map(function(pr,pi){ return '<button class="chipbtn" data-act="march-preset" data-p="'+pi+'" title="'+esc(pr.name)+'"'+(presetTotal(pr)?'':' disabled')+'>'+(pi+1)+'</button>'; }).join("")+'</div>';
-  h+='<div class="tscroll"><table class="gt" style="min-width:0"><tbody>';
+  h+='<div class="tscroll"><table class="gt wrap1" style="min-width:0"><tbody>';
   U.forEach(function(u,i){ if (d.mission==="scout" && i!==2) return; if (!av[i] && (d.from || missing(u.req).length) && !(d.mission==="scout")) return; if (av[i]) any=true;
     h+='<tr><td>'+u.name+' <span class="dur">('+fmt(av[i])+')</span></td><td><input type="number" min="0" data-march="'+i+'" value="'+(d.t[i]||"")+'" placeholder="0"></td><td><button class="link" data-act="march-max" data-unit="'+i+'">All</button></td></tr>'; });
   h+='</tbody></table></div>';
@@ -4463,6 +4464,17 @@ function ryBlocks(tileId){ return ryLocks().some(function(L){ var q=TILE_BY[L.ti
 // a wave landing on your NPC or historic city after your rally there has landed but before its result reached this game waits for it (up to 3 minutes)
 function ryHoldFor(m){ if (m.mission!=="attack" && m.mission!=="conquer") return null; var now=Date.now();
   return ryLocks().filter(function(L){ return L.tile===m.tile && L.land && L.aid===ALS.aid && now>=L.land && now-L.land<3*60e3; })[0]||null; }
+/* 0.1.182: the rally chip. Counts rallies still open to join (not left yet) that you have no march in and haven't ignored;
+   tapping it lists them with Join and Ignore (or Ignore all). Ignored ones stay ignored for that rally only (S.ryIgn["aid:rid"]). */
+function ryIgn(){ if (!S.ryIgn) S.ryIgn={}; return S.ryIgn; }
+function ryOpen(){ var now=Date.now(), ig=ryIgn(); return ryLive().filter(function(R){ return now<R.hitAt && !(R.marches||[]).some(function(j){ return j.mine; }) && !ig[ALS.aid+":"+R.id]; }); }
+function ryListSheet(){ var L=ryOpen(), now=Date.now();
+  var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Rallies to join</h2><div class="sub">'+(L.length?L.length+' you haven\u2019t joined':'none waiting')+'</div></div></div>';
+  if (!L.length) return h+'<p class="hint">Nothing waiting. New rallies show up here (and on the flag chip at the top) until they leave.</p><button class="closebtn" data-act="close">Close</button>';
+  h+='<div class="btnrow" style="justify-content:flex-end;margin:0"><button class="btn ghost small" data-act="ry-ign-all">Ignore all '+L.length+'</button></div>';
+  h+=L.map(function(R){ return '<div class="bq"><span><b>'+esc(R.host)+'\u2019s '+esc(R.name)+'</b><br><span class="dur">leaves in '+fmtT(R.hitAt-now)+(R.from?' from '+esc(R.from):'')+' \u00b7 '+(R.marches||[]).length+' march'+((R.marches||[]).length===1?'':'es')+' so far \u00b7 travel about '+fmtT(ryTravelEst(R))+'</span></span>'+
+    '<div class="mbtns"><button class="btn small" data-act="ry-send" data-rid="'+R.id+'">Join</button><button class="btn ghost small" data-act="ry-ign" data-rid="'+R.id+'">Ignore</button></div></div>'; }).join("");
+  return h+'<p class="hint" style="margin-top:6px">Ignoring only hides that rally from the chip; you can still join it from the Alliance tab (Rallies).</p><button class="closebtn" data-act="close">Close</button>'; }
 function ryInN(){ return ryLive().filter(function(R){ return (R.marches||[]).some(function(j){ return j.mine; }); }).length; } // rallies you have marches in
 function ryMineN(){ return ryLive().filter(function(R){ return R.mine; }).length; }
 function ryTravelEst(R){ var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M||!R) return 60000; var me=alMyTile(M), host=null; (M.k||[]).forEach(function(k){ if (k.name===R.host) host=k; });
@@ -6522,6 +6534,7 @@ function tickText(){
     var rsp=document.getElementById("qr-sp"); if (rsp){ var rfree=realMs(S.research.end-S.gt)<=FREE_MS; setText(rsp, rfree ? "Finish free" : "Speed up"); var rdisp=(rfree||hasSpeedups(true))?"":"none"; if (rsp.style.display!==rdisp) rsp.style.display=rdisp; } }
   if (document.getElementById("m-have")) updateMarket();
   var hcp=document.getElementById("helpchip"); if (hcp){ var hn=(alMine()&&ALS.d.help)?ALS.d.help.canHelp:0, hd=hn?"":"none"; if (hcp.style.display!==hd) hcp.style.display=hd; setText(document.getElementById("helpn"), hn?String(hn):""); }
+  var ryc=document.getElementById("rychip"); if (ryc){ var ryl=ryOn()?ryOpen().length:0, ryd=ryl?"":"none"; if (ryc.style.display!==ryd) ryc.style.display=ryd; setText(document.getElementById("ryn"), ryl?String(ryl):""); if (sheetFor && sheetFor.kind==="rylist") renderSheet(); }
   var wtc=document.getElementById("wtchip"); if (wtc){ var wtl=alMine()?wtList().length:0, wtd=wtl?"":"none"; if (wtc.style.display!==wtd) wtc.style.display=wtd; setText(document.getElementById("wtn"), wtl?String(wtl):""); if (sheetFor && sheetFor.kind==="watch") renderSheet(); }
   var mcp=document.getElementById("monchip"); if (mcp){ var mc=arCur(), md=mc?"":"none"; if (mcp.style.display!==md) mcp.style.display=md; if (mc){ var mln=arLive().length; setText(document.getElementById("monn"), (mln>1?mln+" \u00b7 ":"")+fmtT(Math.max(0,mc.ends-Date.now()))); } }
   document.querySelectorAll(".arleft").forEach(function(el){ var le=+el.dataset.ends-Date.now(); setText(el, le>0?fmtT(le):"closing"); });
@@ -10244,6 +10257,8 @@ function renderSheetCore(){
     h=achSheet();
   } else if (sheetFor.kind==="drops"){
     h=dropsSheet();
+  } else if (sheetFor.kind==="rylist"){
+    h=ryListSheet();
   } else if (sheetFor.kind==="watch"){
     h=wtSheet();
   } else if (sheetFor.kind==="player"){
@@ -10791,6 +10806,9 @@ document.addEventListener("click",function(e){
   if (act==="quests"){ goPage("quests"); return; }
   if (act==="drops-open"){ openSheet({kind:"drops"}); return; }
   if (act==="dt-cat"){ DT.cat=a.dataset.c||""; lastSheet=""; renderSheet(); return; }
+  if (act==="ry-list"){ openSheet({kind:"rylist"}); return; }
+  if (act==="ry-ign"){ ryIgn()[ALS.aid+":"+a.dataset.rid]=Date.now(); save(); lastSheet=""; renderSheet(); return; }
+  if (act==="ry-ign-all"){ var ign=ryIgn(); ryOpen().forEach(function(R){ ign[ALS.aid+":"+R.id]=Date.now(); }); var icut=Date.now()-3*864e5; for (var ik in ign) if (ign[ik]<icut) delete ign[ik]; save(); closeSheet(); toast("Ignored"); return; }
   if (act==="wt-open"){ openSheet({kind:"watch"}); return; }
   if (act==="wt-type"){ S.wtOff=S.wtOff||{}; S.wtOff[a.dataset.k]=wtOn(a.dataset.k)?1:0; save(); lastSheet=""; renderSheet(); return; }
   if (act==="wt-ign"){ S.wtIgn=S.wtIgn||{}; var wn=Date.now(); for (var wk in S.wtIgn) if (S.wtIgn[wk]<wn) delete S.wtIgn[wk]; if (a.dataset.v==="1") S.wtIgn[a.dataset.key]=+a.dataset.land||wn+864e5; else delete S.wtIgn[a.dataset.key]; save(); lastSheet=""; renderSheet(); return; }
