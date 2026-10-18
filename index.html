@@ -263,7 +263,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(-
 .market{display:grid;gap:12px}
 .mrow{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center}
 .mrow label{color:var(--muted);font-size:.92rem}
-select,input[type=number],input[type=text]{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+select,input[type=number],input[type=text],input[type=search],input[type=time]{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
 .presets{display:flex;gap:6px;flex-wrap:wrap}
 .presets button{border:1px solid var(--line);background:none;border-radius:999px;padding:3px 12px;cursor:pointer;font-size:.9rem}
 .mresult{font-size:1.05rem}
@@ -535,6 +535,13 @@ body.bfmode #chatdock{display:none!important}
 .alm:last-child{border-bottom:0}
 .alm.sys{color:var(--muted);font-style:italic}
 .alm .link{padding:0 4px}
+.cimgw{display:block;position:relative;margin:4px 0 2px;max-width:240px;width:fit-content;cursor:pointer;border-radius:8px;overflow:hidden;background:var(--panel2)}
+.cimgw img{display:block;max-width:240px;max-height:240px;min-width:40px;min-height:40px}
+.cimgw.blur img{filter:blur(18px) saturate(.6)}
+.cimgw.blur::after{content:"Tap to show";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.85rem;text-shadow:0 1px 3px #000}
+.gifgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}
+.gifgrid button{padding:0;border:0;background:var(--panel2);border-radius:6px;overflow:hidden;aspect-ratio:1/1}
+.gifgrid img{width:100%;height:100%;object-fit:cover;display:block}
 .lbtag{color:var(--brass);font-weight:700;font-size:.82rem;margin-right:4px}
 .mpop{position:absolute;z-index:5;width:232px;max-width:calc(100% - 8px);background:var(--panel);color:var(--ink);border:1px solid var(--brass);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);padding:8px 9px;font-size:.88rem;line-height:1.35}
 .mpop .mpt{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
@@ -713,14 +720,14 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
   <div class="dkpanel"><div class="dkhead"><span class="dktabs" id="dktabs"></span><span><button class="link" data-act="dock-pin" id="dkpin">Pin</button> <button class="link" data-act="dock-toggle">Collapse</button> <button class="link" data-act="dock-close">Close</button></span></div>
     <div id="dkmsgs" class="alchat"></div>
     <p class="hint" id="dkhint" style="margin:6px 0 0"></p>
-    <div class="farmadd" id="dkform" style="margin-top:8px"><input id="dockin" type="text" maxlength="300" autocomplete="off" placeholder="Message" style="width:auto;flex:1"><button class="btn small" data-act="dock-send">Send</button></div></div>
+    <div class="farmadd" id="dkform" style="margin-top:8px"><input id="dockin" type="text" maxlength="300" autocomplete="off" placeholder="Message" style="width:auto;flex:1"><button class="btn ghost small" data-act="chat-pic" data-tgt="dock" aria-label="Send a picture">&#128247;</button><button class="btn ghost small" data-act="chat-gif" data-tgt="dock">GIF</button><button class="btn small" data-act="dock-send">Send</button></div></div>
 </div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.145";
+var APP_VERSION = "0.1.146";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3240,7 +3247,7 @@ function viewMyAlliance(al){
     '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
   if (sub==="chat"){
     h+='<div class="section"><label class="chk" style="margin-bottom:8px"><input type="checkbox" id="dockpin"'+(dockPin?' checked':'')+'> Pin the chat to the bottom of every page</label><div id="alchat" class="alchat"></div>'+
-      (my.mutedUntil>Date.now()?'<p class="why">You\u2019re muted until '+alTime(my.mutedUntil)+'.</p>':'<div class="farmadd" style="margin-top:8px"><input id="alchatin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn small" data-act="al-send">Send</button></div>')+'</div>';
+      (my.mutedUntil>Date.now()?'<p class="why">You\u2019re muted until '+alTime(my.mutedUntil)+'.</p>':'<div class="farmadd" style="margin-top:8px"><input id="alchatin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn ghost small" data-act="chat-pic" data-tgt="al" aria-label="Send a picture">&#128247;</button><button class="btn ghost small" data-act="chat-gif" data-tgt="al">GIF</button><button class="btn small" data-act="al-send">Send</button></div>')+'</div>';
   } else if (sub==="projects"){
     var others=al.members.length-1;
     h+='<div class="section"><div class="shead"><h3>Projects</h3>'+(hp.canHelp?'<button class="btn small" data-act="al-help">Help all ('+hp.canHelp+')</button>':'<span class="dur">nothing left to help</span>')+'</div>'+
@@ -4296,9 +4303,18 @@ var dockPin=false, dockOpen=false, dockCh="world";
 try { dockPin=localStorage.getItem("ibory-dock-pin")==="1"; dockOpen=localStorage.getItem("ibory-dock-open")==="1"; dockCh=localStorage.getItem("ibory-dock-ch")||"world"; } catch(e){}
 function dockSave(){ try { localStorage.setItem("ibory-dock-pin",dockPin?"1":"0"); localStorage.setItem("ibory-dock-open",dockOpen?"1":"0"); localStorage.setItem("ibory-dock-ch",dockCh); } catch(e){} }
 /* ---------- chat links and reactions (0.1.129): links open after a check; any emoji as a reaction in world, alliance and private chat ---------- */
-function linkify(t){ t=String(t==null?"":t); var re=/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+\.[^\s<>"]+)/gi, out="", last=0, m;
+// chat pictures (0.1.146): links to GIF/image sites and to our own uploads (LB_URL/img/...) show inline; blurred in world chat until tapped
+var CIMG_SEEN={};
+function chatImgUrl(u){ try { var x=new URL(u), h=x.hostname.toLowerCase(), lb=LB_URL?new URL(LB_URL).hostname:"";
+  if (lb && h===lb && /^\/img\/[0-9a-f]{8,32}$/.test(x.pathname)) return "pic";
+  if (!/^(media\.tenor\.com|c\.tenor\.com|media\d?\.giphy\.com|i\.giphy\.com|i\.imgur\.com|cdn\.discordapp\.com|media\.discordapp\.net)$/.test(h)) return "";
+  return /\.gif$/i.test(x.pathname) ? "gif" : /\.(png|jpe?g|webp)$/i.test(x.pathname) ? "pic" : ""; } catch(e){ return ""; } }
+function chatPlain(t){ return String(t==null?"":t).replace(/https?:\/\/[^\s<>"]+/gi, function(u){ var k=chatImgUrl(u); return k==="gif"?"[GIF]":k?"[picture]":u; }); }
+function linkify(t, opt){ t=String(t==null?"":t); var re=/(https?:\/\/[^\s<>"]+|www\.[^\s<>"]+\.[^\s<>"]+)/gi, out="", last=0, m;
   while ((m=re.exec(t))){ var u=m[0], tail=""; while (/[.,!?;:)\]'"]$/.test(u) && !(u.slice(-1)===")" && u.indexOf("(")>=0)){ tail=u.slice(-1)+tail; u=u.slice(0,-1); }
-    var href=/^www\./i.test(u)?"https://"+u:u; out+=esc(t.slice(last,m.index))+'<a class="clink" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer nofollow ugc" data-act="open-link" data-u="'+esc(href)+'">'+esc(u)+'</a>'+esc(tail); last=m.index+m[0].length; }
+    var href=/^www\./i.test(u)?"https://"+u:u, ik=chatImgUrl(href);
+    if (ik){ var bl=opt&&opt.blur&&!CIMG_SEEN[href]; out+=esc(t.slice(last,m.index))+'<span class="cimgw'+(bl?' blur':'')+'" data-act="img-open" data-u="'+esc(href)+'" role="button" aria-label="'+(ik==="gif"?"GIF":"Picture")+'"><img src="'+esc(href)+'" loading="lazy" alt=""></span>'+esc(tail); last=m.index+m[0].length; continue; }
+    out+=esc(t.slice(last,m.index))+'<a class="clink" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer nofollow ugc" data-act="open-link" data-u="'+esc(href)+'">'+esc(u)+'</a>'+esc(tail); last=m.index+m[0].length; }
   return out+esc(t.slice(last)); }
 function linkHost(u){ try { return new URL(u).host; } catch(e){ return u; } }
 var RX={w:{}, a:{}, d:{}}, RXSEL="", RX_QUICK=["\ud83d\udc4d","\u2764\ufe0f","\ud83d\ude02","\ud83d\ude2e","\ud83d\ude22","\ud83d\udd25","\u2694\ufe0f","\ud83c\udfc6"];
@@ -4320,6 +4336,39 @@ function rxSend(ch, id, e, on){ var key=ch+":"+id, L=(RX[ch][id]||[]).map(functi
   var before=RX[ch][id]; RX[ch][id]=L; rxRefresh();
   alPost("/rx",{ch:ch, id:+id, e:e, on:on?1:0}).then(function(d){ if (d.error){ RX[ch][id]=before; toast(d.error); } else RX[ch][id]=d.rx||[]; rxRefresh(); })
     .catch(function(){ RX[ch][id]=before; toast("Couldn\u2019t reach the server"); rxRefresh(); }); }
+// sending a picture or GIF: it goes out as its own message (the picture's URL), keeping whatever you'd typed
+function chatTgtCh(tgt){ return tgt==="al" ? "a" : dockCh==="world" ? "w" : dockCh==="dm" ? "d" : "a"; }
+function chatSendText(tgt, text){ var i=document.getElementById(tgt==="al"?"alchatin":"dockin"); if (!i) return; var draft=i.value; i.value=text;
+  if (tgt==="al") alSend(); else if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin");
+  setTimeout(function(){ if (!i.value) i.value=draft; }, 0); }
+var CPIC={busy:false};
+function chatPicPick(tgt){ if (!cbOn()){ toast("Sign in to your cloud save first"); return; } if (tgt!=="al" && dockCh==="dm" && !DMS.open){ toast("Open a conversation first"); return; }
+  var fi=document.createElement("input"); fi.type="file"; fi.accept="image/*"; fi.style.display="none"; document.body.appendChild(fi);
+  fi.addEventListener("change", function(){ var f=fi.files&&fi.files[0]; fi.remove(); if (f) chatPicSend(tgt, f); }); fi.click(); }
+function chatPicUpload(tgt, blob, type){ CPIC.busy=true; toast("Sending the picture\u2026");
+  return fetch(LB_URL+"/img/up?ch="+chatTgtCh(tgt), {method:"POST", headers:{"Content-Type":type, "X-Name":S.cloud.name, "X-Token":S.cloud.token}, body:blob})
+    .then(function(r){ return r.json().catch(function(){ return {error:"Server error "+r.status}; }); })
+    .then(function(d){ CPIC.busy=false; if (d.error || !d.id){ toast(d.error||"Couldn\u2019t send the picture"); return; } chatSendText(tgt, LB_URL+"/img/"+d.id); })
+    .catch(function(){ CPIC.busy=false; toast("Couldn\u2019t reach the server"); }); }
+function chatPicSend(tgt, f){ if (CPIC.busy) return;
+  if (f.type==="image/gif"){ if (f.size>8*1024*1024){ toast("That GIF is too big (8 MB at most)"); return; } chatPicUpload(tgt, f, "image/gif"); return; }
+  var url=URL.createObjectURL(f), im=new Image();
+  im.onload=function(){ var w=im.naturalWidth, h=im.naturalHeight, sc=Math.min(1, 1280/Math.max(w,h)), cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(w*sc)); cv.height=Math.max(1,Math.round(h*sc));
+    var g=cv.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,cv.width,cv.height); g.drawImage(im,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+    cv.toBlob(function(b){ if (!b){ toast("Couldn\u2019t read that picture"); return; } chatPicUpload(tgt, b, "image/jpeg"); }, "image/jpeg", 0.82); };
+  im.onerror=function(){ URL.revokeObjectURL(url); toast("Couldn\u2019t read that picture"); }; im.src=url; }
+var GIFS={q:"", list:[], next:"", busy:false, err:"", by:"", tgt:"dock"};
+function gifLoad(more){ if (GIFS.busy) return; GIFS.busy=true; GIFS.err=""; if (!more){ GIFS.list=[]; GIFS.next=""; } lastSheet=""; renderSheet();
+  alPost("/gif/search",{q:GIFS.q, pos:more?GIFS.next:""}).then(function(d){ GIFS.busy=false; if (d.error){ GIFS.err=d.error; } else { GIFS.list=GIFS.list.concat(d.gifs||[]); GIFS.next=d.next||""; GIFS.by=d.by||""; } lastSheet=""; renderSheet(); })
+    .catch(function(){ GIFS.busy=false; GIFS.err="Couldn\u2019t reach the server"; lastSheet=""; renderSheet(); }); }
+function gifSheet(){ var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Send a GIF</h2><div class="sub">'+(GIFS.by?'via '+esc(GIFS.by):'search for anything')+'</div></div></div>'+
+    '<div class="farmadd"><input id="gifq" type="search" value="'+esc(GIFS.q)+'" placeholder="Search GIFs" enterkeyhint="search" style="width:auto;flex:1"><button class="btn small" data-act="gif-search">Search</button></div>';
+  if (GIFS.err) h+='<p class="why">'+esc(GIFS.err)+'</p>';
+  h+='<div class="gifgrid">'+GIFS.list.map(function(g,i){ return '<button data-act="gif-pick" data-i="'+i+'" aria-label="Send this GIF"><img src="'+esc(g.p)+'" loading="lazy" alt=""></button>'; }).join("")+'</div>';
+  if (GIFS.busy) h+='<p class="dur">Loading\u2026</p>'; else if (GIFS.next && GIFS.list.length) h+='<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="gif-more">More</button></div>';
+  return h+'<button class="closebtn" data-act="close">Close</button>'; }
+function imgSheet(){ var u=sheetFor.u, own=/\/img\/([0-9a-f]+)$/.exec(u);
+  return '<div style="text-align:center"><img src="'+esc(u)+'" alt="" style="max-width:100%;max-height:70vh;border-radius:8px"></div><div class="btnrow" style="margin-top:8px;justify-content:center">'+(own?'<button class="btn ghost small" data-act="img-report" data-id="'+own[1]+'">Report</button>':'')+'<button class="btn ghost small" data-act="open-link" data-u="'+esc(u)+'">Open in browser</button></div><button class="closebtn" data-act="close">Close</button>'; }
 function rxTyping(){ var i=document.activeElement; return !!(i && i.id==="rxin"); }
 function dockChans(){ var c=[]; if (wcShown()) c.push("world"); if (mpShown() && alOn() && alMine()) c.push("al"); if (dmOn()) c.push("dm"); return c; }
 /* ---------- private messages: anyone to anyone, text only, kept 30 days on the server, and the admin can read them ---------- */
@@ -4339,7 +4388,7 @@ function dmSync(){
     for (var k in (d.reads||{})) DMS.reads[k]=Math.max(DMS.reads[k]||0, d.reads[k]);
     DMS.blocks=d.blocks||[]; DMS.mutedUntil=d.mutedUntil||0;
     if (DMS.open && !DMS.open.k){ var th=dmThread(DMS.open); if (th.length) DMS.open.k=th[0].k; }
-    if (!DMS.first){ var shown=0; fresh.forEach(function(l){ if (dmViewing(l.k) || dmBlocked(l.k) || shown>=3) return; note("dm","Message from "+l.name+": "+l.text); shown++; }); if (shown) flushFinished(); }
+    if (!DMS.first){ var shown=0; fresh.forEach(function(l){ if (dmViewing(l.k) || dmBlocked(l.k) || shown>=3) return; note("dm","Message from "+l.name+": "+chatPlain(l.text)); shown++; }); if (shown) flushFinished(); }
     DMS.first=false; if (DMS.open && DMS.open.k && dmViewing(DMS.open.k)) dmMarkRead(DMS.open.k); renderDock(); })
   .catch(function(){ DMS.busy=false; DMS.last=Date.now(); });
 }
@@ -4368,7 +4417,7 @@ function dmHtml(){
   order=order.filter(function(k){ return !dmBlocked(k); }).sort(function(a,b){ return conv[b].last.id-conv[a].last.id; });
   var h='<div class="farmadd" style="margin:0 0 6px"><input id="dmto" type="text" maxlength="20" autocomplete="off" placeholder="Player name" style="width:auto;flex:1"><button class="btn small" data-act="dm-new">New message</button></div>';
   h+=order.length?order.map(function(k){ var c=conv[k], n=dmUnread(k);
-    return '<button class="bq" style="width:100%;text-align:left" data-act="dm-open" data-k="'+esc(k)+'" data-nm="'+esc(c.name)+'"><span><b>'+esc(c.name)+'</b>'+(n?' <span class="badge">'+n+' new</span>':'')+'<br><span class="dur">'+(c.last.me?'You: ':'')+esc(String(c.last.text).slice(0,60))+'</span></span><span class="dur">'+alTime(c.last.at)+'</span></button>'; }).join(""):'<p class="hint">'+(DMS.last?'No private messages yet. Type a player’s name above, or tap a name in chat, on the high scores or on an alliance roster.':'Loading…')+'</p>';
+    return '<button class="bq" style="width:100%;text-align:left" data-act="dm-open" data-k="'+esc(k)+'" data-nm="'+esc(c.name)+'"><span><b>'+esc(c.name)+'</b>'+(n?' <span class="badge">'+n+' new</span>':'')+'<br><span class="dur">'+(c.last.me?'You: ':'')+esc(chatPlain(c.last.text).slice(0,60))+'</span></span><span class="dur">'+alTime(c.last.at)+'</span></button>'; }).join(""):'<p class="hint">'+(DMS.last?'No private messages yet. Type a player’s name above, or tap a name in chat, on the high scores or on an alliance roster.':'Loading…')+'</p>';
   if (DMS.blocks.length) h+='<p class="dur" style="margin:8px 0 2px">Blocked: '+DMS.blocks.map(function(b){ return esc(b.name)+' <button class="link" data-act="dm-unblock" data-k="'+esc(b.k)+'" data-nm="'+esc(b.name)+'">unblock</button>'; }).join(", ")+'</p>';
   return h;
 }
@@ -4429,19 +4478,19 @@ function renderDock(){
     if (!DMS.open) canSay=false; else if (DMS.open.k && dmBlocked(DMS.open.k)){ canSay=false; hint="You’ve blocked "+DMS.open.name+". Unblock them to reply."; }
     else if (DMS.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(DMS.mutedUntil)+"."; }
     if (DMS.err) hint=DMS.err;
-    hh=dmHtml(); var ld=DMS.lines.filter(function(l){ return !l.me && !dmBlocked(l.k); }).pop(); lastTxt=ld?ld.name+": "+ld.text:"No private messages";
+    hh=dmHtml(); var ld=DMS.lines.filter(function(l){ return !l.me && !dmBlocked(l.k); }).pop(); lastTxt=ld?ld.name+": "+chatPlain(ld.text):"No private messages";
     setText(document.getElementById("dkch"), "Messages");
   } else if (dockCh==="world"){
     if (!cbOn()){ canSay=false; hint="World chat needs a cloud save. Set one up in Settings, then come back."; }
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
-    msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?(lw.sys?lw.text:chatName(lw.name)+": "+lw.text):(cbOn()?"No messages yet":"Sign in to chat");
-    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ if (c.sys) return '<div class="alm sys">'+esc(c.text)+'</div>'; return '<div class="alm"'+rxMsgAttr("w",c.id)+'><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+linkify(c.text)+rxTail("w",c.id)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?(lw.sys?lw.text:chatName(lw.name)+": "+chatPlain(lw.text)):(cbOn()?"No messages yet":"Sign in to chat");
+    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ if (c.sys) return '<div class="alm sys">'+esc(c.text)+'</div>'; return '<div class="alm"'+rxMsgAttr("w",c.id)+'><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+linkify(c.text,{blur:true})+rxTail("w",c.id)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
     setText(document.getElementById("dkch"), "World");
   } else {
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
-    lastTxt=la?chatName(la.name)+": "+la.text:"No messages yet";
+    lastTxt=la?chatName(la.name)+": "+chatPlain(la.text):"No messages yet";
     hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+ryChatBtn(c.text)+'</div>' : '<div class="alm"'+rxMsgAttr("a",c.id)+'><b>'+plChat(c.name)+'</b> '+linkify(c.text)+rxTail("a",c.id)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
@@ -9571,6 +9620,11 @@ function renderSheetCore(){
     h=presetSheet(sheetFor.p);
   } else if (sheetFor.kind==="whpick"){
     h=whPickSheet();
+  } else if (sheetFor.kind==="gif"){
+    if (sheetBody.contains(document.activeElement) && document.activeElement.id==="gifq" && lastSheet) return;
+    h=gifSheet();
+  } else if (sheetFor.kind==="img"){
+    h=imgSheet();
   } else if (sheetFor.kind==="rycall"){
     if (sheetBody.contains(document.activeElement) && document.activeElement.tagName==="SELECT" && lastSheet) return;
     h=ryCallSheet();
@@ -9890,6 +9944,13 @@ document.addEventListener("click",function(e){
   if (act==="open-link"){ e.preventDefault(); var lu=a.dataset.u||""; if (!/^https?:\/\//i.test(lu)) return; if (window.confirm("Open this link in your browser?\n\n"+linkHost(lu)+"\n\nOnly open links from players you trust.")) { try { window.open(lu,"_blank","noopener,noreferrer"); } catch(x){} } return; }
   if (act==="rx-sel"){ if (e.target.closest(".rxbar") || window.getSelection && String(window.getSelection())) return; var rk=a.dataset.ch+":"+a.dataset.id; RXSEL=RXSEL===rk?"":rk; rxRefresh(); return; }
   if (act==="rx-close"){ RXSEL=""; rxRefresh(); return; }
+  if (act==="img-open"){ var iu=a.dataset.u; if (a.classList.contains("blur")){ CIMG_SEEN[iu]=1; a.classList.remove("blur"); return; } openSheet({kind:"img", u:iu}); return; }
+  if (act==="img-report"){ alPost("/img/report",{id:a.dataset.id}).then(function(d){ toast(d.error||"Reported. Thanks: the admin will take a look."); }).catch(function(){ toast("Couldn\u2019t reach the server"); }); return; }
+  if (act==="chat-pic"){ chatPicPick(a.dataset.tgt); return; }
+  if (act==="chat-gif"){ if (!cbOn()){ toast("Sign in to your cloud save first"); return; } if (a.dataset.tgt!=="al" && dockCh==="dm" && !DMS.open){ toast("Open a conversation first"); return; } GIFS.tgt=a.dataset.tgt; openSheet({kind:"gif"}); if (!GIFS.list.length) gifLoad(false); return; }
+  if (act==="gif-search"){ var gq=document.getElementById("gifq"); GIFS.q=gq?gq.value.trim():""; gifLoad(false); return; }
+  if (act==="gif-more"){ gifLoad(true); return; }
+  if (act==="gif-pick"){ var gp=GIFS.list[+a.dataset.i]; if (!gp) return; closeSheet(); chatSendText(GIFS.tgt, gp.u); return; }
   if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
   if (act==="ry-call"){ ryCall(); return; }
   if (act==="al-go-rally"){ tab="guild"; ALS.sub=a.dataset.to==="arena"?"arena":"rally"; lastView=""; refresh(); window.scrollTo({top:0}); return; }
@@ -10735,7 +10796,7 @@ document.addEventListener("input",function(e){
     if (e.target.dataset.sim==="def" && sim.def.preset!=="custom"){ sim.def.preset="custom"; var sel=document.getElementById("npcsel"); if (sel) sel.value="custom"; }
   }
 });
-document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="rxin"){ e.preventDefault(); var rb=document.querySelector('.rxbar [data-act="rx-any"]'); if (rb) rb.click(); return; } if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
+document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="gifq"){ e.preventDefault(); GIFS.q=e.target.value.trim(); e.target.blur(); gifLoad(false); return; } if (e.key==="Enter" && e.target && e.target.id==="rxin"){ e.preventDefault(); var rb=document.querySelector('.rxbar [data-act="rx-any"]'); if (rb) rb.click(); return; } if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
 document.addEventListener("change",function(e){
   if (e.target.id==="bmjump"){ var bj=e.target.value; e.target.value=""; e.target.blur(); if (bj) mapGo(bj); return; }
   if (e.target.id==="rymins"){ RYS.mins=e.target.value; e.target.blur(); lastSheet=""; renderSheet(); return; }

@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.145
+Version 0.1.146
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.146** Pictures and GIFs in chat (world, alliance and private). 📷 sends a photo or screenshot (the phone shrinks it to 1280px JPEG; GIFs go as they are, up to 8 MB); GIF opens a Tenor/Giphy search. Links to Tenor, Giphy, Imgur and Discord images and our own uploads show inline; in world chat they're blurred until tapped. Tap a picture to see it big, report it or open it. Chat previews and notifications say [picture] / [GIF]. Uploads are kept 14 days. Worker: R2 bucket CHAT_IMG, chat_img table, POST /img/up (binary, X-Name/X-Token), GET /img/<id>, POST /img/report, POST /gif/search (TENOR_KEY or GIPHY_KEY), admin "Chat pictures" tab.
 - **0.1.145** Taking resources out of your Alliance Warehouse box now takes 30 minutes to reach the city (so it can't be used to move resources between cities instantly). Withdrawals show under "On the way" with a countdown and a Put back button; they still count as yours for cloud stats. Storing is unchanged.
 - **0.1.144** World-chat star announcements name the piece in full ("★ Smith’s Legendary Riding Boots of Wisdom hit 12 stars!"): the server no longer cuts it at 30 characters, and a piece you renamed shows its name with its type ("Stormbringer (Mythic Longsword)").
 - **0.1.143** The map popup on a level 10 NPC city or a historic city has "⚔ Call the alliance" while your weekly rally call is free (and you're in an alliance with no rally of yours running).
