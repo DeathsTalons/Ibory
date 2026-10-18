@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.143
+Version 0.1.144
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.144** World-chat star announcements name the piece in full ("★ Smith’s Legendary Riding Boots of Wisdom hit 12 stars!"): the server no longer cuts it at 30 characters, and a piece you renamed shows its name with its type ("Stormbringer (Mythic Longsword)").
 - **0.1.143** The map popup on a level 10 NPC city or a historic city has "⚔ Call the alliance" while your weekly rally call is free (and you're in an alliance with no rally of yours running).
 - **0.1.142** Rally marches use Rally Spot slots: each city can have as many rally marches out as its free march slots (the old limit of 10 per player is gone), so an alliance can stack hundreds of waves. They take the slot until they're home. Worker: per-player cap raised to a 1,000 sanity limit.
 - **0.1.141** The map popup on an empty flat has a Teleport button (shows how many you have; tap twice to move the city you're viewing there).

@@ -720,7 +720,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.143";
+var APP_VERSION = "0.1.144";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -10316,7 +10316,7 @@ document.addEventListener("click",function(e){
     var sg=forgeGear(); if (!sg || sg.stars>=GEAR_MAX[sg.tier]) return;
     var gk="gem"+forgeGem, gn=Math.max(1,Math.min(4,forgeN)); if ((S.items[gk]||0)<gn) return;
     var chance=gemChance(sg,forgeGem,gn); S.items[gk]-=gn;
-    if (Math.random()*100<chance){ sg.stars++; if (sg.stars>=11){ S.starLog=(S.starLog||[]).filter(function(e){ return e.at>Date.now()-3600000; }); S.starLog.push({at:Date.now(), st:sg.stars, nm:gearTypeName(sg)}); } forgeLog.unshift('<b class="okc">Success!</b> Now '+sg.stars+' star'+(sg.stars>1?'s':'')+' ('+Math.round(chance)+'% roll).'); }
+    if (Math.random()*100<chance){ sg.stars++; if (sg.stars>=11){ S.starLog=(S.starLog||[]).filter(function(e){ return e.at>Date.now()-3600000; }); S.starLog.push({at:Date.now(), st:sg.stars, nm:(sg.nm?sg.nm+' ('+TIERS[GEAR_TIERS[sg.tier]].name+' '+slotOf(sg).name+')':gearTypeName(sg))}); } forgeLog.unshift('<b class="okc">Success!</b> Now '+sg.stars+' star'+(sg.stars>1?'s':'')+' ('+Math.round(chance)+'% roll).'); }
     else { var from=sg.stars; sg.stars=failTo(from); forgeLog.unshift('<b class="badc">Failed</b> at '+Math.round(chance)+'%. '+(sg.stars===from?'No stars lost.':'Dropped from '+from+' to '+sg.stars+'.')); }
     lastSheet=""; renderSheet(); tickText(); save(); lastView=""; renderView(true); return;
   }
