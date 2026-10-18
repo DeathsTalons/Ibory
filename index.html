@@ -61,6 +61,8 @@ html[data-look="bughunter"] .walls{background:linear-gradient(180deg,#6b8a58,#55
 html[data-look="bughunter"] .plot{border-radius:12px}
 html[data-look="bughunter"] .plot.th{background:radial-gradient(circle at 50% 40%,rgba(232,195,74,.18),var(--panel2) 70%)}
 *,*::before,*::after{box-sizing:inherit}
+details > *{box-sizing:border-box} /* newer Chrome puts details content in a ::details-content box that * does not reach, so it fell back to content-box */
+details::details-content{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 var(--body);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit}
@@ -190,6 +192,9 @@ details.rep summary{list-style-position:outside;line-height:1.35}
 .citybar button{flex:none;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 14px;cursor:pointer;font:500 .92rem var(--display)}
 .citybar button[aria-pressed="true"]{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
 nav.tabs{display:block;margin:0}
+.altabs{display:flex;border-bottom:1px solid var(--line);margin:4px 0 10px}.altabs button{flex:1 1 0;border:0;background:none;padding:10px 4px 11px;cursor:pointer;color:var(--muted);font:600 1rem var(--display);letter-spacing:.03em;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.altabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brass)}.aldot{color:var(--brass)}
+.alsubs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px 0 10px;padding-bottom:2px}.alsubs::-webkit-scrollbar{display:none}.alsubs .chipbtn{flex:0 0 auto}
 nav.tabs .tabrow{display:flex;gap:2px;border-bottom:1px solid var(--line)}
 nav.tabs button{border:0;background:none;padding:9px 6px 10px;cursor:pointer;color:var(--muted);font:500 1rem var(--display);letter-spacing:.03em;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;flex:1 1 auto;text-align:center}
 .speedchip[aria-selected="true"]{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
@@ -430,7 +435,7 @@ dialog.full .sheet{height:100dvh;max-height:none;border-radius:0;border:0;align-
 .lbtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;position:sticky;top:-16px;background:var(--panel);z-index:1;margin:0 -2px} .lbtabs::-webkit-scrollbar{display:none} .lbtabs .chipbtn{flex:none;white-space:nowrap}
 table.gt.wct{min-width:0} table.gt.wct td{white-space:normal;padding:3px 4px} table.gt.wct td:first-child{text-align:left} table.gt.wct input{width:7.5em}
 table.gt.lbt{min-width:0;table-layout:fixed} table.gt.lbt td:first-child{width:1.7em;padding-right:0;color:var(--muted)} table.gt.lbt td:nth-child(2){text-align:left;white-space:normal;overflow-wrap:break-word;word-break:normal} table.gt.lbt .hnm,table.gt.lbt .hst{display:block;font-size:.8em;font-weight:400;line-height:1.25;margin-top:2px} table.gt.lbt .hnm{color:var(--ink)} table.gt.lbt .hst{color:var(--muted)} table.gt.lbt td.lbh{width:8em;padding:4px 2px;line-height:1.2;white-space:normal;overflow-wrap:break-word;font-size:.9em} table.gt.lbt td:last-child{width:5.6em;white-space:nowrap} table.gt.lbt .lbn{display:flex;align-items:center;gap:6px;text-align:left;min-width:0} table.gt.lbt .lbn>span:last-child{min-width:0;overflow-wrap:break-word} table.gt.lbt tr.me td{color:var(--brass);font-weight:700}
-.upact{display:grid;gap:6px} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
+.upact{display:grid;gap:6px;min-width:0} .upinfo{display:flex;justify-content:space-between;gap:10px;min-height:1.4em;align-items:baseline}
 .upbtns{display:grid;grid-template-columns:1fr;gap:8px} .upbtns .btn{width:100%;min-height:44px}
 table.gt{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
 table.gt th,table.gt td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -440,7 +445,7 @@ table.gt input{width:88px;padding:5px 7px;text-align:right}
 table.gt tr.sub td{color:var(--muted);font-size:.82rem;padding-top:12px;border-bottom:0;font-family:var(--display)}
 table.gt td.loss{color:var(--red);font-weight:700}
 table.gt td.ok{color:var(--grass);font-weight:700}
-.unit{display:grid;grid-template-columns:1fr auto;gap:6px 12px;background:var(--panel2);border-radius:10px;padding:10px 12px}
+.unit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;background:var(--panel2);border-radius:10px;padding:10px 12px}
 .unit.locked{opacity:.72}
 .unit h4{margin:0;font:700 1rem var(--display)}
 .unit .us{font-size:.84rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;grid-column:1/-1}
@@ -543,6 +548,9 @@ body.bfmode #chatdock{display:none!important}
 .gifgrid button{padding:0;border:0;background:var(--panel2);border-radius:6px;overflow:hidden;aspect-ratio:1/1}
 .gifgrid img{width:100%;height:100%;object-fit:cover;display:block}
 .lbtag{color:var(--brass);font-weight:700;font-size:.82rem;margin-right:4px}
+.paintbar{position:absolute;left:8px;right:8px;bottom:8px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--brass);border-radius:10px;padding:6px 8px;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:3}.paintbar[hidden]{display:none}
+.mpbrush{display:inline-flex;align-items:center;justify-content:center}.mpbrush.on{color:var(--brass)}
+.decolist{display:grid;gap:6px;margin:4px 0}.decorow{display:flex;align-items:center;gap:8px}.decoe{font-size:1.6rem;width:2.4rem;text-align:center;display:flex;justify-content:center}.decoimg{image-rendering:pixelated}
 .mpop{position:absolute;z-index:5;width:232px;max-width:calc(100% - 8px);background:var(--panel);color:var(--ink);border:1px solid var(--brass);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);padding:8px 9px;font-size:.88rem;line-height:1.35}
 .mpop .mpt{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
 .mpop .mpt b{font:700 .95rem var(--display);overflow-wrap:anywhere}
@@ -727,7 +735,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.148";
+var APP_VERSION = "0.1.154";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1411,7 +1419,7 @@ function aiAt(x,y){ return !inLegacy(x,y) && !S.map.owned[x+","+y] && hash3(x,y,
 function tileAt(x,y){
   var id=x+","+y, c=cityAtXY(x,y);
   if (c) return {x:x,y:y,id:id,k:"home",L:0,city:c.id};
-  var mo=monsterAt(id); if (mo) return {x:x,y:y,id:id,k:"monster",L:mo.L,mon:mo.kind};
+  var mo=monsterAt(id); if (mo) return {x:x,y:y,id:id,k:"monster",L:mo.L,mon:mo.kind,ev:mo.ev||""};
   var A_=S.alliance; if (A_){ if (A_.bully && A_.bully.tile===id) return {x:x,y:y,id:id,k:"bully",L:0}; if (A_.war && A_.war.active){ var we=warAt(id); if (we>=0) return {x:x,y:y,id:id,k:"war",L:0,eid:we}; } if (A_.challenges && A_.challenges.length){ var ch=chalAt(id); if (ch) return ch.seat ? {x:x,y:y,id:id,k:"chal",L:12,cid:ch.c.id,seat:true} : {x:x,y:y,id:id,k:"chal",L:0,cid:ch.c.id,j:ch.j}; } var sa=A_.sat[id]; if (sa) return {x:x,y:y,id:id,k:"allycity",L:sa.L,ally:sa.ally}; }
   var hc=HC_AT[id]; if (hc && !(S.map.hcTaken && S.map.hcTaken[id])) return {x:x,y:y,id:id,k:"hc",L:hc.L,name:hc.name,hero:hc.hero};
   var k, L;
@@ -1439,7 +1447,47 @@ function fieldNoise(x,y){ // smooth value noise: low values are wide open fields
   var v=function(i,j){ return hash3(i,j,sd); }, sx=fx*fx*(3-2*fx), sy=fy*fy*(3-2*fy);
   var a=v(gx,gy)+(v(gx+1,gy)-v(gx,gy))*sx, b=v(gx,gy+1)+(v(gx+1,gy+1)-v(gx,gy+1))*sx; return a+(b-a)*sy;
 }
-var MONSTERS={wyvern:"Wyvern",troll:"Troll",hydra:"Hydra",behemoth:"Behemoth"};
+var MONSTERS={wyvern:"Wyvern",troll:"Troll",hydra:"Hydra",behemoth:"Behemoth", jack:"Jack-o\u2019-Lantern",horseman:"Headless Horseman",pking:"Pumpkin King"};
+/* ---------- holiday events (0.1.149): event monsters roam near every city and drop map decorations ----------
+   Decorations go on any tile of your own map, as many as you like, and can be picked up again; the tile works exactly as before. */
+var EVENTS=[{id:"halloween", off:true, name:"Hallow\u2019s Eve", from:Date.UTC(2026,9,24,4), to:Date.UTC(2026,10,3,5), kinds:["jack","horseman","pking"]}]; // Oct 24 to Nov 2, Eastern time
+function evNow(){ var t=Date.now(); for (var i=0;i<EVENTS.length;i++) if (!EVENTS[i].off && t>=EVENTS[i].from && t<EVENTS[i].to) return EVENTS[i]; return null; }
+var DECOS={pumpkin:{n:"Jack-o\u2019-Lantern",e:"\ud83c\udf83",r:1}, bats:{n:"Bats",e:"\ud83e\udd87",r:1}, web:{n:"Spider Web",e:"\ud83d\udd78\ufe0f",r:1}, candle:{n:"Candle",e:"\ud83d\udd6f\ufe0f",r:1}, candy:{n:"Candy Pile",e:"\ud83c\udf6c",r:1},
+  ghost:{n:"Ghost",e:"\ud83d\udc7b",r:2}, grave:{n:"Gravestone",e:"\ud83e\udea6",r:2}, cat:{n:"Black Cat",e:"\ud83d\udc08\u200d\u2b1b",r:2}, spider:{n:"Giant Spider",e:"\ud83d\udd77\ufe0f",r:2},
+  skull:{n:"Skull",e:"\ud83d\udc80",r:3}, witch:{n:"Witch",e:"\ud83e\uddd9",r:3}, haunt:{n:"Haunted House",e:"\ud83c\udfda\ufe0f",r:3}, moon:{n:"Blood Moon",e:"\ud83c\udf15",r:3}};
+/* pixel-art decorations (0.1.150): each sprite is a grid of palette letters, baked once into a small canvas and drawn crisp at map zoom.
+   ppt = sprite pixels per tile; (ax, ay) = the sprite pixel that sits on the tile's bottom centre, so big pieces spill onto the tiles around them. */
+var SPRITES={deadtree:{ppt:20, ax:19.5, ay:44, pal:{O:"#1c1310",T:"#281d17",D:"#3c2b22",M:"#5c4434",L:"#7c5e47",H:"#9e7c5d",K:"#0e0908",B:"#16161e",Y:"#ecc846",y:"#cd962d",g:"#cd962d",e:"#78788c",S:"rgba(0,0,0,.27)"},
+  rows:["........................................", "........................................", "........T.....T...............T.........", ".....T..T.....T...............T.T.......", ".....TTT.....T.................TT.......", "...T.T.......T...................T.T....", "...T.T....T..TTT.T......T...T....T.T....", "...T..T...T.T....T.T....TTT.T...T..T....", "...T..T....T.....T.T...T...T....T..T....", "..TTTTT....T......TT...T...T....TTTTT...", "......T.O.T.....T..T..T.....T.O.T.......", ".......TLOT.....T..T..T.....TOLT........", "......OHMDT.....TT..TT......THMDO.......", ".......OLMDO....T...T..T...OLMDO........", ".......OHMDO...T....T..T...OHMDO........", "........OHMDOOT.....T...TOOHMDO.........", ".........OHMMLT....OLO..THLMDO..........", "..........OLMMDO..OLMDOOLMMDO...........", "..........OHMMDO..OLDO.OHMMDO...........", "...........OHMMDO.OLDOOHMMDO............", "............OHMMDOOLDOOHMDO.............", ".............OLMMMLMDOLMMDO.............", ".............OHMMMMMMMMMDO..............", "..............OHMMMMMMMMDO..............", "..............OHMMMMMMMMDO..............", "...............OLMMMMMMDO.BB............", "..........T....OHMMMMMDDyBeB............", "..........T.....OHMMMDDO.BBBBB..........", "..........T.O..OHMMMDDO...BBBBBB..T.....", "...........TLO.OLMMMDDOOOOLgOg...T......", "..........OHDDOOHMMMMDMLLLMMLLOTT.......", ".........TTOHDDOHMMMMDMMMMMMDDDO.T......", "............OHMMMMDMMMDDOOOOOLO.........", ".............OLMMMDDDDDO.....O..........", "..............OOHMDKKDDO................", "................OHDKKDDO................", "................OHMMLMDDO...............", "................OLMMMMDDO...............", "................OHMMMMDDO...............", "................OHMMMMDDO...............", "...............OOHMDMMMDDO..............", "............OOOLLMMDMMMDDOOO............", "..........OOHLLMMMMDMMMMMMLLOOO.........", ".......SSOHLDMMMMMMDMMMMMMDMMLLOS.......", ".....SSSOHMDDOOOOOOOOOOOOOOHMMDDOSS.....", ".......SSOOOOSSSSSSSSSSSSSSOOOOOS......."]}};
+var SPR_CACHE={};
+function sprCanvas(id){ if (SPR_CACHE[id]) return SPR_CACHE[id]; var sp=SPRITES[id]; if (!sp) return null; var h=sp.rows.length, w=sp.rows[0].length, cv=document.createElement("canvas"); cv.width=w; cv.height=h; var g=cv.getContext("2d");
+  for (var y=0;y<h;y++) for (var x=0;x<w;x++){ var c=sp.rows[y].charAt(x), col=sp.pal[c]; if (col){ g.fillStyle=col; g.fillRect(x,y,1,1); } }
+  return (SPR_CACHE[id]=cv); }
+DECOS.deadtree={n:"Dead Tree", spr:"deadtree", r:2, th:"haunted"};
+var DECO_RAR=["","Common","Uncommon","Rare"];
+function decoIcon(k, px){ var d=DECOS[k]; if (!d) return "?"; if (!d.spr) return d.e; var cv=sprCanvas(d.spr); if (!cv) return ""; try { return '<img class="decoimg" src="'+cv.toDataURL()+'" alt="" style="height:'+(px||32)+'px">'; } catch(e){ return ""; } }
+function decoS(){ if (!S.deco) S.deco={inv:{}, at:{}}; return S.deco; }
+function decoHave(){ var v=decoS().inv; for (var k in v) if (v[k]>0) return true; return Object.keys(DECOS).some(function(k){ return DECOS[k].spr && decoOwn(k); }); }
+// pixel decorations are unlocks bought in the cosmetics shop (Cosmo Coins): own it once, place it anywhere, as often as you like. Event (emoji) pieces are single items.
+function decoOwn(k){ var d=DECOS[k]; if (!d) return false; return d.spr ? cosHas("deco",k) : (decoS().inv[k]||0)>0; }
+function decoPrice(k){ var p=cosPrice("deco",k); return p>=0?p:50; }
+var PAINT={k:"", n:0}, DECO_N=1; // painting: tap tiles to place the chosen decoration, n left
+function paintOne(tid){ var D=decoS(), k=PAINT.k; if (!k || !decoOwn(k)) { PAINT.k=""; PAINT.n=0; return false; }
+  if (!DECOS[k].spr){ D.inv[k]--; if (!D.inv[k]) delete D.inv[k]; }
+  (D.at[tid]=D.at[tid]||[]).push(k); PAINT.n--; if (PAINT.n<=0 || !decoOwn(k)){ PAINT.k=""; PAINT.n=0; toast("Done placing"); }
+  save(); paintBar(); drawMap(); return true; }
+function paintBar(){ var el=document.getElementById("paintbar"); if (!el) return; if (!PAINT.k){ if (!el.hidden){ el.hidden=true; el.innerHTML=""; el._h=""; } return; }
+  var ph='<span>'+decoIcon(PAINT.k,22)+'</span><span style="flex:1">Tap tiles to place <b>'+esc(DECOS[PAINT.k].n)+'</b>'+(PAINT.n===Infinity?'':': '+PAINT.n+' left')+'</span><button class="btn small" data-act="paint-stop">Done</button>';
+  if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.hidden=false; }
+function decoBuy(k){ if (cosBusy) return; if (!cbOn()){ toast("Sign in to your cloud save first (Settings)"); return; } cosBusy=true;
+  alPost("/cos/buy",{item:"deco:"+k}).then(function(d){ cosBusy=false; if (d && d.ok){ COS=d.state; toast(DECOS[k].n+" unlocked"+(d.already?"":"!")); } else toast((d&&d.error)||"Couldn\u2019t buy that"); lastSheet=""; renderSheet(); renderTileInfo(); })
+    .catch(function(){ cosBusy=false; toast("Can\u2019t reach the server"); }); }
+function decoRoll(r){ var ks=Object.keys(DECOS).filter(function(k){ return DECOS[k].r===r; }); return ks[Math.floor(Math.random()*ks.length)]; }
+function decoDrops(q, drops){ var L=q.L||1, got=[], pick=function(w){ var u=Math.random(), r=u<w[0]?1:u<w[0]+w[1]?2:3; got.push(decoRoll(r)); };
+  if (L===1){ if (Math.random()<0.7) pick([1,0]); }
+  else if (L===2){ pick([0.7,0.3]); }
+  else { pick([0.5,0.4]); pick([0.5,0.4]); if (Math.random()<0.2) got.push(decoRoll(3)); }
+  var D=decoS(); got.forEach(function(k){ D.inv[k]=(D.inv[k]||0)+1; drops.push(DECOS[k].e+" "+DECOS[k].n+" ("+DECO_RAR[DECOS[k].r].toLowerCase()+" decoration)"); }); }
 function ensureMonsters(){
   var day=gameDay(); if (!S.map.monsters) S.map.monsters={day:-1,list:[]};
   if (S.map.monsters.day===day) return;
@@ -1452,11 +1500,24 @@ function ensureMonsters(){
       var q=tileAt(x,y); if (!VTYPES[q.k] || S.map.owned[id]) continue;
       var r3=u(3); list.push({id:id, kind:kinds[Math.floor(u(4)*kinds.length)], L: r3<0.55?1:r3<0.88?2:3}); n++;
     } });
+  var ev=evNow();
+  if (ev) S.cities.forEach(function(c){ // event monsters: two a day near every city, tougher ones rarer
+    for (var n=0, tries=0; n<2 && tries<200; tries++){
+      var u=function(k){ return hash3(c.x*29+tries, c.y*23+n*11+k, S.map.seed+day*173+c.id+977); };
+      var x=c.x+Math.round((u(1)-0.5)*20), y=c.y+Math.round((u(2)-0.5)*20); if (x<0||y<0||x>=MAPW||y>=MAPH) continue;
+      var id=x+","+y; if (list.some(function(m){ return m.id===id; })) continue;
+      var q=tileAt(x,y); if (!VTYPES[q.k] || S.map.owned[id]) continue;
+      var r3=u(3), L=r3<0.6?1:r3<0.9?2:3; list.push({id:id, kind:ev.kinds[L-1], L:L, ev:ev.id}); n++;
+    } });
+  if (ev){ S.evSeen=S.evSeen||{}; if (!S.evSeen[ev.id]){ S.evSeen[ev.id]=1; note("event", ev.name+" has begun! Pumpkin monsters roam near your cities every day until "+new Date(ev.to-1).toLocaleDateString(undefined,{month:"short",day:"numeric"})+". Slay them for decorations you can place on any tile of your map."); } }
   S.map.monsters={day:day, list:list}; miniDirty=true;
 }
 function monsterAt(id){ var ml=S.map.monsters&&S.map.monsters.list; if (!ml || S.map.monsters.day!==gameDay()) return null; for (var i=0;i<ml.length;i++) if (ml[i].id===id) return ml[i]; return null; }
 function monsterBase(q){
   var m=[1,3,8][q.L-1], t=[0,0,0,0,0,0,0,0,0,0,0,0];
+  if (q.ev){ // event monsters: beatable from mid game, the Pumpkin King needs a real army
+    if (q.mon==="jack"){ t[1]=2000; t[3]=800; } else if (q.mon==="horseman"){ t[6]=3000; t[7]=800; } else { t[4]=15000; t[5]=10000; t[7]=3000; }
+    return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:5*q.L,medicine:5*q.L,iron_working:5*q.L,horseback_riding:5*q.L,compass:5*q.L}, res:{food:0,lumber:0,stone:0,iron:0,gold:20000*m}, am:0.7+0.3*q.L}; }
   if (q.mon==="wyvern"){ t[7]=12000*m; t[8]=4000*m; } else if (q.mon==="troll"){ t[1]=40000*m; t[3]=15000*m; }
   else if (q.mon==="hydra"){ t[5]=20000*m; t[11]=1500*m; } else { t[10]=3000*m; t[4]=15000*m; }
   return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:10,medicine:10,iron_working:10,horseback_riding:10,compass:10}, res:{food:0,lumber:0,stone:0,iron:0,gold:200000*m}, am:1.5+0.5*q.L};
@@ -1734,7 +1795,9 @@ function winDrops(q){
       else if (bk<0.01) { S.items.primer=(S.items.primer||0)+1; drops.push("a Soldier's Primer"); } }
     if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007*bItems()){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
     if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01*bItems()){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
-    if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
+    if (q.k==="monster" && q.ev){ decoDrops(q, drops);
+      S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
+    else if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
       if (Math.random()<(0.12+0.04*q.L)+0.0001*achLv("gear")){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
     if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
@@ -2263,7 +2326,7 @@ function viewMap(){
   return '<div class="btnrow" style="margin:0 0 8px;align-items:center;flex-wrap:nowrap"><button class="btn ghost small" style="flex:0 0 auto" data-act="march-open" data-tile="'+homeTileId()+'" data-mission="hide">Hide troops in the woods</button>'+bmJumpHtml()+'</div>'+
     '<div class="section"><div class="shead"><h3 id="realmh">'+esc(realmName())+'</h3><span class="dur" id="mapstat"></span></div>'+
     '<div class="maptools"><button class="btn ghost small" data-act="map-zoom" data-z="1" aria-label="Zoom in">+</button><button class="btn ghost small" data-act="map-zoom" data-z="-1" aria-label="Zoom out">\u2212</button><button class="btn ghost small" data-act="map-home">My city</button><span class="dur" id="mapcoord"></span></div>'+
-    '<div class="mapview" id="mapview"><canvas id="mapc" aria-label="Map. Drag to pan, tap a tile to see it."></canvas><div class="mpop" id="mappop" hidden></div></div>'+
+    '<div class="mapview" id="mapview"><canvas id="mapc" aria-label="Map. Drag to pan, tap a tile to see it."></canvas><div class="mpop" id="mappop" hidden></div><div class="paintbar" id="paintbar" hidden></div></div>'+
     '<div class="mapbottom"><canvas id="minic" width="'+MAPW+'" height="'+MAPH+'" aria-label="Overview map. Tap to jump there."></canvas>'+
     '<div class="finder"><div class="h3">Find nearest</div><select id="findtype">'+opts+'</select><select id="findlvl">'+lv+'</select><button class="btn small" data-act="map-find">Find</button>'+
     '<div class="legend">'+Object.keys(VTYPES).map(function(k){ return '<span><i style="background:'+VTYPES[k].col+'"></i>'+VTYPES[k].name+'</span>'; }).join("")+'<span><i style="background:#4a4541"></i>NPC</span><span><i style="background:#2c6763"></i>AI lord</span><span><i style="background:'+HC_COL[12]+'"></i>HC 12</span><span><i style="background:'+HC_COL[14]+'"></i>HC 14</span><span><i style="background:'+HC_COL[16]+'"></i>HC 16</span><span><i style="background:'+HC_COL[18]+'"></i>Atlantis</span><span><i style="background:var(--brass)"></i>Yours</span></div>'+
@@ -2333,6 +2396,8 @@ function drawMap(){
       if (detail){ var u2=z/30; g.fillStyle="#b9b2a6"; g.fillRect(x+6*u2,y+13*u2,18*u2,10*u2); g.fillRect(x+6*u2,y+9*u2,4*u2,4*u2); g.fillRect(x+13*u2,y+9*u2,4*u2,4*u2); g.fillRect(x+20*u2,y+9*u2,4*u2,4*u2); g.fillStyle="#fff"; g.fillText(q.L,x+z/2,y+z*0.6); } }
     else if (q.k==="bully" || q.k==="war" || q.k==="chal" || q.k==="allycity"){ g.fillStyle=q.k==="allycity"?"#3f8f5a":"#b8322a"; g.fillRect(x,y,z,z);
       if (detail){ g.fillStyle="#fff"; g.fillText(q.k==="bully"?"!":q.k==="war"?"W":q.k==="chal"?(q.seat?"\u2605":"C"):"A",x+z/2,y+z/2+1); } }
+    else if (q.k==="monster" && q.ev){ g.fillStyle="#2a1636"; g.fillRect(x,y,z,z); var pr=z*0.32; g.fillStyle="#f07d1a"; g.beginPath(); g.ellipse(x+z/2,y+z*0.55,pr*1.15,pr,0,0,Math.PI*2); g.fill(); g.fillStyle="#3c6b1e"; g.fillRect(x+z/2-z*0.04,y+z*0.55-pr-z*0.1,z*0.08,z*0.12);
+      if (detail){ g.fillStyle="#2a1636"; g.fillText(q.L,x+z/2,y+z*0.58); } }
     else if (q.k==="monster"){ g.fillStyle="#5b2a6e"; g.fillRect(x,y,z,z);
       if (detail){ var u5=z/30; g.fillStyle="#e7c6f5"; g.beginPath(); g.moveTo(x+6*u5,y+22*u5); g.lineTo(x+10*u5,y+8*u5); g.lineTo(x+15*u5,y+14*u5); g.lineTo(x+20*u5,y+8*u5); g.lineTo(x+24*u5,y+22*u5); g.fill(); g.fillStyle="#fff"; g.fillText(q.L,x+z/2,y+z*0.8); } }
     else if (q.k==="ai"){ var hitA=S.map.hit[q.id] && (S.gt-S.map.hit[q.id].at)<24*3.6e6; g.fillStyle=hitA?"#4f7c78":"#2c6763"; g.fillRect(x,y,z,z);
@@ -2354,6 +2419,16 @@ function drawMap(){
     S.bm.forEach(function(b){ var xy=b.id.split(","), bx=+xy[0], by=+xy[1]; if (bx<x0||bx>x1||by<y0||by>y1) return; var px=(bx-mv.x)*z+1, py=(by-mv.y)*z;
       g.lineWidth=3; g.strokeStyle="rgba(0,0,0,.7)"; g.strokeText("\u2605",px,py); g.fillStyle="#ffd34d"; g.fillText("\u2605",px,py); });
     g.textAlign="center"; g.textBaseline="middle"; }
+  if (S.deco && z>=6){ g.textAlign="center"; g.textBaseline="middle"; var smooth=g.imageSmoothingEnabled; g.imageSmoothingEnabled=false; // decorations: drawn row by row from the top so lower ones stand in front; on one tile, back to front
+    var dlist=[]; for (var did in S.deco.at){ var dl=S.deco.at[did]; if (!dl || !dl.length) continue; var dxy=did.split(","), dx=+dxy[0], dy=+dxy[1]; if (dx<x0-3||dx>x1+3||dy<y0-1||dy>y1+4) continue; dlist.push([dy,dx,dl]); }
+    dlist.sort(function(a,b){ return a[0]-b[0] || a[1]-b[1]; });
+    dlist.forEach(function(e){ var dy=e[0], dx=e[1], dl=e[2], dn=Math.min(6,dl.length), dfs=Math.max(9,Math.round(z*(dn===1?0.6:dn===2?0.5:0.42)));
+      for (var di=0; di<dn; di++){ var dk=String(dl[di]).split("|"), dd=DECOS[dk[0]], flip=dk[1]==="f", c=dn>1?di/(dn-1)-0.5:0; if (!dd) continue;
+        if (dd.spr){ var sp=SPRITES[dd.spr], cv=sprCanvas(dd.spr); if (!sp||!cv) continue; var sc=z/sp.ppt, bx=(dx-mv.x+0.5+c*0.42)*z, by=(dy-mv.y+0.94+c*0.06)*z, dw=Math.round(cv.width*sc), dh=Math.round(cv.height*sc), ox=sp.ax*sc;
+          if (flip){ g.save(); g.translate(Math.round(bx),0); g.scale(-1,1); g.drawImage(cv, Math.round(-ox), Math.round(by-sp.ay*sc), dw, dh); g.restore(); }
+          else g.drawImage(cv, Math.round(bx-ox), Math.round(by-sp.ay*sc), dw, dh); }
+        else { g.font=dfs+"px sans-serif"; g.fillText(dd.e,(dx-mv.x+0.5+c*0.42)*z,(dy-mv.y+0.5+c*0.24)*z); } } });
+    g.imageSmoothingEnabled=smooth; g.font="700 "+fs+"px Cinzel, Georgia, serif"; }
   S.marches.forEach(function(m){ var q=TILE_BY[m.tile], oc=S.cities[cityIndex(m.city)]; if (!q||!oc) return;
     g.strokeStyle=(m.mission==="transport"||m.mission==="reinforce")?"#5fa36a":m.phase==="out"?"#e05a4f":brass; g.lineWidth=2; if (g.setLineDash) g.setLineDash([5,4]); g.beginPath();
     g.moveTo((oc.x+.5-mv.x)*z,(oc.y+.5-mv.y)*z); g.lineTo((q.x+.5-mv.x)*z,(q.y+.5-mv.y)*z); g.stroke(); if (g.setLineDash) g.setLineDash([]);
@@ -2373,7 +2448,7 @@ function drawMap(){
     else { g.fillStyle=g.strokeStyle; g.beginPath(); g.arc(mx,my,mr,0,Math.PI*2); g.fill(); g.lineWidth=1.5; g.strokeStyle="rgba(0,0,0,.55)"; g.stroke(); } });
   if (selTile && TILE_BY[selTile]){ var sq=TILE_BY[selTile]; g.strokeStyle=ink; g.lineWidth=2.5; g.strokeRect((sq.x-mv.x)*z+1,(sq.y-mv.y)*z+1,z-2,z-2); }
   var cc=document.getElementById("mapcoord"); if (cc) cc.textContent="View ("+Math.round(mv.x+W/z/2)+", "+Math.round(mv.y+H/z/2)+")";
-  drawMini();
+  drawMini(); try { paintBar(); } catch(e){}
 }
 function selectTile(id, center){
   if (selTile!==id) armedTile=null; selTile=id; var q=TILE_BY[id]; if (center) centerOn(q.x,q.y); renderTileInfo(); drawMap();
@@ -2397,7 +2472,7 @@ function setupMapInput(){
     drag.x=e.clientX; drag.y=e.clientY; mv.x-=dx/mv.z; mv.y-=dy/mv.z; clampView(); requestDraw(); });
   function up(e){ if (!pts[e.pointerId]) return; var wasTap = drag && !drag.moved && !drag.pinch && Object.keys(pts).length===1; delete pts[e.pointerId];
     if (wasTap){ var rc=c.getBoundingClientRect(), tx=Math.floor(mv.x+(e.clientX-rc.left)/mv.z), ty=Math.floor(mv.y+(e.clientY-rc.top)/mv.z);
-      if (tx>=0 && ty>=0 && tx<MAPW && ty<MAPH){ if (advance(Date.now())) flushFinished(); MPOP.hide=false; selectTile(tx+","+ty,false); } }
+      if (tx>=0 && ty>=0 && tx<MAPW && ty<MAPH){ if (advance(Date.now())) flushFinished(); if (PAINT.k){ paintOne(tx+","+ty); return; } MPOP.hide=false; selectTile(tx+","+ty,false); } }
     var left=Object.keys(pts);
     if (!left.length) drag=null; else if (left.length===1) panFrom(pts[left[0]]); else pinchStart();
     requestDraw(); }
@@ -2537,15 +2612,15 @@ function mapPopInfo(q){ var bits=['('+q.x+', '+q.y+')'], cur;
 function mapPop(){ var el=document.getElementById("mappop"); if (!el) return;
   if (!selTile || MPOP.hide){ el.hidden=true; return; }
   var q=TILE_BY[selTile]; if (!q){ el.hidden=true; return; }
-  var btns=[], seen={}; document.querySelectorAll('#tileinfo [data-act="march-open"], #tileinfo [data-act="city-go"]').forEach(function(b){ var m=b.dataset.act==="city-go"?"city":b.dataset.mission, key=m+(b.dataset.city||"");
-    if (seen[key] || (m!=="city" && !MPOP_ACTS[m])) return; seen[key]=1; btns.push({o:m==="city"?0:MPOP_ACTS[m], h:'<button class="btn'+(btns.length?' ghost':'')+'" data-act="'+b.dataset.act+'"'+(b.dataset.tile?' data-tile="'+b.dataset.tile+'"':'')+(b.dataset.mission?' data-mission="'+b.dataset.mission+'"':'')+(b.dataset.city?' data-city="'+b.dataset.city+'"':'')+(b.disabled?' disabled':'')+'>'+esc(b.textContent)+'</button>'}); });
+  var btns=[], seen={}; document.querySelectorAll('#tileinfo [data-act="march-open"], #tileinfo [data-act="city-go"], #tileinfo [data-act="npc-make"]').forEach(function(b){ var m=b.dataset.act==="city-go"?"city":b.dataset.act==="npc-make"?"npcmake":b.dataset.mission, key=m+(b.dataset.city||"");
+    if (seen[key] || (m!=="city" && m!=="npcmake" && !MPOP_ACTS[m])) return; seen[key]=1; btns.push({o:m==="city"||m==="npcmake"?0:MPOP_ACTS[m], h:'<button class="btn'+(btns.length?' ghost':'')+'" data-act="'+b.dataset.act+'"'+(b.dataset.tile?' data-tile="'+b.dataset.tile+'"':'')+(b.dataset.mission?' data-mission="'+b.dataset.mission+'"':'')+(b.dataset.city?' data-city="'+b.dataset.city+'"':'')+(b.disabled?' disabled':'')+'>'+esc(b.textContent)+'</button>'}); });
   btns.sort(function(a,b){ return a.o-b.o; });
   try { if (ryOn() && ryTargetOk(q) && !ryLocked(q.id) && !ryLive().some(function(R){ return R.mine; })){ var ryY=ryData()||{}; if (!(ryY.nextCall && ryY.nextCall>Date.now())) btns.push({o:50, h:'<button class="btn ghost" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button>'}); } } catch(e){} // only while this week's call is free
   if (q.k==="flat" && !S.map.owned[q.id] && (!C().fieldCap || hasHC(16))){ var tpn=S.items.teleport||0; // teleport this city onto an empty flat
     btns.push({o:99, h:'<button class="btn ghost" data-act="teleport" data-tile="'+q.id+'"'+(tpn?'':' disabled')+'>'+(armedTile==="tp"+q.id?'Tap again to teleport':'Teleport ('+tpn+')')+'</button>'}); }
   var bm=bmAt(q.id);
   var ph='<div class="mpt"><b>'+esc(tileName(q))+'</b><button class="mpx" data-act="mpop-close" aria-label="Close">\u00d7</button></div><div class="dur">'+mapPopInfo(q)+'</div>'+
-    '<div class="mpb">'+btns.map(function(x){ return x.h; }).join("")+'<button class="btn ghost" data-act="'+(bm?'bm-del':'bm-add')+'" data-tile="'+q.id+'" aria-label="'+(bm?'Remove bookmark':'Bookmark')+'">'+(bm?'\u2605':'\u2606')+'</button><button class="btn ghost" data-act="mpop-more">Details</button></div>';
+    '<div class="mpb">'+btns.map(function(x){ return x.h; }).join("")+'<button class="btn ghost" data-act="'+(bm?'bm-del':'bm-add')+'" data-tile="'+q.id+'" aria-label="'+(bm?'Remove bookmark':'Bookmark')+'">'+(bm?'\u2605':'\u2606')+'</button><button class="btn ghost mpbrush'+(S.deco&&S.deco.at[q.id]&&S.deco.at[q.id].length?' on':'')+'" data-act="deco-open" data-tile="'+q.id+'" aria-label="Decorate this tile" title="Decorate"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20.7 3.3a1 1 0 0 0-1.4 0L11 11.6l1.4 1.4 8.3-8.3a1 1 0 0 0 0-1.4z" fill="currentColor"/><path d="M9.6 13c-1.8 0-3.1 1.3-3.3 3-.2 1.4-.9 2.3-2.3 2.8 1 .9 2.4 1.2 3.9 1.2 2.6 0 4.6-1.8 4.6-4.1 0-.5-.1-1-.3-1.4z" fill="currentColor"/></svg></button><button class="btn ghost" data-act="mpop-more">Details</button></div>';
   if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.hidden=false; mapPopPos(); }
 function mapPopPos(){ var el=document.getElementById("mappop"), c=document.getElementById("mapc"); if (!el || el.hidden || !c || !selTile) return; var q=TILE_BY[selTile]; if (!q) return;
   var W=c.clientWidth, H=c.clientHeight, z=mv.z, px=(q.x-mv.x)*z, py=(q.y-mv.y)*z, w=el.offsetWidth||232, h=el.offsetHeight||110;
@@ -2607,7 +2682,8 @@ function renderTileInfoBase(){
   if (q.k==="ai") h+='<p class="hint">A '+q.ai.pers.n.toLowerCase()+' with Town Hall '+q.ai.th+' and research around level '+q.ai.tech+'. Growing '+(q.ai.rate<0.7?'slowly':q.ai.rate<1.1?'steadily':'quickly')+'. AI lords never attack unless you provoke them; they slowly grow, train and hoard. Troops you kill return over a game day, and their stockpile refills over two.</p>';
   if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. '+(q.k==="hc"?'Every attack you win knocks off 3 until it is down to 10, then 1 a hit, so about 40 wins in quick succession take the city. It holds for an hour after your last win, then recovers 10 per hour. You need room in your title for another city.':'Every attack you win knocks off 10. It holds for an hour after your last win, then recovers 10 per hour, so 10 wins in quick succession takes the city, if your title has room for another.')+
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
-  if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
+  if (q.k==="monster" && q.ev) h+='<p class="hint">A '+esc(evNow()?evNow().name:"holiday")+' monster. It leaves at the end of the day. Slay it for map decorations: '+(q.L===1?'a 70% chance at a common one':q.L===2?'one for sure, sometimes uncommon':'two, with a good chance at uncommon and rare ones')+'. Decorations go on any tile of your map (tap a tile, then Decorate).</p>';
+  else if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc"||q.k==="ai") h+='<p class="hint">'+(q.k==="ai"?'An AI lord':'An NPC')+' only drops medals and items if its troop garrison is full when you hit it; otherwise you get just its resources. Let it recover before you hit it again.</p>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
@@ -3241,6 +3317,15 @@ function viewAllianceList(mineId){
     '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-create">Found it</button></div><p class="hint">You start with room for 10 members. Alliance research will raise that later.</p></details>';
   return h;
 }
+// alliance pages in four groups: underlined group tabs, then the group's pages as chips (only when it has more than one)
+var AL_GROUPS=[["chat","Chat",["chat"]],["build","Build",["projects","city","map","trade"]],["battle","Battle",["arena","rally","reinf","war"]],["people","People",["members","apps","ranks","about","list"]]];
+function alGroupOf(sub){ for (var i=0;i<AL_GROUPS.length;i++) if (AL_GROUPS[i][2].indexOf(sub)>=0) return AL_GROUPS[i]; return AL_GROUPS[0]; }
+function alNavHtml(tabs, sub, dot){ var have={}; tabs.forEach(function(t){ have[t[0]]=t[1]; }); var cur=alGroupOf(sub); ALS.lastIn=ALS.lastIn||{}; ALS.lastIn[cur[0]]=sub;
+  var h='<nav class="altabs" role="tablist">'+AL_GROUPS.map(function(gp){ var first=(ALS.lastIn[gp[0]]&&have[ALS.lastIn[gp[0]]])?ALS.lastIn[gp[0]]:gp[2].filter(function(k){ return have[k]; })[0];
+    return '<button role="tab" aria-selected="'+(gp===cur)+'" data-act="al-sub" data-v="'+first+'">'+gp[1]+(dot[gp[0]]?' <span class="aldot">\u2022</span>':'')+'</button>'; }).join("")+'</nav>';
+  var pages=cur[2].filter(function(k){ return have[k]; });
+  if (pages.length>1) h+='<div class="alsubs">'+pages.map(function(k){ return '<button class="chipbtn'+(sub===k?' on':'')+'" data-act="al-sub" data-v="'+k+'">'+have[k]+'</button>'; }).join("")+'</div>';
+  return h; }
 function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
   if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
@@ -3248,7 +3333,7 @@ function viewMyAlliance(al){
   var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["arena","Arena"+(arCur()?" \u2022":"")],["rally","Rallies"+(ryLive().length?" \u2022":"")],["reinf","Reinforce"+((al.reinf&&al.reinf.here&&al.reinf.here.length)?" ("+al.reinf.here.length+")":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["war",!AW_ON?"War (coming soon)":"War"+((AWS.d&&AWS.d.war&&AWS.d.war.status!=="settled"&&AWS.d.war.status!=="over")?" \u2022":AWS.d&&AWS.d.round?" (sign-ups)":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
-    '<div class="farmadd" style="margin-top:8px">'+tabs.map(function(t){ return '<button class="chipbtn'+(sub===t[0]?' on':'')+'" data-act="al-sub" data-v="'+t[0]+'">'+t[1]+'</button>'; }).join("")+'</div></div>';
+    '</div>'+alNavHtml(tabs, sub, {build:!!(hp.canHelp||(al.trade&&al.trade.in&&al.trade.in.length)), battle:!!(arCur()||ryLive().length||(al.reinf&&al.reinf.here&&al.reinf.here.length)||(AW_ON&&AWS.d&&AWS.d.war&&AWS.d.war.status!=="settled"&&AWS.d.war.status!=="over")), people:!!apps.length});
   if (sub==="chat"){
     h+='<div class="section"><label class="chk" style="margin-bottom:8px"><input type="checkbox" id="dockpin"'+(dockPin?' checked':'')+'> Pin the chat to the bottom of every page</label><div id="alchat" class="alchat"></div>'+
       (my.mutedUntil>Date.now()?'<p class="why">You\u2019re muted until '+alTime(my.mutedUntil)+'.</p>':'<div class="farmadd" style="margin-top:8px"><input id="alchatin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn ghost small" data-act="chat-pic" data-tgt="al" aria-label="Send a picture">&#128247;</button><button class="btn ghost small" data-act="chat-gif" data-tgt="al">GIF</button><button class="btn small" data-act="al-send">Send</button></div>')+'</div>';
@@ -4216,7 +4301,9 @@ function alMapAt(M, x, y){ if (alInCity(M,x,y)) return {city:true}; var bb=alBld
 function alMyTile(M){ for (var i=0;i<M.k.length;i++) if (isMe(M.k[i].name)) return M.k[i]; return null; }
 function alDist(a, b){ return a&&b ? Math.round(Math.hypot(a.x-b.x, a.y-b.y)*10)/10 : 0; }
 function alInitials(n){ var p=String(n).trim().split(/\s+/); return (p.length>1 ? p[0][0]+p[1][0] : String(n).slice(0,2)).toUpperCase(); }
-function alMapCenter(el){ var M=alMine()&&alMine().map; if (!M) return; var me=alMyTile(M)||alCityMid(M), cs=46; el.scrollLeft=Math.max(0, me.x*cs-el.clientWidth/2+cs/2); el.scrollTop=Math.max(0, me.y*cs-el.clientHeight/2+cs/2); }
+var AL_ZOOMS=[1,0.75,0.55,0.4,0.28]; try { ALS.zoom=+localStorage.getItem("ibory-alzoom")||1; } catch(e){}
+function alZ(){ return AL_ZOOMS.indexOf(ALS.zoom)>=0?ALS.zoom:1; }
+function alMapCenter(el){ var M=alMine()&&alMine().map; if (!M) return; var me=alMyTile(M)||alCityMid(M), cs=46*alZ(); el.scrollLeft=Math.max(0, me.x*cs-el.clientWidth/2+cs/2); el.scrollTop=Math.max(0, me.y*cs-el.clientHeight/2+cs/2); }
 // every member's marches between kingdoms (Arena trips and reinforcements), drawn over the map. The dots move every second (alMvTick); the lines only change on a sync.
 function alMarchSvg(M){
   var L=M.mv||[]; if (!L.length) return "";
@@ -4262,16 +4349,17 @@ function alPopHtml(al, M, sel, me, rk){ var st=alMapAt(M,sel.x,sel.y), my=al.my|
       if (my.can.map) b.push('<button class="btn ghost" data-act="al-move" data-what="member" data-who="'+esc(nm)+'">Move</button>'); } }
   else { title='Free square'; info='('+sel.x+', '+sel.y+')'+(me?' \u00b7 '+d+' squares from your kingdom':''); b.push('<button class="btn" data-act="al-movehere" data-x="'+sel.x+'" data-y="'+sel.y+'">Move my kingdom here</button>'); }
   var bs=st&&(st.b||st.city)?(st.city?alCs(M):(M.bs||3)):1, tx=st&&st.b?st.b.x:st&&st.city?M.city[0]:sel.x, ty=st&&st.b?st.b.y:st&&st.city?M.city[1]:sel.y;
-  var left=Math.max(4, Math.min(4+M.n*P-236, 4+tx*P+bs*P/2-116)); top=4+(ty+bs)*P+4; if (ty+bs>M.n-3) top=Math.max(4, 4+ty*P-150);
+  var z=alZ(), left=Math.max(4, Math.min(4+M.n*P*z-236, 4+(tx*P+bs*P/2)*z-116)); top=4+(ty+bs)*P*z+4; if (ty+bs>M.n-3) top=Math.max(4, 4+ty*P*z-150);
   return '<div class="mpop" style="left:'+Math.round(left)+'px;top:'+Math.round(top)+'px"><div class="mpt"><b>'+title+'</b><button class="mpx" data-act="al-pop-close" aria-label="Close">\u00d7</button></div><div class="dur">'+info+'</div><div class="mpb">'+b.join("")+'</div></div>'; }
 function alMapHtml(al){
   var M=al.map; if (!M) return '<div class="section"><p class="hint">Loading the map\u2026</p></div>';
   var me=alMyTile(M), sel=ALS.sel, mv=ALS.moving, rk={}; al.members.forEach(function(m){ rk[m.name]=m; });
   if (Date.now()-profAt>60000) profFetch(al.members.map(function(m){ return m.name; }));
-  var h='<div class="section"><div class="shead"><h3>Alliance map</h3><span class="dur">'+M.n+' \u00d7 '+M.n+'</span></div>'+
+  var zi=AL_ZOOMS.indexOf(alZ());
+  var h='<div class="section"><div class="shead"><h3>Alliance map</h3><span class="maptools" style="display:flex;gap:6px;align-items:center"><span class="dur">'+M.n+' \u00d7 '+M.n+'</span><button class="btn ghost small" data-act="al-zoom" data-d="-1"'+(zi>=AL_ZOOMS.length-1?' disabled':'')+' aria-label="Zoom out">\u2212</button><button class="btn ghost small" data-act="al-zoom" data-d="1"'+(zi<=0?' disabled':'')+' aria-label="Zoom in">+</button></span></div>'+
     '<p class="hint">The Alliance City takes a '+alCs(M)+' \u00d7 '+alCs(M)+' block in the middle, and every member has one square for their kingdom (all their cities together). Alliance buildings will take '+alCs(M)+' \u00d7 '+alCs(M)+' blocks too. Distance on this map will set how long reinforcements take to arrive. You can move your own kingdom to any free square; moving the city or other members needs the map permission.</p>';
   if (mv) h+='<div class="bq" style="border:1px solid var(--brass)"><span><b>Tap '+(mv.what==="city"?'where the middle of the city should go':'a free square')+'</b> to move '+(mv.what==="city"?'the Alliance City':mv.what==="me"?'your kingdom':esc(mv.who)+'\u2019s kingdom')+' there.</span><div class="mbtns"><button class="link" data-act="al-movecancel">Cancel</button></div></div>';
-  h+='<div class="almap" id="almap"><div class="algrid" style="grid-template-columns:repeat('+M.n+',44px)">';
+  h+='<div class="almap" id="almap"><div class="algrid" style="grid-template-columns:repeat('+M.n+',44px)'+(alZ()!==1?';zoom:'+alZ():'')+'">';
   for (var y=0;y<M.n;y++) for (var x=0;x<M.n;x++){
     var t=alMapAt(M,x,y), cityTop=t&&t.city&&x===M.city[0]&&y===M.city[1], bTop=t&&t.b&&x===t.b.x&&y===t.b.y;
     if (t && t.city && !cityTop) continue; // the city is drawn once, as one big block
@@ -4374,6 +4462,22 @@ var GIFS={q:"", list:[], next:"", busy:false, err:"", by:"", tgt:"dock"};
 function gifLoad(more){ if (GIFS.busy) return; GIFS.busy=true; GIFS.err=""; if (!more){ GIFS.list=[]; GIFS.next=""; } lastSheet=""; renderSheet();
   alPost("/gif/search",{q:GIFS.q, pos:more?GIFS.next:""}).then(function(d){ GIFS.busy=false; if (d.error){ GIFS.err=d.error; } else { GIFS.list=GIFS.list.concat(d.gifs||[]); GIFS.next=d.next||""; GIFS.by=d.by||""; } lastSheet=""; renderSheet(); })
     .catch(function(){ GIFS.busy=false; GIFS.err="Couldn\u2019t reach the server"; lastSheet=""; renderSheet(); }); }
+function decoSheet(tid){ var D=decoS(), q=TILE_BY[tid], here=D.at[tid]||[], inv=Object.keys(DECOS).filter(function(k){ return D.inv[k]>0; });
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Decorate</h2><div class="sub">'+(q?esc(tileName(q))+' ('+q.x+', '+q.y+')':'')+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>'+
+    '<p class="hint">Decorations are just for looks: the tile works exactly as before. Place as many as you like (the map shows six per tile) and pick them up any time. They overlap: use the arrows to bring one to the front or send it back, and \u21c4 to flip one. Big pieces spill onto the tiles around them, and lower tiles stand in front. Only you see your map.</p>';
+  h+='<div class="h3">On this tile <span class="dur">front to back</span></div>'+(here.length?'<div class="decolist">'+here.map(function(k,i){ return [k,i]; }).reverse().map(function(p,j){ var kf=String(p[0]).split("|"), k=kf[0], i=p[1], d=DECOS[k]||{e:"?",n:k};
+      return '<div class="decorow"><span class="decoe">'+decoIcon(k)+'</span><span style="flex:1">'+esc(d.n)+(here.length>1?' <span class="dur">'+(j===0?'front':j===here.length-1?'back':'layer '+(j+1))+'</span>':'')+'</span>'+
+        (here.length>1?'<button class="btn ghost small" data-act="deco-layer" data-tile="'+tid+'" data-i="'+i+'" data-d="1"'+(i===here.length-1?' disabled':'')+' aria-label="Bring forward">\u25b2</button><button class="btn ghost small" data-act="deco-layer" data-tile="'+tid+'" data-i="'+i+'" data-d="-1"'+(i===0?' disabled':'')+' aria-label="Send back">\u25bc</button>':'')+
+        (d.spr?'<button class="btn ghost small" data-act="deco-flip" data-tile="'+tid+'" data-i="'+i+'" aria-label="Flip">\u21c4</button>':'')+
+        '<button class="btn ghost small" data-act="deco-take" data-tile="'+tid+'" data-i="'+i+'">Pick up</button></div>'; }).join("")+'</div>':'<p class="dur">Nothing yet.</p>');
+  inv=Object.keys(DECOS).filter(function(k){ return decoOwn(k); });
+  var shop=Object.keys(DECOS).filter(function(k){ return DECOS[k].spr && !decoOwn(k); });
+  if (inv.length) h+='<div class="farmadd" style="margin-top:8px"><label for="decon" class="sub">How many to place</label><select id="decon">'+[1,2,3,5,10,20,50,0].map(function(n){ return '<option value="'+n+'"'+(n===DECO_N?' selected':'')+'>'+(n||'Until I tap Done')+'</option>'; }).join("")+'</select><span class="dur">the first goes here, then tap more tiles</span></div>';
+  if (0) h+='<div class="h3" style="margin-top:8px">Your decorations</div>'+(inv.length?'<div class="decolist">'+inv.map(function(k){ var d=DECOS[k]; return '<div class="decorow"><span class="decoe">'+decoIcon(k)+'</span><span style="flex:1">'+esc(d.n)+' <span class="dur">'+DECO_RAR[d.r]+' \u00b7 '+D.inv[k]+' left</span></span><button class="btn small" data-act="deco-put" data-tile="'+tid+'" data-k="'+k+'">Place</button></div>'; }).join("")+'</div>'
+    :'');
+  h+='<div class="h3" style="margin-top:8px">Your decorations</div>'+(inv.length?'<div class="decolist">'+inv.map(function(k){ var d=DECOS[k]; return '<div class="decorow"><span class="decoe">'+decoIcon(k)+'</span><span style="flex:1">'+esc(d.n)+' <span class="dur">'+(d.spr?'unlocked, place as many as you like':DECO_RAR[d.r]+' \u00b7 '+D.inv[k]+' left')+'</span></span><button class="btn small" data-act="deco-put" data-tile="'+tid+'" data-k="'+k+'">Place</button></div>'; }).join("")+'</div>':'<p class="dur">You haven\u2019t unlocked any decorations yet.</p>');
+  if (shop.length) h+='<div class="h3" style="margin-top:8px">Shop</div><p class="hint" style="margin-top:0">Unlock a decoration once and place it on as many tiles as you like.'+(COS&&COS.allFree?' Free during the beta.':'')+'</p><div class="decolist">'+shop.map(function(k){ var d=DECOS[k], pr=decoPrice(k); return '<div class="decorow"><span class="decoe">'+decoIcon(k)+'</span><span style="flex:1">'+esc(d.n)+' <span class="dur">'+pr+' Cosmo Coins</span></span><button class="btn ghost small" data-act="deco-buy" data-k="'+k+'">'+(COS&&COS.allFree?'Get (free)':'Buy')+'</button></div>'; }).join("")+'</div>';
+  return h; }
 function gifSheet(){ var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Send a GIF</h2><div class="sub">'+(GIFS.by?'via '+esc(GIFS.by):'search for anything')+'</div></div></div>'+
     '<div class="farmadd"><input id="gifq" type="search" value="'+esc(GIFS.q)+'" placeholder="Search GIFs" enterkeyhint="search" style="width:auto;flex:1"><button class="btn small" data-act="gif-search">Search</button></div>';
   if (GIFS.err) h+='<p class="why">'+esc(GIFS.err)+'</p>';
@@ -9419,7 +9523,9 @@ function renderView(force){
   if (tab==="guild"){ // chat keeps updating even while you type: it lives in its own box
     var gh="guild|"+viewGuild(), typing=v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (!typing && (gh!==lastView || force)){ var amo=document.getElementById("almap"), asl=amo?[amo.scrollLeft,amo.scrollTop]:null; v.innerHTML=gh.slice(6); lastView=gh; wireDetails(v);
-      var amn=document.getElementById("almap"); if (amn){ if (asl){ amn.scrollLeft=asl[0]; amn.scrollTop=asl[1]; } else alMapCenter(amn); } }
+      var amn=document.getElementById("almap"); if (amn){ var zk=ALS.zoomKeep; ALS.zoomKeep=null;
+        if (zk){ var zc=46*alZ(); amn.scrollLeft=Math.max(0, zk[0]*zc-amn.clientWidth/2); amn.scrollTop=Math.max(0, zk[1]*zc-amn.clientHeight/2); }
+        else if (asl){ amn.scrollLeft=asl[0]; amn.scrollTop=asl[1]; } else alMapCenter(amn); } }
     fillAlChat(); setTabs(); return;
   }
   if (v.contains(document.activeElement) && document.activeElement.tagName!=="BUTTON") return;
@@ -9634,6 +9740,8 @@ function renderSheetCore(){
     h=presetSheet(sheetFor.p);
   } else if (sheetFor.kind==="whpick"){
     h=whPickSheet();
+  } else if (sheetFor.kind==="deco"){
+    h=decoSheet(sheetFor.tile);
   } else if (sheetFor.kind==="gif"){
     if (sheetBody.contains(document.activeElement) && document.activeElement.id==="gifq" && lastSheet) return;
     h=gifSheet();
@@ -9964,6 +10072,15 @@ document.addEventListener("click",function(e){
   if (act==="chat-gif"){ if (!cbOn()){ toast("Sign in to your cloud save first"); return; } if (a.dataset.tgt!=="al" && dockCh==="dm" && !DMS.open){ toast("Open a conversation first"); return; } GIFS.tgt=a.dataset.tgt; openSheet({kind:"gif"}); if (!GIFS.list.length) gifLoad(false); return; }
   if (act==="gif-search"){ var gq=document.getElementById("gifq"); GIFS.q=gq?gq.value.trim():""; gifLoad(false); return; }
   if (act==="gif-more"){ gifLoad(true); return; }
+  if (act==="deco-open"){ cosSync(); openSheet({kind:"deco", tile:a.dataset.tile}); return; }
+  if (act==="deco-buy"){ decoBuy(a.dataset.k); return; }
+  if (act==="paint-stop"){ PAINT.k=""; PAINT.n=0; paintBar(); return; }
+  if (act==="deco-put"){ var dk=a.dataset.k, dt=a.dataset.tile, dn=document.getElementById("decon"); if (!DECOS[dk] || !decoOwn(dk)) return; DECO_N=dn?+dn.value:1; if (!(DECO_N>=0)) DECO_N=1;
+    PAINT.k=dk; PAINT.n=DECO_N||Infinity; paintOne(dt);
+    if (PAINT.k){ closeSheet(); MPOP.hide=true; renderTileInfo(); } else { lastSheet=""; renderSheet(); renderTileInfo(); } return; }
+  if (act==="deco-layer"){ var Dl=decoS().at[a.dataset.tile]||[], li=+a.dataset.i, lj=li+(+a.dataset.d); if (lj<0||lj>=Dl.length) return; var lt=Dl[li]; Dl[li]=Dl[lj]; Dl[lj]=lt; save(); lastSheet=""; renderSheet(); drawMap(); return; }
+  if (act==="deco-flip"){ var Df=decoS().at[a.dataset.tile]||[], fi=+a.dataset.i, fk=Df[fi]; if (!fk) return; var fp=String(fk).split("|"); Df[fi]=fp[0]+(fp[1]==="f"?"":"|f"); save(); lastSheet=""; renderSheet(); drawMap(); return; }
+  if (act==="deco-take"){ var Dt=decoS(), tt=a.dataset.tile, tl=Dt.at[tt]||[], ti=+a.dataset.i, tk=tl[ti]; if (!tk) return; tk=String(tk).split("|")[0]; tl.splice(ti,1); if (!tl.length) delete Dt.at[tt]; Dt.inv[tk]=(Dt.inv[tk]||0)+1; save(); lastSheet=""; renderSheet(); renderTileInfo(); drawMap(); return; }
   if (act==="gif-pick"){ var gp=GIFS.list[+a.dataset.i]; if (!gp) return; closeSheet(); chatSendText(GIFS.tgt, gp.u); return; }
   if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
   if (act==="ry-call"){ ryCall(); return; }
@@ -10201,6 +10318,9 @@ document.addEventListener("click",function(e){
         .catch(function(){ ALS.donating=false; toast("Couldn\u2019t reach the server"); }); return; }
     if (act==="al-lendacad"){ var lci=+a.dataset.ci; withCity(lci,function(){ if (!S.alAcad && S.research){ toast("Finish or cancel this city\u2019s research first"); return; } S.alAcad=!S.alAcad; toast(S.alAcad?S.name+"\u2019s Academy now works for the alliance":S.name+"\u2019s Academy is back to its own research"); }); save(); lastView=""; renderView(true); processAll(); renderQueue(); return; }
     if (act==="al-lendbld"){ var bci=+a.dataset.ci, bn=+a.dataset.n; withCity(bci,function(){ if (S.builds.length>BUILDERS-bn){ toast("Those builders are busy here"); return; } S.alBld=bn; toast(bn?bn+" builder"+(bn>1?"s":"")+" from "+S.name+" now work"+(bn>1?"":"s")+" for the alliance":S.name+"\u2019s builders are back home"); }); save(); lastView=""; renderView(true); processAll(); renderQueue(); return; }
+    if (act==="al-zoom"){ var zi2=AL_ZOOMS.indexOf(alZ())-(+a.dataset.d), nz=AL_ZOOMS[Math.max(0,Math.min(AL_ZOOMS.length-1,zi2))]; if (nz===alZ()) return;
+      var zm=document.getElementById("almap"), oc=46*alZ(); if (zm) ALS.zoomKeep=[(zm.scrollLeft+zm.clientWidth/2)/oc, (zm.scrollTop+zm.clientHeight/2)/oc];
+      ALS.zoom=nz; try { localStorage.setItem("ibory-alzoom", String(nz)); } catch(e){} lastView=""; refresh(); return; }
     if (act==="al-tile"){ var tx=+a.dataset.x, ty=+a.dataset.y, alm=alMine(), M2=alm&&alm.map;
       if (ALS.moving && M2 && (ALS.moving.what==="city" || ALS.moving.what==="b" || !alMapAt(M2,tx,ty))){ var mvv=ALS.moving, big=mvv.what==="city"||mvv.what==="b", bsz=mvv.what==="b"?(M2.bs||3):alCs(M2), half=Math.floor(bsz/2), mx=big?Math.max(0,Math.min(M2.n-bsz,tx-half)):tx, my2=big?Math.max(0,Math.min(M2.n-bsz,ty-half)):ty;
         ALS.moving=null; ALS.sel={x:tx,y:ty}; alDo("/al/move",mvv.what==="b"?{what:"b", key:mvv.who, x:mx, y:my2}:{what:mvv.what, who:mvv.who, x:mx, y:my2},"Moved"); lastView=""; renderView(true); return; }
