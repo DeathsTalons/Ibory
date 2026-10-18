@@ -756,7 +756,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.179";
+var APP_VERSION = "0.1.181";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1754,17 +1754,28 @@ var WIZ_PER_H=10, WIZ_CAP=30, WIZ_R=26, WIZ_IMG={}, WIZ_FX=[], WIZ_VIS=false;
 function wizT(L){ var W=WIZ[L]; return {k:"wiz"+L, n:W.n, weak:"mounted", hits:"", HP:W.hp, DMG:W.dmg}; }
 function wizS(){ if (!S.wiz) S.wiz={h:null, list:[]}; return S.wiz; }
 function wizAt(id){ var l=S.wiz&&S.wiz.list; if (!l) return null; for (var i=0;i<l.length;i++) if (l[i].id===id) return l[i]; return null; }
+// 0.1.181: room to stand. They're drawn tall (about 2.5 tiles for the fire wizard, 3.5 for the shadow one) and a tile or two wide,
+// so no other wizard within 2 tiles across or 4 tiles up or down: nothing overlaps.
+function wizRoom(x, y, skip){ return !wizS().list.some(function(w){ if (w===skip) return false; var xy=w.id.split(","); return Math.abs(+xy[0]-x)<=2 && Math.abs(+xy[1]-y)<=4; }); }
+// once, for wizards that appeared before the spacing rule: any that crowd an earlier one move to free ground nearby
+function wizSpread(){ var W=wizS(); if (W.sp181) return; W.sp181=1; var busy=wizFarmed(), keep=[];
+  W.list.slice().forEach(function(w){ var xy=w.id.split(","), x=+xy[0], y=+xy[1];
+    var clash=keep.some(function(k){ var kxy=k.id.split(","); return Math.abs(+kxy[0]-x)<=2 && Math.abs(+kxy[1]-y)<=4; });
+    if (!clash){ keep.push(w); return; }
+    W.list=W.list.filter(function(o){ return o!==w; }); // take it off the map and place it again with the rule
+    if (wizPlace(w.L, busy)){ keep.push(W.list[W.list.length-1]); } });
+  miniDirty=true; }
 function wizCount(L){ return wizS().list.filter(function(w){ return w.L===L; }).length; }
 function wizFarmed(){ var f={}; S.cities.forEach(function(c){ (c.presets||[]).forEach(function(pr){ (pr.farm||[]).forEach(function(id){ f[id]=1; }); }); }); S.marches.forEach(function(m){ f[m.tile]=1; }); return f; }
 function wizPlace(L, busy){ var W=wizS();
   for (var tries=0; tries<400; tries++){ var c=S.cities[Math.floor(Math.random()*S.cities.length)]; if (!c) return false;
     var x=c.x+Math.round((Math.random()-0.5)*2*WIZ_R), y=c.y+Math.round((Math.random()-0.5)*2*WIZ_R); if (x<0||y<0||x>=MAPW||y>=MAPH) continue;
-    var id=x+","+y; if (busy[id] || S.map.owned[id] || wizAt(id) || monsterAt(id)) continue;
+    var id=x+","+y; if (busy[id] || S.map.owned[id] || wizAt(id) || monsterAt(id) || !wizRoom(x,y)) continue;
     var q=tileAt(x,y); if (!VTYPES[q.k]) continue; // valleys and flats only, never on anything you hold or farm
     W.list.push({id:id, L:L, base:q.k, at:S.gt}); return true; }
   return false; }
 // every game hour: 10 more of each level, up to 30 of each on the map
-function wizSpawn(){ if (!TILES || !S.cities.length) return; var W=wizS(), hr=Math.floor(S.gt/3600e3); if (W.h==null) W.h=hr-1; if (W.h>=hr) return;
+function wizSpawn(){ if (!TILES || !S.cities.length) return; wizSpread(); var W=wizS(), hr=Math.floor(S.gt/3600e3); if (W.h==null) W.h=hr-1; if (W.h>=hr) return;
   var busy=wizFarmed(), loops=0;
   while (W.h<hr && loops<72){ W.h++; loops++; [1,2].forEach(function(L){ for (var k=0;k<WIZ_PER_H && wizCount(L)<WIZ_CAP;k++) if (!wizPlace(L, busy)) break; });
     if (wizCount(1)>=WIZ_CAP && wizCount(2)>=WIZ_CAP){ W.h=hr; break; } } }
@@ -1818,6 +1829,13 @@ function wizDraw(g, x0, y0, x1, y1, z){ var now=Date.now(), items=[];
     g.drawImage(im, fr*sp.w, 0, sp.w, sp.h, Math.round(bx-sp.ax*s), Math.round(by-sp.ay*s), Math.round(sp.w*s), Math.round(sp.h*s)); });
   g.imageSmoothingEnabled=sm; }
 setInterval(function(){ if (WIZ_VIS && tab==="map" && !document.hidden) requestDraw(); }, 110);
+// 0.1.180: a wizard is tapped anywhere on its body, not just on its tile. The box is the idle body around the feet, in sprite pixels (a little padded);
+// when two overlap, the one standing lower (drawn in front) wins.
+var WIZ_HIT={1:[-20,-62,21,2], 2:[-30,-108,35,3]};
+function wizHit(px, py){ if (!S.wiz || mv.z<4) return null; var z=mv.z, best=null;
+  S.wiz.list.forEach(function(w){ var xy=w.id.split(","), x=+xy[0], y=+xy[1], s2=WIZ[w.L].scale*z/16, bx=(x-mv.x+0.5)*z, by=(y-mv.y+0.95)*z, b=WIZ_HIT[w.L];
+    if (px>=bx+b[0]*s2 && px<=bx+b[2]*s2 && py>=by+b[1]*s2 && py<=by+b[3]*s2 && (!best || y>best.y || (y===best.y && x>best.x))) best={id:w.id, x:x, y:y}; });
+  return best; }
 function genMap(){ initHC(); LEGACY=legacyGen(); TILES=true; applyDailyLevels(true); miniDirty=true; }
 // Days roll over at midnight Eastern time (New York, with daylight saving) for everyone. S.dayOff shifts game time so (S.gt+S.dayOff) mod 24h = the Eastern wall-clock time.
 var DAY_MS=86400000;
@@ -2839,7 +2857,8 @@ function setupMapInput(){
     drag.x=e.clientX; drag.y=e.clientY; mv.x-=dx/mv.z; mv.y-=dy/mv.z; clampView(); requestDraw(); });
   function up(e){ if (!pts[e.pointerId]) return; var wasTap = drag && !drag.moved && !drag.pinch && Object.keys(pts).length===1; delete pts[e.pointerId];
     if (wasTap){ var rc=c.getBoundingClientRect(), tx=Math.floor(mv.x+(e.clientX-rc.left)/mv.z), ty=Math.floor(mv.y+(e.clientY-rc.top)/mv.z);
-      if (tx>=0 && ty>=0 && tx<MAPW && ty<MAPH){ if (advance(Date.now())) flushFinished(); if (PAINT.k){ paintOne(tx+","+ty); return; } if (CLR.on){ clrTap(tx+","+ty); return; } MPOP.hide=false; selectTile(tx+","+ty,false); } }
+      if (tx>=0 && ty>=0 && tx<MAPW && ty<MAPH){ if (advance(Date.now())) flushFinished(); if (PAINT.k){ paintOne(tx+","+ty); return; } if (CLR.on){ clrTap(tx+","+ty); return; }
+        var wh=wizHit(e.clientX-rc.left, e.clientY-rc.top); MPOP.hide=false; selectTile(wh?wh.id:tx+","+ty,false); } }
     var left=Object.keys(pts);
     if (!left.length) drag=null; else if (left.length===1) panFrom(pts[left[0]]); else pinchStart();
     requestDraw(); }
