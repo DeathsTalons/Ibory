@@ -751,7 +751,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.168";
+var APP_VERSION = "0.1.170";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1898,11 +1898,15 @@ var HIST_SPEC={
   // Politics: rulers, builders and lawgivers
   "Charlemagne":"pol","Cleopatra":"pol","Xerxes":"pol","Cyrus the Great":"pol","Ramesses II":"pol","Pericles":"pol","Constantine":"pol","Justinian":"pol","Octavian":"pol","Hadrian":"pol","Zenobia":"pol","Otto the Great":"pol","Theodoric":"pol"
 };
+// a historic hero's starting stats, the same for every player. 0.1.169: 160-170 in every stat and the specialty 200-250
+// (before: 120-130, specialty 160-199; old=true gives those, so heroes already captured can be moved up by the difference)
+function histStats(i, old){ var name=HISTORIC[i], u=function(k){ return hash3(i,k,77); }, spec=HIST_SPEC[name]||["pol","atk","int"][Math.floor(u(5)*3)];
+  var lo=old?120:160, st={pol:lo+Math.floor(u(2)*11), atk:lo+Math.floor(u(3)*11), int:lo+Math.floor(u(4)*11)};
+  st[spec] = old ? st[spec]+40+Math.floor(u(6)*30) : 200+Math.floor(u(6)*51);
+  return st; }
 function historicHero(q){
-  var name=HISTORIC[q.hero], u=function(k){ return hash3(q.hero,k,77); };
-  var lv=1; // captured historic heroes start at level 1 and grow from there
-  var st={pol:120+Math.floor(u(2)*11), atk:120+Math.floor(u(3)*11), int:120+Math.floor(u(4)*11)}; // 120-130 each; the specialty below lands at 160-199, above the Queen's 150
-  st[HIST_SPEC[name]||["pol","atk","int"][Math.floor(u(5)*3)]] += 40+Math.floor(u(6)*30);
+  var name=HISTORIC[q.hero], lv=1; // captured historic heroes start at level 1 and grow from there
+  var st=histStats(q.hero);
   return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:{pol:st.pol, atk:st.atk, int:st.int}};
 }
 // a conquered NPC or AI lord's city keeps its town: one of every building at the city's level, and its walls
@@ -5071,9 +5075,11 @@ function cbSave(auto, opt){
   }).then(function(r){ return r.json().then(function(d){ return {st:r.status, d:d}; }); }).then(function(o){
     CB.busy=false;
     if (o.d && o.d.ok){ S.cloud.last=o.d.info.latest.at; S.cloud.rev=o.d.info.rev||0; S.cloud.info=o.d.info; if (o.d.info.display) S.cloud.display=o.d.info.display; nameOneNote(); setTimeout(nameOneMaybe, 1500); CB.found=null; CB.conflict=null; save(); if (!auto){ toast("Backed up to the cloud"); cbUi("Backed up.", true); } else cbUi(""); return; }
+    if (o.st===409 && o.d && o.d.conflict && o.d.info && o.d.info.dev && o.d.info.dev===cbDev() && !opt.again){ // 0.1.170: the newer save is this device's own (it saved while being put away and never heard back): catch up and save again
+      S.cloud.rev=o.d.info.rev||0; save(); setTimeout(function(){ cbSave(auto, {force:true, again:true}); }, 300); return; }
     if (o.st===409 && o.d && o.d.conflict){ // another device saved since: don't overwrite it, ask which game to keep
       CB.conflict=o.d.info; cbUi(""); if (!sheetFor || onPage("settings")) openSheet({kind:"cbconflict"}); return; }
-    if (o.st===403){ S.cloud.token=null; save(); }
+    if (o.st===403){ S.cloud.token=null; save(); toast("Signed out of your cloud save (from another device?). Sign in again in Settings."); }
     if (o.st===429 && auto) S.cloud.last=Date.now()-CB_EVERY+3600e3; // try again in an hour
     if (!auto) cbUi((o.d&&o.d.error)||"Backup failed"); else cbUi("Last automatic backup failed: "+((o.d&&o.d.error)||"no connection"));
   }).catch(function(){ CB.busy=false; if (S.cloud) S.cloud.lastTry=Date.now(); if (!auto) cbUi("Couldn\u2019t reach the backup server. Check your connection."); });
@@ -5199,7 +5205,8 @@ function cbSection(){
         '<div class="btnrow"><button class="btn small" data-act="cb-save"'+(CB.busy?' disabled':'')+'>Back up now</button>'+
         (inf.latest?'<button class="btn ghost small danger" data-act="cb-restore" data-v="latest">'+(armed==="cbr-latest"?'Tap again to replace this game':'Restore latest')+'</button>':'')+
         (inf.older?'<button class="btn ghost small danger" data-act="cb-restore" data-v="older">'+(armed==="cbr-older"?'Tap again to replace this game':'Restore older copy')+'</button>':'')+
-        '<button class="btn ghost small" data-act="cb-signout">'+(armed==="cbout"?'Tap again to sign out':'Sign out')+'</button></div>'+
+        '<button class="btn ghost small" data-act="cb-signout">'+(armed==="cbout"?'Tap again to sign out':'Sign out')+'</button>'+
+        '<button class="btn ghost small" data-act="cb-outothers"'+(CB.busy?' disabled':'')+'>'+(armed==="cboth"?'Tap again: sign out everywhere else':'Sign out of other devices')+'</button></div>'+
         '<p class="dur" style="margin:4px 0 0">The older copy is at least most of a day older than the latest, in case a backup ever goes wrong.</p>';
     }
   }
@@ -5922,6 +5929,10 @@ function migrate(s){
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   if (s.v===47){ s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  if (!s.hh169){ s.hh169=1; // 0.1.169: historic heroes got stronger starting stats; heroes already captured move up by the difference and keep every point spent on them
+    var hlists=[s.heroes, s.waiting]; (s.cities||[]).forEach(function(cc){ hlists.push(cc.heroes, cc.waiting); });
+    hlists.forEach(function(L){ (L||[]).forEach(function(h){ if (!h || h.tier!=="historic") return; var i=HISTORIC.indexOf(h.name); if (i<0) return;
+      var nw=histStats(i), ol=h.base||histStats(i,true); ["pol","atk","int"].forEach(function(k){ var d=nw[k]-ol[k]; if (d>0) h[k]=(h[k]||0)+d; }); h.base={pol:Math.max(nw.pol,ol.pol), atk:Math.max(nw.atk,ol.atk), int:Math.max(nw.int,ol.int)}; }); }); }
   if (s.notifOff && s.notifOff.build && s.notifOff.fort===undefined) s.notifOff.fort=true; // 0.1.110: fortifications got their own notification switch; anyone who had silenced "buildings and fortifications" keeps both silenced
   if (!s.alMember && Array.isArray(s.cities)) s.cities.forEach(function(cc){ cc.alAcad=false; cc.alBld=0; }); // 0.1.88: lending can only exist inside an alliance; this frees builders and Academies stuck as "lent" after leaving or switching off multiplayer
   s.dragons=s.dragons||{}; s.shopSeen=s.shopSeen||[]; s.giftSeen=s.giftSeen||[];
@@ -10527,6 +10538,11 @@ document.addEventListener("click",function(e){
   if (act==="cb-ask-yes"){ DET.cloud=true; goPage("settings"); setTimeout(function(){ var d=document.querySelector('details[data-det="cloud"]'); if (d){ d.open=true; d.scrollIntoView({block:"start"}); } var n=document.getElementById("cbname"); if (n) n.focus(); }, 120); return; }
   if (act==="cb-ask-later"){ S.cloudAsk=Date.now()+3*86400e3; save(); closeSheet(); toast("You can turn on cloud saves any time in Settings"); return; }
   if (act==="cb-restore"){ var slot=a.dataset.v; if (armed!=="cbr-"+slot){ armed="cbr-"+slot; lastSheet=""; renderSheet(); return; } armed=null; cbRestore(slot); return; }
+  if (act==="cb-outothers"){ if (armed!=="cboth"){ armed="cboth"; lastSheet=""; renderSheet(); return; } armed=null; if (!cbOn() || CB.busy) return; CB.busy=true; cbUi("Signing out other devices\u2026", true);
+    cbPost("/backup/signout-others",{name:S.cloud.name, token:S.cloud.token}).then(function(r){ return r.json(); }).then(function(d){ CB.busy=false;
+      if (d && d.ok && d.token){ S.cloud.token=d.token; save(); toast("Every other device is signed out"); cbUi("Signed out everywhere else. Only this device can save to your account now.", true); }
+      else cbUi((d&&d.error)||"Couldn\u2019t sign out other devices"); }).catch(function(){ CB.busy=false; cbUi("Couldn\u2019t reach the backup server. Check your connection."); });
+    return; }
   if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; var keepName=S.cloud&&S.cloud.name, keepDisp=cbName(); S.cloud={name:keepName, display:keepDisp}; if (S.lb && S.lb.needAcct) S.lb.needAcct=0; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
   if (act==="save-import"){
     var inp=document.getElementById("saveinput"), code=(inp&&inp.value||"").trim(), obj=null;
