@@ -760,7 +760,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.191";
+var APP_VERSION = "0.1.192";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2338,13 +2338,16 @@ function repeatMarch(m){
 }
 
 /* ---------- presets, auto-farm, timed waves ---------- */
-var HERO_BEST=-1, HERO_ANY=-2;
+var HERO_BEST=-1, HERO_ANY=-2, HERO_FAST=-3; // 0.1.192: fastest = the free hero whose Intelligence, Warhorse and dragon speed the march most
+function heroSpeed(h){ return h ? (1+hs(h,"int")/100)*(1+dgFx(h).spd/100)*(1+mountSpd(h)) : 1; }
+function presetAutoHero(v){ return v===HERO_BEST || v===HERO_ANY || v===HERO_FAST; }
 function presetFreeHeroes(used){ return C().heroes.filter(function(x){ return !x.away && !isOfficer(x) && !(used&&used[x.id]); }); }
 function pickHero(mode, used){ var f=presetFreeHeroes(used); if (!f.length) return null;
+  if (mode===HERO_FAST){ f.sort(function(a,b){ return heroSpeed(b)-heroSpeed(a) || hs(b,"atk")-hs(a,"atk"); }); return f[0]; }
   f.sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); }); return mode===HERO_BEST ? f[0] : f[f.length-1]; }
-function presetHero(pr, used){ if (pr.hero===HERO_BEST || pr.hero===HERO_ANY) return pickHero(pr.hero, used);
+function presetHero(pr, used){ if (presetAutoHero(pr.hero)) return pickHero(pr.hero, used);
   var h=pr.hero?heroById(pr.hero):null; return h && C().heroes.indexOf(h)>=0 ? h : null; }
-function heroChoiceOpts(cur, list, label){ return '<option value="0"'+(!cur?' selected':'')+'>No hero</option><option value="-1"'+(cur===HERO_BEST?' selected':'')+'>Best attack (free hero)</option><option value="-2"'+(cur===HERO_ANY?' selected':'')+'>Any free hero</option>'+
+function heroChoiceOpts(cur, list, label, fast){ return '<option value="0"'+(!cur?' selected':'')+'>No hero</option><option value="-1"'+(cur===HERO_BEST?' selected':'')+'>Best attack (free hero)</option>'+(fast?'<option value="-3"'+(cur===HERO_FAST?' selected':'')+'>Fastest (free hero)</option>':'')+'<option value="-2"'+(cur===HERO_ANY?' selected':'')+'>Any free hero</option>'+
   list.map(function(x){ return '<option value="'+x.id+'"'+(x.id===cur?' selected':'')+'>'+label(x)+'</option>'; }).join(""); }
 function presetTotal(pr){ return pr.t.reduce(function(a,b){return a+b;},0); }
 function presetReady(pr){ if (!presetTotal(pr) || presetTotal(pr)>armyCap()) return false; for (var i=0;i<12;i++) if (pr.t[i]>S.troops[i]) return false; return true; }
@@ -2372,7 +2375,7 @@ function presetsSection(){
     var hh=presetHero(pr), running=S.marches.some(function(m){ return m.city===C().id && m.preset===pi; });
     var rot=0; if (presetTotal(pr)) pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq) rot+=2*travelMs(pr.t,fq,hh?hh.id:0); });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
-      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+((pr.hero===HERO_BEST||pr.hero===HERO_ANY)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
+      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_FAST?'Fastest':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+(presetAutoHero(pr.hero)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
       '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit</button><button class="btn ghost small" data-act="preset-copy" data-p="'+pi+'"'+(presetTotal(pr)?'':' disabled')+'>Copy</button>'+(presetClip?'<button class="btn ghost small" data-act="preset-paste" data-p="'+pi+'">Paste</button>':'')+(pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+
       (presetTotal(pr)>armyCap()?'<span class="why">Over the '+fmt(armyCap())+'-troop march limit</span>':pr.auto && !presetReady(pr) && !running?'<span class="why">Waiting for troops</span>':'')+'</div></div>';
   });
@@ -2383,7 +2386,7 @@ function presetSheet(pi){
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Edit '+esc(pr.name)+'</h2><div class="sub">'+esc(S.name)+'</div></div></div>';
   h+='<div><label class="sub" for="pname">Name</label><input type="text" id="pname" data-pfield="name" value="'+esc(pr.name)+'" maxlength="24"></div>';
   h+='<div class="tscroll"><table class="gt wrap1" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
-  h+='<div><label class="sub" for="phero">Hero</label><select id="phero">'+heroChoiceOpts(pr.hero, fh, function(x){ return esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk"); })+'</select></div>';
+  h+='<div><label class="sub" for="phero">Hero</label><select id="phero">'+heroChoiceOpts(pr.hero, fh, function(x){ return esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+', Int '+hs(x,"int"); }, true)+'</select></div>';
   h+='<label class="chk"><input type="checkbox" id="pstop"'+(pr.stopOnLoss?' checked':'')+'> Pause auto-farm if a battle loses any troops</label>';
   h+='<label class="chk"><input type="checkbox" id="pnocap"'+(pr.noCap?' checked':'')+'> Don\u2019t capture NPC cities: this preset\u2019s farm hits never take a city, even with room under your title and its loyalty at 0</label>';
   h+='<div class="h3">Farm list ('+pr.farm.length+')</div>';
@@ -2481,7 +2484,7 @@ function viewFarms(){
     var hh=presetHero(pr), hid=hh?hh.id:0, rot=0, lv={}, msg=farmMsg[C().id+":"+pi], m=pr.farmMode?FARM_MODES[pr.farmMode]:null;
     pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq){ if (presetTotal(pr)) rot+=2*travelMs(pr.t,fq,hid); if (fq.L) lv[fq.L]=(lv[fq.L]||0)+1; } });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
-      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+((pr.hero===HERO_BEST||pr.hero===HERO_ANY)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span></div>'+
+      '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_FAST?'Fastest':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+(presetAutoHero(pr.hero)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span></div>'+
       '<div class="us"><span>Farm list <b>'+pr.farm.length+'</b></span>'+(rot?'<span>Round trip <b>'+fmtT(realMs(rot))+'</b>'+(m?' of '+m.hours+' h':'')+'</span>':'')+(pr.farm.length?'<span>'+farmLevelsText(lv)+'</span>':'')+'</div>'+
       '<div class="trainrow"><label class="dur" for="fl'+pi+'">NPC level</label><select id="fl'+pi+'" data-farmlvl="'+pi+'" style="width:auto">'+['<option value="0">Any</option>'].concat([1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(pr.farmLevel===n?' selected':'')+'>Level '+n+'</option>'; })).join("")+'</select></div>'+
       '<div class="trainrow">'+[["off","Off"],["training","Training"],["resources","Resources"]].map(function(x){ var on=(x[0]==="off")?!pr.farmMode:pr.farmMode===x[0];
@@ -2980,7 +2983,7 @@ function occPanel(){
   var o=occSet(), pr=S.presets[o.p], lv="", pp="";
   for (var i=1;i<=10;i++) lv+='<option value="'+i+'"'+(o.lvl===i?' selected':'')+'>Level '+i+'</option>';
   S.presets.forEach(function(p,pi){ pp+='<option value="'+pi+'"'+(o.p===pi?' selected':'')+'>'+(pi+1)+'. '+esc(p.name)+(presetTotal(p)?'':' (empty)')+'</option>'; });
-  var hh=pr.hero===HERO_BEST?"Best attack (free hero)":pr.hero===HERO_ANY?"Any free hero":pr.hero>0?(heroById(pr.hero)?esc(heroById(pr.hero).name):"a hero who is gone"):"No hero";
+  var hh=pr.hero===HERO_BEST?"Best attack (free hero)":pr.hero===HERO_FAST?"Fastest (free hero)":pr.hero===HERO_ANY?"Any free hero":pr.hero>0?(heroById(pr.hero)?esc(heroById(pr.hero).name):"a hero who is gone"):"No hero";
   return '<div class="section" id="occsec"><div class="shead"><h3>Occupy flats</h3><span class="dur">'+esc(S.name)+'</span></div>'+
     '<p class="hint">Finds the nearest free flats of the level you pick and sends the chosen preset to occupy each one. It stops when it runs out of free marches, room to hold, troops, rations or heroes, or if the preset would lose.</p>'+
     '<div class="farmadd"><label class="dur" for="occlvl">Flat level</label><select id="occlvl">'+lv+'</select><label class="dur" for="occpre">Preset</label><select id="occpre">'+pp+'</select><label class="dur" for="occn">Take</label><input type="number" id="occn" min="1" max="'+Math.max(1,rallyLv())+'" value="'+o.n+'" style="width:4.5em"></div>'+
