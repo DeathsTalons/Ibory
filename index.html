@@ -720,7 +720,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.144";
+var APP_VERSION = "0.1.145";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3176,6 +3176,7 @@ function alApplyHelps(hp){
 }
 function alTick(){
   if (document.hidden) return;
+  alBoxOutTick(); // Warehouse box withdrawals on their way
   sarTick(); // the single-player Arena (and wiping it once multiplayer is on)
   if (!mpShown() && !mpNeedsGrace()){ arTick(); return; } // multiplayer off: no alliance traffic (unless a member still has to make their one-time choice)
   arTick(); ryTick();
@@ -3571,8 +3572,11 @@ function alBoxHtml(lim){
     '<div class="rgrid">'+RES.map(function(k){ return '<span>'+RNAME[k]+' <b>'+fmt(Math.floor(b[k]||0))+'</b></span>'; }).join("")+'</div>'+
     '<p class="hint">Only you can see or touch this box, and attackers can’t plunder it. '+(lim?'Today you can put in <b>'+fmt(left)+'</b> more of the '+fmt(lim)+' a day (any mix; resets at midnight UTC). Take it out any time, into any city.':'Your alliance needs an Alliance Warehouse before anything new can go in. Taking out always works, even outside an alliance.')+'</p>'+
     '<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+RES.map(function(k){ return '<tr><td>'+RNAME[k]+' <span class="dur">('+esc(S.name)+' '+fmt(Math.floor(S.res[k]))+')</span></td><td><input type="number" min="0" data-albox="'+k+'" value="'+(ALB[k]||"")+'" placeholder="0" style="width:110px"></td></tr>'; }).join("")+'</tbody></table></div>'+
-    '<div class="btnrow" style="margin-top:6px">'+(lim?'<button class="btn small" data-act="al-box-in">Store from '+esc(S.name)+'</button>':'')+'<button class="btn ghost small" data-act="al-box-out">Take out to '+esc(S.name)+'</button></div></div>';
-  return h;
+    '<div class="btnrow" style="margin-top:6px">'+(lim?'<button class="btn small" data-act="al-box-in">Store from '+esc(S.name)+'</button>':'')+'<button class="btn ghost small" data-act="al-box-out">Take out to '+esc(S.name)+'</button></div>'+
+    '<p class="dur" style="margin:4px 0 0">Taking resources out takes 30 minutes to reach the city.</p>';
+  var outs=(S.alBoxOut||[]); if (outs.length) h+='<div class="h3" style="margin-top:8px">On the way</div>'+outs.map(function(o){ var c=S.cities.filter(function(x){ return x.id===o.city; })[0], tot=0; for (var k in o.amt) tot+=o.amt[k];
+    return '<div class="bq"><span>'+fmt(tot)+' to '+esc(c?c.name:"?")+' <span class="dur">('+RES.filter(function(k){ return o.amt[k]; }).map(function(k){ return fmt(o.amt[k])+' '+RNAME[k].toLowerCase(); }).join(", ")+')</span><br><span class="dur">arrives in <span class="arleft" data-ends="'+o.at+'">'+fmtT(Math.max(0,o.at-Date.now()))+'</span></span></span><div class="mbtns"><button class="link" data-act="al-box-undo" data-id="'+o.id+'">Put back</button></div></div>'; }).join("");
+  return h+'</div>';
 }
 function alBoxMove(dir){
   var lim=(alMine()&&alMine().econ&&alMine().econ.box)||0, amt={}, tot=0; S.alBox=S.alBox||{food:0,lumber:0,stone:0,iron:0,gold:0};
@@ -3583,10 +3587,22 @@ function alBoxMove(dir){
   if (!tot){ toast("Type how much"); return; }
   if (dir>0){ if (!lim){ toast("Your alliance needs an Alliance Warehouse"); return; } var left=lim-alBoxUsed(); if (tot>left){ toast("Only "+fmt(Math.max(0,left))+" more can go in today"); return; }
     S.alBoxDay={d:alDayNo(), used:alBoxUsed()+tot}; }
+  if (dir<0){ // taking out takes 30 minutes (0.1.145), so the box can't be used to move resources between cities instantly
+    for (var k1 in amt) S.alBox[k1]=(S.alBox[k1]||0)-amt[k1];
+    S.alBoxOut=S.alBoxOut||[]; S.alBoxOut.push({id:Date.now().toString(36)+Math.floor(Math.random()*1e4), city:C().id, amt:amt, at:Date.now()+AL_BOX_OUT_MS});
+    ALB={food:"",lumber:"",stone:"",iron:"",gold:""}; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    save(); toast("On its way: "+fmt(tot)+" reaches "+S.name+" in 30 minutes"); lastView=""; refresh(); return; }
   for (var k2 in amt){ S.res[k2]-=dir*amt[k2]; S.alBox[k2]=(S.alBox[k2]||0)+dir*amt[k2]; }
   ALB={food:"",lumber:"",stone:"",iron:"",gold:""}; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  save(); toast(dir>0?"Stored "+fmt(tot)+" in your Warehouse box":"Took "+fmt(tot)+" out to "+S.name); lastView=""; refresh();
+  save(); toast("Stored "+fmt(tot)+" in your Warehouse box"); lastView=""; refresh();
 }
+var AL_BOX_OUT_MS=30*60000;
+function alBoxOutTick(){ var L=S.alBoxOut; if (!L || !L.length) return; var now=Date.now(), ch=false;
+  for (var i=L.length-1;i>=0;i--){ var o=L[i]; if (now<o.at) continue; var ci=-1; S.cities.forEach(function(c,j){ if (c.id===o.city) ci=j; });
+    if (ci<0) { for (var k in o.amt) S.alBox[k]=(S.alBox[k]||0)+o.amt[k]; } // that city is gone: back into the box
+    else { var tot=0; withCity(ci,function(){ for (var k2 in o.amt){ S.res[k2]=(S.res[k2]||0)+o.amt[k2]; tot+=o.amt[k2]; } }); note("alliance",fmt(tot)+" from your Warehouse box arrived in "+S.cities[ci].name+"."); }
+    L.splice(i,1); ch=true; }
+  if (ch){ save(); flushFinished(); lastView=""; refresh(); } }
 /* the Monster Arena: summon a monster, everyone marches from their kingdom square, one fight when the 5-minute window closes.
    Arena marches don't use a city's Rally Spot; losses all come home wounded (to the sending city's Medic Camp). */
 var ARL={}, ARG=null, AR_CLS_NAME={ground:"foot soldiers",ranged:"archers",mounted:"mounted troops",siege:"siege engines"};
@@ -4491,7 +4507,7 @@ function cbStats(){
     var bl=0; S.inside.forEach(function(b){ if (b) bl+=b.level||0; }); S.fields.forEach(function(b){ if (b) bl+=b.level||0; });
     ci.push([c.name, c.x, c.y, S.th, S.wall||0, sumT(t), bl]);
   }); });
-  RES.forEach(function(k,j){ re[j]+=(S.alBox&&S.alBox[k])||0; }); // the private Warehouse box is still the player's
+  RES.forEach(function(k,j){ re[j]+=(S.alBox&&S.alBox[k])||0; (S.alBoxOut||[]).forEach(function(o){ re[j]+=o.amt[k]||0; }); }); // the private Warehouse box (and what's on its way out) is still the player's
   return {v:1, ver:APP_VERSION, gt:Math.round(S.gt), sp:S.speed, dev:0, pr:Math.floor(S.prestige||0), tth:totalTH(), mth:S.cities.reduce(function(a,c){ return Math.max(a,c.th||1); },1), tr:achStore().trained.slice(), ar:ar.map(Math.round), re:re.map(Math.round),
     pg:Math.round(pg), lo:Math.round((S.stats&&S.stats.loot)||0), hA:hA, hI:hI, ci:ci, hp:powerOf(true).heroes, hn:powerOf().n, lb:(S.lb&&S.lb.id)||"", rid:(S.pvpId&&S.pvpId.id)||""};
 }
@@ -10080,6 +10096,7 @@ document.addEventListener("click",function(e){
     if (act==="al-view"){ alViewOpen(a.dataset.aid); return; }
     if (act==="al-box-in"){ alBoxMove(1); return; }
     if (act==="al-box-out"){ alBoxMove(-1); return; }
+    if (act==="al-box-undo"){ var bo=(S.alBoxOut||[]).filter(function(x){ return x.id===a.dataset.id; })[0]; if (!bo) return; for (var bk in bo.amt) S.alBox[bk]=(S.alBox[bk]||0)+bo.amt[bk]; S.alBoxOut=S.alBoxOut.filter(function(x){ return x!==bo; }); save(); toast("Put back in your box"); lastView=""; refresh(); return; }
     if (act==="al-arena-go" && soloArOn()){ tab="alliance"; lastView=""; refresh(); setTimeout(function(){ var e=document.getElementById("soloar"); if (e) e.scrollIntoView({behavior:"smooth"}); },50); return; }
     if (act==="al-arena-go"){ tab="guild"; ALS.sub="arena"; lastView=""; refresh(); ALS.last=0; alSync(); return; }
     if (act==="al-arena-send"){ var smid=+a.dataset.mid; if (!arById(smid)){ toast("The window has closed"); return; } openMarch(homeTileId(),"arena",smid); return; }
