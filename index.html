@@ -758,7 +758,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.188";
+var APP_VERSION = "0.1.189";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1694,6 +1694,8 @@ var CLR={on:false, a:"", b:""};
 /* 0.1.187: "Pick decorations" on the map: a tap finds every decoration drawn under your finger (big pieces reach far from their own tile),
    front to back, with where each one is placed. DECO_HITS is filled while the map draws, in map units, so it doesn't depend on the view. */
 var DECO_HITS=[], DPICK={on:false, x:0, y:0};
+// how far (in tiles) the widest and tallest pieces reach from their base tile, so they're still drawn (and tappable) when that tile is off screen
+var DECO_REACH=(function(){ var rx=3, ry=4; for (var k in SPRITES){ var sp=SPRITES[k], w=sp.r?sp.r[2]:(sp.rows?sp.rows[0].length:16), h=sp.r?sp.r[3]:(sp.rows?sp.rows.length:16); rx=Math.max(rx, Math.ceil(Math.max(sp.ax, w-sp.ax)/sp.ppt)+1); ry=Math.max(ry, Math.ceil(sp.ay/sp.ppt)+1); } return {x:rx, y:ry}; })();
 // 0.1.188: Move: pick a decoration up and tap where it goes (it keeps its flip); it stays picked so you can nudge it again until Done
 var MOVE={tid:"", i:-1, e:"", n:0};
 function moveTap(tid){ var D=decoS(), src=D.at[MOVE.tid]||[]; if (src[MOVE.i]!==MOVE.e){ MOVE.e=""; paintBar(); toast("That decoration isn\u2019t there any more"); return; }
@@ -1703,11 +1705,15 @@ function moveBar(el){ var k=String(MOVE.e).split("|")[0], d=DECOS[k]||{n:k}, xy=
   var ph='<span>'+decoIcon(k,22)+'</span><span style="flex:1">'+(MOVE.n?'<b>'+esc(d.n)+'</b> is on ('+xy[0]+', '+xy[1]+'). Tap again to move it again.':'Tap where <b>'+esc(d.n)+'</b> should go')+'</span><button class="btn small" data-act="move-stop">'+(MOVE.n?'Done':'Cancel')+'</button>';
   if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.style.flexWrap=""; el.hidden=false; }
 function decoHitAdd(tid, i, k, x, y, w, h, cv, flip, z){ if (i<0) return; DECO_HITS.push({tid:tid, i:i, k:k, x:x/z+mv.x, y:y/z+mv.y, w:w/z, h:h/z, cv:cv, flip:flip}); }
-function decoHitsAt(fx, fy){ var out=[], seen={};
+// is there a solid pixel of this piece within about a fingertip (10 screen px) of the tap?
+function decoSolidNear(hh, fx, fy){ var cw=hh.cv.width, ch=hh.cv.height, sx=cw/hh.w, sy=ch/hh.h, u=Math.floor((fx-hh.x)*sx), v=Math.floor((fy-hh.y)*sy), r=Math.max(1, Math.ceil(10/mv.z*sx));
+  if (hh.flip) u=cw-1-u; var x0=Math.max(0,u-r), y0=Math.max(0,v-r), x1=Math.min(cw,u+r+1), y1=Math.min(ch,v+r+1); if (x1<=x0 || y1<=y0) return false;
+  try { var d=hh.cv.getContext("2d").getImageData(x0,y0,x1-x0,y1-y0).data, w=x1-x0; for (var j=0;j<d.length;j+=4){ var px=(j/4)%w+x0, py=Math.floor(j/4/w)+y0; if (d[j+3]>=40 && (px-u)*(px-u)+(py-v)*(py-v)<=r*r) return true; } return false; } catch(e){ return true; } }
+function decoHitsAt(fx, fy){ var out=[], seen={}, near=[];
   for (var n=DECO_HITS.length-1;n>=0;n--){ var hh=DECO_HITS[n]; if (fx<hh.x || fy<hh.y || fx>=hh.x+hh.w || fy>=hh.y+hh.h) continue;
-    if (hh.cv){ var u=Math.floor((fx-hh.x)/hh.w*hh.cv.width), v=Math.floor((fy-hh.y)/hh.h*hh.cv.height); if (hh.flip) u=hh.cv.width-1-u;
-      try { if (hh.cv.getContext("2d").getImageData(u,v,1,1).data[3]<40) continue; } catch(e){} } // see-through pixels don't count: you tapped what's behind
+    if (hh.cv && !decoSolidNear(hh, fx, fy)){ near.push(hh); continue; } // see-through pixels don't count (you tapped what's behind), but a finger's width of slack does
     var key=hh.tid+"/"+hh.i; if (seen[key]) continue; seen[key]=1; out.push(hh); }
+  near.forEach(function(hh){ var key=hh.tid+"/"+hh.i; if (!seen[key]){ seen[key]=1; hh.near=1; out.push(hh); } }); // then every other piece whose picture box you tapped inside (you hit a see-through bit of it)
   var tid=Math.floor(fx)+","+Math.floor(fy); (S.deco&&S.deco.at[tid]||[]).forEach(function(e,j){ if ((decoIsRoad(e)||decoIsBg(e)) && !seen[tid+"/"+j]) out.push({tid:tid, i:j, k:String(e).split("|")[0]}); }); // flat ground pieces sit on the tapped tile itself
   return out; }
 function decoPickTap(fx, fy){ var hs=decoHitsAt(fx, fy); if (!hs.length){ toast("No decorations there"); return; } DPICK.x=fx; DPICK.y=fy; openSheet({kind:"decopick"}); }
@@ -1715,7 +1721,7 @@ function decoPickSheet(){ try { drawMap(); } catch(e){} var hs=decoHitsAt(DPICK.
   var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Decorations here</h2><div class="sub">front to back, where you tapped</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
   if (!hs.length) return h+'<p class="dur">Nothing left here.</p>';
   h+='<div class="decolist">'+hs.map(function(hh){ var d=DECOS[hh.k]||{n:hh.k}, xy=hh.tid.split(","), t=TILE_BY[hh.tid], dd=DECOS[hh.k]||{};
-    return '<div class="decorow" style="flex-wrap:wrap"><span class="decoe">'+decoIcon(hh.k)+'</span><span style="flex:1;min-width:120px">'+esc(d.n)+'<div class="dur">placed on '+(t?esc(tileName(t))+' ':'')+'('+xy[0]+', '+xy[1]+')</div></span>'+
+    return '<div class="decorow" style="flex-wrap:wrap"><span class="decoe">'+decoIcon(hh.k)+'</span><span style="flex:1;min-width:120px">'+esc(d.n)+'<div class="dur">placed on '+(t?esc(tileName(t))+' ':'')+'('+xy[0]+', '+xy[1]+')'+(hh.near?', you tapped a see-through bit of it':'')+'</div></span>'+
       '<span class="btnrow" style="margin:0"><button class="btn ghost small" data-act="dpick-show" data-tile="'+hh.tid+'">Show tile</button><button class="btn ghost small" data-act="deco-open" data-tile="'+hh.tid+'">Edit tile</button>'+
       (dd.spr&&!dd.road&&!dd.wall&&!dd.bg?'<button class="btn ghost small" data-act="deco-flip" data-tile="'+hh.tid+'" data-i="'+hh.i+'" aria-label="Flip">\u21c4</button>':'')+
       '<button class="btn ghost small" data-act="deco-move" data-tile="'+hh.tid+'" data-i="'+hh.i+'">Move</button><button class="btn ghost small" data-act="deco-take" data-tile="'+hh.tid+'" data-i="'+hh.i+'">Pick up</button></span></div>'; }).join("")+'</div>';
@@ -2239,8 +2245,10 @@ function resolveMarch0(m){
   }
   if (won && (m.mission==="attack"||m.mission==="conquer") && (q.k==="npc"||q.k==="hc"||q.k==="ai")){
     var nl=loyOf(q)-loyDrop(q,loyOf(q)); S.map.loy[q.id]={v:Math.max(0,nl), at:S.gt};
+    var noCap=m.preset!=null && C().presets[m.preset] && C().presets[m.preset].noCap && q.k==="npc"; // 0.1.189: a farm preset can be told never to take NPC cities
     if (nl<=0){
-      if (S.cities.length < cityCap()){ var cc=captureCity(q, r.attacker); founded=cc.name;
+      if (noCap) loyNote=" Loyalty broken; left standing (this preset doesn\u2019t capture NPC cities).";
+      else if (S.cities.length < cityCap()){ var cc=captureCity(q, r.attacker); founded=cc.name;
         if (hero){ var hj=C().heroes.indexOf(hero); if (hj>=0){ C().heroes.splice(hj,1); hero.away=false; cc.heroes.push(hero); } } }
       else loyNote=" Loyalty broken, but your title has no room for another city.";
     } else loyNote=" Loyalty down to "+Math.round(nl)+".";
@@ -2375,6 +2383,7 @@ function presetSheet(pi){
   h+='<div class="tscroll"><table class="gt wrap1" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
   h+='<div><label class="sub" for="phero">Hero</label><select id="phero">'+heroChoiceOpts(pr.hero, fh, function(x){ return esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk"); })+'</select></div>';
   h+='<label class="chk"><input type="checkbox" id="pstop"'+(pr.stopOnLoss?' checked':'')+'> Pause auto-farm if a battle loses any troops</label>';
+  h+='<label class="chk"><input type="checkbox" id="pnocap"'+(pr.noCap?' checked':'')+'> Don\u2019t capture NPC cities: this preset\u2019s farm hits never take a city, even with room under your title and its loyalty at 0</label>';
   h+='<div class="h3">Farm list ('+pr.farm.length+')</div>';
   if (!pr.farm.length) h+='<p class="hint">Empty. Tap a target on the Map and use "Add to farm list".</p>';
   else h+='<ol class="qlist">'+pr.farm.map(function(id,k){ var q=TILE_BY[id]; return '<li><span>'+(q?esc(tileName(q)):"Gone")+' <span class="dur">('+id.replace(",",", ")+(q?', '+tdist(q).toFixed(1)+' tiles':'')+')</span>'+(k===pr.idx%pr.farm.length?' <span class="dur">next</span>':'')+'</span><button class="link" data-act="farm-remove" data-p="'+pi+'" data-k="'+k+'">Remove</button></li>'; }).join("")+'</ol>';
@@ -2843,7 +2852,7 @@ function drawMap(){
       g.lineWidth=3; g.strokeStyle="rgba(0,0,0,.7)"; g.strokeText("\u2605",px,py); g.fillStyle="#ffd34d"; g.fillText("\u2605",px,py); });
     g.textAlign="center"; g.textBaseline="middle"; }
   DECO_ANIM=false; DECO_HITS=[]; if (S.deco && z>=6){ g.textAlign="center"; g.textBaseline="middle"; var smooth=g.imageSmoothingEnabled; g.imageSmoothingEnabled=false; // decorations: drawn row by row from the top so lower ones stand in front; on one tile, back to front
-    var dlist=[]; for (var did in S.deco.at){ var dl0=S.deco.at[did]; if (!dl0 || !dl0.length) continue; var dxy=did.split(","), dx=+dxy[0], dy=+dxy[1]; if (dx<x0-3||dx>x1+3||dy<y0-1||dy>y1+4) continue;
+    var dlist=[]; for (var did in S.deco.at){ var dl0=S.deco.at[did]; if (!dl0 || !dl0.length) continue; var dxy=did.split(","), dx=+dxy[0], dy=+dxy[1]; if (dx<x0-DECO_REACH.x||dx>x1+DECO_REACH.x||dy<y0-1||dy>y1+DECO_REACH.y) continue; // a big piece is drawn while any of it can be on screen, not just its base tile
       var rk=""; dl0.forEach(function(e){ if (decoIsRoad(e)) rk=String(e).split("|")[0]; });
       if (rk && dx>=x0-1 && dx<=x1+1 && dy>=y0-1 && dy<=y1+1){ var mk=(roadAt(dx,dy-1)?1:0)|(roadAt(dx+1,dy)?2:0)|(roadAt(dx,dy+1)?4:0)|(roadAt(dx-1,dy)?8:0), rx0=Math.floor((dx-mv.x)*z), ry0=Math.floor((dy-mv.y)*z);
         var rcv=roadCanvas(rk,mk), rov=(rcv.width-16)/2; // Paths pack tiles carry overhang around the 16 px tile
@@ -11342,9 +11351,9 @@ document.addEventListener("click",function(e){
   if (act==="rep-page"){ repPage=Math.max(0,repPage+(+a.dataset.d)); fillRepList(); window.scrollTo({top:0}); return; }
   if (act==="arrange"){ arrange = (arrange && arrange.w===a.dataset.aw) ? null : {w:a.dataset.aw, sel:null}; lastView=""; renderView(true); return; }
   if (act==="preset-edit"){ openSheet({kind:"preset",p:+a.dataset.p}); return; }
-  if (act==="preset-copy"){ var cpp=S.presets[+a.dataset.p]; if (!cpp || !presetTotal(cpp)) return; presetClip={name:cpp.name, t:cpp.t.slice(), hero:cpp.hero, stopOnLoss:cpp.stopOnLoss}; toast("Copied "+cpp.name+"; Paste it onto another preset"); lastView=""; refresh(); return; }
+  if (act==="preset-copy"){ var cpp=S.presets[+a.dataset.p]; if (!cpp || !presetTotal(cpp)) return; presetClip={name:cpp.name, t:cpp.t.slice(), hero:cpp.hero, stopOnLoss:cpp.stopOnLoss, noCap:!!cpp.noCap}; toast("Copied "+cpp.name+"; Paste it onto another preset"); lastView=""; refresh(); return; }
   if (act==="preset-paste"){ var ppp=S.presets[+a.dataset.p]; if (!ppp || !presetClip) return;
-    ppp.t=presetClip.t.slice(); ppp.stopOnLoss=presetClip.stopOnLoss; ppp.hero=(presetClip.hero>0 && !C().heroes.some(function(x){ return x.id===presetClip.hero; })) ? 0 : presetClip.hero;
+    ppp.t=presetClip.t.slice(); ppp.stopOnLoss=presetClip.stopOnLoss; ppp.noCap=presetClip.noCap; ppp.hero=(presetClip.hero>0 && !C().heroes.some(function(x){ return x.id===presetClip.hero; })) ? 0 : presetClip.hero;
     toast("Pasted "+presetClip.name+" onto "+ppp.name); save(); lastView=""; refresh(); return; }
   if (act==="preset-auto"){ var pa=S.presets[+a.dataset.p]; pa.auto=!pa.auto; toast(pa.name+(pa.auto?" is auto-farming":" stopped")); processAuto(); refresh(); return; }
   if (act==="farm-toggle"){ var fp=S.presets[+a.dataset.p], ft=a.dataset.tile, fi=fp.farm.indexOf(ft);
@@ -11628,6 +11637,7 @@ document.addEventListener("change",function(e){
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
   if (e.target.id==="phero"){ S.presets[sheetFor.p].hero=+e.target.value; save(); }
   if (e.target.id==="pstop"){ S.presets[sheetFor.p].stopOnLoss=e.target.checked; save(); }
+  if (e.target.id==="pnocap"){ S.presets[sheetFor.p].noCap=e.target.checked; save(); }
   if (e.target.id==="wmis"){ waveDraft.mission=e.target.value; updateWaveInfo(); }
   if (e.target.dataset && e.target.dataset.dgset){ var gt=e.target.dataset.dgset, gid=+e.target.value;
     allHeroes().forEach(function(x){ if (x.h.dragon===gt) delete x.h.dragon; });
