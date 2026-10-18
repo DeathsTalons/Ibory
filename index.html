@@ -451,7 +451,7 @@ table.gt td.ok{color:var(--grass);font-weight:700}
 .reqs{grid-column:1/-1;font-size:.86rem;color:var(--red)}
 .unitlist{display:grid;gap:8px;margin-top:10px}
 .qnest{margin-top:6px}
-.almap{overflow:auto;max-height:62vh;border-radius:10px;background:var(--panel2);padding:4px;touch-action:pan-x pan-y}
+.almap{position:relative;overflow:auto;max-height:62vh;border-radius:10px;background:var(--panel2);padding:4px;touch-action:pan-x pan-y}
 .algrid{display:grid;gap:2px;width:max-content;position:relative}
 .almv{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:2}
 .almv line{stroke-width:3;stroke-linecap:round;opacity:.85}.almv .rf{stroke:var(--grass)}.almv .ar{stroke:var(--red)}.almv .me{stroke:var(--brass)}.almv .st{stroke-dasharray:5 6}
@@ -535,6 +535,14 @@ body.bfmode #chatdock{display:none!important}
 .alm:last-child{border-bottom:0}
 .alm.sys{color:var(--muted);font-style:italic}
 .alm .link{padding:0 4px}
+.lbtag{color:var(--brass);font-weight:700;font-size:.82rem;margin-right:4px}
+.mpop{position:absolute;z-index:5;width:232px;max-width:calc(100% - 8px);background:var(--panel);color:var(--ink);border:1px solid var(--brass);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);padding:8px 9px;font-size:.88rem;line-height:1.35}
+.mpop .mpt{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+.mpop .mpt b{font:700 .95rem var(--display);overflow-wrap:anywhere}
+.mpop .mpx{background:none;border:0;font-size:1.2rem;line-height:1;padding:0 2px;color:var(--muted)}
+.mpop .mpb{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mpop .mpb .btn{padding:5px 9px;font-size:.82rem;min-height:0}
+.bmjump{max-width:52%}
 .alm a.clink{color:var(--brass);text-decoration:underline;word-break:break-all}
 .rxs{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0 1px}
 .rxc{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:1px 7px;font-size:.85rem;line-height:1.5;color:var(--ink)}
@@ -583,7 +591,7 @@ body.bfmode #chatdock{display:none!important}
 .bigstat{font:700 1.6rem var(--display);color:var(--brass)}
 .maptools{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
 .maptools .btn{min-width:40px}
-.mapview{touch-action:none;overscroll-behavior:contain;margin-top:8px;border-radius:8px;border:1px solid var(--line);overflow:hidden;height:min(58vh,520px);contain:strict}
+.mapview{position:relative;touch-action:none;overscroll-behavior:contain;margin-top:8px;border-radius:8px;border:1px solid var(--line);overflow:hidden;height:min(58vh,520px);contain:strict}
 @supports (height:1svh){ .mapview{height:min(58svh,520px)} }
 .mapview canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
 .mapbottom{display:grid;grid-template-columns:auto 1fr;gap:12px;margin-top:10px;align-items:start}
@@ -712,7 +720,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.134";
+var APP_VERSION = "0.1.136";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2241,10 +2249,10 @@ var HC_COL={12:"#8e2b2b",14:"#6b3a8f",16:"#23508c",18:"#c9a227"};
 function viewMap(){
   var opts='<option value="monster">Monster</option><option value="npc">NPC city</option><option value="ai">AI lord</option><option value="hc">Historic city</option>'+Object.keys(VTYPES).map(function(k){ return '<option value="'+k+'">'+VTYPES[k].name+'</option>'; }).join("");
   var lv='<option value="0">Any level</option>'; for (var i=1;i<=10;i++) lv+='<option value="'+i+'">Level '+i+'</option>'; [12,14,16,18].forEach(function(i){ lv+='<option value="'+i+'">Level '+i+'</option>'; });
-  return '<div class="btnrow" style="margin:0 0 8px"><button class="btn ghost small" data-act="march-open" data-tile="'+homeTileId()+'" data-mission="hide">Hide troops in the woods</button></div>'+
+  return '<div class="btnrow" style="margin:0 0 8px;align-items:center"><button class="btn ghost small" data-act="march-open" data-tile="'+homeTileId()+'" data-mission="hide">Hide troops in the woods</button>'+bmJumpHtml()+'</div>'+
     '<div class="section"><div class="shead"><h3 id="realmh">'+esc(realmName())+'</h3><span class="dur" id="mapstat"></span></div>'+
     '<div class="maptools"><button class="btn ghost small" data-act="map-zoom" data-z="1" aria-label="Zoom in">+</button><button class="btn ghost small" data-act="map-zoom" data-z="-1" aria-label="Zoom out">\u2212</button><button class="btn ghost small" data-act="map-home">My city</button><span class="dur" id="mapcoord"></span></div>'+
-    '<div class="mapview" id="mapview"><canvas id="mapc" aria-label="Map. Drag to pan, tap a tile to see it."></canvas></div>'+
+    '<div class="mapview" id="mapview"><canvas id="mapc" aria-label="Map. Drag to pan, tap a tile to see it."></canvas><div class="mpop" id="mappop" hidden></div></div>'+
     '<div class="mapbottom"><canvas id="minic" width="'+MAPW+'" height="'+MAPH+'" aria-label="Overview map. Tap to jump there."></canvas>'+
     '<div class="finder"><div class="h3">Find nearest</div><select id="findtype">'+opts+'</select><select id="findlvl">'+lv+'</select><button class="btn small" data-act="map-find">Find</button>'+
     '<div class="legend">'+Object.keys(VTYPES).map(function(k){ return '<span><i style="background:'+VTYPES[k].col+'"></i>'+VTYPES[k].name+'</span>'; }).join("")+'<span><i style="background:#4a4541"></i>NPC</span><span><i style="background:#2c6763"></i>AI lord</span><span><i style="background:'+HC_COL[12]+'"></i>HC 12</span><span><i style="background:'+HC_COL[14]+'"></i>HC 14</span><span><i style="background:'+HC_COL[16]+'"></i>HC 16</span><span><i style="background:'+HC_COL[18]+'"></i>Atlantis</span><span><i style="background:var(--brass)"></i>Yours</span></div>'+
@@ -2291,7 +2299,7 @@ function drawMini(){
   (S.bm||[]).forEach(function(b){ var xy=b.id.split(","); g.fillStyle="#000"; g.fillRect(+xy[0]-2,+xy[1]-2,5,5); g.fillStyle="#ffd34d"; g.fillRect(+xy[0]-1,+xy[1]-1,3,3); });
 }
 function drawMap(){
-  var c=document.getElementById("mapc"); if (!c) return;
+  var c=document.getElementById("mapc"); if (!c) return; try { mapPopPos(); } catch(e){}
   if (!isFinite(mv.x) || !isFinite(mv.y) || !isFinite(mv.z)) clampView();
   var dpr=window.devicePixelRatio||1, W=c.clientWidth||360, H=c.clientHeight||360;
   if (c.width!==Math.round(W*dpr) || c.height!==Math.round(H*dpr)){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
@@ -2378,8 +2386,7 @@ function setupMapInput(){
     drag.x=e.clientX; drag.y=e.clientY; mv.x-=dx/mv.z; mv.y-=dy/mv.z; clampView(); requestDraw(); });
   function up(e){ if (!pts[e.pointerId]) return; var wasTap = drag && !drag.moved && !drag.pinch && Object.keys(pts).length===1; delete pts[e.pointerId];
     if (wasTap){ var rc=c.getBoundingClientRect(), tx=Math.floor(mv.x+(e.clientX-rc.left)/mv.z), ty=Math.floor(mv.y+(e.clientY-rc.top)/mv.z);
-      if (tx>=0 && ty>=0 && tx<MAPW && ty<MAPH){ if (advance(Date.now())) flushFinished(); selectTile(tx+","+ty,false);
-        var ti=document.getElementById("tileinfo"); if (ti && ti.scrollIntoView && window.innerWidth<700) ti.scrollIntoView({behavior:"smooth",block:"nearest"}); } }
+      if (tx>=0 && ty>=0 && tx<MAPW && ty<MAPH){ if (advance(Date.now())) flushFinished(); MPOP.hide=false; selectTile(tx+","+ty,false); } }
     var left=Object.keys(pts);
     if (!left.length) drag=null; else if (left.length===1) panFrom(pts[left[0]]); else pinchStart();
     requestDraw(); }
@@ -2492,13 +2499,44 @@ function bmPanel(){ var l=bmList(); if (!l.length) return '';
     h+='<div class="bq"><span><button class="link strong" data-act="bm-go" data-tile="'+b.id+'">'+esc(b.n||tileName(q))+'</button> <span class="dur">('+q.x+', '+q.y+')'+(b.n?' '+esc(tileName(q)):'')+(r.d?', '+r.d.toFixed(1)+' tiles':'')+'</span></span>'+
       '<div class="qacts"><button class="link" data-act="bm-go" data-tile="'+b.id+'">Show</button><button class="link" data-act="bm-del" data-tile="'+b.id+'">Remove</button></div></div>'; });
   return h+'<p class="hint" style="margin-top:6px">Tap a tile, then \u2606 Bookmark on its card. Type a label there too. They show as a gold \u2605 on the map and a dot on the overview, and are shared by all your cities.</p></details>'; }
-function bmRefresh(){ var el=document.getElementById("bmpanel"); if (el){ el.innerHTML=bmPanel(); wireDetails(el); } requestDraw(); }
+function bmRefresh(){ var el=document.getElementById("bmpanel"); if (el){ el.innerHTML=bmPanel(); wireDetails(el); } var bj=document.getElementById("bmjump"), nh=bmJumpHtml();
+  if (bj) { if (nh) bj.outerHTML=nh; else bj.remove(); } else if (nh){ var hb=document.querySelector('[data-mission="hide"]'); if (hb && hb.parentNode) hb.insertAdjacentHTML("afterend", nh); } requestDraw(); }
 function bmCard(){ var el=document.getElementById("tileinfo"); if (!el || !selTile) return; var hd=el.querySelector(".shead"); if (!hd) return;
   var b=bmAt(selTile), wrap=document.createElement("div"); wrap.className="bmcard"; wrap.style.cssText="flex-basis:100%;display:flex;gap:6px;align-items:center;margin-top:4px";
   wrap.innerHTML=b ? '<button class="btn ghost small" data-act="bm-del" data-tile="'+selTile+'">\u2605 Bookmarked</button><input type="text" id="bm-label" maxlength="40" value="'+esc(b.n||"")+'" placeholder="Label (optional)" aria-label="Bookmark label" style="flex:1;min-width:0">'
     : '<button class="btn ghost small" data-act="bm-add" data-tile="'+selTile+'">\u2606 Bookmark</button>';
   hd.style.flexWrap="wrap"; hd.appendChild(wrap); }
-function renderTileInfo(){ renderTileInfoBase(); try { bmCard(); } catch(e){} try { ryCard(); } catch(e){} }
+function renderTileInfo(){ renderTileInfoBase(); try { bmCard(); } catch(e){} try { ryCard(); } catch(e){} try { mapPop(); } catch(e){} }
+/* ---------- map popup (0.1.135): tap a tile and its basics and main buttons open right on the map ---------- */
+var MPOP={hide:false};
+var MPOP_ACTS={attack:1, scout:2, occupy:3, conquer:4, found:5, transport:6, reinforce:7, allyguard:8, station:9};
+function bmJumpHtml(){ var l=bmList(); if (!l.length) return '';
+  return '<select class="bmjump" id="bmjump" aria-label="Go to a bookmark"><option value="">\u2605 Bookmarks ('+l.length+')</option>'+l.map(function(b){ var q=bmTile(b); return '<option value="'+b.id+'">'+esc(b.n||tileName(q))+' ('+q.x+', '+q.y+')</option>'; }).join("")+'</select>'; }
+function mapGo(id){ var xy=String(id).split(","), q=tileAt(+xy[0],+xy[1]); MPOP.hide=false; selectTile(q.id,true); var mv2=document.getElementById("mapview"); if (mv2 && mv2.scrollIntoView) mv2.scrollIntoView({behavior:"smooth",block:"center"}); }
+function mapPopInfo(q){ var bits=['('+q.x+', '+q.y+')'], cur;
+  if (q.k!=="home") bits.push(tdist(q).toFixed(1)+' tiles');
+  if (q.k==="home"){ var hc=S.cities[cityIndex(q.city)]; bits.push(q.city===C().id?'the city you\u2019re viewing':'your city'); if (hc) bits.push(fmt(withCity(cityIndex(q.city),function(){ return sumT(S.troops); }))+' troops home'); }
+  else if (S.map.owned[q.id]) bits.push('held by '+esc((S.cities[cityIndex(S.map.owned[q.id])]||{}).name||'you'));
+  else if (!needScout(q) && (cur=current(q))) bits.push(fmt(sumT(cur.t))+' defenders');
+  else if (intelOf(q)) bits.push('scouted');
+  else if (needScout(q)) bits.push('scout to see its army');
+  if (q.k==="ai" && isAlly(q.id)) bits.push('your ally');
+  if (ryLocked(q.id)) bits.push('alliance rally on it');
+  return bits.join(' \u00b7 '); }
+function mapPop(){ var el=document.getElementById("mappop"); if (!el) return;
+  if (!selTile || MPOP.hide){ el.hidden=true; return; }
+  var q=TILE_BY[selTile]; if (!q){ el.hidden=true; return; }
+  var btns=[], seen={}; document.querySelectorAll('#tileinfo [data-act="march-open"], #tileinfo [data-act="city-go"]').forEach(function(b){ var m=b.dataset.act==="city-go"?"city":b.dataset.mission, key=m+(b.dataset.city||"");
+    if (seen[key] || (m!=="city" && !MPOP_ACTS[m])) return; seen[key]=1; btns.push({o:m==="city"?0:MPOP_ACTS[m], h:'<button class="btn'+(btns.length?' ghost':'')+'" data-act="'+b.dataset.act+'"'+(b.dataset.tile?' data-tile="'+b.dataset.tile+'"':'')+(b.dataset.mission?' data-mission="'+b.dataset.mission+'"':'')+(b.dataset.city?' data-city="'+b.dataset.city+'"':'')+(b.disabled?' disabled':'')+'>'+esc(b.textContent)+'</button>'}); });
+  btns.sort(function(a,b){ return a.o-b.o; });
+  var bm=bmAt(q.id);
+  var ph='<div class="mpt"><b>'+esc(tileName(q))+'</b><button class="mpx" data-act="mpop-close" aria-label="Close">\u00d7</button></div><div class="dur">'+mapPopInfo(q)+'</div>'+
+    '<div class="mpb">'+btns.map(function(x){ return x.h; }).join("")+'<button class="btn ghost" data-act="'+(bm?'bm-del':'bm-add')+'" data-tile="'+q.id+'" aria-label="'+(bm?'Remove bookmark':'Bookmark')+'">'+(bm?'\u2605':'\u2606')+'</button><button class="btn ghost" data-act="mpop-more">Details</button></div>';
+  if (el._h!==ph){ el.innerHTML=ph; el._h=ph; } el.hidden=false; mapPopPos(); }
+function mapPopPos(){ var el=document.getElementById("mappop"), c=document.getElementById("mapc"); if (!el || el.hidden || !c || !selTile) return; var q=TILE_BY[selTile]; if (!q) return;
+  var W=c.clientWidth, H=c.clientHeight, z=mv.z, px=(q.x-mv.x)*z, py=(q.y-mv.y)*z, w=el.offsetWidth||232, h=el.offsetHeight||110;
+  var left=Math.max(4, Math.min(W-w-4, px+z/2-w/2)), top=py+z+6; if (top+h>H-4) top=py-h-6; if (top<4) top=Math.max(4, Math.min(H-h-4, py+z+6));
+  el.style.left=Math.round(left)+"px"; el.style.top=Math.round(top)+"px"; }
 function renderTileInfoBase(){
   var el=document.getElementById("tileinfo"); if (!el) return;
   if (!selTile){ el.innerHTML=''; return; }
@@ -4134,6 +4172,25 @@ function cosMarchImg(st, dir, ang){ var key=st+"|"+dir+"|"+Math.round(ang*20); i
   var c=document.createElement("canvas"); c.width=c.height=56; var g=c.getContext("2d"); g.scale(2,2); cosMarchDraw(g, st, 14, 14, 8, dir, ang);
   return COS_MIMG[key]=c.toDataURL(); }
 setInterval(alMvTick, 1000);
+// the alliance map's popup (0.1.135): what you tapped, with its buttons, right on the map
+function alPopHtml(al, M, sel, me, rk){ var st=alMapAt(M,sel.x,sel.y), my=al.my||{can:{}}, P=46, top, h='', b=[], title='', info='';
+  var d=me?alDist(me, st&&st.city?alCityMid(M):sel):0;
+  if (st && st.b){ var bn=((ALS.cat&&ALS.cat.bldg.filter(function(z){ return z.k===st.b.k; })[0])||{n:st.b.k}).n, tabv=st.b.k==="arena"?"arena":st.b.k==="trade"?"trade":"city";
+    title=esc(bn); info='Level '+((al.econ&&al.econ.lv[st.b.k])||0)+(me?' \u00b7 '+d+' squares from you':'');
+    b.push('<button class="btn" data-act="al-sub" data-v="'+tabv+'">Open</button>'); if (my.can.map) b.push('<button class="btn ghost" data-act="al-move" data-what="b" data-who="'+esc(st.b.k)+'">Move</button>'); }
+  else if (st && st.city){ title='Alliance City'; info='Level '+((al.econ&&al.econ.lv.city)||1)+(me?' \u00b7 '+d+' squares from you':'');
+    b.push('<button class="btn" data-act="al-sub" data-v="city">Open</button>'); if (my.can.map) b.push('<button class="btn ghost" data-act="al-move" data-what="city">Move</button>'); }
+  else if (st && st.k){ var nm=st.k.name, mm=rk[nm]||{}, mine=isMe(nm), pf=mine?S.me:PROF[String(nm).toLowerCase()];
+    title=avatarHtml(pf||{},nm,"xs")+' '+esc(nm)+(mine?' <span class="dur">(you)</span>':''); info=(mm.rank!=null&&al.ranks[mm.rank]?esc(al.ranks[mm.rank].n)+' \u00b7 ':'')+fmt(mm.prestige||0)+' prestige \u00b7 '+(mm.cities||0)+' cities'+(mine||!me?'':' \u00b7 '+d+' squares away')+'<br>'+alAgo(mm.seen);
+    if (mine) b.push('<button class="btn" data-act="al-move" data-what="me">Move my kingdom</button>');
+    else { b.push('<button class="btn" data-act="al-pop-rf" data-nm="'+esc(nm)+'">Reinforce</button>','<button class="btn ghost" data-act="al-pop-tp" data-nm="'+esc(nm)+'">Send resources</button>');
+      if (dmOn()) b.push('<button class="btn ghost" data-act="dm-with" data-k="" data-nm="'+esc(nm)+'">Message</button>');
+      b.push('<button class="btn ghost" data-act="pl-open" data-k="'+esc(String(nm).toLowerCase())+'" data-nm="'+esc(nm)+'">Profile</button>');
+      if (my.can.map) b.push('<button class="btn ghost" data-act="al-move" data-what="member" data-who="'+esc(nm)+'">Move</button>'); } }
+  else { title='Free square'; info='('+sel.x+', '+sel.y+')'+(me?' \u00b7 '+d+' squares from your kingdom':''); b.push('<button class="btn" data-act="al-movehere" data-x="'+sel.x+'" data-y="'+sel.y+'">Move my kingdom here</button>'); }
+  var bs=st&&(st.b||st.city)?(st.city?alCs(M):(M.bs||3)):1, tx=st&&st.b?st.b.x:st&&st.city?M.city[0]:sel.x, ty=st&&st.b?st.b.y:st&&st.city?M.city[1]:sel.y;
+  var left=Math.max(4, Math.min(4+M.n*P-236, 4+tx*P+bs*P/2-116)); top=4+(ty+bs)*P+4; if (ty+bs>M.n-3) top=Math.max(4, 4+ty*P-150);
+  return '<div class="mpop" style="left:'+Math.round(left)+'px;top:'+Math.round(top)+'px"><div class="mpt"><b>'+title+'</b><button class="mpx" data-act="al-pop-close" aria-label="Close">\u00d7</button></div><div class="dur">'+info+'</div><div class="mpb">'+b.join("")+'</div></div>'; }
 function alMapHtml(al){
   var M=al.map; if (!M) return '<div class="section"><p class="hint">Loading the map\u2026</p></div>';
   var me=alMyTile(M), sel=ALS.sel, mv=ALS.moving, rk={}; al.members.forEach(function(m){ rk[m.name]=m; });
@@ -4155,7 +4212,7 @@ function alMapHtml(al){
     if (kcs) area+=';background:'+CPAL[kcs].bg+';border-color:'+CPAL[kcs].a;
     h+='<button class="'+cls+'" style="'+area+'" data-act="al-tile" data-x="'+x+'" data-y="'+y+'" aria-label="'+(t&&t.city?'Alliance City':t&&t.k?esc(t.k.name):'Free square')+' at '+x+', '+y+'">'+inner+'</button>';
   }
-  h+=alMarchSvg(M)+'</div></div>';
+  h+=alMarchSvg(M)+'</div>'+(sel&&!mv?alPopHtml(al,M,sel,me,rk):'')+'</div>';
   if ((M.mv||[]).length) h+='<p class="dur" style="margin:4px 0 0">Lines: <span style="color:var(--red)">●</span> to and from the Arena, <span style="color:var(--grass)">●</span> reinforcements, <span style="color:var(--brass)">●</span> yours. Dashed = waiting or stationed.</p>';
   if (sel){ var st=alMapAt(M,sel.x,sel.y), d=me?alDist(me, st&&st.city?alCityMid(M):sel):0, my=al.my;
     h+='<div class="acity" style="margin-top:8px">';
@@ -4643,7 +4700,7 @@ function lbSheet(){
   else {
     h+='<p class="dur">'+(d.first?'The first '+d.first+' to do it, in order. ':'Top '+d.rows.length+' of '+fmt(d.players)+' players. ')+(lbBusy?'Refreshing\u2026':'')+'</p>';
     if (!d.rows.length) h+='<p class="hint">Nobody yet. Be the first.</p>';
-    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn" data-act="pl-open" role="button" data-k="'+esc(r.ck||"")+'" data-pid="'+(r.pid||0)+'"'+(r.me?' data-me="1"':'')+' data-nm="'+esc(r.name)+'">'+lbAvatar(r)+'<span>'+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+(r.hid&&r.hu&&r.hk?heroPortrait({id:r.hid, name:r.hero, tier:"legendary"},28,{k:r.hk, hu:r.hu})+' ':'')+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
+    else h+='<div class="tscroll"><table class="gt lbt"><tbody>'+d.rows.map(function(r){ return '<tr'+(r.me?' class="me"':'')+'><td>'+r.rank+'</td><td><span class="lbn" data-act="pl-open" role="button" data-k="'+esc(r.ck||"")+'" data-pid="'+(r.pid||0)+'"'+(r.me?' data-me="1"':'')+' data-nm="'+esc(r.name)+'">'+lbAvatar(r)+'<span>'+(r.tag?'<span class="lbtag">['+esc(r.tag)+']</span>':'')+esc(r.name)+(r.me?' (you)':'')+(d.cat==="hero"&&r.hero?'<span class="hnm">'+(r.hid&&r.hu&&r.hk?heroPortrait({id:r.hid, name:r.hero, tier:"legendary"},28,{k:r.hk, hu:r.hu})+' ':'')+esc(r.hero)+'</span>'+lbHeroSt(r):'')+'</span></span></td>'+'<td>'+lbVal(d.cat,r.value)+'</td></tr>'; }).join("")+'</tbody></table></div>';
     if (d.me) h+='<p class="effect">You: '+(d.me.outside?'#'+d.me.rank+', just outside the first '+d.first:'#'+d.me.rank)+' with '+lbVal(d.cat,d.me.value)+'.</p>';
   }
   if (!listed || (S.lb&&S.lb.needAcct&&!cbOn())){ h+='<div class="upbtns"><button class="btn ghost small" data-act="lb-refresh">Refresh</button></div>'; return h+'<button class="closebtn" data-act="close">Close</button>'; }
@@ -10006,6 +10063,9 @@ document.addEventListener("click",function(e){
       if (ALS.moving && M2 && (ALS.moving.what==="city" || ALS.moving.what==="b" || !alMapAt(M2,tx,ty))){ var mvv=ALS.moving, big=mvv.what==="city"||mvv.what==="b", bsz=mvv.what==="b"?(M2.bs||3):alCs(M2), half=Math.floor(bsz/2), mx=big?Math.max(0,Math.min(M2.n-bsz,tx-half)):tx, my2=big?Math.max(0,Math.min(M2.n-bsz,ty-half)):ty;
         ALS.moving=null; ALS.sel={x:tx,y:ty}; alDo("/al/move",mvv.what==="b"?{what:"b", key:mvv.who, x:mx, y:my2}:{what:mvv.what, who:mvv.who, x:mx, y:my2},"Moved"); lastView=""; renderView(true); return; }
       ALS.sel={x:tx,y:ty}; lastView=""; renderView(true); return; }
+    if (act==="al-pop-close"){ ALS.sel=null; lastView=""; renderView(true); return; }
+    if (act==="al-pop-rf"){ RF.to=a.dataset.nm; ALS.sub="reinf"; lastView=""; renderView(true); window.scrollTo({top:0}); return; }
+    if (act==="al-pop-tp"){ TP.to=a.dataset.nm; ALS.sub="trade"; lastView=""; renderView(true); window.scrollTo({top:0}); return; }
     if (act==="al-move"){ ALS.moving={what:a.dataset.what, who:a.dataset.who}; lastView=""; renderView(true); return; }
     if (act==="al-movecancel"){ ALS.moving=null; lastView=""; renderView(true); return; }
     if (act==="al-movehere"){ alDo("/al/move",{what:"me", x:+a.dataset.x, y:+a.dataset.y},"Your kingdom moved"); return; }
@@ -10164,7 +10224,9 @@ document.addEventListener("click",function(e){
   }
   if (act==="bm-add"){ var bl=bmList(); if (bl.length>=BM_MAX){ toast("Bookmarks are full ("+BM_MAX+"). Remove one first."); return; } if (!bmAt(a.dataset.tile)) bl.push({id:a.dataset.tile, n:""}); save(); renderTileInfo(); bmRefresh(); toast("Bookmarked"); return; }
   if (act==="bm-del"){ S.bm=bmList().filter(function(b){ return b.id!==a.dataset.tile; }); save(); renderTileInfo(); bmRefresh(); toast("Bookmark removed"); return; }
-  if (act==="bm-go"){ var bxy=a.dataset.tile.split(","), bq=tileAt(+bxy[0],+bxy[1]); selectTile(bq.id,true); var bti=document.getElementById("tileinfo"); if (bti && bti.scrollIntoView) bti.scrollIntoView({behavior:"smooth",block:"nearest"}); return; }
+  if (act==="bm-go"){ mapGo(a.dataset.tile); return; }
+  if (act==="mpop-close"){ MPOP.hide=true; mapPop(); return; }
+  if (act==="mpop-more"){ var mti=document.getElementById("tileinfo"); if (mti && mti.scrollIntoView) mti.scrollIntoView({behavior:"smooth",block:"start"}); return; }
   if (act==="bm-sort"){ bmSort=a.dataset.s; bmRefresh(); return; }
   if (act==="map-zoom"){ zoomTo(mv.z*(+a.dataset.z>0?1.35:1/1.35)); return; }
   if (act==="map-home"){ centerOn(S.map.home[0],S.map.home[1]); selectTile(S.map.home[0]+","+S.map.home[1],false); return; }
@@ -10606,6 +10668,7 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){ if (e.key==="Enter" && e.target && e.target.id==="rxin"){ e.preventDefault(); var rb=document.querySelector('.rxbar [data-act="rx-any"]'); if (rb) rb.click(); return; } if (e.key==="Enter" && e.target && e.target.id==="alchatin"){ e.preventDefault(); alSend(); } if (e.key==="Enter" && e.target && e.target.id==="dockin"){ e.preventDefault(); if (dockCh==="world") wcSend(); else if (dockCh==="dm") dmSend(); else alSend("dockin"); } if (e.key==="Enter" && e.target && e.target.id==="dmto"){ e.preventDefault(); var dmb=document.querySelector('[data-act="dm-new"]'); if (dmb) dmb.click(); } });
 document.addEventListener("change",function(e){
+  if (e.target.id==="bmjump"){ var bj=e.target.value; e.target.value=""; e.target.blur(); if (bj) mapGo(bj); return; }
   if (e.target.id==="rymins"){ RYS.mins=e.target.value; e.target.blur(); lastSheet=""; renderSheet(); return; }
   if (e.target.id==="bm-label"){ var bmb=bmAt(selTile); if (bmb){ bmb.n=e.target.value.trim().slice(0,40); save(); bmRefresh(); } return; }
   if (AW_ON && awChange(e)) return;

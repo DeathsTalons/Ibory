@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.134
+Version 0.1.136
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,8 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.136** High scores show each player's alliance tag before their name ([TAG] Name). Worker: /board rows carry tag (from al_members + alliances by the board row's cloud account).
+- **0.1.135** Map popups. Tapping a tile on the kingdom map opens a small card on the map itself: name, coordinates, distance, defenders (or "scout to see its army"), and its main buttons (Attack, Scout, Occupy on valleys, Found city on flats, Transport and Reinforce / Switch to this city on your own cities), a bookmark star and Details (scrolls to the full card below). Bookmarks: a "★ Bookmarks" drop-down next to Hide troops jumps straight to the tile on the map (popup open); the list's Show does the same. Alliance map: tapping a square opens a card there too: members get a mini player card (rank, prestige, cities, distance, last seen) with Reinforce, Send resources, Message, Profile (and Move with the map permission); buildings and the Alliance City get Open and Move; free squares get Move my kingdom here.
 - **0.1.134** Monster Arena summons are announced the same way: "⚔ X called a rally targeting a level 3 Goblin at the Monster Arena, leaves in 5mins", with a Join button in alliance chat while a monster is up (opens the Arena tab).
 - **0.1.133** Rally chat lines: "⚔ X called a rally targeting Level 10 NPC city (x, y), leaves in 30mins" (and "now leaves in …" / "is leaving now!" when the caller moves or launches it). In alliance chat these lines get a Join button while a rally is running (opens the Rallies tab).
 - **0.1.132** Power is troops only (worker: the Power board is wiped once on deploy, and power sent by 0.1.130–0.1.131 is ignored, so hero-inflated numbers can't come back): heroes no longer count (header, Titles page, profiles, Power board, invasion and alliance war matching). Worker: snPower = troop prestige value only.
