@@ -760,7 +760,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.192";
+var APP_VERSION = "0.1.194";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -864,17 +864,17 @@ var TECH = {
   militarytradition:{g:"Military",name:"Military Tradition",b:"barracks",pre:[["militaryscience",1]],desc:"+5% army attack per level"},
   ironworking:{g:"Military",name:"Iron Working",b:"forge",pre:[["militaryscience",2]],desc:"+5% army defense per level"},
   medicine:{g:"Military",name:"Medicine",pre:[["logistics",3]],desc:"+5% life for ground troops per level"},
-  archery:{g:"Military",name:"Archery",b:"barracks",pre:[["militaryscience",4]],t:2000,desc:"+5% range for archers, ballistae and catapults per level"},
+  archery:{g:"Military",name:"Archery",b:"barracks",pre:[["militaryscience",4]],t:2000,cap10:1,desc:"+5% range for archers, ballistae and catapults per level"},
   militaryscience:{g:"Military",name:"Military Science",b:"barracks",desc:"Troops train 10% faster per level"},
   metalcasting:{g:"Military",name:"Metal Casting",b:"forge",desc:"Siege engines and transporters build 10% faster per level"},
-  horsebackriding:{g:"Movement",name:"Horseback Riding",b:"stable",pre:[["militaryscience",5]],t:170,desc:"+5% speed for cavalry and machines per level"},
-  compass:{g:"Movement",name:"Compass",b:"rally",pre:[["militaryscience",3]],desc:"+10% speed for infantry per level"},
+  horsebackriding:{g:"Movement",name:"Horseback Riding",b:"stable",pre:[["militaryscience",5]],t:170,cap10:1,desc:"+5% speed for cavalry and machines per level"},
+  compass:{g:"Movement",name:"Compass",b:"rally",pre:[["militaryscience",3]],cap10:1,desc:"+10% speed for infantry per level"},
   cartography:{g:"Movement",name:"Cartography",b:"rally",t:620,desc:"Armies travel the map 10% faster per level (march time only; battlefield speed still comes from Compass and Horseback Riding)"},
   logistics:{g:"Movement",name:"Logistics",b:"rally",desc:"+10% carrying load per level, so every army hauls home more plunder"},
   informatics:{g:"City and defense",name:"Informatics",desc:"Trains your spies: required before you can recruit Scouts"},
   stockpile:{g:"City and defense",name:"Stockpile",b:"warehouse",desc:"+10% warehouse protection against AI raids per level"},
   engineering:{g:"City and defense",name:"Engineering",b:"workshop",desc:"+10% wall durability and archer tower toughness per level; unlocks Rolling Logs"},
-  machinery:{g:"City and defense",name:"Machinery",b:"workshop",desc:"Unlocks Defensive Trebuchets, and doubles how many lost fortifications get repaired after each defense, per level (at level 10: a third of lost towers, up to 88% of trebuchets)"},
+  machinery:{g:"City and defense",name:"Machinery",b:"workshop",cap10:1,desc:"Unlocks Defensive Trebuchets, and doubles how many lost fortifications get repaired after each defense, per level (at level 10: a third of lost towers, up to 88% of trebuchets)"},
   ancientmasonry:{g:"Historic",name:"Ancient Masonry",gate:12,t:900,desc:"+10% wall durability and archer tower toughness per level. Needs a level 12+ Academy (historic cities only)"},
   imperialroads:{g:"Historic",name:"Imperial Roads",gate:14,t:900,desc:"Armies from this city march 10% faster per level. Needs a level 14+ Academy"},
   grandtreasury:{g:"Historic",name:"Field Rations",gate:16,t:900,desc:"Troops in all your cities eat 5% less food per level, including on the march. Needs a level 16+ Academy"},
@@ -885,7 +885,10 @@ function techReqs(k,L){ var r=[["academy",Math.max(L,TECH[k].gate||0)]]; if (TEC
 var MAXLV = 10, HERO_MAX = Infinity; // heroes level forever; the XP curve (100 x level squared) is the only brake
 function fieldSlots(th){ return Math.min(44, 8 + 4*(th-1)); }
 function cityMax(){ return C().fieldCap ? Math.max(MAXLV, C().fieldCap) : MAXLV; } // historic cities build past 10, up to their own level
-function techMax(){ return C().fieldCap ? Math.max(MAXLV, Math.min(C().fieldCap, academyLv())) : MAXLV; }
+function techMax(k){ if (k && TECH[k] && TECH[k].cap10) return MAXLV; return C().fieldCap ? Math.max(MAXLV, Math.min(C().fieldCap, academyLv())) : MAXLV; } // 0.1.193: Archery, Compass and Horseback Riding stop at 10 (battlefield ranges and speeds)
+// past level 10 a tech's effect grows half as fast: level 12 works like 11, level 18 like 14
+function techEff(L){ return L<=MAXLV ? L : MAXLV+(L-MAXLV)/2; }
+function techRaw(k){ if (!S.techG) S.techG={}; var L=Math.min(S.techG[k]||0, academyLv()); return TECH[k]&&TECH[k].cap10 ? Math.min(L,MAXLV) : L; }
 function hcLevels(){ return S.cities.filter(function(c){ return c.fieldCap; }).map(function(c){ return c.fieldCap; }); }
 function placeLeft(){ var n=hcLevels().filter(function(l){ return l===12; }).length; if (!n) return 0; var pl=S.map.placed||{day:-1,n:0}; return Math.max(0, n-(pl.day===gameDay()?pl.n:0)); }
 function hasHC(L){ return hcLevels().indexOf(L)>=0; }
@@ -2108,7 +2111,7 @@ function captureCity(q, troops){
     CAP_FIELDS.forEach(function(t,i){ for (var k=0;k<3;k++) nc.fields[i*3+k]={type:t,level:L}; });
     capFill(nc, L); nc.cap={k:q.k, L:L};
   } else {
-    nc.fieldCap=L; ["farm","sawmill","quarry","ironmine"].forEach(function(t,i){ nc.fields[i]={type:t,level:L}; });
+    nc.fieldCap=L; nc.th=L; ["farm","sawmill","quarry","ironmine"].forEach(function(t,i){ nc.fields[i]={type:t,level:L}; }); // a historic city: Town Hall and one field of each kind at its level, the rest empty (0.1.194: the Town Hall used to start at 1)
   }
   S.cities.push(nc); delete S.map.hit[q.id]; delete S.map.loy[q.id]; delete S.map.npc[q.id];
   if (nc.fieldCap===14 && S.map.monsters){ S.map.monsters.day=-1; }
@@ -2668,7 +2671,7 @@ function resolveDefense(w){
       if (r.parts){ rfs.forEach(function(x,k){ x.t=r.parts[k+1].slice(); });
         // the whole fight goes to the server (attack, defense, dice), which reruns it with its own copy of the reinforcements
         S.alRfLoss=S.alRfLoss||[]; S.alRfLoss.push({fid:"w"+w.id, fight:rec?{A:rec.A, D:rec.D, rands:rec.rands}:null, allies:rfs.map(function(x){ return {id:x.id, left:x.t.slice()}; })}); } }
-    var RR_FORT=[0.55,0.66,0.33,0.77,0.88], mach=Math.pow(2,S.tech.machinery||0)/1024; // traps, abatis, towers, logs, trebuchets
+    var RR_FORT=[0.55,0.66,0.33,0.77,0.88], mach=Math.min(1,Math.pow(2,S.tech.machinery||0)/1024); // traps, abatis, towers, logs, trebuchets
     var lostF=fBefore.map(function(n,i){ return n-r.forts[i]; }), rep=Math.round(0.33*mach*100)/100;
     S.forts=r.forts.map(function(n,i){ return n+Math.floor(lostF[i]*Math.min(1,RR_FORT[i]*mach)); });
     var loot={food:0,lumber:0,stone:0,iron:0,gold:0};
@@ -6231,6 +6234,12 @@ function migrate(s){
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   if (s.v===47){ s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  if (!s.hc194){ s.hc194=1; // 0.1.194: historic cities taken before this got a level 1 Town Hall; bring it (and its four starting fields) up to the city's level
+    (s.cities||[]).forEach(function(cc){ var L=cc.fieldCap; if (!L) return; if ((cc.th||1)<L) cc.th=L;
+      cc.builds=(cc.builds||[]).filter(function(b){ return !(b.type==="townhall" && b.to<=L); }); cc.bq=(cc.bq||[]).filter(function(b){ return !(b && b.type==="townhall" && b.to<=L); });
+      ["farm","sawmill","quarry","ironmine"].forEach(function(t){ var fs=cc.fields||[]; if (fs.some(function(f){ return f && f.type===t && f.level>=L; })) return;
+        var low=fs.filter(function(f){ return f && f.type===t; }).sort(function(a,b){ return b.level-a.level; })[0];
+        if (low) low.level=L; else { var e=fs.indexOf(null); if (e>=0) fs[e]={type:t,level:L}; } }); }); }
   if (!s.hh169){ s.hh169=1; // 0.1.169: historic heroes got stronger starting stats; heroes already captured move up by the difference and keep every point spent on them
     var hlists=[s.heroes, s.waiting]; (s.cities||[]).forEach(function(cc){ hlists.push(cc.heroes, cc.waiting); });
     hlists.forEach(function(L){ (L||[]).forEach(function(h){ if (!h || h.tier!=="historic") return; var i=HISTORIC.indexOf(h.name); if (i<0) return;
@@ -6252,7 +6261,7 @@ function techView(){
   if (!S.techG) S.techG={};
   var al=academyLv(), key=S.cur+"|"+al+"|"+techVer;
   if (techCache.key===key && techCache.o) return techCache.o;
-  var o={}; Object.keys(TECH).forEach(function(k){ o[k]=Math.min(S.techG[k]||0, al); });
+  var o={}; Object.keys(TECH).forEach(function(k){ if (TECH[k].cap10 && (S.techG[k]||0)>MAXLV) S.techG[k]=MAXLV; o[k]=techEff(Math.min(S.techG[k]||0, al)); }); // what the city gets from each tech (S.tech); levels for show and for queuing are techRaw / S.techG
   techCache={key:key,o:o}; return o;
 }
 function setTech(k,L){ if (!S.techG) S.techG={}; if ((S.techG[k]||0)<L) S.techG[k]=L; techVer++; }
@@ -6859,9 +6868,9 @@ function viewAcademy(){
   if (S.rq.length) h+='<p class="hint">'+S.rq.length+' research queued: see the work dropdown at the top.</p>';
   var openG=false;
   Object.keys(TECH).forEach(function(k){
-    var L=S.tech[k], G=S.techG[k]||0, to=G+1, t=TECH[k], why="", miss=[]; // research raises the realm's level; this city enjoys up to its Academy
+    var L=techRaw(k), G=S.techG[k]||0, to=G+1, t=TECH[k], why="", miss=[]; // research raises the realm's level; this city enjoys up to its Academy
     if (t.g!==lastG){ if (openG) h+='</div></details>'; var gk="tg_"+t.g.replace(/\W/g,""); h+='<details class="det techdet" data-det="'+gk+'"'+(DET[gk]===false?'':' open')+'><summary class="techgroup">'+t.g+'</summary><div class="techlist">'; openG=true; lastG=t.g; }
-    var tmx=techMax();
+    var tmx=techMax(k);
     if (G<tmx) miss=missing(techReqs(k,to));
     if (G>=tmx) why="Max level";
     else if (S.research && S.research.tech===k) why="Researching now";
@@ -6871,7 +6880,7 @@ function viewAcademy(){
     else if (!afford(techCost(k,to))) why="Not enough resources";
     var blocked = why || miss.length;
     var qLit = S.research && S.research.tech!==k && G<tmx && !miss.length && !elseRes[k] && S.rq.indexOf(k)<0; // Academy busy: Queue lights up for what it could start next
-    h+='<div class="tech"><div class="top"><h3>'+t.name+'</h3><span class="tl">Lv '+L+(G>L?' <span class="dur">(realm '+G+')</span>':'')+'</span></div><span class="dur">'+t.desc+'</span>';
+    h+='<div class="tech"><div class="top"><h3>'+t.name+'</h3><span class="tl">Lv '+L+(G>L?' <span class="dur">(realm '+G+')</span>':'')+'</span></div><span class="dur">'+t.desc+(t.cap10&&techMax()>MAXLV?'. Stops at level 10':L>MAXLV||(G>=MAXLV&&tmx>MAXLV)?'. Past level 10, each level gives half as much':'')+'</span>';
     if (G<tmx){
       if (miss.length) h+='<span class="req">Needs '+miss.map(reqName).join(" and ")+'</span>';
       h+=chips(techCost(k,to))+'<div class="act"><span class="dur">'+fmtT(realMs(techTime(k,to)))+'</span>'+(why?'<span class="why">'+why+'</span>':'')+'<button class="btn" data-act="research" data-tech="'+k+'"'+(blocked?' disabled':'')+'>Research level '+to+'</button><button class="btn '+(qLit?'':'ghost ')+'small" data-act="rq-add" data-tech="'+k+'">Queue</button></div>';
@@ -10669,7 +10678,7 @@ function processQueues(){
     for (var j=0;j<S.rq.length;j++){
       var tk=S.rq[j], to=(S.techG[tk]||0)+1;
       if (S.cities.some(function(c){ return c.research && c.research.tech===tk; })) continue;
-      if (to>techMax()){ S.rq.splice(j,1); j--; continue; }
+      if (to>techMax(tk)){ S.rq.splice(j,1); j--; continue; }
       if (missing(techReqs(tk,to)).length || !afford(techCost(tk,to))) continue;
       pay(techCost(tk,to),1); S.research={tech:tk,to:to,start:S.gt,end:S.gt+techTime(tk,to)}; S.rq.splice(j,1); break;
     }
@@ -11062,7 +11071,7 @@ document.addEventListener("click",function(e){
   if (act==="research" && S.alAcad){ toast("This Academy is working for the alliance. Bring it back from the Alliance tab first."); return; }
   if (act==="research"){
     var k=a.dataset.tech, to=(S.techG[k]||0)+1, c=techCost(k,to);
-    if (S.research || S.cities.some(function(c){ return c.research && c.research.tech===k; }) || to>techMax() || missing(techReqs(k,to)).length || !afford(c)) return;
+    if (S.research || S.cities.some(function(c){ return c.research && c.research.tech===k; }) || to>techMax(k) || missing(techReqs(k,to)).length || !afford(c)) return;
     pay(c,1); S.research={tech:k,to:to,start:S.gt,end:S.gt+techTime(k,to)};
     toast("Researching "+TECH[k].name+" level "+to); refresh(); return;
   }
