@@ -720,7 +720,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.142";
+var APP_VERSION = "0.1.143";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2529,6 +2529,7 @@ function mapPop(){ var el=document.getElementById("mappop"); if (!el) return;
   var btns=[], seen={}; document.querySelectorAll('#tileinfo [data-act="march-open"], #tileinfo [data-act="city-go"]').forEach(function(b){ var m=b.dataset.act==="city-go"?"city":b.dataset.mission, key=m+(b.dataset.city||"");
     if (seen[key] || (m!=="city" && !MPOP_ACTS[m])) return; seen[key]=1; btns.push({o:m==="city"?0:MPOP_ACTS[m], h:'<button class="btn'+(btns.length?' ghost':'')+'" data-act="'+b.dataset.act+'"'+(b.dataset.tile?' data-tile="'+b.dataset.tile+'"':'')+(b.dataset.mission?' data-mission="'+b.dataset.mission+'"':'')+(b.dataset.city?' data-city="'+b.dataset.city+'"':'')+(b.disabled?' disabled':'')+'>'+esc(b.textContent)+'</button>'}); });
   btns.sort(function(a,b){ return a.o-b.o; });
+  try { if (ryOn() && ryTargetOk(q) && !ryLocked(q.id) && !ryLive().some(function(R){ return R.mine; })){ var ryY=ryData()||{}; if (!(ryY.nextCall && ryY.nextCall>Date.now())) btns.push({o:50, h:'<button class="btn ghost" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button>'}); } } catch(e){} // only while this week's call is free
   if (q.k==="flat" && !S.map.owned[q.id] && (!C().fieldCap || hasHC(16))){ var tpn=S.items.teleport||0; // teleport this city onto an empty flat
     btns.push({o:99, h:'<button class="btn ghost" data-act="teleport" data-tile="'+q.id+'"'+(tpn?'':' disabled')+'>'+(armedTile==="tp"+q.id?'Tap again to teleport':'Teleport ('+tpn+')')+'</button>'}); }
   var bm=bmAt(q.id);
