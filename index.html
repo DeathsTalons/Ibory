@@ -717,7 +717,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <dialog id="sheet"><div class="sheet" id="sheetbody"></div></dialog>
 <div id="chatdock"><div class="dkin">
   <button class="dkbar" data-act="dock-toggle" aria-label="Open chat"><b id="dkch">Chat</b><span class="dklast" id="dklast"></span><span class="dkn" id="dkn"></span><span aria-hidden="true">&#9650;</span></button>
-  <div class="dkpanel"><div class="dkhead"><span class="dktabs" id="dktabs"></span><span><button class="link" data-act="dock-pin" id="dkpin">Pin</button> <button class="link" data-act="dock-toggle">Collapse</button> <button class="link" data-act="dock-close">Close</button></span></div>
+  <div class="dkpanel"><div class="dkhead"><span class="dktabs" id="dktabs"></span><span><button class="link" data-act="dock-close">Close</button></span></div>
     <div id="dkmsgs" class="alchat"></div>
     <p class="hint" id="dkhint" style="margin:6px 0 0"></p>
     <div class="farmadd" id="dkform" style="margin-top:8px"><input id="dockin" type="text" maxlength="300" autocomplete="off" placeholder="Message" style="width:auto;flex:1"><button class="btn ghost small" data-act="chat-pic" data-tgt="dock" aria-label="Send a picture">&#128247;</button><button class="btn ghost small" data-act="chat-gif" data-tgt="dock">GIF</button><button class="btn small" data-act="dock-send">Send</button></div></div>
@@ -727,7 +727,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.146";
+var APP_VERSION = "0.1.147";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -6131,10 +6131,11 @@ function viewAcademy(){
     else if (elseRes[k]) why=esc(elseRes[k])+" is researching this";
     else if (!afford(techCost(k,to))) why="Not enough resources";
     var blocked = why || miss.length;
+    var qLit = S.research && S.research.tech!==k && G<tmx && !miss.length && !elseRes[k] && S.rq.indexOf(k)<0; // Academy busy: Queue lights up for what it could start next
     h+='<div class="tech"><div class="top"><h3>'+t.name+'</h3><span class="tl">Lv '+L+(G>L?' <span class="dur">(realm '+G+')</span>':'')+'</span></div><span class="dur">'+t.desc+'</span>';
     if (G<tmx){
       if (miss.length) h+='<span class="req">Needs '+miss.map(reqName).join(" and ")+'</span>';
-      h+=chips(techCost(k,to))+'<div class="act"><span class="dur">'+fmtT(realMs(techTime(k,to)))+'</span>'+(why?'<span class="why">'+why+'</span>':'')+'<button class="btn" data-act="research" data-tech="'+k+'"'+(blocked?' disabled':'')+'>Research level '+to+'</button><button class="btn ghost small" data-act="rq-add" data-tech="'+k+'">Queue</button></div>';
+      h+=chips(techCost(k,to))+'<div class="act"><span class="dur">'+fmtT(realMs(techTime(k,to)))+'</span>'+(why?'<span class="why">'+why+'</span>':'')+'<button class="btn" data-act="research" data-tech="'+k+'"'+(blocked?' disabled':'')+'>Research level '+to+'</button><button class="btn '+(qLit?'':'ghost ')+'small" data-act="rq-add" data-tech="'+k+'">Queue</button></div>';
     }
     h+='</div>';
   });
@@ -10248,7 +10249,7 @@ document.addEventListener("click",function(e){
     S.bq=S.bq.filter(function(it){ return !(it.w===dc.w && it.i===dc.i); });
     closeSheet(); if (tab==="bldg"){ tab="city"; pg=null; } lastView=""; toast(dn+" demolished"); refresh(); return;
   }
-  if (act==="queue-up"){ var qc=ctxPlot(), qs=getSlot(qc.w,qc.i); if (qs){ S.bq.push({w:qc.w,i:qc.i,type:qs.type}); toast(DEF[qs.type].name+" upgrade queued"); } closeSheet(); processQueues(); refresh(); return; }
+  if (act==="queue-up"){ var qc=ctxPlot(), qs=getSlot(qc.w,qc.i); if (qs){ S.bq.push({w:qc.w,i:qc.i,type:qs.type}); toast(DEF[qs.type].name+" upgrade queued"); } processQueues(); lastSheet=""; refresh(); return; }
   if (act==="bq-up"||act==="bq-down"||act==="rq-up"||act==="rq-down"){ var qa=act.charAt(0)==="b"?S.bq:S.rq, qk=+a.dataset.k, qj=act.slice(3)==="up"?qk-1:qk+1; if (qj>=0 && qj<qa.length && qk>=0 && qk<qa.length){ var qt=qa[qk]; qa[qk]=qa[qj]; qa[qj]=qt; save(); refresh(); } return; }
   if (act==="bq-remove"){ S.bq.splice(+a.dataset.k,1); refresh(); return; }
   if (act==="rq-add"){ S.rq.push(a.dataset.tech); toast(TECH[a.dataset.tech].name+" queued"); processQueues(); refresh(); return; }
