@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.136
+Version 0.1.141
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,11 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.141** The map popup on an empty flat has a Teleport button (shows how many you have; tap twice to move the city you're viewing there).
+- **0.1.140** The map's bookmark drop-down sits on the same line as Hide troops in the woods (it shrinks to fit and shows "★ count").
+- **0.1.139** Fix: the Finish by box (Army) and the rally Hit at box used a number keypad with no ":"; both are now time pickers (with seconds). The Army tab's barracks list folds into one "Barracks" section (count, how many training / idle, when they're all done), closed by default and remembered.
+- **0.1.138** Arsenal and Sanctuary x10. Warden: forge 300 ore; tiers 300 ingots / 250 mithril / 200 star metal / 150 scales; stars 100/80/60/40/30 x 1.3^stars. Sanctuary: offered gems are stored with no cap and only burn while lit; the bank permission lights the Halo of Fortune / spreads the Guardian's Wings (and puts them out), announced in chat; burn 5,000 Delicate / 1,000 Flawless x level a week while lit. Worker: /al/sanc/light {which, on}.
+- **0.1.137** Two late-game sinks in the Alliance City. **Warden's Arsenal** (crafting materials): members give Rough Ore, Fine Ingots, Mithril, Star Metal and Dragon Scales into the alliance stock; the bank permission forges the Warden's six pieces (30 ore), raises tiers (30 ingots / 25 mithril / 20 star metal / 15 scales; every two Arsenal levels open the next tier) and adds stars with the piece's own tier material (10/8/6/4/3 x 1.3^stars; never fails). Might = the pieces' values (same as hero gear); every rally wave gets +might/1000 attack (Alliance Wars wall later). **Sanctuary of Grace** (gems): Delicate Gems keep the Halo of Fortune shining (+1% star-upgrade success per level), Flawless Gems keep the Guardian's Wings spread (a failed upgrade loses at most 6..1 stars by level instead of falling to the FAIL_TO table). Each burns 500/100 x level a week and holds 4 weeks. Top donors: Master Smith / Seraph. Worker: arsenal, sanctuary in AE_BLDG, /al/ars/give, /al/ars/up, /al/sanc/give, econ.ars, econ.sanc, fx rallyatk/gemluck/gemguard.
 - **0.1.136** High scores show each player's alliance tag before their name ([TAG] Name). Worker: /board rows carry tag (from al_members + alliances by the board row's cloud account).
 - **0.1.135** Map popups. Tapping a tile on the kingdom map opens a small card on the map itself: name, coordinates, distance, defenders (or "scout to see its army"), and its main buttons (Attack, Scout, Occupy on valleys, Found city on flats, Transport and Reinforce / Switch to this city on your own cities), a bookmark star and Details (scrolls to the full card below). Bookmarks: a "★ Bookmarks" drop-down next to Hide troops jumps straight to the tile on the map (popup open); the list's Show does the same. Alliance map: tapping a square opens a card there too: members get a mini player card (rank, prestige, cities, distance, last seen) with Reinforce, Send resources, Message, Profile (and Move with the map permission); buildings and the Alliance City get Open and Move; free squares get Move my kingdom here.
 - **0.1.134** Monster Arena summons are announced the same way: "⚔ X called a rally targeting a level 3 Goblin at the Monster Arena, leaves in 5mins", with a Join button in alliance chat while a monster is up (opens the Arena tab).

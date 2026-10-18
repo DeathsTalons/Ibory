@@ -542,7 +542,7 @@ body.bfmode #chatdock{display:none!important}
 .mpop .mpx{background:none;border:0;font-size:1.2rem;line-height:1;padding:0 2px;color:var(--muted)}
 .mpop .mpb{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .mpop .mpb .btn{padding:5px 9px;font-size:.82rem;min-height:0}
-.bmjump{max-width:52%}
+.bmjump{flex:1 1 0;min-width:0;width:auto;max-width:none;margin:0;padding-top:6px;padding-bottom:6px}
 .alm a.clink{color:var(--brass);text-decoration:underline;word-break:break-all}
 .rxs{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0 1px}
 .rxc{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:1px 7px;font-size:.85rem;line-height:1.5;color:var(--ink)}
@@ -720,7 +720,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.136";
+var APP_VERSION = "0.1.141";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2249,7 +2249,7 @@ var HC_COL={12:"#8e2b2b",14:"#6b3a8f",16:"#23508c",18:"#c9a227"};
 function viewMap(){
   var opts='<option value="monster">Monster</option><option value="npc">NPC city</option><option value="ai">AI lord</option><option value="hc">Historic city</option>'+Object.keys(VTYPES).map(function(k){ return '<option value="'+k+'">'+VTYPES[k].name+'</option>'; }).join("");
   var lv='<option value="0">Any level</option>'; for (var i=1;i<=10;i++) lv+='<option value="'+i+'">Level '+i+'</option>'; [12,14,16,18].forEach(function(i){ lv+='<option value="'+i+'">Level '+i+'</option>'; });
-  return '<div class="btnrow" style="margin:0 0 8px;align-items:center"><button class="btn ghost small" data-act="march-open" data-tile="'+homeTileId()+'" data-mission="hide">Hide troops in the woods</button>'+bmJumpHtml()+'</div>'+
+  return '<div class="btnrow" style="margin:0 0 8px;align-items:center;flex-wrap:nowrap"><button class="btn ghost small" style="flex:0 0 auto" data-act="march-open" data-tile="'+homeTileId()+'" data-mission="hide">Hide troops in the woods</button>'+bmJumpHtml()+'</div>'+
     '<div class="section"><div class="shead"><h3 id="realmh">'+esc(realmName())+'</h3><span class="dur" id="mapstat"></span></div>'+
     '<div class="maptools"><button class="btn ghost small" data-act="map-zoom" data-z="1" aria-label="Zoom in">+</button><button class="btn ghost small" data-act="map-zoom" data-z="-1" aria-label="Zoom out">\u2212</button><button class="btn ghost small" data-act="map-home">My city</button><span class="dur" id="mapcoord"></span></div>'+
     '<div class="mapview" id="mapview"><canvas id="mapc" aria-label="Map. Drag to pan, tap a tile to see it."></canvas><div class="mpop" id="mappop" hidden></div></div>'+
@@ -2511,7 +2511,7 @@ function renderTileInfo(){ renderTileInfoBase(); try { bmCard(); } catch(e){} tr
 var MPOP={hide:false};
 var MPOP_ACTS={attack:1, scout:2, occupy:3, conquer:4, found:5, transport:6, reinforce:7, allyguard:8, station:9};
 function bmJumpHtml(){ var l=bmList(); if (!l.length) return '';
-  return '<select class="bmjump" id="bmjump" aria-label="Go to a bookmark"><option value="">\u2605 Bookmarks ('+l.length+')</option>'+l.map(function(b){ var q=bmTile(b); return '<option value="'+b.id+'">'+esc(b.n||tileName(q))+' ('+q.x+', '+q.y+')</option>'; }).join("")+'</select>'; }
+  return '<select class="bmjump" id="bmjump" aria-label="Go to a bookmark"><option value="">\u2605 '+l.length+'</option>'+l.map(function(b){ var q=bmTile(b); return '<option value="'+b.id+'">'+esc(b.n||tileName(q))+' ('+q.x+', '+q.y+')</option>'; }).join("")+'</select>'; }
 function mapGo(id){ var xy=String(id).split(","), q=tileAt(+xy[0],+xy[1]); MPOP.hide=false; selectTile(q.id,true); var mv2=document.getElementById("mapview"); if (mv2 && mv2.scrollIntoView) mv2.scrollIntoView({behavior:"smooth",block:"center"}); }
 function mapPopInfo(q){ var bits=['('+q.x+', '+q.y+')'], cur;
   if (q.k!=="home") bits.push(tdist(q).toFixed(1)+' tiles');
@@ -2529,6 +2529,8 @@ function mapPop(){ var el=document.getElementById("mappop"); if (!el) return;
   var btns=[], seen={}; document.querySelectorAll('#tileinfo [data-act="march-open"], #tileinfo [data-act="city-go"]').forEach(function(b){ var m=b.dataset.act==="city-go"?"city":b.dataset.mission, key=m+(b.dataset.city||"");
     if (seen[key] || (m!=="city" && !MPOP_ACTS[m])) return; seen[key]=1; btns.push({o:m==="city"?0:MPOP_ACTS[m], h:'<button class="btn'+(btns.length?' ghost':'')+'" data-act="'+b.dataset.act+'"'+(b.dataset.tile?' data-tile="'+b.dataset.tile+'"':'')+(b.dataset.mission?' data-mission="'+b.dataset.mission+'"':'')+(b.dataset.city?' data-city="'+b.dataset.city+'"':'')+(b.disabled?' disabled':'')+'>'+esc(b.textContent)+'</button>'}); });
   btns.sort(function(a,b){ return a.o-b.o; });
+  if (q.k==="flat" && !S.map.owned[q.id] && (!C().fieldCap || hasHC(16))){ var tpn=S.items.teleport||0; // teleport this city onto an empty flat
+    btns.push({o:99, h:'<button class="btn ghost" data-act="teleport" data-tile="'+q.id+'"'+(tpn?'':' disabled')+'>'+(armedTile==="tp"+q.id?'Tap again to teleport':'Teleport ('+tpn+')')+'</button>'}); }
   var bm=bmAt(q.id);
   var ph='<div class="mpt"><b>'+esc(tileName(q))+'</b><button class="mpx" data-act="mpop-close" aria-label="Close">\u00d7</button></div><div class="dur">'+mapPopInfo(q)+'</div>'+
     '<div class="mpb">'+btns.map(function(x){ return x.h; }).join("")+'<button class="btn ghost" data-act="'+(bm?'bm-del':'bm-add')+'" data-tile="'+q.id+'" aria-label="'+(bm?'Remove bookmark':'Bookmark')+'">'+(bm?'\u2605':'\u2606')+'</button><button class="btn ghost" data-act="mpop-more">Details</button></div>';
@@ -2837,7 +2839,8 @@ function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return
 function setLife(h,def){ var st=starSet(h), m=1; for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]){ m=SET_TIERS[i][1]; break; } return m*(1+alFx("life"))*(1+dgFx(h,def).life/100); }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
 function gemChance(g,type,n){ var stat=gearStat(g), m=bestFor(stat), mb=m?Math.min(10,hs(m,stat)/40):0;
-  return Math.min(99, Math.max(1, GEM_4[type][g.stars]-GEM_STEP[type]*(4-n))+mb); }
+  return Math.min(99, Math.max(1, GEM_4[type][g.stars]-GEM_STEP[type]*(4-n))+mb+alFx("gemluck")); } // + the Sanctuary of Grace's Halo of Fortune
+function failTo(st){ var gd=alFx("gemguard"); return gd ? Math.max(FAIL_TO[st], st-gd) : FAIL_TO[st]; } // the Guardian's Wings: a failure loses at most gemguard stars
 var STATN={pol:"Politics",atk:"Attack",int:"Intelligence"};
 function slotOf(g){ for (var i=0;i<GEAR_SLOTS.length;i++) if (GEAR_SLOTS[i].k===g.slot) return GEAR_SLOTS[i]; return GEAR_SLOTS[0]; }
 // every piece adds one stat. Pieces crafted from 0.1.5 on carry their own (g.stat, chosen at the Workshop); older pieces keep their slot's stat
@@ -3288,6 +3291,37 @@ function viewMyAlliance(al){
 var ALD={food:"",lumber:"",stone:"",iron:"",gold:""};
 /* ---------- War Memorial (0.1.128): medals raise nine monuments, each an alliance-wide buff with perk picks at 3, 6 and 9 ---------- */
 var MEMD={}; // medals being typed, per monument
+/* ---------- Warden's Arsenal (crafting materials) and Sanctuary of Grace (gems), 0.1.137 ---------- */
+var ARSD={}, SANCD={d:"", f:""}, ARS_TN=["Common","Rare","Epic","Legendary","Mythic"], ARS_MN={ore:"Rough Ore", ingot:"Fine Ingots", mithril:"Mithril", starmetal:"Star Metal", scale:"Dragon Scales"};
+function arsHtml(E, my){ var A=E.ars; if (!A) return ''; var L=(E.lv&&E.lv.arsenal)||0, M=A.cat.mats;
+  var h='<div class="section"><div class="shead"><h3>Warden\u2019s Arsenal</h3><span class="dur">'+(L?'level '+L+' of 10':'not built')+'</span></div>'+
+    '<p class="hint">Members give crafting materials to arm the alliance\u2019s <b>Warden</b>. Pieces are forged from Rough Ore, raised a tier with that tier\u2019s material, and starred with their own tier\u2019s material (a little more each star). No upgrade ever fails. The Warden rides with every rally: each wave gets <b>+'+(A.might/10).toFixed(1)+'% attack</b> (might '+fmt(A.might)+' \u00f7 10). In Alliance Wars it will hold the wall. Every two Arsenal levels open the next tier.</p>';
+  if (!L) return h+'<p class="why">Build the Warden\u2019s Arsenal in the Alliance City first.</p></div>';
+  h+='<div class="rgrid">'+M.map(function(k){ return '<span>'+ARS_MN[k]+' <b>'+fmt(A.stock[k]||0)+'</b></span>'; }).join("")+'</div>';
+  A.slots.forEach(function(p,i){ var nx=p.t+1, needT=nx<=4?A.cat.tier[nx]:0, mk=nx<=4?M[nx]:"";
+    h+='<div class="bq"><span><b>'+esc(p.n)+'</b> '+(p.t<0?'<span class="dur">not forged</span>':'<span class="dur">'+ARS_TN[p.t]+' \u00b7 '+p.s+' / '+p.smax+' \u2605 \u00b7 +'+p.val+'</span>')+'</span>'+
+      (my.can.bank?'<div class="mbtns">'+(p.t<0?'<button class="link strong" data-act="al-ars-up" data-slot="'+i+'" data-kind="forge">Forge ('+A.cat.tier[0]+' ore)</button>':
+        (p.s<p.smax?'<button class="link strong" data-act="al-ars-up" data-slot="'+i+'" data-kind="star">\u2605 ('+fmt(p.starCost)+' '+ARS_MN[M[p.t]]+')</button>':'')+(nx<=4?'<button class="link" data-act="al-ars-up" data-slot="'+i+'" data-kind="tier"'+(nx>A.tierMax?' disabled title="Needs Arsenal '+(nx*2+1)+'"':'')+'>'+ARS_TN[nx]+' ('+needT+' '+ARS_MN[mk]+')</button>':''))+'</div>':'')+'</div>'; });
+  if (!my.can.bank) h+='<p class="dur">Members with the bank permission spend the stock.</p>';
+  h+='<div class="h3" style="margin-top:8px">Give materials</div><div class="tpgrid">'+M.map(function(k){ var have=S.items[k]||0;
+    return '<label class="dur" for="arsg-'+k+'">'+ARS_MN[k]+' <span class="dur">(have '+fmt(have)+')</span></label><input type="number" min="0" id="arsg-'+k+'" data-arsg="'+k+'" value="'+(ARSD[k]||"")+'" placeholder="0">'; }).join("")+'</div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-ars-give">Give</button><span class="dur">Materials count '+A.cat.val.join(" / ")+' contribution points each, by rarity.</span></div>';
+  if (A.donors&&A.donors.length) h+='<p class="dur" style="margin:6px 0 0"><b>Master Smith:</b> '+esc(A.donors[0].name)+' ('+fmt(A.donors[0].n)+')'+(A.donors.length>1?'<br>Also gave: '+A.donors.slice(1).map(function(x){ return esc(x.name)+' '+fmt(x.n); }).join(", "):'')+'</p>';
+  return h+'</div>'; }
+function sancHtml(E, my){ var Sx=E.sanc; if (!Sx) return ''; var L=Sx.lv; my=my||{can:{}};
+  var h='<div class="section"><div class="shead"><h3>Sanctuary of Grace</h3><span class="dur">'+(L?'level '+L+' of 10':'not built')+'</span></div>'+
+    '<p class="hint">Offer gems and the angels watch over every member\u2019s forge. <b>Delicate Gems</b> keep the <b>Halo of Fortune</b> shining: +1% success on every star upgrade per Sanctuary level. <b>Flawless Gems</b> keep the <b>Guardian\u2019s Wings</b> spread: a failed upgrade loses at most a few stars instead of falling all the way ('+Sx.guardTable.map(function(g,i){ return 'level '+(i+1)+': '+g; }).join(", ")+'). Offered gems are stored. The alliance chooses when to light each one, and it only burns while lit ('+fmt(Sx.burnD)+' Delicate or '+fmt(Sx.burnF)+' Flawless a week at this level), so save your upgrades for when it\u2019s shining.</p>';
+  if (!L) return h+'<p class="why">Build the Sanctuary of Grace in the Alliance City first.</p></div>';
+  var line=function(n,burn,lit){ return '<br><span class="dur">'+fmt(n)+' gems stored'+(n>0?' \u00b7 '+(lit?'about '+(Math.round(n/burn*70)/10)+' days left at this rate':'enough for about '+(Math.round(n/burn*70)/10)+' days lit'):'')+'</span>'; };
+  var tog=function(w,lit,n){ return my.can.bank?'<div class="mbtns"><button class="link strong" data-act="al-sanc-light" data-w="'+w+'" data-on="'+(lit?0:1)+'"'+(!lit&&!n?' disabled':'')+'>'+(lit?(w==="d"?'Put out':'Fold'):(w==="d"?'Light it':'Spread them'))+'</button></div>':''; };
+  h+='<div class="bq"><span><b>Halo of Fortune</b> '+(Sx.litD?'<span class="okc">shining: +'+Sx.luck+'% success</span>':'<span class="why">dark</span>')+line(Sx.d,Sx.burnD,Sx.litD)+'</span>'+tog("d",Sx.litD,Sx.d)+'</div>';
+  h+='<div class="bq"><span><b>Guardian\u2019s Wings</b> '+(Sx.litF?'<span class="okc">spread: a failure loses at most '+Sx.guard+' star'+(Sx.guard===1?'':'s')+'</span>':'<span class="why">folded</span>')+line(Sx.f,Sx.burnF,Sx.litF)+'</span>'+tog("f",Sx.litF,Sx.f)+'</div>';
+  if (!my.can.bank) h+='<p class="dur">Members with the bank permission light them.</p>';
+  h+='<div class="tpgrid" style="margin-top:6px"><label class="dur" for="sancd">Delicate Gems <span class="dur">(have '+fmt(S.items.gemD||0)+')</span></label><input type="number" min="0" id="sancd" data-sanc="d" value="'+(SANCD.d||"")+'" placeholder="0">'+
+    '<label class="dur" for="sancf">Flawless Gems <span class="dur">(have '+fmt(S.items.gemF||0)+')</span></label><input type="number" min="0" id="sancf" data-sanc="f" value="'+(SANCD.f||"")+'" placeholder="0"></div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-sanc-give">Offer</button></div>';
+  if (Sx.donors&&Sx.donors.length) h+='<p class="dur" style="margin:6px 0 0"><b>Seraph:</b> '+esc(Sx.donors[0].name)+' ('+fmt(Sx.donors[0].n)+')'+(Sx.donors.length>1?'<br>Also offered: '+Sx.donors.slice(1).map(function(x){ return esc(x.name)+' '+fmt(x.n); }).join(", "):'')+'</p>';
+  return h+'</div>'; }
 function medalIdx(k){ for (var i=0;i<MEDALS.length;i++) if (MEDALS[i][0]===k) return i; return 0; }
 function memFxTxt(fx, lv){ var parts=[]; for (var k in fx){ var v=fx[k]*(lv||1), pc=Math.round(v*1000)/10;
   parts.push(k==="marchsize"?"+"+fmt(v)+" troops per march":k==="healh"?"+"+v+" h in the Medic Camp":k==="members"?"+"+v+" members":k==="help"?"+"+v+" s per help":k==="citycap"?"+"+v+" city":/slots|monsters/.test(k)?"+"+v+" "+(k==="slots"?"research slot":k==="rslots"?"hosted reinforcement":k==="monsters"?"free summon a day":"Arena march"):
@@ -3519,7 +3553,7 @@ function alCityHtml(al){
     h+='</details>';
   });
   h+='</div>';
-  h+=memHtml(E, C0, my);
+  h+=memHtml(E, C0, my)+arsHtml(E, my)+sancHtml(E, my);
   // contributions and news
   h+='<div class="section"><div class="shead"><h3>Contributions</h3></div>'+(E.contrib.length?E.contrib.map(function(c,i){ return '<div class="bq"><span>#'+(i+1)+' <b>'+esc(c.name)+'</b></span><span>'+fmt(c.score)+'</span></div>'; }).join(""):'<p class="hint">Nobody has contributed yet.</p>')+
     (E.log.length?'<div class="h3" style="margin-top:8px">Finished</div>'+E.log.map(function(l){ return '<p class="dur" style="margin:2px 0">'+alTime(l.at)+' '+esc(l.t)+'</p>'; }).join(""):'')+'</div>';
@@ -3903,6 +3937,7 @@ function alRallyHtml(al){
   var Y=ryData(); if (!Y) return '<div class="section"><p class="hint">Loading rallies\u2026</p></div>';
   var now=Date.now(), live=ryLive(), mine=S.alRally||[], h='';
   h+='<div class="section"><div class="shead"><h3>Rallies</h3><span class="dur">'+(Y.nextCall&&Y.nextCall>now?'your next call in '+fmtT(Y.nextCall-now):'you can call one now')+'</span></div>'+
+    (((alMine()||{}).econ||{}).ars&&alMine().econ.ars.might?'<p class="dur" style="margin:0 0 4px">\u2692 The Warden rides with every wave: <b>+'+(alMine().econ.ars.might/10).toFixed(1)+'% attack</b>.</p>':'')+
     '<p class="hint">Any member can call the alliance onto a level 10 NPC city or a historic city on their own map, once a week: tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the hit time every march that made it hits in the caller\u2019s order, each wave against what the ones before it left. Helpers get nothing but the satisfaction; the caller gets the garrison that\u2019s left and takes the city with their own march.</p></div>';
   live.forEach(function(R){ var g=R.garrison||{t:[],f:[]}, ord={}; (R.order||[]).forEach(function(id,i){ ord[id]=i; });
     var ms=R.marches.slice().sort(function(a,b){ return (ord[a.id]!=null?ord[a.id]:1e6+a.arrive)-(ord[b.id]!=null?ord[b.id]:1e6+b.arrive); }), mineN=R.marches.filter(function(j){ return j.mine; }).length, total=0; ms.forEach(function(j){ total+=j.n; });
@@ -3915,7 +3950,7 @@ function alRallyHtml(al){
       h+='<div class="bq"><span><b>'+(i+1)+'. '+esc(j.name)+'</b>: '+fmt(j.n)+' troops'+(j.hero?', led by '+esc(j.hero):'')+'<br><span class="dur">'+U.map(function(u,ui){ return j.t[ui]?fmt(j.t[ui])+' '+uname(ui,j.t[ui]):''; }).filter(Boolean).join(", ")+' \u00b7 '+(j.arrive>now?(j.arrive>R.hitAt?'too late':'arrives in '+fmtT(j.arrive-now)):'waiting')+'</span></span>'+
         '<div class="mbtns">'+(R.mine?'<button class="link" data-act="ry-move" data-rid="'+R.id+'" data-id="'+j.id+'" data-d="-1"'+(i?'':' disabled')+' aria-label="Hit earlier">\u25b2</button><button class="link" data-act="ry-move" data-rid="'+R.id+'" data-id="'+j.id+'" data-d="1"'+(i<ms.length-1?'':' disabled')+' aria-label="Hit later">\u25bc</button>':'')+
         (mm?'<button class="link" data-act="ry-recall" data-rid="'+R.id+'" data-ref="'+esc(j.ref)+'">Recall</button>':'')+'</div></div>'; });
-    if (R.mine) h+='<div class="h3" style="margin-top:8px">Your rally</div><div class="farmadd"><label class="dur" for="rytime">Hit at</label><input id="rytime" type="text" inputmode="numeric" placeholder="hh:mm:ss" value="'+esc(RYS.time)+'" style="max-width:110px"><button class="btn small ghost" data-act="ry-time" data-rid="'+R.id+'">Set time</button></div>'+
+    if (R.mine) h+='<div class="h3" style="margin-top:8px">Your rally</div><div class="farmadd"><label class="dur" for="rytime">Hit at</label><input id="rytime" type="time" step="1" value="'+esc(RYS.time)+'" style="width:auto;min-width:170px;max-width:none"><button class="btn small ghost" data-act="ry-time" data-rid="'+R.id+'">Set time</button></div>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="ry-now" data-rid="'+R.id+'">'+(armedTile==="rynow"+R.id?'Tap again to hit now':'Hit now')+'</button><button class="btn small ghost danger" data-act="ry-cancel" data-rid="'+R.id+'">'+(armedTile==="rycan"+R.id?'Tap again to call it off':'Call it off')+'</button></div>'+
       '<p class="dur" style="margin:4px 0 0">Use \u25b2\u25bc to set who hits first. Hitting now sends home anyone still on the road. Calling it off sends everyone home and gives you your weekly call back.</p>';
     h+='</div>'; });
@@ -6110,7 +6145,7 @@ function forgeControls(g){ // star and tier upgrades for one piece: shared by th
     var have=S.items["gem"+forgeGem]||0, n=Math.max(1,Math.min(4,forgeN)), p=gemChance(g,forgeGem,n), m=bestFor(gearStat(g));
     h+='<div class="farmadd"><span class="dur">Gem:</span><button class="chipbtn'+(forgeGem==="D"?' on':'')+'" data-act="forge-gem" data-v="D">Delicate ('+fmt(S.items.gemD||0)+')</button><button class="chipbtn'+(forgeGem==="F"?' on':'')+'" data-act="forge-gem" data-v="F">Flawless ('+fmt(S.items.gemF||0)+')</button></div>';
     h+='<div class="farmadd"><span class="dur">Gems per try:</span>'+[1,2,3,4].map(function(k){ return '<button class="chipbtn'+(n===k?' on':'')+'" data-act="forge-n" data-v="'+k+'">'+k+'</button>'; }).join("")+'</div>';
-    h+='<div class="effect">'+g.stars+' \u2192 '+(g.stars+1)+' stars: <b>'+Math.round(p)+'%</b> chance'+(m?' (includes +'+Math.min(10,hs(m,gearStat(g))/40).toFixed(1)+'% from '+esc(m.name)+'\u2019s '+STATN[gearStat(g)]+')':'')+'. Success makes it +'+Math.round(GEAR_BASE[g.tier]*(1+0.2*(g.stars+1)))+'. A failure drops it to <b>'+FAIL_TO[g.stars]+' star'+(FAIL_TO[g.stars]===1?'':'s')+'</b>.</div>';
+    h+='<div class="effect">'+g.stars+' \u2192 '+(g.stars+1)+' stars: <b>'+Math.round(p)+'%</b> chance'+(m?' (includes +'+Math.min(10,hs(m,gearStat(g))/40).toFixed(1)+'% from '+esc(m.name)+'\u2019s '+STATN[gearStat(g)]+')':'')+'. Success makes it +'+Math.round(GEAR_BASE[g.tier]*(1+0.2*(g.stars+1)))+'. A failure drops it to <b>'+failTo(g.stars)+' star'+(failTo(g.stars)===1?'':'s')+'</b>'+(alFx("gemguard")&&failTo(g.stars)!==FAIL_TO[g.stars]?' (the Guardian\u2019s Wings save '+(failTo(g.stars)-FAIL_TO[g.stars])+')':'')+'.'+(alFx("gemluck")?' Includes +'+alFx("gemluck")+'% from the Halo of Fortune.':'')+'</div>';
     var why = have<n ? "Not enough "+(forgeGem==="D"?"Delicate":"Flawless")+" gems" : "";
     h+='<div class="act"><span class="why">'+why+'</span><button class="btn" data-act="forge-strike"'+(why?' disabled':'')+'>Upgrade star</button></div>';
   }
@@ -8734,7 +8769,7 @@ function trainByHtml(i){ var L=trainByGt(); if (L==null || missing(U[i].req).len
 function trainByBar(){ var L=trainByGt();
   return '<div class="section"><div class="shead"><h3>Finish by</h3><span class="dur" id="tr-bywhen">'+(L!=null?'Target '+trClock(L):(trainBy?'Type a time like 14:30 or 14:30:15':'Off'))+'</span></div>'+
     '<p class="hint">Type a time on your clock and every troop shows how many fit before it: on one idle Barracks, across the idle ones, or across all of them (busy ones queue behind what they\u2019re training). Tap a number to fill the amount, then use the matching button.</p>'+
-    '<div class="trainrow"><input type="text" inputmode="numeric" id="tr-by" value="'+esc(trainBy)+'" placeholder="hh:mm:ss" aria-label="Finish by" style="max-width:120px">'+
+    '<div class="trainrow"><input type="time" step="1" id="tr-by" value="'+esc(trainBy)+'" aria-label="Finish by" style="width:auto;min-width:170px;max-width:none">'+
     '<button class="btn ghost small" data-act="train-by-last">Match the busiest barracks</button>'+(trainBy?'<button class="btn ghost small" data-act="train-by-clear">Clear</button>':'')+'</div></div>'; }
 // troops at home, out marching (attacking, guarding allies, coming home) and their totals, for this city and every city
 function cityTroops(ci){ var c=S.cities[ci], home=c.troops.slice(), out=[0,0,0,0,0,0,0,0,0,0,0,0];
@@ -8758,7 +8793,8 @@ function viewArmy(){
   var h='<div class="section"><div class="shead"><h3>Your army</h3><span class="dur">'+fmt(total)+' at home, eating '+fmt(upkeep())+' food/h</span></div>'+
     '<p class="hint">Troops eat food but never starve; food just stops at zero. Training draws from idle people (population not working the fields): <b id="idlepop"></b> right now.</p>'+troopTotals();
   if (!bl.length) h+='<p class="warn">Build a Barracks on an empty city plot to train troops.</p>';
-  var sp=hasSpeedups();
+  var sp=hasSpeedups(), nBusy=bl.filter(function(sl){ return trainingAt(sl); }).length, lastEnd=0; bl.forEach(function(sl){ if (trainingAt(sl)) lastEnd=Math.max(lastEnd, slotFree(sl)); });
+  if (bl.length) h+='<details class="det" data-det="barr"'+(DET.barr?' open':'')+' style="margin-top:6px"><summary><b>Barracks</b> <span class="dur">'+bl.length+' \u00b7 '+nBusy+' training, '+(bl.length-nBusy)+' idle'+(lastEnd?' \u00b7 all done '+trClock(lastEnd):'')+'</span></summary>';
   bl.forEach(function(slot,n){
     var t=trainingAt(slot);
     h+='<div class="bq"><span>Barracks '+(n+1)+', level '+S.inside[slot].level+(t?': '+fmt(t.n)+' '+uname(t.u,t.n):'<span class="dur"> '+idleWhy(slot)+'</span>')+'</span>';
@@ -8766,6 +8802,7 @@ function viewArmy(){
     var qend=t?t.end:S.gt; S.train.forEach(function(qt,qi){ if (qt.slot===slot && qt.q){ qend+=qt.dur; h+='<div class="dur" style="grid-column:1/-1">Then '+fmt(qt.n)+' '+uname(qt.u,qt.n)+' ('+fmtT(realMs(qt.dur))+', done '+trClock(qend)+') <button class="link" data-act="cancel-q" data-ti="'+qi+'">Cancel</button></div>'; } });
     h+='</div>';
   });
+  if (bl.length) h+='</details>';
   h+='</div>'+goalsSection()+(bl.length?trainByBar():'');
   h+='<p class="hint" style="margin:0 2px 8px">Train sends an order to one idle Barracks. <b>All idle</b> shares it evenly across every idle Barracks that can train it. <b>All</b> shares it across every Barracks: busy ones queue their part behind what they are training, balanced so everything finishes together.</p><div class="unitlist">';
   U.forEach(function(u,i){
@@ -10051,6 +10088,17 @@ document.addEventListener("click",function(e){
     if (act==="al-medal"){ var gk=a.dataset.k, gn=Math.max(0,Math.floor(+MEMD[gk]||0)); if (!gn){ toast("Type how many medals to give"); return; } if (gn>(S.medals[gk]||0)){ toast("You don\u2019t have that many "+medalName(gk)+" medals"); return; } if (ALS.donating) return; ALS.donating=true;
       alPost("/al/medal",{k:gk, n:gn}).then(function(d){ ALS.donating=false; if (d.error){ toast(d.error); return; } var tk=Math.max(0,Math.min(gn,+d.took||0)); S.medals[gk]=Math.max(0,(S.medals[gk]||0)-tk); MEMD[gk]=""; save(); toast("Gave "+fmt(tk)+" "+medalName(gk)+" medals"+(tk<gn?" (the monument only had room for that many)":"")+". Thank you!"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.last=0; alSync(); refresh(); })
         .catch(function(){ ALS.donating=false; toast("Couldn\u2019t reach the server"); }); return; }
+    if (act==="al-sanc-light"){ var lon=a.dataset.on==="1", lw=a.dataset.w; alDo("/al/sanc/light",{which:lw, on:lon}, lon?(lw==="d"?"The Halo of Fortune is shining":"The Guardian\u2019s Wings are spread"):"Put out: the gems are saved"); return; }
+    if (act==="al-ars-up"){ alDo("/al/ars/up",{slot:+a.dataset.slot, kind:a.dataset.kind},a.dataset.kind==="star"?"Star added":a.dataset.kind==="tier"?"Raised a tier":"Forged"); return; }
+    if (act==="al-ars-give"){ var ag={}, any2=0; for (var mk2 in ARS_MN){ var av2=Math.max(0,Math.floor(+ARSD[mk2]||0)); if (av2>(S.items[mk2]||0)){ toast("You don\u2019t have that many "+ARS_MN[mk2]); return; } ag[mk2]=av2; any2+=av2; }
+      if (!any2){ toast("Type how many to give"); return; } if (ALS.donating) return; ALS.donating=true;
+      alPost("/al/ars/give",{mats:ag}).then(function(d){ ALS.donating=false; if (d.error){ toast(d.error); return; } var tk=d.took||{}; for (var k3 in tk) S.items[k3]=Math.max(0,(S.items[k3]||0)-(tk[k3]||0)); ARSD={}; save(); toast("Given to the Arsenal. Thank you!"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.last=0; alSync(); refresh(); })
+        .catch(function(){ ALS.donating=false; toast("Couldn\u2019t reach the server"); }); return; }
+    if (act==="al-sanc-give"){ var gd2=Math.max(0,Math.floor(+SANCD.d||0)), gf2=Math.max(0,Math.floor(+SANCD.f||0)); if (gd2>(S.items.gemD||0) || gf2>(S.items.gemF||0)){ toast("You don\u2019t have that many gems"); return; }
+      if (!gd2 && !gf2){ toast("Type how many gems to offer"); return; } if (ALS.donating) return; ALS.donating=true;
+      alPost("/al/sanc/give",{d:gd2, f:gf2}).then(function(d){ ALS.donating=false; if (d.error){ toast(d.error); return; } var tk=d.took||{d:0,f:0}; S.items.gemD=Math.max(0,(S.items.gemD||0)-tk.d); S.items.gemF=Math.max(0,(S.items.gemF||0)-tk.f); SANCD={d:"",f:""}; save();
+        toast("Offered "+[tk.d?fmt(tk.d)+" Delicate":"", tk.f?fmt(tk.f)+" Flawless":""].filter(Boolean).join(" and ")+" Gems"); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); ALS.last=0; alSync(); refresh(); })
+        .catch(function(){ ALS.donating=false; toast("Couldn\u2019t reach the server"); }); return; }
     if (act==="al-medalpick"){ alDo("/al/medalpick",{k:a.dataset.k, tier:+a.dataset.t, p:+a.dataset.p},"Perk chosen"); return; }
     if (act==="al-start"){ alDo("/al/start",{kind:a.dataset.kind, key:a.dataset.key},"Started"); return; }
     if (act==="al-donate"){ var dg={}, any=false; for (var dk in ALD){ var dv=Math.max(0,Math.floor(+ALD[dk]||0)); if (dv>Math.floor(S.res[dk])){ toast("You don\u2019t have that much "+RNAME[dk].toLowerCase()); return; } dg[dk]=dv; if (dv) any=true; }
@@ -10267,7 +10315,7 @@ document.addEventListener("click",function(e){
     var gk="gem"+forgeGem, gn=Math.max(1,Math.min(4,forgeN)); if ((S.items[gk]||0)<gn) return;
     var chance=gemChance(sg,forgeGem,gn); S.items[gk]-=gn;
     if (Math.random()*100<chance){ sg.stars++; if (sg.stars>=11){ S.starLog=(S.starLog||[]).filter(function(e){ return e.at>Date.now()-3600000; }); S.starLog.push({at:Date.now(), st:sg.stars, nm:gearTypeName(sg)}); } forgeLog.unshift('<b class="okc">Success!</b> Now '+sg.stars+' star'+(sg.stars>1?'s':'')+' ('+Math.round(chance)+'% roll).'); }
-    else { var from=sg.stars; sg.stars=FAIL_TO[from]; forgeLog.unshift('<b class="badc">Failed</b> at '+Math.round(chance)+'%. '+(sg.stars===from?'No stars lost.':'Dropped from '+from+' to '+sg.stars+'.')); }
+    else { var from=sg.stars; sg.stars=failTo(from); forgeLog.unshift('<b class="badc">Failed</b> at '+Math.round(chance)+'%. '+(sg.stars===from?'No stars lost.':'Dropped from '+from+' to '+sg.stars+'.')); }
     lastSheet=""; renderSheet(); tickText(); save(); lastView=""; renderView(true); return;
   }
   if (act==="gear-upgrade"){
@@ -10653,6 +10701,8 @@ document.addEventListener("input",function(e){
   if (e.target.dataset.goal!=null){ S.goals[+e.target.dataset.goal]=Math.max(0,Math.floor(+e.target.value||0)); save(); }
   if (e.target.dataset.aldon!=null){ ALD[e.target.dataset.aldon]=e.target.value; }
   if (e.target.dataset.almed!=null){ MEMD[e.target.dataset.almed]=e.target.value; }
+  if (e.target.dataset.arsg!=null){ ARSD[e.target.dataset.arsg]=e.target.value; }
+  if (e.target.dataset.sanc!=null){ SANCD[e.target.dataset.sanc]=e.target.value; }
   if (e.target.dataset.albox!=null){ ALB[e.target.dataset.albox]=e.target.value; }
   if (e.target.dataset.arguard!=null){ ARG=ARG||{}; ARG[e.target.dataset.arguard]=e.target.value; }
   if (e.target.dataset.tg!=null && sheetFor && sheetFor.kind==="tgline" && sheetFor.city===S.cur){ var tgk2=sheetFor.gk||"tg", tgl=gLines(tgk2)[sheetFor.l]; if (tgl){ tgl.t[+e.target.dataset.tg]=Math.max(0,Math.min(1e9,Math.floor(+e.target.value||0))); var tsx=document.getElementById("tgstr"); if (tsx) tsx.value=gStr(tgk2,tgl,true); save(); lastView=""; } }
