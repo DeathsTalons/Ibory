@@ -760,7 +760,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.198";
+var APP_VERSION = "0.1.199";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2789,13 +2789,15 @@ function extTile(key, px){ var im=EXT_IMG[key]; if (!im) return null; px=Math.ma
 var HC_W=1.7;
 function hcKey(q){ return "hc"+(EXT_TILES["hc"+q.L]?q.L:12); }
 function hcBig(q){ return pixTiles() && mv.z>=8 && !!EXT_IMG[hcKey(q)]; }
-function hcBigDraw(g, x0, y0, x1, y1, z){ var dpr=window.devicePixelRatio||1, list=[];
+function hcBigList(x0, y0, x1, y1){ var list=[];
   Object.keys(HC_AT).forEach(function(id){ var xy=id.split(","), tx=+xy[0], ty=+xy[1]; if (tx<x0-1||tx>x1+1||ty<y0||ty>y1+1) return; var q=tileAt(tx,ty); if (q.k!=="hc" || decoHid(q) || !hcBig(q)) return; list.push(q); });
-  list.sort(function(a,b){ return a.y-b.y || a.x-b.x; });
-  list.forEach(function(q){ var w=z*HC_W, sp=extSprite(hcKey(q), w*dpr); if (!sp) return; var h=w*sp.height/sp.width, x=(q.x-mv.x)*z, y=(q.y-mv.y)*z;
+  return list.sort(function(a,b){ return a.y-b.y || a.x-b.x; }); }
+// 0.1.199: drawn with the decorations, in row order: roads and backgrounds stay under a castle, pieces on the rows in front of it stand in front
+function hcBigDraw(g, x0, y0, x1, y1, z){ hcBigList(x0,y0,x1,y1).forEach(function(q){ hcBigOne(g,q,z); }); }
+function hcBigOne(g, q, z){ var dpr=window.devicePixelRatio||1; (function(){ var w=z*HC_W, sp=extSprite(hcKey(q), w*dpr); if (!sp) return; var h=w*sp.height/sp.width, x=(q.x-mv.x)*z, y=(q.y-mv.y)*z;
     g.imageSmoothingEnabled=true; g.drawImage(sp, x+z/2-w/2, y+z*0.98-h, w, h);
     if (mapNums() && z>=18){ var t=String(q.L), bw=Math.max(12, t.length*7+6), bh=13, bx=x+z-bw-1, by=y+z-bh-1; g.fillStyle="rgba(20,16,12,.78)"; if (g.roundRect){ g.beginPath(); g.roundRect(bx,by,bw,bh,4); g.fill(); } else g.fillRect(bx,by,bw,bh);
-      g.save(); g.font="700 10px sans-serif"; g.fillStyle="#f6ecd4"; g.textAlign="center"; g.textBaseline="middle"; g.fillText(t, bx+bw/2, by+bh/2+0.5); g.restore(); } }); }
+      g.save(); g.font="700 10px sans-serif"; g.fillStyle="#f6ecd4"; g.textAlign="center"; g.textBaseline="middle"; g.fillText(t, bx+bw/2, by+bh/2+0.5); g.restore(); } })(); }
 function setDraw(g, key, x, y, z, wash, lv){ if (!mapNums()) lv=null; var px0=Math.floor(x), py0=Math.floor(y), dw=Math.ceil(x+z)-px0, dh=Math.ceil(y+z)-py0, dpr=window.devicePixelRatio||1, ex=EXT_TILES[key]?extTile(key, dw*dpr):null, cv=ex||setTile(key); if (!cv) return false;
   g.imageSmoothingEnabled=!!ex; g.drawImage(cv, px0, py0, dw, dh); g.imageSmoothingEnabled=true;
   if (wash>0){ g.fillStyle="rgba(236,228,206,.6)"; g.fillRect(x,y,z,Math.round(z*wash)); }
@@ -2886,7 +2888,7 @@ function drawMap(){
       if (campAt(q.id)){ var tw=z*0.42, tx=x+z-tw-2, ty=y+3; g.fillStyle="#c0503c"; g.beginPath(); g.moveTo(tx+tw/2,ty); g.lineTo(tx+tw,ty+tw*0.85); g.lineTo(tx,ty+tw*0.85); g.closePath(); g.fill(); g.strokeStyle="#2a1a12"; g.lineWidth=1; g.stroke(); } }
     if ((q.k==="ai" && isAlly(q.id)) || (q.k==="npc" && S.alliance && S.alliance.farms[q.id])){ g.strokeStyle="#5fd17f"; g.lineWidth=Math.max(1.5,z/10); g.strokeRect(x+1.5,y+1.5,z-3,z-3); }
   } catch(err){ if (!drawMap.warned){ drawMap.warned=true; if (window.console) console.warn("tile draw", tx, ty, err); } } }
-  try { hcBigDraw(g, x0, y0, x1, y1, z); } catch(e){}
+  var hcDone=false;
   if (z>=12){ g.strokeStyle="rgba(0,0,0,.12)"; g.lineWidth=1; g.beginPath();
     for (var gx=x0; gx<=x1+1; gx++){ var px=Math.round((gx-mv.x)*z)+.5; g.moveTo(px,0); g.lineTo(px,H); }
     for (var gy=y0; gy<=y1+1; gy++){ var py=Math.round((gy-mv.y)*z)+.5; g.moveTo(0,py); g.lineTo(W,py); } g.stroke(); }
@@ -2903,9 +2905,10 @@ function drawMap(){
         else g.drawImage(rcv, rx0, ry0, Math.ceil((dx+1-mv.x)*z)-rx0, Math.ceil((dy+1-mv.y)*z)-ry0); }
       var wk=""; dl0.forEach(function(e){ if (decoIsWall(e)) wk=String(e).split("|")[0]; });
       var dl=[], dli=[]; dl0.forEach(function(e,j){ if (!decoIsRoad(e) && !decoIsWall(e) && !decoIsBg(e)){ dl.push(e); dli.push(j); } }); if (dl.length || wk) dlist.push([dy,dx,dl,wk,dli]); }
+    try { hcBigList(x0,y0,x1,y1).forEach(function(q){ dlist.push([q.y,q.x,[],"",[],q]); }); hcDone=true; } catch(e){}
     var bigG=function(e){ var w=e[3]&&WALL_T[e[3]]; return w&&w.gate==="big"?1:0; }; // a big gatehouse spills onto the walls beside it, so it goes after its row's walls
     dlist.sort(function(a,b){ return a[0]-b[0] || bigG(a)-bigG(b) || a[1]-b[1]; });
-    dlist.forEach(function(e){ var dy=e[0], dx=e[1], dl=e[2], dn=Math.min(6,dl.length);
+    dlist.forEach(function(e){ var dy=e[0], dx=e[1], dl=e[2], dn=Math.min(6,dl.length); if (e[5]){ hcBigOne(g, e[5], z); return; }
       if (e[3]){ var wm=(wallAt(dx,dy-1)?1:0)|(wallAt(dx+1,dy)?2:0)|(wallAt(dx,dy+1)?4:0)|(wallAt(dx-1,dy)?8:0), wc=wallCanvas(e[3],wm), wx0=Math.floor((dx-mv.x)*z-wc.ox*z/16), wy0=Math.floor((dy-mv.y)*z-wc.up*z/16);
         var ww0=wc.ox?Math.round(wc.cv.width*z/16):Math.ceil((dx+1-mv.x)*z)-wx0, wh0=Math.round(wc.cv.height*z/16); g.drawImage(wc.cv, wx0, wy0, ww0, wh0);
         var wid=dx+","+dy; decoHitAdd(wid, (S.deco.at[wid]||[]).findIndex(function(x){ return decoIsWall(x); }), e[3], wx0, wy0, ww0, wh0, wc.cv, false, z); }
@@ -2917,6 +2920,7 @@ function drawMap(){
           else { g.drawImage(cv, Math.round(bx-ox), Math.round(by-sp.ay*sc), dw, dh); decoHitAdd(dx+","+dy, e[4][di], dk[0], Math.round(bx-ox), Math.round(by-sp.ay*sc), dw, dh, cv, false, z); } }
         else { var ex=(dx-mv.x+0.5+c*0.42)*z, ey=(dy-mv.y+0.5+c*0.24)*z; g.font=dfs+"px sans-serif"; g.fillText(dd.e,ex,ey); decoHitAdd(dx+","+dy, e[4][di], dk[0], ex-dfs/2, ey-dfs/2, dfs, dfs, null, false, z); } } });
     g.imageSmoothingEnabled=smooth; g.font="700 "+fs+"px Cinzel, Georgia, serif"; }
+  if (!hcDone){ try { hcBigDraw(g, x0, y0, x1, y1, z); } catch(e){} } // no decorations drawn (none, or zoomed far out)
   try { if (z>=4) wizDraw(g, x0, y0, x1, y1, z); else WIZ_VIS=false; } catch(e){}
   if (MOVE.e){ var mxy=MOVE.tid.split(","); g.strokeStyle="#e8b84a"; g.lineWidth=2.5; if (g.setLineDash) g.setLineDash([5,4]); g.strokeRect((+mxy[0]-mv.x)*z+1.5,(+mxy[1]-mv.y)*z+1.5,z-3,z-3); if (g.setLineDash) g.setLineDash([]); }
   if (CLR.on && CLR.a){ var cr=clrRect(), crx=(cr.x0-mv.x)*z, cry=(cr.y0-mv.y)*z, crw=(cr.x1-cr.x0+1)*z, crh=(cr.y1-cr.y0+1)*z; // the box being cleared
