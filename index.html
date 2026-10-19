@@ -760,7 +760,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.201";
+var APP_VERSION = "0.1.202";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1500,7 +1500,7 @@ var SPRITES={deadtree:{ppt:20, ax:19.5, ay:44, pal:{O:"#1c1310",T:"#281d17",D:"#
 var SPR_CACHE={}, IMGPK_IM={}, DECO_ANIM=false;
 // artist packs (0.1.185) come as one atlas each (IMGPK below), decoded the first time a piece is needed
 function imgPk(id){ var o=IMGPK_IM[id]; if (o) return o.ok?o.im:null; var pk=IMGPK[id]; if (!pk) return null; var im=new Image(); IMGPK_IM[id]={im:im};
-  im.onload=function(){ IMGPK_IM[id].ok=true; try { requestDraw(); } catch(e){} try { if (sheetFor && sheetFor.kind==="deco"){ lastSheet=""; renderSheet(); } } catch(e){} }; im.src=pk.src; return null; }
+  im.onload=function(){ IMGPK_IM[id].ok=true; ICON_CACHE={}; try { requestDraw(); } catch(e){} try { if (sheetFor && sheetFor.kind==="deco"){ lastSheet=""; renderSheet(); } } catch(e){} }; im.src=pk.src; return null; }
 // an animated piece shows the frame for now; each tile starts its loop at a different point so a herd doesn't move in step
 function sprFrame(id, ph){ var sp=SPRITES[id]; if (!sp || !(sp.nf>1)) return sprCanvas(id); DECO_ANIM=true; return sprCanvas(id, Math.floor(Date.now()/sp.ms+ph)%sp.nf); }
 function sprCanvas(id, f){ f=f||0; var ck=f?id+"#"+f:id; if (SPR_CACHE[ck]) return SPR_CACHE[ck]; var sp=SPRITES[id]; if (!sp) return null;
@@ -1539,7 +1539,10 @@ var DSHOP=[{id:"ai", name:"AI Pack", ai:1, groups:AI_GROUPS}].concat(DPACKS.filt
 (function(){ DPACKS.forEach(function(pk){ pk[2].forEach(function(it){ var k=it[0], road=/^road_/.test(k), wall=/^wall_/.test(k), bg=/^bgv?_/.test(k); DECOS[k]={n:it[1], spr:(road||wall||bg)?"":k, pack:dpOwner(pk[0]), grp:pk[0], road:road, wall:wall, bg:bg}; }); }); })();
 
 var DECO_RAR=["","Common","Uncommon","Rare"];
-function decoIcon(k, px){ var d=DECOS[k]; if (!d) return "?"; if (d.bg){ try { var bc=bgTile(k,0); return bc?'<img class="decoimg" src="'+bc.toDataURL()+'" alt="" style="height:'+Math.min(px||32,28)+'px;border-radius:3px">':""; } catch(e){ return ""; } } if (d.wall){ try { var wc=wallCanvas(k,10); return '<img class="decoimg" src="'+wc.cv.toDataURL()+'" alt="" style="height:'+Math.min(px||32,Math.round(wc.cv.height*1.35))+'px">'; } catch(e){ return ""; } } if (d.road){ try { return '<img class="decoimg" src="'+roadCanvas(k,10).toDataURL()+'" alt="" style="height:'+(px||32)+'px">'; } catch(e){ return ""; } } if (!d.spr) return d.e; var cv=sprCanvas(d.spr); if (!cv) return ""; var sp=SPRITES[d.spr]||{}, hh=Math.min(px||32, Math.round(cv.height*(16/(sp.ppt||16))*1.35)); // true to size: a bush stays smaller than a keep
+// 0.1.202: icons are cached (each one is a PNG encode); cleared whenever a pack picture finishes loading
+var ICON_CACHE={};
+function decoIcon(k, px){ var ck=k+"|"+(px||""); if (ICON_CACHE[ck]!=null) return ICON_CACHE[ck]; var r=decoIcon0(k, px); if (r) ICON_CACHE[ck]=r; return r; }
+function decoIcon0(k, px){ var d=DECOS[k]; if (!d) return "?"; if (d.bg){ try { var bc=bgTile(k,0); return bc?'<img class="decoimg" src="'+bc.toDataURL()+'" alt="" style="height:'+Math.min(px||32,28)+'px;border-radius:3px">':""; } catch(e){ return ""; } } if (d.wall){ try { var wc=wallCanvas(k,10); return '<img class="decoimg" src="'+wc.cv.toDataURL()+'" alt="" style="height:'+Math.min(px||32,Math.round(wc.cv.height*1.35))+'px">'; } catch(e){ return ""; } } if (d.road){ try { return '<img class="decoimg" src="'+roadCanvas(k,10).toDataURL()+'" alt="" style="height:'+(px||32)+'px">'; } catch(e){ return ""; } } if (!d.spr) return d.e; var cv=sprCanvas(d.spr); if (!cv) return ""; var sp=SPRITES[d.spr]||{}, hh=Math.min(px||32, Math.round(cv.height*(16/(sp.ppt||16))*1.35)); // true to size: a bush stays smaller than a keep
   try { return '<img class="decoimg" src="'+cv.toDataURL()+'" alt="" style="height:'+hh+'px;max-width:100%;object-fit:contain">'; } catch(e){ return ""; } }
 function decoS(){ if (!S.deco) S.deco={inv:{}, at:{}}; if (!S.deco.w161){ S.deco.w161=1; for (var t in S.deco.at) S.deco.at[t]=S.deco.at[t].map(function(k){ return String(k).split("|")[0]==="cwall"?"wall_stone":k; }); } return S.deco; }
 function decoHave(){ var v=decoS().inv; for (var k in v) if (v[k]>0) return true; return Object.keys(DECOS).some(function(k){ return DECOS[k].spr && decoOwn(k); }); }
@@ -9153,7 +9156,7 @@ function cosPrice(kind,id){ var c=COS&&COS.cat.filter(function(x){ return x.k===
 function myLook(kind){ var v=S.me&&S.me[kind]; return v&&COSM[kind]&&COSM[kind][v]&&cosHas(kind,v)?v:""; }
 function cosSync(force){
   if (!cbOn() || cosBusy) return; var n=Date.now(); if (!force && n-cosAt<60000) return; cosBusy=true; cosAt=n;
-  alPost("/cos/state",{}).then(function(d){ cosBusy=false; if (d && d.ok){ COS=d; applyTheme(); if (sheetFor && sheetFor.kind==="me"){ lastSheet=""; renderSheet(); } } }).catch(function(){ cosBusy=false; });
+  alPost("/cos/state",{}).then(function(d){ cosBusy=false; if (d && d.ok){ COS=d; applyTheme(); if (sheetFor && (sheetFor.kind==="me"||sheetFor.kind==="deco")){ lastSheet=""; renderSheet(); } } }).catch(function(){ cosBusy=false; });
 }
 function cosBuy(kind,id){
   if (cosBusy) return; cosBusy=true; alPost("/cos/buy",{item:kind+":"+id}).then(function(d){ cosBusy=false;
@@ -10333,6 +10336,7 @@ function renderPage(force){
   try { renderSheetCore(); } finally { pageLast=lastSheet; sheetFor=sv[0]; lastSheet=sv[1]; sheetBody=sv[2]; }
 }
 function renderSheetCore(){
+  if (sheetFor && !sheetFor.page && (sheetFor.kind==="deco"||sheetFor.kind==="decopick") && lastSheet!=="") return; // 0.1.202: nothing on it changes by itself; anything that changes it rebuilds it (lastSheet="")
   if (!sheetFor) return;
   var ae=document.activeElement; if (lastSheet && ae && sheetBody.contains(ae) && /INPUT|SELECT|TEXTAREA/.test(ae.tagName) && ae.type!=="checkbox") return;
   var h="";
