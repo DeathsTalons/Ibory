@@ -104,6 +104,9 @@ header{flex-wrap:wrap}
 .queue summary::before,.det summary::before{content:"\25b8";color:var(--brass);display:inline-block;width:1em;transition:transform .15s}
 .queue[open] summary::before,.det[open] summary::before{transform:rotate(90deg)}
 .det>summary{margin:-2px 0}
+.rycard{border:1px solid var(--brass)} .rycard>summary{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:0;align-items:start} .rycard>summary::before{grid-row:1/3;margin-top:.15em}
+.rycard .ryt{display:flex;flex-wrap:wrap;justify-content:space-between;column-gap:10px;min-width:0} .rycard .ryt>b{overflow-wrap:break-word;min-width:0} .rycard .ryt>.dur{margin-left:auto;white-space:nowrap}
+.rycard .rys{grid-column:2;display:block} .rycard .rybody{margin-top:8px} .rycard:not([open]){padding-bottom:10px}
 .qrow{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px;display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center}
 .qrow.idle{color:var(--muted);font-size:.93rem;display:block}
 .qlabel{font-weight:500}
@@ -121,7 +124,8 @@ table.simtab input{width:100%;min-width:0;padding:5px 6px;text-align:right;font-
 #marchstrip:empty{display:none}
 .mstrip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px}
 .mstrip summary{cursor:pointer;color:var(--ink)}
-.mlist{display:grid;gap:4px;margin-top:6px}
+.mlist{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-top:6px} /* 0.1.225: the column never grows past the panel (a long one-line title used to push the timers and Recall off screen) */
+.mlist>*{min-width:0} .mrowl .qtime{white-space:nowrap;flex-shrink:0} .mlist .mrowl{flex-wrap:wrap;column-gap:10px;row-gap:0} .mlist .mrowl span:first-child{white-space:normal;overflow-wrap:break-word;flex:1 1 10em} .mlist .mrowl .qtime{margin-left:auto}
 #qbadge{color:var(--brass);margin-left:2px}
 .repbar{height:12px;border-radius:6px;background:var(--panel2);overflow:hidden;margin-top:6px}
 .repbar i{display:block;height:100%;background:linear-gradient(90deg,#3f8f5a,var(--brass))}
@@ -803,7 +807,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.224";
+var APP_VERSION = "0.1.225";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4631,18 +4635,9 @@ function alArenaHtml(al){
   var E=al.econ, A=arCat(); if (!E || !A || !E.mon) return '<div class="section"><p class="hint">Loading the Arena…</p></div>';
   var mon=E.mon, lv=E.lv.arena||0, my=al.my, now=Date.now(), mine=S.alArena||[], h='', nLive=(mon.live||[]).length;
   h+='<div class="section"><div class="shead"><h3>Monster Arena</h3><span class="dur">'+(lv?'level '+lv:'not built')+'</span></div>'+
-    '<p class="hint">Summon a monster and the whole alliance has '+Math.round(A.window/60000)+' minutes to march here from their kingdom squares. When the window closes, every army that made it fights together. Nobody dies: losses come home wounded to their city’s Medic Camp. If it falls, everyone who joined gets the same reward. Arena marches need a hero but don’t use your Rally Spot: you have <b>'+arSlots()+'</b> Arena slots (Arena Marshals adds more).</p>'+
+    '<p class="hint">Summon a monster and the whole alliance has '+Math.round(A.window/60000)+' minutes to march here from their kingdom squares. When the window closes, every army that made it fights together. Nobody dies: losses come home wounded to their city’s Medic Camp. If it falls, everyone who joined gets the same reward. Arena marches need a hero but don’t use your Rally Spot: you have <b>'+arSlots()+'</b> Arena slots (Arena Marshals adds more). Monsters that are up, your Arena marches and recent fights are on the Rallies tab.</p>'+
     (lv?'':'<p class="why">Build the Monster Arena in the Alliance City first.</p>')+'</div>';
-  var live=arLive(), full=mine.length>=arSlots();
-  live.forEach(function(cur){ var T=arT(cur.type);
-    h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>Level '+cur.lv+' '+esc(T.n)+'</h3><span class="dur">closes in <b class="arleft" data-ends="'+cur.ends+'">'+fmtT(cur.ends-now)+'</b></span></div>'+
-      '<p class="hint" style="margin:0 0 4px">Summoned by '+esc(cur.by)+'. '+esc(T.d||"")+'</p><p class="dur" style="margin:0 0 4px">'+arWeakTxt(T)+'</p>'+
-      ((T.lv[cur.lv-1])?'<p class="dur" style="margin:0 0 6px">Reward if it falls: '+esc(T.lv[cur.lv-1].reward)+'.</p>':'')+
-      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst())+' from your kingdom')+'</span></div>'+
-      (cur.joins.length?'<div class="h3" style="margin-top:8px">On the way ('+cur.joins.length+')</div>'+cur.joins.map(function(j){ return '<p class="dur" style="margin:2px 0"><b>'+esc(j.name)+'</b>: '+fmt(j.n)+' troops'+(j.arrive>now?', arriving in '+fmtT(j.arrive-now):', arrived')+'</p>'; }).join(""):'<p class="dur">Nobody has marched yet.</p>')+'</div>'; });
-  if ((mon.live||[]).some(function(c){ return now>=c.ends; })) h+='<div class="section"><p class="hint">A window has closed: that fight is being decided\u2026</p></div>';
-  if (mine.length) h+='<div class="section"><div class="shead"><h3>Your Arena marches</h3><span class="dur">'+mine.length+' / '+arSlots()+' slots</span></div>'+mine.map(function(m){ var hh=m.hero?heroById(m.hero):null, ci=cityIndex(m.city);
-    return '<div class="bq"><span><b>'+fmt(sumT(m.t))+' troops</b> from '+esc(ci>=0?S.cities[ci].name:"?")+(hh?' led by '+esc(hh.name):'')+'<br><span class="dur">'+arStatus(m)+'</span></span></div>'; }).join("")+'</div>';
+  if (nLive) h+='<div class="section"><p class="hint" style="margin:0">'+nLive+' monster'+(nLive>1?'s are':' is')+' up. Send marches from the <button class="link strong" data-act="al-sub" data-v="rally">Rallies</button> tab.</p></div>';
   if (lv){
     h+='<div class="section"><div class="shead"><h3>Summon</h3><span class="dur">'+nLive+' / '+mon.slots+' up \u00b7 '+mon.free+' of '+mon.freeMax+' free today</span></div>'+
       '<p class="hint">'+(mon.free?'Free summons left today: <b>'+mon.free+'</b>. ':'The free summons are used up. ')+'They come back in '+fmtT(Math.max(0,mon.resetAt-now))+' (midnight UTC; Monster Lore adds more). After that, each summon costs its resource from the bank: 10 million at level 1, ten times more each level. A monster\u2019s level can\u2019t pass the Arena\u2019s, and each level needs a kill of the one before. The Arena holds one monster per Arena slot at a time.</p>'+
@@ -4658,11 +4653,6 @@ function alArenaHtml(al){
         '<div class="tscroll"><table class="gt" style="min-width:0"><tbody>'+RES.map(function(k){ return '<tr><td>'+RNAME[k]+' <span class="dur">(bank '+fmt(Math.floor(E.bank[k]||0))+')</span></td><td><input type="number" min="0" data-arguard="'+k+'" value="'+esc(ARG[k])+'" style="width:130px"></td></tr>'; }).join("")+'</tbody></table></div>'+
         '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="al-guard">Save</button></div></details>'; }
   }
-  if (mon.recent.length){ h+='<div class="section"><h3>Recent fights</h3>'+mon.recent.map(function(r){ var T=arT(r.type), w=0, b=0; for (var ref in r.mine){ w+=sumT(r.mine[ref].wounded); b+=sumT(r.mine[ref].back); }
-      return '<div class="acity"><h4><span class="'+(r.win?'okc':'badc')+'">Level '+r.lv+' '+esc(T.n)+(r.win?' fell':' survived')+'</span><span class="dur">'+alTime(r.at)+'</span></h4>'+
-        '<p class="dur" style="margin:0">'+(r.marches?r.marches+' march'+(r.marches>1?'es':'')+' from '+r.players.map(esc).join(", ")+', '+r.rounds+' round'+(r.rounds>1?'s':'')+(r.win?'':' ('+Math.round(r.hpLeft/Math.max(1,r.hp0)*100)+'% of it left)'):'Nobody arrived in time.')+'</p>'+
-        (r.win?'<p class="dur" style="margin:2px 0 0">Each player’s reward: '+esc(arRewardList(r.reward))+'</p>':'')+
-        (b+w?'<p class="dur" style="margin:2px 0 0">Your troops: '+fmt(b)+' unhurt, '+fmt(w)+' wounded.</p>':'')+'</div>'; }).join("")+'</div>'; }
   return h;
 }
 // results from the server: send each march home with what survived, and hand out the reward once per fight
@@ -4878,16 +4868,41 @@ function rySend(){
     .catch(function(){ RYS.sending=false; if (gb) gb.disabled=false; toast("Couldn\u2019t reach the server. Check your connection."); });
 }
 function ryStatus(m){ var now=Date.now(); return m.st==="back" ? 'coming home, '+fmtT(Math.max(0,m.home-now)) : now<m.arrive ? 'arrives in '+fmtT(m.arrive-now) : now<m.hitAt ? 'waiting at the rally point' : m.land ? 'on the road to the target, lands in '+fmtT(Math.max(0,m.land-now)) : 'on the road to the target'; }
+// 0.1.225: the Arena's fights live on the Rallies tab with every other rally (the Arena tab is just for summoning)
+function arFightsHtml(al){ var E=al.econ, A=arCat(), out={live:"", marches:"", recent:"", n:0, keys:[]}; if (!E || !A || !E.mon) return out;
+  var mon=E.mon, now=Date.now(), mine=S.alArena||[], h='', live=arLive(), full=mine.length>=arSlots();
+  live.forEach(function(cur){ var T=arT(cur.type), tot=0; cur.joins.forEach(function(j){ tot+=j.n; }); var key="arl"+ALS.aid+"_"+cur.id; out.keys.push(key); out.n++;
+    h+=ryFold(key, '<span class="ryt"><b>Arena: level '+cur.lv+' '+esc(T.n)+'</b><span class="dur">closes in <b class="arleft" data-ends="'+cur.ends+'">'+fmtT(cur.ends-now)+'</b></span></span><span class="dur rys">Summoned by '+esc(cur.by)+' · '+cur.joins.length+' march'+(cur.joins.length===1?'':'es')+', '+fmt(tot)+' troops</span>',
+      '<p class="hint" style="margin:0 0 4px">'+esc(T.d||"")+'</p><p class="dur" style="margin:0 0 4px">'+arWeakTxt(T)+'</p>'+
+      ((T.lv[cur.lv-1])?'<p class="dur" style="margin:0 0 6px">Reward if it falls: '+esc(T.lv[cur.lv-1].reward)+'.</p>':'')+
+      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst())+' from your kingdom')+'</span></div>'+
+      (cur.joins.length?'<div class="h3" style="margin-top:8px">On the way ('+cur.joins.length+')</div>'+cur.joins.map(function(j){ return '<p class="dur" style="margin:2px 0"><b>'+esc(j.name)+'</b>: '+fmt(j.n)+' troops'+(j.arrive>now?', arriving in '+fmtT(j.arrive-now):', arrived')+'</p>'; }).join(""):'<p class="dur">Nobody has marched yet.</p>')); });
+  if ((mon.live||[]).some(function(c){ return now>=c.ends; })) h+='<div class="section"><p class="hint">An Arena window has closed: that fight is being decided…</p></div>';
+  out.live=h; h='';
+  if (mine.length) h+='<div class="section"><div class="shead"><h3>Your Arena marches</h3><span class="dur">'+mine.length+' / '+arSlots()+' slots</span></div>'+mine.map(function(m){ var hh=m.hero?heroById(m.hero):null, ci=cityIndex(m.city);
+    return '<div class="bq"><span><b>'+fmt(sumT(m.t))+' troops</b> from '+esc(ci>=0?S.cities[ci].name:"?")+(hh?' led by '+esc(hh.name):'')+'<br><span class="dur">'+arStatus(m)+'</span></span></div>'; }).join("")+'</div>';
+  out.marches=h; h='';
+  if (mon.recent.length){ h+='<div class="section"><h3>Recent Arena fights</h3>'+mon.recent.map(function(r){ var T=arT(r.type), w=0, b=0; for (var ref in r.mine){ w+=sumT(r.mine[ref].wounded); b+=sumT(r.mine[ref].back); }
+      return '<div class="acity"><h4><span class="'+(r.win?'okc':'badc')+'">Level '+r.lv+' '+esc(T.n)+(r.win?' fell':' survived')+'</span><span class="dur">'+alTime(r.at)+'</span></h4>'+
+        '<p class="dur" style="margin:0">'+(r.marches?r.marches+' march'+(r.marches>1?'es':'')+' from '+r.players.map(esc).join(", ")+', '+r.rounds+' round'+(r.rounds>1?'s':'')+(r.win?'':' ('+Math.round(r.hpLeft/Math.max(1,r.hp0)*100)+'% of it left)'):'Nobody arrived in time.')+'</p>'+
+        (r.win?'<p class="dur" style="margin:2px 0 0">Each player’s reward: '+esc(arRewardList(r.reward))+'</p>':'')+
+        (b+w?'<p class="dur" style="margin:2px 0 0">Your troops: '+fmt(b)+' unhurt, '+fmt(w)+' wounded.</p>':'')+'</div>'; }).join("")+'</div>'; }
+  out.recent=h; return out; }
+// one collapsible card per rally or Arena fight: tap the header to fold it away (remembered per rally)
+function ryFold(key, sum, body){ return '<details class="section det rycard" data-det="'+key+'"'+(DET[key]===false?'':' open')+'><summary>'+sum+'</summary><div class="rybody">'+body+'</div></details>'; }
 function alRallyHtml(al){
   var Y=ryData(); if (!Y) return '<div class="section"><p class="hint">Loading rallies\u2026</p></div>';
-  var now=Date.now(), live=ryLive(), mine=S.alRally||[], h='';
+  var now=Date.now(), live=ryLive(), mine=S.alRally||[], h='', keys=[], AF=arFightsHtml(al);
   h+='<div class="section"><div class="shead"><h3>Rallies</h3><span class="dur">'+[["npc","NPC 10"],["hc","Historic"]].map(function(p){ var w=ryWait(p[0]); return p[1]+': '+(w?'in '+fmtT(w-now):'ready'); }).join(' \u00b7 ')+'</span></div>'+
     (((alMine()||{}).econ||{}).ars&&alMine().econ.ars.might?'<p class="dur" style="margin:0 0 4px">\u2692 The Warden rides with every wave: <b>+'+(alMine().econ.ars.might/10).toFixed(1)+'% attack</b>.</p>':'')+
-    '<p class="hint">Any member can call the alliance onto a level 10 NPC city, a historic city or a wizard on their own map: a level 10 NPC city once a day (the call comes back at the daily reset, midnight Eastern), a historic city once a week, wizards any time. Tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the leave time every march that made it sets off together from the caller\u2019s chosen city, at the slowest troop\u2019s pace; when they land they hit in the caller\u2019s order, each wave against what the ones before it left (a wizard is fought by everyone at once), then they ride back to that city and everyone\u2019s troops are home at once. Winning waves (and waves that hit it already empty) lower an NPC or historic city\u2019s loyalty; at 0 it goes to the caller. If it wipes the garrison, everyone who made it rolls the target\u2019s full drop table on their own, so each player gets different spoils. The caller also gets the garrison that\u2019s left and takes the city with their own march.</p></div>';
+    '<details class="det" data-det="ryhelp"'+(DET.ryhelp?' open':'')+'><summary><b>How rallies work</b></summary><p class="hint">Any member can call the alliance onto a level 10 NPC city, a historic city or a wizard on their own map: a level 10 NPC city once a day (the call comes back at the daily reset, midnight Eastern), a historic city once a week, wizards any time. Tap the target on your Map and choose <b>Call the alliance</b>. Everyone marches from their kingdom square to the caller\u2019s and waits. At the leave time every march that made it sets off together from the caller\u2019s chosen city, at the slowest troop\u2019s pace; when they land they hit in the caller\u2019s order, each wave against what the ones before it left (a wizard is fought by everyone at once), then they ride back to that city and everyone\u2019s troops are home at once. Winning waves (and waves that hit it already empty) lower an NPC or historic city\u2019s loyalty; at 0 it goes to the caller. If it wipes the garrison, everyone who made it rolls the target\u2019s full drop table on their own, so each player gets different spoils. The caller also gets the garrison that\u2019s left and takes the city with their own march. Monsters summoned at the Arena show up here too. Tap a rally\u2019s header to fold it away.</p></details><!--ryfold--></div>';
   live.forEach(function(R){ var g=R.garrison||{t:[],f:[]}, ord={}; (R.order||[]).forEach(function(id,i){ ord[id]=i; });
     var ms=R.marches.slice().sort(function(a,b){ return (ord[a.id]!=null?ord[a.id]:1e6+a.arrive)-(ord[b.id]!=null?ord[b.id]:1e6+b.arrive); }), mineN=R.marches.filter(function(j){ return j.mine; }).length, total=0; ms.forEach(function(j){ total+=j.n; });
     var gone=now>=R.hitAt, wz=R.k==="wiz";
-    h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>'+esc(R.host)+'\u2019s '+esc(R.name)+'</h3><span class="dur">'+(gone?'lands in <b class="arleft" data-ends="'+R.land+'">'+fmtT(R.land-now)+'</b>':'leaves in <b class="arleft" data-ends="'+R.hitAt+'">'+fmtT(R.hitAt-now)+'</b>')+'</span></div>'+
+    var key="ry"+ALS.aid+"_"+R.id, hOut=h; h=''; keys.push(key);
+    var sum='<span class="ryt"><b>'+esc(R.host)+'\u2019s '+esc(R.name)+'</b><span class="dur">'+(gone?'lands in <b class="arleft" data-ends="'+R.land+'">'+fmtT(R.land-now)+'</b>':'leaves in <b class="arleft" data-ends="'+R.hitAt+'">'+fmtT(R.hitAt-now)+'</b>')+'</span></span>'+
+      '<span class="dur rys">'+(R.mine?'Your rally \u00b7 ':'')+ms.length+' march'+(ms.length===1?'':'es')+', '+fmt(total)+' troops'+(mineN?' \u00b7 you have '+mineN+' in it':'')+'</span>';
+    h+=
       '<p class="dur" style="margin:0 0 4px">At ('+R.x+', '+R.y+') on '+esc(R.host)+'\u2019s map'+(R.from?', leaving from '+esc(R.from):'')+(gone?'. On the road: no more marches can join.':', at '+wvClock(S.gt+(R.hitAt-now)*S.speed)+'.')+' '+(wz?'Health '+fmt(WIZ[R.L]?WIZ[R.L].hp:0)+'; it heals to full if it survives.':'Defenders now '+fmt(sumT(g.t))+' (about '+fmt(g.atHit)+' by the leave time, as it refills), fortifications '+fmt((g.f||[]).reduce(function(a,b){ return a+b; },0))+', wall level '+(g.wall||0)+'.')+'</p>'+
       (R.land&&!wz?'<p class="dur" style="margin:0 0 4px">Lands at <b>'+wvClock(S.gt+(R.land-now)*S.speed)+'</b>'+(gone?'':' if nobody slower joins')+'.'+(R.mine?' <button class="link strong" data-act="ry-waves" data-rid="'+R.id+'">Time waves to land after it</button>':'')+'</p>':'')+
       (gone?'':'<div class="btnrow"><button class="btn small" data-act="ry-send" data-rid="'+R.id+'">Send a march</button><span class="dur">Travel about '+fmtT(ryTravelEst(R))+(R.mine?' (your own kingdom)':' from your kingdom')+(mineN?' \u00b7 you have '+mineN+' in it':'')+'</span></div>');
@@ -4900,14 +4915,18 @@ function alRallyHtml(al){
     if (R.mine && !gone) h+='<div class="h3" style="margin-top:8px">Your rally</div><div class="farmadd"><label class="dur" for="rytime">Leave at</label>'+hmsIn('id="rytime"', RYS.time)+'<button class="btn small ghost" data-act="ry-time" data-rid="'+R.id+'">Set time</button></div>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="ry-now" data-rid="'+R.id+'">'+(armedTile==="rynow"+R.id?'Tap again to leave now':'Leave now')+'</button><button class="btn small ghost danger" data-act="ry-cancel" data-rid="'+R.id+'">'+(armedTile==="rycan"+R.id?'Tap again to call it off':'Call it off')+'</button></div>'+
       '<p class="dur" style="margin:4px 0 0">'+(wz?'':'Use \u25b2\u25bc to set who hits first. ')+'Leaving now sends home anyone still on the way to you. Calling it off sends everyone home and gives you the call back.</p>';
-    h+='</div>'; });
-  if (!live.length) h+='<div class="section"><p class="dur">No rally is running.</p></div>';
+    h=hOut+ryFold(key, sum, h); });
+  h+=AF.live; keys=keys.concat(AF.keys);
+  if (!live.length && !AF.n) h+='<div class="section"><p class="dur">No rally is running and no monster is up at the Arena.</p></div>';
+  if (keys.length>1) h=h.replace('<!--ryfold-->','<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="ry-fold" data-v="0" data-keys="'+keys.join(" ")+'">Collapse all</button><button class="btn ghost small" data-act="ry-fold" data-v="1" data-keys="'+keys.join(" ")+'">Expand all</button></div>');
   var out=mine.filter(function(m){ return m.aid===ALS.aid; });
   if (out.length) h+='<div class="section"><div class="shead"><h3>Your rally marches</h3></div>'+out.map(function(m){ var hh=m.hero?heroById(m.hero):null, ci=cityIndex(m.city);
     return '<div class="bq"><span><b>'+fmt(sumT(m.st==="back"?m.back:m.t))+' troops</b> from '+esc(ci>=0?S.cities[ci].name:"?")+(hh?' led by '+esc(hh.name):'')+'<br><span class="dur">'+ryStatus(m)+'</span></span></div>'; }).join("")+'</div>';
+  h+=AF.marches;
   if ((Y.recent||[]).length) h+='<div class="section"><h3>Recent rallies</h3>'+Y.recent.map(function(r){ var w=r.final?(r.final.n!=null?r.final.n:sumT(r.final.t)):0;
       return '<div class="acity"><h4><span>'+esc(r.host)+'\u2019s '+esc(r.name)+'</span><span class="dur">'+alTime(r.hitAt)+'</span></h4><p class="dur" style="margin:0">'+(r.cancelled?'Called off.':!r.fights.length?'Nobody made it in time.':r.fights.length+' wave'+(r.fights.length>1?'s':'')+' from '+r.players.map(esc).join(", ")+'. '+(w?fmt(w)+' defenders left.':'The garrison was wiped out.'))+'</p>'+
         (r.fights.length?'<p class="dur" style="margin:2px 0 0">'+r.fights.map(function(f){ return f.wave+'. '+esc(f.name)+': '+(f.won?'won':'lost')+', killed '+fmt(f.killed)+', lost '+fmt(f.lost); }).join(" \u00b7 ")+'</p>':'')+'</div>'; }).join("")+'</div>';
+  h+=AF.recent;
   return h;
 }
 // results from the server: each of my marches heads home with what's left; the caller's map gets the garrison that's left
@@ -11297,6 +11316,7 @@ document.addEventListener("click",function(e){
   if (act==="dt-cat"){ DT.cat=a.dataset.c||""; lastSheet=""; renderSheet(); return; }
   if (act==="ry-list"){ openSheet({kind:"rylist"}); return; }
   if (act==="ev-open"){ evBoardFetch(); openSheet({kind:"event"}); return; }
+  if (act==="ry-fold"){ var fv=a.dataset.v==="1"; (a.dataset.keys||"").split(" ").forEach(function(k){ if (k) DET[k]=fv; }); lastView=""; renderView(true); return; }
   if (act==="ev-board"){ evBoardFetch(true); lastSheet=""; renderSheet(); return; }
   if (act==="push-test"){ pushTest(); return; }
   if (act==="push-retry"){ PUSH.err=""; pushSync(true); lastSheet=""; lastView=""; refresh(); return; }
