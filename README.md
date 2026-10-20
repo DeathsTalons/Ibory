@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.207
+Version 0.1.209
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,13 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.209** Vampires can be rallied (needs the new worker). Call the alliance onto any vampire, any time, with no call limit (worker `k:"vamp"`, `RY_LIMIT.vamp`).
+  - The waves fight its brood one after another, like an NPC rally.
+  - If it falls, every player who got a march there gets that vampire's spoils and a kill on their event track (`vampSpoilsGive` + `evKill` in `ryResults`; the worker always marks it `full`). The vampire leaves the caller's map.
+  - While the rally is on it, the caller can't hit it alone (`ryBlocks`), so the rally gets the kill.
+  - The intro, the event menu and the call sheet say so.
+  - Tests: `t/t77.py` and `scores-worker/test-harness/t26.mjs`.
+- **0.1.208** Vampire spawns per game hour are now 5 Fledglings, 3 Stalkers and 2 Lords (was 6, 3 and 1). Still 10 an hour, up to 30 on the map (`VAMP_PER_H`).
 - **0.1.207** Dracula has a built-in hero portrait: the 16th-century Ambras Castle portrait of Vlad III (public domain), cropped square at 256 px and embedded (`HPORT_BUILTIN`, art in art/dracula). Any picture the player picks for him still takes its place.
 - **0.1.206** Real push notifications (needs the new worker, plus its Cron Trigger). Rally calls, rally results and private messages now reach the phone even when Ibory is fully closed.
   - **Phone.** With phone notifications on and a cloud account, the phone subscribes with the server (`pushSync`; the key comes from `/push/key`). It sends which of the Rallies and Private messages switches are on, and signs up again if they or the account change.

@@ -803,7 +803,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.207";
+var APP_VERSION = "0.1.209";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1531,9 +1531,11 @@ function vampFxDraw(g, x0, y0, x1, y1, z){ var now=Date.now(); VAMP_FX=VAMP_FX.f
     vampFrame(g, f.L, d[0]+k, (f.x-mv.x)*z, (f.y-mv.y)*z, z); }); }
 // 0.1.203: a slain vampire's spoils, always the same: L1 a 15-minute speed-up; L2 also 4 Flawless Gems; L3 also 1 Rough Ore. The first kill of each level
 // also unlocks that vampire as a one-tile decoration, for good (place it as often as you like)
-function vampDrops(q){ var L=VAMP_K[q.mon], drops=[], add=function(k,n){ S.items[k]=(S.items[k]||0)+n; drops.push((n>1?n+" ":"a ")+ITEMS[k].name+(n>1&&!/s$/.test(ITEMS[k].name)?"s":"")); };
+function vampSpoilsGive(L, drops){ var add=function(k,n){ S.items[k]=(S.items[k]||0)+n; drops.push((n>1?n+" ":"a ")+ITEMS[k].name+(n>1&&!/s$/.test(ITEMS[k].name)?"s":"")); };
   add("s15",1); if (L>=2) add("gemF",4); if (L>=3) add("ore",1);
-  var D=decoS(), dk="dv_vamp"+L; D.unl=D.unl||{}; if (!D.unl[dk]){ D.unl[dk]=1; drops.push("the "+DECOS[dk].n+" decoration (yours for good)"); }
+  var D=decoS(), dk="dv_vamp"+L; D.unl=D.unl||{}; if (!D.unl[dk]){ D.unl[dk]=1; drops.push("the "+DECOS[dk].n+" decoration (yours for good)"); } }
+function isVamp(q){ return !!(q && q.k==="monster" && q.ev && VAMP_K[q.mon]); }
+function vampDrops(q){ var L=VAMP_K[q.mon], drops=[]; vampSpoilsGive(L, drops);
   VAMP_FX.push({x:q.x, y:q.y, L:L, t0:Date.now()});
   if (S.map.monsters && S.map.monsters.list) S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; });
   if (S.vamp) S.vamp.list=S.vamp.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true;
@@ -1923,9 +1925,9 @@ function wizScatter(){ var W=wizS(); if (W.sc205) return; W.sc205=1; var busy=wi
 function decoOnTile(id){ var l=S.deco&&S.deco.at&&S.deco.at[id]; return !!(l&&l.length) || !!(S.deco&&S.deco.hide&&S.deco.hide[id]===1); } // never spawn into a decorated scene
 
 /* ---------- Hallow's Eve vampires (0.1.205) ----------
-   They rise every game hour on valleys and flats near your cities (where the wizards used to be): 6 Fledglings, 3 Stalkers and a Lord,
+   They rise every game hour on valleys and flats near your cities (where the wizards used to be): 5 Fledglings, 3 Stalkers and 2 Lords (0.1.208),
    up to 30 on the map at once. They stay until slain, and all of them leave when the event ends. Slaying them counts toward the event track. */
-var VAMP_KIND={1:"jack",2:"horseman",3:"pking"}, VAMP_PER_H={1:6,2:3,3:1}, VAMP_CAP=30;
+var VAMP_KIND={1:"jack",2:"horseman",3:"pking"}, VAMP_PER_H={1:5,2:3,3:2}, VAMP_CAP=30;
 function vampS(){ if (!S.vamp) S.vamp={h:null, ev:"", list:[]}; return S.vamp; }
 var VIX={list:null, n:-1, at:{}}; // tile id -> vampire, rebuilt whenever the list changes (the minimap asks for every tile)
 function vampAt(id){ var V=S.vamp; if (!V || !V.list.length) return null; var ev=evNow(); if (!ev || V.ev!==ev.id) return null;
@@ -1980,7 +1982,7 @@ function evIntroSheet(){ var ev=evNow()||EVENTS[0];
     '<div class="h3">Who rises</div>'+vampCards(false)+
     '<p class="hint" style="margin:0">Tap one to see it move. How to bring them down is for you to work out.</p>'+
     '<div class="h3">The hunt</div>'+
-    '<p style="margin:0">New vampires rise near your cities every hour, up to 30 at a time. They stay until they’re slain or the event ends after '+evDay(ev.to-1)+'. Every vampire you slay drops spoils, and the first of each kind joins your decorations for good.</p>'+
+    '<p style="margin:0">New vampires rise near your cities every hour, up to 30 at a time. They stay until they’re slain or the event ends after '+evDay(ev.to-1)+'. Every vampire you slay drops spoils, and the first of each kind joins your decorations for good. Call your alliance onto one and everyone who gets a march there takes the spoils and the kill.</p>'+
     '<div class="h3">The track</div>'+
     '<p style="margin:0 0 6px">Slay 100 vampires to finish it. At 25, a historic hero answers your call: <b>Dracula</b>.</p>'+evMilesHtml(ev.id)+
     '<p class="hint" style="margin:0">Follow your hunt from the bat at the top of the screen.</p>'+
@@ -1993,7 +1995,7 @@ function evSheet(){ var ev=evNow(); if (!ev || !EV_TRACK[ev.id]) return '<div cl
       T.miles.map(function(m){ return '<span class="evtick'+(e.got[m.n]?' got':'')+'" style="left:'+(m.n/T.max*100)+'%"></span>'; }).join("")+'</div>'+
     evMilesHtml(ev.id)+
     '<div class="h3">Vampires</div>'+vampCards(true)+
-    '<p class="hint" style="margin:0">'+onMap+' on your map right now. More rise every hour (up to 30 at once). The event ends after '+evDay(ev.to-1)+'; any vampires left then are gone, but everything you earned stays.</p>'+
+    '<p class="hint" style="margin:0">'+onMap+' on your map right now. More rise every hour (up to 30 at once). Rally your alliance onto them: everyone who gets there takes the spoils and the kill. The event ends after '+evDay(ev.to-1)+'; any vampires left then are gone, but everything you earned stays.</p>'+
     '<div class="btnrow"><button class="btn ghost small" data-act="ev-intro">See the intro again</button><button class="btn small" data-act="close">Close</button></div>'; }
 // the first time the game opens while an event runs, once everything else on screen is out of the way
 setInterval(function(){ try { var ev=evNow(); if (!ev || !EV_TRACK[ev.id] || saveLocked || sheetFor || !S || !S.cities || !S.cities.length) return; S.evIntro=S.evIntro||{}; if (S.evIntro[ev.id]) return;
@@ -4741,16 +4743,16 @@ function ryOn(){ return mpShown() && alOn() && !!alMine(); }
 function ryData(){ var al=alMine(); return al && al.econ && al.econ.rally; }
 function ryLive(){ var Y=ryData(), now=Date.now(); return Y ? (Y.live||[]).filter(function(R){ return now<(R.land||R.hitAt); }) : []; } // still running: waiting, or on the road to the target
 function ryById(id){ return ryLive().filter(function(R){ return R.id===id; })[0]||null; }
-function ryTargetOk(q){ return q && ((q.k==="npc" && q.L>=10) || q.k==="hc" || q.k==="wiz"); }
+function ryTargetOk(q){ return q && ((q.k==="npc" && q.L>=10) || q.k==="hc" || q.k==="wiz" || isVamp(q)); } // 0.1.209: vampires too
 // when you can next call onto this kind of target (0 = now). Y.nc from the Worker (0.1.167); older Workers sent one weekly nextCall
-function ryWait(k){ if (k==="wiz") return 0; var Y=ryData()||{}, t=Y.nc ? Y.nc[k==="hc"?"hc":k==="monster"?"mon":"npc"] : Y.nextCall; return t && t>Date.now() ? t : 0; }
+function ryWait(k){ if (k==="wiz" || k==="monster" || k==="vamp") return 0; var Y=ryData()||{}, t=Y.nc ? Y.nc[k==="hc"?"hc":k==="monster"?"mon":"npc"] : Y.nextCall; return t && t>Date.now() ? t : 0; }
 function ryRule(k){ return k==="hc" ? "One historic city rally a week" : "One level 10 NPC city rally a day"; }
 // 0.1.177: up to RY_MAX_MINE of your own rallies at once, so the locked targets are a list (S.rallyLocks; the old single S.rallyLock moves in)
 var RY_MAX_MINE=10;
 function ryLocks(){ if (!S.rallyLocks){ S.rallyLocks=S.rallyLock?[S.rallyLock]:[]; delete S.rallyLock; } return S.rallyLocks; }
 function ryLocked(tileId){ return ryLocks().some(function(L){ return L.tile===tileId; }); } // a rally of yours is on it (one at a time per target)
 // 0.1.178: only a wizard is off limits while your rally is on it; NPC and historic cities can still be hit, so waves can land right after the rally
-function ryBlocks(tileId){ return ryLocks().some(function(L){ var q=TILE_BY[L.tile]; return L.tile===tileId && (L.k ? L.k==="wiz" : !!(q && q.k==="wiz")); }); }
+function ryBlocks(tileId){ return ryLocks().some(function(L){ var q=TILE_BY[L.tile]; return L.tile===tileId && (L.k ? (L.k==="wiz"||L.k==="vamp") : !!(q && (q.k==="wiz"||isVamp(q)))); }); } // wizards and vampires: the rally gets the kill
 // a wave landing on your NPC or historic city after your rally there has landed but before its result reached this game waits for it (up to 3 minutes)
 function ryHoldFor(m){ if (m.mission!=="attack" && m.mission!=="conquer") return null; var now=Date.now();
   return ryLocks().filter(function(L){ return L.tile===m.tile && L.land && L.aid===ALS.aid && now>=L.land && now-L.land<3*60e3; })[0]||null; }
@@ -4771,9 +4773,9 @@ function ryTravelEst(R){ var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M||!
   if (R.mine) return 0; var d=me&&host?Math.hypot(me.x-host.x, me.y-host.y):5; return (c.travel0+c.travelTile*d)*1000/Math.min(4,Math.max(1,bMarch())); } // 0.1.191: the caller's own marches are already there
 function ryCard(){ var el=document.getElementById("tileinfo"); if (!el || !selTile || !ryOn()) return; var q=TILE_BY[selTile]; if (!ryTargetOk(q)) return; var sec=el.querySelector(".section"); if (!sec) return;
   var mine=ryMineN()>=RY_MAX_MINE, wait=ryWait(q.k), d=document.createElement("div"); d.className="btnrow"; d.style.marginTop="8px";
-  d.innerHTML=ryLocked(q.id) ? '<span class="dur">Your alliance rally is on this target'+(q.k==="wiz"?'. Join it from the Alliance tab (Rallies).':': you can still hit it yourself, and time your waves to land right after the rally (Rallies tab).')+'</span><button class="btn ghost small" data-act="al-go-rally">Open Rallies</button>'
+  d.innerHTML=ryLocked(q.id) ? '<span class="dur">Your alliance rally is on this target'+(q.k==="wiz"||isVamp(q)?'. Join it from the Alliance tab (Rallies).':': you can still hit it yourself, and time your waves to land right after the rally (Rallies tab).')+'</span><button class="btn ghost small" data-act="al-go-rally">Open Rallies</button>'
     : mine ? '<span class="dur">You have '+RY_MAX_MINE+' rallies running, the most at once.</span>' : wait ? '<span class="dur">'+ryRule(q.k)+': your next call is in '+fmtT(wait-Date.now())+'.</span>'
-    : '<button class="btn small" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button><span class="dur">'+(q.k==="hc"?'Once a week':q.k==="wiz"?'Any time':'Once a day')+'. '+(q.k==="wiz"?'Everyone who gets there rolls the rewards.':'Your alliance hits it in waves you order.')+'</span>';
+    : '<button class="btn small" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button><span class="dur">'+(q.k==="hc"?'Once a week':q.k==="wiz"||isVamp(q)?'Any time':'Once a day')+'. '+(q.k==="wiz"?'Everyone who gets there rolls the rewards.':isVamp(q)?'If it falls, everyone who gets there takes the spoils and the kill.':'Your alliance hits it in waves you order.')+'</span>';
   sec.appendChild(d); }
 // travel from a city to the target for one troop of each type (real ms): the rally marches at the slowest type it ends up with
 function ryTrv(ci, q){ return withCity(ci, function(){ return U.map(function(u,i){ var t=Z12(); t[i]=1; return Math.round(realMs(travelMs(t,q,0))); }); }); }
@@ -4781,7 +4783,7 @@ function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="
   var cur=current(q), mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||0))), fci=cityIndex(RYS.from); if (fci<0){ fci=S.cur; RYS.from=C().id; }
   var trv=ryTrv(fci,q), tmin=Math.min.apply(null,trv.filter(function(x){ return x>0; })), tmax=Math.max.apply(null,trv);
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Call the alliance</h2><div class="sub">onto '+esc(tileName(q))+' ('+q.x+', '+q.y+')</div></div></div>'+
-    '<p class="hint">Every member can march from their kingdom square to yours (you too, from any city). At the leave time, every march that made it sets off together from the city you pick below, at the pace of the slowest troop in the whole rally, and '+(q.k==="wiz"?'they fight the wizard all together when they land (Arena-style: nobody dies, the wounded go home to their Medic Camps, and if it survives it heals to full). If it falls, everyone who got a march there rolls the rewards on their own: '+wizRewardText(q.L)+'.':'hits this target one after another when they land, in the order you set on the Rallies tab; each wave fights what the ones before it left.')+' Then they ride back to that city and everyone\u2019s troops are home at once. Your own marches are at your kingdom the moment you send them. Marches still on the way to you when it leaves turn round.'+(q.k==="wiz"?'':' If the rally wipes the garrison, everyone who got a march there in time rolls the target\u2019s full drop table on their own (medals, boxes, gems, items; the garrison has to be full when it lands, like a normal attack). No resources are looted. Every wave that wins, and every one that hits it already empty, lowers its loyalty like your own win would; if it reaches 0 the city is yours. When it\u2019s over you get the garrison that\u2019s left, so send your own waves to finish it before it refills'+(q.k==="hc"?' (historic cities refill within an hour)':'')+'.')+' '+(q.k==="hc"?'One historic city call a week':q.k==="wiz"?'Wizard calls have no limit':'One level 10 NPC city call a day')+'; calling it off gives the call back.</p>'+
+    '<p class="hint">Every member can march from their kingdom square to yours (you too, from any city). At the leave time, every march that made it sets off together from the city you pick below, at the pace of the slowest troop in the whole rally, and '+(q.k==="wiz"?'they fight the wizard all together when they land (Arena-style: nobody dies, the wounded go home to their Medic Camps, and if it survives it heals to full). If it falls, everyone who got a march there rolls the rewards on their own: '+wizRewardText(q.L)+'.':'hits this target one after another when they land, in the order you set on the Rallies tab; each wave fights what the ones before it left.'+(isVamp(q)?' If it falls, everyone who got a march there takes its spoils, and the kill counts on their event track.':''))+' Then they ride back to that city and everyone\u2019s troops are home at once. Your own marches are at your kingdom the moment you send them. Marches still on the way to you when it leaves turn round.'+(q.k==="wiz"?'':' If the rally wipes the garrison, everyone who got a march there in time rolls the target\u2019s full drop table on their own (medals, boxes, gems, items; the garrison has to be full when it lands, like a normal attack). No resources are looted. Every wave that wins, and every one that hits it already empty, lowers its loyalty like your own win would; if it reaches 0 the city is yours. When it\u2019s over you get the garrison that\u2019s left, so send your own waves to finish it before it refills'+(q.k==="hc"?' (historic cities refill within an hour)':'')+'.')+' '+(q.k==="hc"?'One historic city call a week':q.k==="wiz"?'Wizard calls have no limit':'One level 10 NPC city call a day')+'; calling it off gives the call back.</p>'+
     (q.k==="wiz"?'<p class="dur">Health '+fmt(WIZ[q.L].hp)+'. While the rally runs you can\u2019t attack it yourself except through the rally.</p>':'<p class="dur">Right now: '+fmt(sumT(cur.t))+' defenders, '+fmt(cur.f.reduce(function(a,b){ return a+b; },0))+' fortifications, wall level '+cur.wall+'. While the rally runs you can\u2019t attack it yourself except through the rally.</p>')+
     '<div class="farmadd"><label class="dur" for="ryfrom">Leaves from</label><select id="ryfrom">'+S.cities.map(function(c,i){ return '<option value="'+c.id+'"'+(i===fci?' selected':'')+'>'+esc(c.name)+'</option>'; }).join("")+'</select></div>'+
     '<p class="dur" style="margin:0">From there: '+fmtT(tmin)+' for the fastest troops, '+fmtT(tmax)+' if anyone brings the slowest. Back the same way.</p>'+
@@ -4790,12 +4792,12 @@ function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="
     '<div class="act"><span></span><button class="btn" data-act="ry-call" id="rycallgo"'+(RYS.sending?' disabled':'')+'>Call the alliance</button></div><button class="closebtn" data-act="close">Cancel</button>';
   return h; }
 function ryCall(){ var q=TILE_BY[sheetFor.tile]; if (!q || RYS.sending) return; var mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||60)));
-  var b=baseOf(q), hh=S.map.hit[q.id], RT=q.k==="hc"?1*3.6e6:REGEN_T, f0=hh?Math.min(1,(S.gt-hh.at)/RT):1;
+  var b=baseOf(q), hh=S.map.hit[q.id], RT=q.k==="hc"?1*3.6e6:REGEN_T, f0=hh?Math.min(1,(S.gt-hh.at)/RT):1, rk=isVamp(q)?"vamp":q.k;
   var fci=cityIndex(RYS.from); if (fci<0) fci=S.cur;
-  var body={x:q.x, y:q.y, tname:tileName(q), k:q.k, L:q.L, B:{t:b.t, f:b.f, wall:b.wall, r:b.r, am:b.am||1, fb:b.fb||1, hint:b.hint||0}, H:hh?{t:hh.t, f:hh.f}:{t:b.t, f:b.f}, f0:f0, rt:realMs(RT), mins:mins, from:S.cities[fci].name, trv:ryTrv(fci,q)};
+  var body={x:q.x, y:q.y, tname:tileName(q), k:rk, L:q.L, B:{t:b.t, f:b.f, wall:b.wall, r:b.r, am:b.am||1, fb:b.fb||1, hint:b.hint||0}, H:hh?{t:hh.t, f:hh.f}:{t:b.t, f:b.f}, f0:f0, rt:realMs(RT), mins:mins, from:S.cities[fci].name, trv:ryTrv(fci,q)};
   RYS.sending=true; lastSheet=""; renderSheet();
   alPost("/al/rally/call", body).then(function(r){ RYS.sending=false; if (r.error){ toast(r.error); lastSheet=""; renderSheet(); return; }
-    ryLocks().push({rid:r.rid, tile:q.id, aid:ALS.aid, at:Date.now(), k:q.k}); save(); closeSheet(); toast("The alliance is called! The waves leave in "+fmtT(r.hitAt-Date.now())); ALS.sub="rally"; ALS.last=0; alSync(); lastView=""; refresh(); })
+    ryLocks().push({rid:r.rid, tile:q.id, aid:ALS.aid, at:Date.now(), k:rk}); save(); closeSheet(); toast("The alliance is called! The waves leave in "+fmtT(r.hitAt-Date.now())); ALS.sub="rally"; ALS.last=0; alSync(); lastView=""; refresh(); })
     .catch(function(){ RYS.sending=false; toast("Couldn\u2019t reach the server"); lastSheet=""; renderSheet(); }); }
 function ryWhy(n){
   var d=marchDraft, R=ryById(d.rid); if (!R) return "That rally has already hit";
@@ -4875,13 +4877,17 @@ function ryResults(Y){
       if (r.k==="wiz"){ var wr=wizRoll(r.L), wm=L.filter(function(x){ return x.ref===fresh[0]; })[0], wci=wm?cityIndex(wm.city):S.cur; if (wci<0) wci=S.cur; // a wizard: everyone who made it rolls the rewards
         for (var wk in wr.items) S.items[wk]=(S.items[wk]||0)+wr.items[wk]; RES.forEach(function(rk2){ S.cities[wci].res[rk2]+=wr.res[rk2]||0; });
         roll={drops:Object.keys(wr.items).map(function(k3){ return fmt(wr.items[k3])+" "+((ITEMS[k3]&&ITEMS[k3].name)||k3); }).concat([fmt(wr.res.food)+" of each resource (sent to "+S.cities[wci].name+")"]), medal:-1}; }
+      else if (r.k==="vamp"){ var vd=[]; vampSpoilsGive(r.L, vd); evKill("halloween", vd); roll={drops:vd, medal:-1}; } // 0.1.209: a vampire: the spoils and a kill on the event track for each player
       else roll = r.full ? winDrops({id:"rally:"+r.id, k:r.k, L:r.L}) : {drops:[], medal:-1, nofull:true}; }
     Object.keys(r.mine||{}).forEach(function(ref){ var m=L.filter(function(x){ return x.ref===ref; })[0]; if (!m || m.st!=="out") return; var o=r.mine[ref];
       m.st="back"; m.back=(o.left||m.t).slice(); if (o.wd) m.wd=o.wd.slice(); m.home=Math.max(Date.now(), o.home||0); /* 0.1.191: home the moment the rally is back at its launch city */ m.res=o; ch=true; var rw=fresh.indexOf(ref)>=0?roll:null; if (rw) roll=null; try { ryReport(r, m, o, rw); } catch(e){}
       if (!rw && !r.isHost) note("rally","The rally on "+r.host+"\u2019s "+r.name+" "+(o.cancelled||r.cancelled?"was called off: your march is heading home.":o.late?"left without your march (it arrived too late).":o.idle?"wiped it out before your wave was needed.":o.wave?"hit: your wave "+(o.won?"won":"was thrown back")+".":"is over.")); });
     var key=ALS.aid+":"+r.id; if (r.isHost && !S.alRallyDone[key]){ S.alRallyDone[key]=Date.now(); ch=true;
       var lk=ryLocks().filter(function(x){ return x.rid===r.id && x.aid===ALS.aid; })[0]; if (lk){ var q=TILE_BY[lk.tile];
-        if (q && q.k==="wiz"){ if (r.win && !r.cancelled){ var WS=wizS(); WS.list=WS.list.filter(function(w){ return w.id!==q.id; }); WIZ_FX.push({x:q.x, y:q.y, L:q.L, t0:Date.now(), dead:true}); note("rally","Your alliance brought down the "+tileName(q)+"!"); }
+        if (lk.k==="vamp" || isVamp(q)){ var vnm=q?tileName(q):r.name; // 0.1.209: a vampire on your map
+          if (r.win && !r.cancelled){ if (S.vamp) S.vamp.list=S.vamp.list.filter(function(v){ return v.id!==lk.tile; }); delete S.map.hit[lk.tile]; if (q) VAMP_FX.push({x:q.x, y:q.y, L:VAMP_K[q.mon], t0:Date.now()}); miniDirty=true; note("rally","Your alliance slew the "+vnm+"!"); }
+          else if (!r.cancelled && q && r.final){ S.map.hit[q.id]={t:r.final.t.slice(), f:r.final.f.slice(), res:current(q).res, at:S.gt}; miniDirty=true; note("rally","The "+vnm+" survived your alliance\u2019s rally with "+fmt(sumT(r.final.t))+" of its brood left."); } }
+        else if (q && q.k==="wiz"){ if (r.win && !r.cancelled){ var WS=wizS(); WS.list=WS.list.filter(function(w){ return w.id!==q.id; }); WIZ_FX.push({x:q.x, y:q.y, L:q.L, t0:Date.now(), dead:true}); note("rally","Your alliance brought down the "+tileName(q)+"!"); }
           else if (!r.cancelled) note("rally","The "+tileName(q)+" survived your alliance\u2019s rally and healed back to full."); }
         else if (q && r.final && !r.cancelled){ var cur=current(q); S.map.hit[q.id]={t:r.final.t.slice(), f:r.final.f.slice(), res:cur.res, at:S.gt}; miniDirty=true;
           // 0.1.179: every rally wave that won, and every one that hit it already empty, knocks loyalty down like your own win would; at 0 the city is the caller's (it's on your map)
