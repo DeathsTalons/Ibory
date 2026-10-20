@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.212
+Version 0.1.215
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,24 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.215** Monster experience: full, only for the kill.
+  - **Every monster:** map monsters, vampires, wizards and Arena monsters, solo or in a rally, give each player's first hero the full amount when it dies, and nothing if it survives. No partial credit.
+  - **Values:** map monsters and vampires are worth their whole garrison's kill value (`monXpFull`). Wizards give 300,000 or 660,000 (`WIZ_XP`). Arena monsters give 10,000 a level.
+  - A march that reached a monster rally but wasn't needed (it was already dead) still shares the kill. Late and called-off marches don't.
+  - NPC and historic city rallies still pay for each wave's own kills and fortifications.
+  - Reports say "monsters only give it when they die" when a fight it survives earns nothing.
+- **0.1.214** Arena monsters give hero experience, and only a player's first hero in a fight earns any.
+  - **Arena** (alliance and single-player): 10,000 experience a level (`AR_XP_LV`: level 1 gives 10,000, level 10 gives 100,000). If the monster survives, it pays for the share of its health that was taken off. The report shows it under each march.
+  - **First hero only:** in any rally or Arena fight, only the first march with a hero that a player sent (earliest `dep`, `xpFirstRef`) earns experience. That stops sending every hero with one troop each. The reports for the others say why they got nothing.
+  - **Wizard rallies:** experience is no longer split by damage. Every player's first hero gets the full 300,000 or 660,000 when it falls; if it survives, each gets the share of its health taken off (the worker's `xpf` is now unused).
+  - Test: `t/t81.py`.
+- **0.1.213** Every rally gives its leading heroes experience, and the reports show it (needs the new worker).
+  - **NPC, historic city and vampire rallies:** each wave's hero earns experience for the troops that wave killed and the fortifications it destroyed, the same as a solo attack (the worker now sends `fk`, fortifications destroyed per wave).
+  - **Wizard rallies:** a whole wizard is worth 300,000 experience (Fire) or 660,000 (Shadow), split by how much of its health each march took off (the worker's `arFight` tracks damage per player and sends `xpf`).
+  - **Solo wizard fights:** the share of its health you take off (`WIZ_XP`).
+  - Marches that came too late, weren't needed or were called off earn nothing.
+  - The rally report says "<hero> led and earned N experience" (or that they didn't fight); the solo wizard report shows it too.
+  - Tests: `t/t80.py` and `scores-worker/test-harness/t27.mjs`.
 - **0.1.212** Nobody dies fighting a vampire. Every loss goes to the Medic Camp, like with wizards (heal within 24 hours). This covers solo attacks, won or lost (`woundFrom(..., 1)`: a rate of 1 skips the usual 95% cap), and vampire rallies (`m.wd` set from the losses; the rally report says "Wounded"). Other fights keep the usual rate. Test: `t/t79.py`.
 - **0.1.211** The Arena report filter is now **Monsters**. It shows Arena fights, wizards, map monsters and vampires, solo or in a rally. Older reports are matched by name (`monLog`, `MON_RX`), so past fights show up too. Monster fights on the map still count as Attacks as well.
 - **0.1.210** Two new decoration packs, each a 50-coin unlock (needs the new worker for `decopack:castlewalls` and `decopack:ruins`). Both are drawn 64 px to a tile.
