@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.215
+Version 0.1.216
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,9 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.216** Rally marches show in each city's march list (`ryMarchRows`, `ryMarchInfo`). The line changes with each stage: "arrives in" (marching to the caller's kingdom), "launches in" (waiting there), "hits in" (on the way to the target), then waiting for the result, then "home in". It shows the hero and troops, and has Recall until the rally leaves. The next event at the top counts them too. Rally times are real time.
+  - Your own rallies' marches are drawn on your map, the same as other marches (`ryMapMarches`): red from the launch city toward the target after they leave, at the target until the result, then gold on the way home. The target tile and launch city are kept on the march (`m.tile`, `m.from`); older marches find them from your rally locks.
+  - Test: `t/t82.py`.
 - **0.1.215** Monster experience: full, only for the kill.
   - **Every monster:** map monsters, vampires, wizards and Arena monsters, solo or in a rally, give each player's first hero the full amount when it dies, and nothing if it survives. No partial credit.
   - **Values:** map monsters and vampires are worth their whole garrison's kill value (`monXpFull`). Wizards give 300,000 or 660,000 (`WIZ_XP`). Arena monsters give 10,000 a level.

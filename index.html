@@ -803,7 +803,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.215";
+var APP_VERSION = "0.1.216";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -3122,6 +3122,7 @@ function drawMap(){
       g.moveTo(dr*0.95,-dr*0.15); g.lineTo(dr*0.5,-dr*0.45); g.lineTo(dr*0.25,-dr*1.1); g.lineTo(-dr*0.1,-dr*0.35); g.lineTo(-dr*0.5,-dr*0.8); g.lineTo(-dr*0.55,-dr*0.1); g.lineTo(-dr*1.1,dr*0.45); g.lineTo(-dr*0.45,dr*0.3); g.lineTo(-dr*0.1,dr*0.65); g.lineTo(dr*0.45,dr*0.3); g.lineTo(dr*0.7,dr*0.2); g.closePath(); g.fill(); g.stroke(); g.restore(); }
     else if (myMarch){ cosMarchDraw(g,myMarch,mx,my,Math.max(5,Math.min(10,z/3.5)),hdir,hang); }
     else { g.fillStyle=g.strokeStyle; g.beginPath(); g.arc(mx,my,mr,0,Math.PI*2); g.fill(); g.lineWidth=1.5; g.strokeStyle="rgba(0,0,0,.55)"; g.stroke(); } });
+  try { ryMapMarches(g, z, brass); } catch(e){}
   if (selTile && TILE_BY[selTile]){ var sq=TILE_BY[selTile]; g.strokeStyle=ink; g.lineWidth=2.5; g.strokeRect((sq.x-mv.x)*z+1,(sq.y-mv.y)*z+1,z-2,z-2); }
   var cc=document.getElementById("mapcoord"); if (cc) cc.textContent="("+Math.round(mv.x+W/z/2)+", "+Math.round(mv.y+H/z/2)+")"; cc.title="Centre of the view";
   drawMini(); try { paintBar(); } catch(e){}
@@ -4832,7 +4833,7 @@ function rySend(){
     if (r.error){ toast(r.error); if (gb) gb.disabled=false; return; }
     var ci=cityIndex(cid); withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]=Math.max(0,S.troops[i]-t[i]); if (ens && S.items[ens]>0) S.items[ens]--; });
     if (hero) hero.away=true;
-    S.alRally=S.alRally||[]; S.alRally.push({ref:ref, aid:ALS.aid, rid:r.rid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, hitAt:r.hitAt, st:"out", keep:d.keep?1:0});
+    S.alRally=S.alRally||[]; var Rj=ryById(r.rid); S.alRally.push({ref:ref, aid:ALS.aid, rid:r.rid, city:cid, hero:hero?hero.id:0, t:t, dep:Date.now(), arrive:r.arrive, travel:r.travel, hitAt:r.hitAt, st:"out", keep:d.keep?1:0, tile:Rj&&Rj.mine&&Rj.x!=null?Rj.x+","+Rj.y:null, from:Rj&&Rj.from||""}); // 0.1.216: your own rally's target is on your map: draw the march there
     save(); toast("Marching to the rally: arrives in "+fmtT(r.arrive-Date.now())); closeSheet(); lastView=""; refresh(); ALS.last=0; alSync(); })
     .catch(function(){ RYS.sending=false; if (gb) gb.disabled=false; toast("Couldn\u2019t reach the server. Check your connection."); });
 }
@@ -6835,14 +6836,44 @@ function marchBtns(m){
   if ((m.mission==="attack"||m.mission==="conquer") && m.preset==null && m.label==null && !m.from && m.phase!=="wait") b+='<button class="link'+(m.rep?' strong':'')+'" data-act="march-repeat" data-m="'+m.id+'">Repeat: '+(m.rep?'on':'off')+'</button>';
   return b ? '<div class="mbtns">'+b+'</div>' : '';
 }
+/* 0.1.216: alliance rally marches in each city's march list, through every stage: arriving at the caller's kingdom, waiting to launch,
+   on the way to the target, then home. Rally times are real time (the server's), not game time. */
+function ryMarchInfo(m){ var Y=ryData()||{}, R=(Y.live||[]).filter(function(x){ return x.id===m.rid; })[0], rec=(Y.recent||[]).filter(function(x){ return x.id===m.rid; })[0], src=R||rec||m.ryInfo||{}, now=Date.now();
+  if ((R||rec) && !m.ryInfo) m.ryInfo={host:src.host, name:src.name}; // keep the names for the trip home
+  var tgt=(src.host?src.host+"\u2019s ":"")+(src.name||"rally target"), hit=(R&&R.hitAt)||m.hitAt, land=(R&&R.land)||m.land||0;
+  if (rec && m.st!=="back") return {txt:"Rally on "+tgt+": waiting for the result", lab:"", at:0, cls:"out"};
+  if (m.st==="back") return {txt:"Coming home from the rally on "+tgt, lab:"home", at:m.home, cls:"back"};
+  if (now<(m.arrive||0)) return {txt:"Marching to "+(src.host||"the caller")+"\u2019s rally on "+(src.name||"its target"), lab:"arrives", at:m.arrive, cls:"out", recall:true};
+  if (now<hit) return {txt:"Waiting with the rally on "+tgt, lab:"launches", at:hit, cls:"out", recall:true};
+  if (land && now<land) return {txt:"Rally heading for "+tgt, lab:"hits", at:land, cls:"out"};
+  return {txt:"Rally on "+tgt+": waiting for the result", lab:"", at:0, cls:"out"}; }
+// 0.1.216: your marches in your own rallies, on your map: from the launch city to the target after they leave, waiting there for the result, then home
+function ryMapTile(m){ if (m.tile) return m.tile; var lk=ryLocks().filter(function(L){ return L.rid===m.rid && L.aid===m.aid; })[0]; if (lk){ m.tile=lk.tile; return m.tile; } return null; }
+function ryMapMarches(g, z, brass){ var now=Date.now();
+  (S.alRally||[]).forEach(function(m){ var tid=ryMapTile(m); if (!tid) return; var xy=tid.split(",").map(Number); if (xy.length<2) return;
+    var Y=ryData()||{}, R=(Y.live||[]).filter(function(x){ return x.id===m.rid; })[0], hit=(R&&R.hitAt)||m.hitAt, land=(R&&R.land)||m.land||0;
+    var oc=null; S.cities.forEach(function(c){ if (!oc && m.from && c.name===m.from) oc=c; }); if (!oc && R && R.from) S.cities.forEach(function(c){ if (!oc && c.name===R.from) oc=c; }); if (!oc) oc=S.cities[cityIndex(m.city)]; if (!oc) return;
+    var f, back=m.st==="back";
+    if (back){ var bs=land||now; f=1-(now-bs)/Math.max(1,(m.home||now)-bs); } else if (now<hit) return; else if (land && now<land) f=(now-hit)/Math.max(1,land-hit); else f=1;
+    f=Math.max(0,Math.min(1,f)); var col=back?brass:"#e05a4f";
+    g.strokeStyle=col; g.lineWidth=2; if (g.setLineDash) g.setLineDash([5,4]); g.beginPath(); g.moveTo((oc.x+.5-mv.x)*z,(oc.y+.5-mv.y)*z); g.lineTo((xy[0]+.5-mv.x)*z,(xy[1]+.5-mv.y)*z); g.stroke(); if (g.setLineDash) g.setLineDash([]);
+    var mx=(oc.x+.5+(xy[0]-oc.x)*f-mv.x)*z, my=(oc.y+.5+(xy[1]-oc.y)*f-mv.y)*z, mr=Math.max(3,Math.min(7,z/4));
+    g.fillStyle=col; g.beginPath(); g.arc(mx,my,mr,0,Math.PI*2); g.fill(); g.lineWidth=1.5; g.strokeStyle="rgba(0,0,0,.55)"; g.stroke(); }); }
+function ryMarchRows(me){ return (S.alRally||[]).filter(function(m){ return m.city===me && (!ALS.aid || m.aid===ALS.aid || m.st==="back"); }); }
 function renderMarchStrip(){
   var el=document.getElementById("marchstrip"); if (!el) return;
-  var me=C().id, ms=S.marches.filter(function(m){ return m.city===me; }).sort(function(a,b){ return marchT(a)-marchT(b); });
-  if (!ms.length){ if (el.innerHTML) el.innerHTML=""; el.dataset.sig=""; return; }
-  var h='<details class="mstrip"'+(stripOpen?' open':'')+'><summary><b>'+ms.length+' march'+(ms.length>1?'es':'')+'</b> <span class="dur">next event in <span id="ms-next"></span></span></summary><div class="mlist">'+
-    ms.map(function(m){ var l=marchLine(m); return '<div class="mrowl '+l.cls+'"><span>'+esc(l.txt)+'</span><span class="qtime" id="ms-'+m.id+'"></span></div><div class="dur msum">'+esc(marchSummary(m))+'</div>'+marchBtns(m); }).join("")+'</div></details>';
+  var me=C().id, ms=S.marches.filter(function(m){ return m.city===me; }).sort(function(a,b){ return marchT(a)-marchT(b); }), rys=ryMarchRows(me);
+  if (!ms.length && !rys.length){ if (el.innerHTML) el.innerHTML=""; el.dataset.sig=""; return; }
+  var nAll=ms.length+rys.length;
+  var h='<details class="mstrip"'+(stripOpen?' open':'')+'><summary><b>'+nAll+' march'+(nAll>1?'es':'')+'</b> <span class="dur">next event in <span id="ms-next"></span></span></summary><div class="mlist">'+
+    ms.map(function(m){ var l=marchLine(m); return '<div class="mrowl '+l.cls+'"><span>'+esc(l.txt)+'</span><span class="qtime" id="ms-'+m.id+'"></span></div><div class="dur msum">'+esc(marchSummary(m))+'</div>'+marchBtns(m); }).join("")+
+    rys.map(function(m){ var I=ryMarchInfo(m), hn=marchHeroName(m), t=m.st==="back"?(m.back||m.t):m.t;
+      return '<div class="mrowl '+I.cls+'"><span>'+esc(I.txt)+'</span><span class="qtime" id="msr-'+esc(m.ref)+'"></span></div><div class="dur msum">'+esc((hn?"Led by "+hn:"No hero")+" \u00b7 "+fmt(sumT(t))+" troops: "+troopList(t))+'</div>'+
+        (I.recall?'<div class="mbtns"><button class="link" data-act="ry-recall" data-rid="'+m.rid+'" data-ref="'+esc(m.ref)+'">Recall</button></div>':''); }).join("")+'</div></details>';
   if (el.dataset.sig!==h){ el.innerHTML=h; el.dataset.sig=h; var d=el.querySelector("details"); d.addEventListener("toggle",function(){ stripOpen=d.open; }); }
-  var nx=document.getElementById("ms-next"); if (nx) nx.textContent= isFinite(marchT(ms[0])) ? fmtT(realMs(marchT(ms[0])-S.gt)) : "(none moving)";
+  var nxt=ms.length&&isFinite(marchT(ms[0])) ? realMs(marchT(ms[0])-S.gt) : Infinity; rys.forEach(function(m){ var I=ryMarchInfo(m); if (I.at) nxt=Math.min(nxt, Math.max(0,I.at-Date.now())); });
+  var nx=document.getElementById("ms-next"); if (nx) nx.textContent= isFinite(nxt) ? fmtT(nxt) : "(none moving)";
+  rys.forEach(function(m){ var e=document.getElementById("msr-"+m.ref); if (!e) return; var I=ryMarchInfo(m); e.textContent=I.at ? I.lab+" in "+fmtT(Math.max(0,I.at-Date.now())) : "any moment"; });
   ms.forEach(function(m){ var e=document.getElementById("ms-"+m.id); if (e) e.textContent= m.phase==="stay" ? (m.mission==="hide"?"hidden":m.mission==="station"?"camped":"on guard") : fmtT(realMs(marchT(m)-S.gt)); });
 }
 var stripOpen=false;
@@ -12032,7 +12063,7 @@ setInterval(function(){
   var changed=advance(Date.now());
   if (finished.length || changed){ flushFinished(); renderQueue(); renderView(tab==="map"); renderSheet(); tickText(); save(); }
   else { tickText(); renderView(false); renderSheet(); }
-  if (tab==="map" && !drag && (S.marches.length || ++mapTick%2===0)) requestDraw();
+  if (tab==="map" && !drag && (S.marches.length || (S.alRally||[]).length || ++mapTick%2===0)) requestDraw();
 },500);
 setTimeout(updateTabArrows,50);
 setTimeout(function(){ lbSync(true); },4000); setInterval(function(){ lbSync(false); },60000);
