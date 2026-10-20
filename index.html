@@ -82,7 +82,28 @@ h1{font:700 1.5rem/1.1 var(--display);letter-spacing:.04em;margin:0}
 .speedchip.helpchip{background:var(--brass);color:var(--bg);border-color:var(--brass);font-weight:700}
 .speedchip.helpchip b{color:var(--bg)}
 .speedchip.wtchip{background:var(--red);border-color:var(--red)}
-.dtitem{margin:4px 0}.dtl{padding:6px 2px;border-bottom:1px solid var(--line);font-size:.92rem}.dtl:last-child{border-bottom:0}
+.dtplaces{display:flex;gap:6px;overflow-x:auto;align-items:center;margin:0 -2px 10px;padding:2px 2px 6px;scrollbar-width:thin} .dtplaces .chipbtn{flex:0 0 auto;font-family:inherit;font-size:.86rem;font-weight:600}
+.dtg{flex:0 0 auto;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 2px 0 6px} .dtg:first-child{padding-left:0}
+.dtitem>summary{color:var(--ink)}
+.dtchips{display:flex;flex-wrap:wrap;gap:6px} .dtchips.sm{margin:2px 0 8px} .dtchips.sm .chipbtn{font-size:.85rem}
+.dtcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.dthead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px} .dthead b{font:700 1.05rem var(--display)} .dthead .link{margin-left:auto}
+.dtlv{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin:2px 0 8px;text-align:center} .dtlv input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--brass)}
+.dtrow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;column-gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)} .dtrow:first-of-type{border-top:0}
+.dtrow .dtbar{grid-column:2/-1;margin-top:4px}
+.dtico{display:inline-flex;width:24px;height:24px;color:var(--brass)} .dtico svg{width:24px;height:24px}
+.dtn{display:flex;flex-direction:column;min-width:0} .dtn b{overflow-wrap:break-word} .dtn .dur{font-size:.8rem;line-height:1.3}
+.dtx{font-weight:400;color:var(--muted)}
+.dtp{font-variant-numeric:tabular-nums;font-weight:700;text-align:right;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
+.dtp small{font-weight:400;font-size:.72rem;color:var(--muted)} .dtp.fixed{color:var(--grass);font-weight:600;font-size:.85rem}
+.dtbar{display:block;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden} .dtbar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--brass-soft),var(--brass))} .dtbar.off{visibility:hidden;height:0;margin:0}
+.dtsum{margin:8px 0 0}
+.dtcat{margin:12px 0 4px}
+.dtitem{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:0 0 6px;padding:2px 10px}
+.dtitem>summary{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:10px;align-items:center;padding:7px 0;cursor:pointer;list-style:none} .dtitem>summary::-webkit-details-marker{display:none}
+.dtitem>summary .dtbar{grid-column:2;margin-top:4px}
+.dtsrc{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 0 7px 38px;border-top:1px solid var(--line);cursor:pointer} .dtsrc>span:first-child{display:flex;flex-direction:column;min-width:0} .dtsrc .dur{font-size:.8rem}
+.dtbonus{margin-bottom:10px}
 .tpgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:8px}.tpgrid input{width:100%;max-width:200px}
 header{flex-wrap:wrap}
 .chiprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -807,7 +828,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.225";
+var APP_VERSION = "0.1.230";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1535,8 +1556,8 @@ function vampFxDraw(g, x0, y0, x1, y1, z){ var now=Date.now(); VAMP_FX=VAMP_FX.f
     vampFrame(g, f.L, d[0]+k, (f.x-mv.x)*z, (f.y-mv.y)*z, z); }); }
 // 0.1.203: a slain vampire's spoils, always the same: L1 a 15-minute speed-up; L2 also 4 Flawless Gems; L3 also 1 Rough Ore. The first kill of each level
 // also unlocks that vampire as a one-tile decoration, for good (place it as often as you like)
-function vampSpoilsGive(L, drops){ var add=function(k,n){ S.items[k]=(S.items[k]||0)+n; drops.push((n>1?n+" ":"a ")+ITEMS[k].name+(n>1&&!/s$/.test(ITEMS[k].name)?"s":"")); };
-  add("s15",1); if (L>=2) add("gemF",4); if (L>=3) add("ore",1);
+var VAMP_SPOILS={1:{s15:1}, 2:{s15:1, gemF:4}, 3:{s15:1, gemF:4, ore:1}}; // every slain vampire, for everyone who brought it down
+function vampSpoilsGive(L, drops){ var V=VAMP_SPOILS[L]||{}; for (var k in V){ var n=qtyRoll(V[k]); S.items[k]=(S.items[k]||0)+n; drops.push(lootTxt(k,n)); }
   var D=decoS(), dk="dv_vamp"+L; D.unl=D.unl||{}; if (!D.unl[dk]){ D.unl[dk]=1; drops.push("the "+DECOS[dk].n+" decoration (yours for good)"); } }
 function isVamp(q){ return !!(q && q.k==="monster" && q.ev && VAMP_K[q.mon]); }
 function vampDrops(q){ var L=VAMP_K[q.mon], drops=[]; vampSpoilsGive(L, drops);
@@ -2003,7 +2024,7 @@ function evBoardHtml(ev){ var e=evk(ev.id), d=EVB.d && EVB.d.cat==="ev_"+ev.id ?
 var EV_BATS='<span class="evbats" aria-hidden="true">'+[0,1,2].map(function(i){ return '<svg class="evbat b'+i+'" viewBox="0 0 24 12"><path fill="currentColor" d="M12 4.2c.5-.9 1.1-1.4 1.6-1.6l.3 1.6c1.6-.2 3.5-1.6 4.6-3.6 1 1.1 2.9 1.9 5 1.7-1 1.3-1.6 3.1-1.4 4.9-1.3-.6-2.9-.6-4 .1-.5-1.1-1.6-1.8-2.7-1.8-.6 1-1.5 2.3-3.4 3.9-1.9-1.6-2.8-2.9-3.4-3.9-1.1 0-2.2.7-2.7 1.8-1.1-.7-2.7-.7-4-.1.2-1.8-.4-3.6-1.4-4.9 2.1.2 4-.6 5-1.7 1.1 2 3 3.4 4.6 3.6l.3-1.6c.5.2 1.1.7 1.6 1.6z"/></svg>'; }).join("")+'</span>';
 function evDay(t){ return new Date(t).toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"America/New_York"}); }
 function evBanner(ev, small){ return '<div class="evban'+(small?' sm':'')+'"><span class="evmoon" aria-hidden="true"></span>'+EV_BATS+'<div class="evtitle">'+esc(ev.name)+'</div><div class="evsub">'+evDay(ev.from)+' – '+evDay(ev.to-1)+'</div></div>'; }
-function vampSpoils(L){ return ["A 15-minute speed-up","A 15-minute speed-up and 4 Flawless Gems","A 15-minute speed-up, 4 Flawless Gems and a Rough Ore"][L-1]; }
+function vampSpoils(L){ var V=VAMP_SPOILS[L]||{}, a=Object.keys(V).map(function(k){ return lootTxt(k, typeof V[k]==="number"?V[k]:qtyTxt(V[k])); }); var t=a.length>1?a.slice(0,-1).join(", ")+" and "+a[a.length-1]:(a[0]||""); return t.charAt(0).toUpperCase()+t.slice(1); }
 function vampCards(withSpoils){ return '<div class="vcards">'+[1,2,3].map(function(L){ return '<button class="vcard" type="button" aria-label="'+MONSTERS[VAMP_KIND[L]]+'"><span class="vsp vsp'+L+'"></span><b>'+MONSTERS[VAMP_KIND[L]]+'</b><span class="dur">Level '+L+'</span>'+(withSpoils?'<span class="vsp-sp">'+vampSpoils(L)+'</span>':'')+'</button>'; }).join("")+'</div>'; }
 function evMilesHtml(id){ var T=EV_TRACK[id], e=evk(id);
   return '<div class="evmiles">'+T.miles.map(function(m){ var got=!!e.got[m.n]; return '<div class="evmile'+(got?' got':'')+(m.hero?' big':'')+'"><span class="evmn">'+m.n+'</span><span>'+(m.hero?'🧛 ':'⛏️ ')+esc(m.label)+'</span><span class="evms">'+(got?'✓ Yours':(m.n-e.n)+' to go')+'</span></div>'; }).join("")+'</div>'; }
@@ -2037,10 +2058,8 @@ setInterval(function(){ try { var ev=evNow(); if (!ev || !EV_TRACK[ev.id] || sav
   css+='.vsp'+L+'{--fw:'+(v.w*SC)+'px;width:'+(v.w*SC)+'px;height:'+(v.h*SC)+'px;background-image:url('+v.src+');background-size:'+(fr*v.w*SC)+'px '+(v.h*SC)+'px}'; });
   var st=document.createElement("style"); st.textContent=css; document.head.appendChild(st); })();
 
-function wizRoll(L){ var ri=function(a,b){ return a+Math.floor(Math.random()*(b-a+1)); }, out={items:{}, res:{}};
-  if (L===1){ out.items.gemF=ri(2,12); out.items.s15=ri(1,4); RES.forEach(function(k){ out.res[k]=1e6; }); }
-  else { out.items.gemF=ri(10,20); out.items.s60=ri(1,2); RES.forEach(function(k){ out.res[k]=5e6; }); }
-  return out; }
+var WIZ_LOOT={1:{items:{gemF:[2,12], s15:[1,4]}, res:1e6}, 2:{items:{gemF:[10,20], s60:[1,2]}, res:5e6}}; // a slain wizard, for every player who brought it down
+function wizRoll(L){ var W=WIZ_LOOT[L]||WIZ_LOOT[2], out={items:{}, res:{}}; for (var k in W.items) out.items[k]=qtyRoll(W.items[k]); RES.forEach(function(r){ out.res[r]=W.res; }); return out; }
 function wizRewardText(L){ return L===1 ? "2 to 12 Flawless Gems, 1 to 4 15-minute speed-ups and 1M of each resource" : "10 to 20 Flawless Gems, 1 to 2 1-hour speed-ups and 5M of each resource"; }
 function wizSide(hero){ return {research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack()+alFx("pveatk"))}; }
 // a march lands on a wizard
@@ -2354,40 +2373,81 @@ function allyTransportArrive(m){
   m.cargo={}; m.loot={}; m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; return true;
 }
 // the item and medal rolls for one victory over q (a normal attack, or each player in a rally that wiped a full garrison)
+/* ---------- loot rules (0.1.226) ----------
+   Every random reward a won fight can give lives in DROP_RULES. The game rolls from these rules and the Drop tables screen reads them,
+   so changing a number here changes both. L is the target's level (q.L). b holds your achievement bonuses (lootB):
+   b.items = Decorated (x1.01 a tier on item chances), b.mats = Starforged's flat points on gems, b.gear = Starforged tiers (small steps on materials and scales).
+   A rule is either one item ({k, ok, p, n}) or one draw for a group ({one, ok, of:[{k, ok, t}]}): a single roll u, and the first entry
+   it's eligible for with u < t wins, so at most one of the group drops. Quantities: a number, [min, max] (each whole number equally likely),
+   or {w:{n:weight}}. */
+function lootB(base){ return base ? {items:1, mats:0, gear:0} : {items:bItems(), mats:bMats(), gear:achLv("gear")}; }
+function lootCity(q){ return q.k==="npc"||q.k==="ai"||q.k==="hc"; }
+var DROP_RULES=[
+  {k:"gemD", ok:function(q,L){ return !VTYPES[q.k]; }, p:function(q,L,b){ return 0.35+b.mats; }, n:function(q,L){ return [1,1+Math.floor(L/3)]; }},
+  {k:"gemF", ok:function(q,L){ return !VTYPES[q.k] && L>=5; }, p:function(q,L,b){ return 0.04+0.01*(L-5)+b.mats; }, n:function(){ return {w:{1:0.7, 2:0.3}}; }},
+  {one:"Gear materials", ok:function(q){ return q.k!=="monster" && !VTYPES[q.k]; }, of:[ // better ones only from tougher targets
+    {k:"starmetal", ok:function(q,L){ return L>=10; }, t:function(q,L,b){ return 0.0005+0.0001*b.gear; }},
+    {k:"mithril", ok:function(q,L){ return L>=7; }, t:function(q,L,b){ var a=0.0001*b.gear; return 0.0015+(L>=10?a:0)+(L>=7?a:0); }},
+    {k:"ingot", ok:function(q,L){ return L>=4; }, t:function(q,L,b){ var a=0.0001*b.gear, g=0.001*b.gear; return 0.004+(L>=10?a:0)+(L>=7?a:0)+(L>=4?g:0); }},
+    {k:"ore", ok:function(){ return true; }, t:function(q,L,b){ var a=0.0001*b.gear, g=0.001*b.gear; return 0.008+(L>=10?a:0)+(L>=7?a:0)+(L>=4?g:0)+g; }}]},
+  {one:"Hero books", ok:function(){ return true; }, of:[
+    {k:"annals", ok:function(q,L){ return L>=10; }, t:function(q,L,b){ return 0.0005*b.items; }},
+    {k:"codex", ok:function(q,L){ return L>=7; }, t:function(q,L,b){ return 0.002*b.items; }},
+    {k:"tome", ok:function(q,L){ return L>=4; }, t:function(q,L,b){ return 0.005*b.items; }},
+    {k:"primer", ok:function(){ return true; }, t:function(q,L,b){ return 0.01*b.items; }}]},
+  {k:"ensign", ok:function(q,L){ return lootCity(q) && L>=10; }, p:function(q,L,b){ return 0.007*b.items; }},
+  {k:"marchsp", ok:function(q,L){ return lootCity(q) && L>=7; }, p:function(q,L,b){ return 0.01*b.items; }},
+  {k:"gemF", ok:function(q){ return q.k==="monster" && !q.ev; }, p:function(){ return 1; }, n:function(){ return [1,3]; }}, // the day's monsters always drop Flawless Gems
+  {k:"scale", ok:function(q){ return q.k==="monster" && !q.ev; }, p:function(q,L,b){ return 0.12+0.04*L+0.0001*b.gear; }},
+  {k:"warhorn", ok:function(q,L){ return q.k==="npc" && L>=5; }, p:function(q,L,b){ return 0.004*b.items; }},
+  {k:"corselet", ok:function(q,L){ return q.k==="npc" && L>=5; }, p:function(q,L,b){ return 0.004*b.items; }},
+  {k:"script", ok:function(q,L){ return q.k==="npc" && L>=5; }, p:function(q,L,b){ return (0.005+0.001*(Math.min(L,10)-5))*b.items; }}, // 0.5% at level 5 up to 1% at level 10
+  {one:"Speed-ups", ok:function(q,L){ return q.k==="npc" && L>=5; }, of:[ // timed speed-ups: bigger ones only from tougher NPCs
+    {k:"s480", ok:function(q,L){ return L>=10; }, t:function(q,L,b){ return 0.001*b.items; }},
+    {k:"s150", ok:function(q,L){ return L>=7; }, t:function(q,L,b){ return 0.003*b.items; }},
+    {k:"s60", ok:function(){ return true; }, t:function(q,L,b){ return 0.005*b.items; }},
+    {k:"s15", ok:function(){ return true; }, t:function(q,L,b){ return 0.009*b.items; }}]},
+  {k:"build50", ok:function(q,L){ return q.k==="npc" && L>=10; }, p:function(q,L,b){ return 0.001*b.items; }},
+  {k:"teleport", ok:function(q){ return q.k==="npc"||q.k==="ai"; }, p:function(q,L,b){ return 0.015*b.items; }}
+];
+// quantities
+function qtySum(n){ var t=0; for (var k in n.w) t+=n.w[k]; return t; }
+function qtyRoll(n){ if (typeof n==="number") return n; if (Array.isArray(n)) return n[0]+Math.floor(Math.random()*(n[1]-n[0]+1)); var r=Math.random()*qtySum(n), k; for (k in n.w){ r-=n.w[k]; if (r<0) return +k; } return +k; }
+function qtyAvg(n){ if (typeof n==="number") return n; if (Array.isArray(n)) return (n[0]+n[1])/2; var t=0; for (var k in n.w) t+=k*n.w[k]; return t/qtySum(n); }
+function qtyTxt(n){ if (typeof n==="number") return fmt(n); if (Array.isArray(n)) return n[0]===n[1]?fmt(n[0]):fmt(n[0])+"–"+fmt(n[1]); var ks=Object.keys(n.w).map(Number).filter(function(k){ return n.w[k]>0; }).sort(function(a,c){ return a-c; }); return ks.length>1?fmt(ks[0])+"–"+fmt(ks[ks.length-1]):fmt(ks[0]||0); }
+function pickW(w){ var t=0, k; for (k in w) t+=w[k]; var r=Math.random()*t; for (k in w){ r-=w[k]; if (r<0) return k; } return k; } // a weighted pick: returns the key
+// the text a drop gets in reports and notes ("a War Ensign", "3 Delicate Gems")
+function lootTxt(k,n){ var nm=(ITEMS[k]&&ITEMS[k].name)||k; if (k==="gemD"||k==="gemF") return n+" "+(n>1?nm:nm.replace(/s$/,""));
+  if (n>1) return n+" "+nm+(/s$/.test(nm)?"":"s"); return (k==="annals"?"":"a ")+nm; }
+function lootRoll(q, drops){ var L=q.L||1, b=lootB();
+  DROP_RULES.forEach(function(r){ if (!r.ok(q,L)) return; var k=null, n=1;
+    if (r.of){ var u=Math.random(); for (var i=0;i<r.of.length;i++){ var o=r.of[i]; if (o.ok(q,L) && u<o.t(q,L,b)){ k=o.k; break; } } }
+    else if (Math.random()<r.p(q,L,b)){ k=r.k; n=r.n?qtyRoll(r.n(q,L)):1; }
+    if (k){ S.items[k]=(S.items[k]||0)+n; drops.push(lootTxt(k,n)); } }); }
+// the chances DROP_RULES give for one target: [{k, p (0..1), n (quantity spec), grp}]. Same item from two rules: both listed.
+function lootRates(q, b){ var L=q.L||1, out=[]; b=b||lootB();
+  if (q.k==="home") return out;
+  DROP_RULES.forEach(function(r){ if (!r.ok(q,L)) return;
+    if (r.of){ var top=0; r.of.forEach(function(o){ if (!o.ok(q,L)) return; var t=o.t(q,L,b), pe=Math.max(0, t-top); top=Math.max(top,t); if (pe>0) out.push({k:o.k, p:Math.min(1,pe), n:1, grp:r.one}); }); }
+    else { var pp=r.p(q,L,b); if (pp>0) out.push({k:r.k, p:Math.min(1,pp), n:r.n?r.n(q,L):1}); } });
+  return out; }
+function lootChance(q,k){ var p=0; lootRates(q).forEach(function(r){ if (r.k===k) p+=r.p; }); return p; }
+// a victory can drop at most one medal box, and a box replaces the single-medal roll entirely. Each entry is its own roll, in order.
+function boxRules(q){ if (q.k!=="npc") return []; if (q.L>=10) return [["medalbox3",BOX_DROP.npc10senior],["medalbox2",BOX_DROP.npc10medium]]; if (q.L>=5) return [["medalbox",BOX_DROP.npc5junior]]; return []; }
+function boxRates(q){ var none=1, out=[]; boxRules(q).forEach(function(r){ out.push({k:r[0], p:none*r[1]}); none*=1-r[1]; }); return {list:out, none:none}; }
+function medalRates(q){ var w=medalWeights(q), sum=w.reduce(function(a,c){ return a+c; },0), bx=boxRates(q); if (!sum) return [];
+  return w.map(function(x,i){ return {i:i, p:bx.none*MEDAL_RATE*x/sum}; }).filter(function(m){ return m.p>0; }); }
+var HC_HERO_P=function(L){ return L===12?0.1:0.2; }; // a historic city's hero: once per city, on a win
 function winDrops(q){
   if (q.k==="monster" && q.ev && VAMP_K[q.mon]) return vampDrops(q);
   var boxKey = rollMedalBox(q), drops=[], medal=-1;
   if (boxKey){ S.items[boxKey]=(S.items[boxKey]||0)+1; drops.push("a "+ITEMS[boxKey].name); }
   else if (Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
   if (q.k!=="home"){
-    var dl=q.L||1;
-    if (!VTYPES[q.k] && Math.random()<0.35+bMats()){ var ns=1+Math.floor(Math.random()*(1+Math.floor(dl/3))); S.items.gemD=(S.items.gemD||0)+ns; drops.push(ns+" Delicate Gem"+(ns>1?"s":"")); }
-    if (!VTYPES[q.k] && dl>=5 && Math.random()<(0.04+0.01*(dl-5))+bMats()){ var nf=1+(Math.random()<0.3?1:0); S.items.gemF=(S.items.gemF||0)+nf; drops.push(nf+" Flawless Gem"+(nf>1?"s":"")); }
-    if (q.k!=="monster" && !VTYPES[q.k]){ var bm=Math.random(), mk=null, gt=achLv("gear"), ga=0.0001*gt, gb=0.001*gt; // crafting materials: very rare, better ones only from tougher targets. Starforged adds +0.01 points a tier to mithril and starmetal, +0.1 to ingots and ore
-      var tS=0.0005+ga, tM=0.0015+(dl>=10?ga:0)+(dl>=7?ga:0), tI=0.004+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0), tO=0.008+(dl>=10?ga:0)+(dl>=7?ga:0)+(dl>=4?gb:0)+gb;
-      if (dl>=10 && bm<tS) mk="starmetal"; else if (dl>=7 && bm<tM) mk="mithril"; else if (dl>=4 && bm<tI) mk="ingot"; else if (bm<tO) mk="ore";
-      if (mk){ S.items[mk]=(S.items[mk]||0)+1; drops.push(ITEMS[mk].name); } }
-    // experience books: very rare, better ones only from tougher targets
-    if (q.k!=="home"){ var bk=Math.random()/bItems();
-      if (dl>=10 && bk<0.0005) { S.items.annals=(S.items.annals||0)+1; drops.push("Annals of Conquest"); }
-      else if (dl>=7 && bk<0.002) { S.items.codex=(S.items.codex||0)+1; drops.push("a War Codex"); }
-      else if (dl>=4 && bk<0.005) { S.items.tome=(S.items.tome||0)+1; drops.push("a Tome of Wisdom"); }
-      else if (bk<0.01) { S.items.primer=(S.items.primer||0)+1; drops.push("a Soldier's Primer"); } }
-    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=10 && Math.random()<0.007*bItems()){ S.items.ensign=(S.items.ensign||0)+1; drops.push("a War Ensign"); }
-    if ((q.k==="npc"||q.k==="ai"||q.k==="hc") && dl>=7 && Math.random()<0.01*bItems()){ S.items.marchsp=(S.items.marchsp||0)+1; drops.push("a March Speed-up"); }
+    lootRoll(q, drops);
     if (q.k==="monster" && q.ev){ decoDrops(q, drops); if (VAMP_K[q.mon]) VAMP_FX.push({x:q.x, y:q.y, L:VAMP_K[q.mon], t0:Date.now()});
       S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
-    else if (q.k==="monster"){ var mg=1+Math.floor(Math.random()*3); S.items.gemF=(S.items.gemF||0)+mg; drops.push(mg+" Flawless Gem"+(mg>1?"s":""));
-      if (Math.random()<(0.12+0.04*q.L)+0.0001*achLv("gear")){ S.items.scale=(S.items.scale||0)+1; drops.push("a Dragon Scale"); }
-      S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
-    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.warhorn=(S.items.warhorn||0)+1; drops.push("a War Horn"); }
-    if (q.k==="npc" && dl>=5 && Math.random()<0.004*bItems()){ S.items.corselet=(S.items.corselet||0)+1; drops.push("a Corselet"); }
-    if (q.k==="npc" && dl>=5 && Math.random()<(0.005+0.001*(Math.min(dl,10)-5))*bItems()){ S.items.script=(S.items.script||0)+1; drops.push("a Michelangelo\u2019s Script"); } // 0.5% at level 5 up to 1% at level 10
-    if (q.k==="npc" && dl>=5){ var sr=Math.random()/bItems(), sk=null; // timed speed-ups: rare, bigger ones only from tougher NPCs (0.9% total at most)
-      if (dl>=10 && sr<0.001) sk="s480"; else if (dl>=7 && sr<0.003) sk="s150"; else if (sr<0.005) sk="s60"; else if (sr<0.009) sk="s15";
-      if (sk){ S.items[sk]=(S.items[sk]||0)+1; drops.push("a "+ITEMS[sk].name); } }
-    if (q.k==="npc" && dl>=10 && Math.random()<0.001*bItems()){ S.items.build50=(S.items.build50||0)+1; drops.push("a 50% Construction Speed-up"); }
-    if ((q.k==="npc"||q.k==="ai") && Math.random()<0.015*bItems()){ S.items.teleport=(S.items.teleport||0)+1; drops.push("a City Teleport"); }
+    else if (q.k==="monster"){ S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true; }
   }
   return {drops:drops, medal:medal, box:boxKey};
 }
@@ -2450,7 +2510,7 @@ function resolveMarch0(m){
   if (won && m.mission==="occupy" && VTYPES[q.k] && ownedIds().length < S.th){ S.map.owned[q.id]=C().id; S.map.ownedL[q.id]=q.L; S.map.ownedK=S.map.ownedK||{}; S.map.ownedK[q.id]=q.k; qbump("occupy"); delete S.map.hit[q.id]; occ=true; miniDirty=true; }
   var founded=null, histHero=null, loyNote="";
   if (won && m.mission==="occupy" && VTYPES[q.k] && !occ) loyNote=" Not held: "+C().name+" already holds "+ownedIds().length+" of "+S.th+" valleys and flats (Town Hall "+S.th+"), so the troops are coming home."; // 0.1.219
-  if (won && q.k==="hc" && !S.map.heroTaken[q.id] && Math.random() < (q.L===12?0.1:0.2)){
+  if (won && q.k==="hc" && !S.map.heroTaken[q.id] && Math.random() < HC_HERO_P(q.L)){
     histHero=historicHero(q); S.map.heroTaken[q.id]=true;
     if (S.heroes.length < hallCap()) S.heroes.push(histHero); else S.waiting.push(histHero);
   }
@@ -2790,8 +2850,9 @@ function aiIQ(q){ var sd=S.map.seed, u=function(k){ return hash3(q.x,q.y,sd+300+
 function iqBand(iq){ return iq<90?"low":iq<120?"mid":"high"; }
 var TAUNTS_PER_DAY=5;
 function tauntsLeft(){ var t=S.tauntDay; return (t && t.day===gameDay()) ? Math.max(0,TAUNTS_PER_DAY-t.n) : TAUNTS_PER_DAY; }
+var TAUNT_GEMS={base:1, per:5000, max:30};
 function tauntSpoils(troops){ // survive a taunted lord's wave: Flawless Gems scale with the army you stood against
-  return {gems:Math.min(30, 1+Math.floor(troops/5000)), scales:0};
+  return {gems:Math.min(TAUNT_GEMS.max, TAUNT_GEMS.base+Math.floor(troops/TAUNT_GEMS.per)), scales:0};
 }
 var TAUNTS=["Your walls look like they were built by drunk goats.","I\u2019ve seen scarier armies at a village fair.","Your granary smells like fear.","Come out and fight, or keep hiding behind your peasants.","Your mother was a hamster and your father smelt of elderberries.","I plundered your neighbor this morning. You\u2019re next, just for fun."];
 var REPLIES={
@@ -3408,8 +3469,8 @@ function renderTileInfoBase(){
   if (q.k==="ai") h+='<p class="hint">A '+q.ai.pers.n.toLowerCase()+' with Town Hall '+q.ai.th+' and research around level '+q.ai.tech+'. Growing '+(q.ai.rate<0.7?'slowly':q.ai.rate<1.1?'steadily':'quickly')+'. AI lords never attack unless you provoke them; they slowly grow, train and hoard. Troops you kill return over a game day, and their stockpile refills over two.</p>';
   if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. '+(q.k==="hc"?'Every attack you win knocks off 3 until it is down to 10, then 1 a hit, so about 40 wins in quick succession take the city. It holds for an hour after your last win, then recovers 10 per hour. You need room in your title for another city.':'Every attack you win knocks off 10. It holds for an hour after your last win, then recovers 10 per hour, so 10 wins in quick succession takes the city, if your title has room for another.')+
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
-  if (q.k==="monster" && q.ev) h+='<p class="hint">A '+esc(evNow()?evNow().name:"holiday")+' monster. It stays until it\u2019s slain or the event ends, and counts toward the event track. Slay it for a 15-minute speed-up'+(q.L>=2?', 4 Flawless Gems':'')+(q.L>=3?', a Rough Ore':'')+', and the first one of each level unlocks it as a decoration for good (place it as often as you like).</p>';
-  else if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
+  if (q.k==="monster" && q.ev) h+='<p class="hint">A '+esc(evNow()?evNow().name:"holiday")+' monster. It stays until it\u2019s slain or the event ends, and counts toward the event track. Slay it for '+vampSpoils(VAMP_K[q.mon]||q.L).replace(/^A /,"a ")+', and the first one of each level unlocks it as a decoration for good (place it as often as you like).</p>';
+  else if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round(lootChance(q,"scale")*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc"||q.k==="ai") h+='<p class="hint">'+(q.k==="ai"?'An AI lord':'An NPC')+' only drops medals and items if its troop garrison is full when you hit it; otherwise you get just its resources. Let it recover before you hit it again.</p>';
   if (q.k==="npc") h+='<p class="hint">Demolishing turns it back into a flat, so you can occupy that flat on a better day and establish a higher level NPC city.</p>';
@@ -3746,7 +3807,8 @@ function upgradeGear(g){
   g.tier=t; g.stars=Math.max(0, g.stars-1);
   return g;
 }
-function gearTierFor(L){ var w = L>=12?[.2,.45,.3,.05] : L>=10?[.35,.4,.22,.03] : L>=7?[.55,.35,.09,.01] : L>=4?[.75,.22,.03,0] : [.95,.05,0,0], r=Math.random();
+function gearTierW(L){ return L>=12?[.2,.45,.3,.05] : L>=10?[.35,.4,.22,.03] : L>=7?[.55,.35,.09,.01] : L>=4?[.75,.22,.03,0] : [.95,.05,0,0]; } // material odds (ore, ingot, mithril, star metal) by level
+function gearTierFor(L){ var w = gearTierW(L), r=Math.random();
   for (var i=0;i<4;i++){ r-=w[i]; if (r<0) return i; } return 0; }
 
 /* ---------- achievements ---------- */
@@ -4484,20 +4546,26 @@ function sarHp(T,L){ return Math.round(SAR.hp0*Math.pow(SAR.hpX,L-1)*T.hp); }
 function sarDmg(T,L){ return Math.round(SAR.dmg0*Math.pow(SAR.dmgX,L-1)*T.dmg); }
 function sarTitan(L){ return {ingot:0.03+0.04*L, mithril:0.01+0.015*L, starmetal:0.005+0.005*L}; }
 function sarRewardText(k,L){
-  if (k==="goblin") return L+" Delicate Gem"+(L>1?"s":"")+" (10% chance of 1 more, 5% of 2 more)";
-  if (k==="dragon") return L+" Flawless Gem"+(L>1?"s":"")+" (10% chance of 1 more, 5% of 2 more)";
+  var exT=" ("+Math.round(SAR_EXTRA[1]*100)+"% chance of 1 more, "+Math.round(SAR_EXTRA[2]*100)+"% of 2 more)";
+  if (k==="goblin") return L+" Delicate Gem"+(L>1?"s":"")+exT;
+  if (k==="dragon") return L+" Flawless Gem"+(L>1?"s":"")+exT;
   if (k==="ent") return L*L+" Annals of Conquest (50,000 hero experience each) and "+fmt(sarCost(L)*0.05)+" of each resource";
   if (k==="golem") return Math.pow(2,L-1)+" × 15-minute speed-up"+(L>1?"s":"");
   if (k==="titan"){ var c=sarTitan(L); return "1 Rough Ore, plus a "+Math.round(c.ingot*100)+"% chance of a Fine Ingot, "+Math.round(c.mithril*100)+"% of Mithril and "+(Math.round(c.starmetal*1000)/10)+"% of Star Metal"; }
   return "";
 }
-function sarRoll(k,L){
-  var out={items:{},res:{}}, extra=function(){ var r=Math.random(); return r<0.05?2:r<0.15?1:0; };
-  if (k==="goblin") out.items.gemD=L+extra();
-  else if (k==="dragon") out.items.gemF=L+extra();
-  else if (k==="ent"){ out.items.annals=L*L; RES.forEach(function(r){ out.res[r]=sarCost(L)*0.05; }); }
-  else if (k==="golem") out.items.s15=Math.pow(2,L-1);
-  else if (k==="titan"){ out.items.ore=1; var c=sarTitan(L); for (var x in c) if (Math.random()<c[x]) out.items[x]=1; }
+var SAR_EXTRA={0:0.85, 1:0.1, 2:0.05}; // goblins and dragons: 10% chance of 1 more, 5% of 2 more
+// a solo Arena monster's reward: [{k, p, n}] (p 1 = always), plus resources
+function sarLoot(k,L){ var ex=function(){ var w={}; for (var e in SAR_EXTRA) w[L+(+e)]=SAR_EXTRA[e]; return {w:w}; };
+  if (k==="goblin") return {items:[{k:"gemD", p:1, n:ex()}]};
+  if (k==="dragon") return {items:[{k:"gemF", p:1, n:ex()}]};
+  if (k==="ent") return {items:[{k:"annals", p:1, n:L*L}], res:sarCost(L)*0.05};
+  if (k==="golem") return {items:[{k:"s15", p:1, n:Math.pow(2,L-1)}]};
+  if (k==="titan"){ var c=sarTitan(L); return {items:[{k:"ore", p:1, n:1}].concat(Object.keys(c).map(function(x){ return {k:x, p:c[x], n:1}; }))}; }
+  return {items:[]}; }
+function sarRoll(k,L){ var out={items:{},res:{}}, R=sarLoot(k,L);
+  R.items.forEach(function(it){ if (it.p>=1 || Math.random()<it.p) out.items[it.k]=(out.items[it.k]||0)+qtyRoll(it.n); });
+  if (R.res) RES.forEach(function(r){ out.res[r]=R.res; });
   return out;
 }
 var SAR_CAT=null;
@@ -4598,7 +4666,7 @@ function soloArenaHtml(){
     h+='<div class="section" style="border:1px solid var(--brass)"><div class="shead"><h3>Level '+cur.lv+' '+esc(T.n)+'</h3><span class="dur">closes in <b class="arleft" data-ends="'+cur.ends+'">'+fmtT(cur.ends-now)+'</b></span></div>'+
       '<p class="hint" style="margin:0 0 4px">'+esc(T.d||"")+'</p><p class="dur" style="margin:0 0 4px">'+arWeakTxt(T)+'</p>'+
       (L?'<p class="dur" style="margin:0 0 6px">Strength '+fmt(L.hp)+', hits for '+fmt(L.dmg)+' a round. Reward if it falls: '+esc(L.reward)+'.</p>':'')+
-      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst())+' from your city')+'</span></div>'+
+      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst("best"))+' from your city')+'</span></div>'+
       (cur.joins.length?'<p class="dur">'+cur.joins.length+' march'+(cur.joins.length>1?'es':'')+' on the way: '+fmt(cur.joins.reduce(function(a,j){ return a+j.n; },0))+' troops</p>':'<p class="dur">Nothing has marched yet.</p>')+'</div>'; });
   if (mine.length) h+='<div class="section"><div class="shead"><h3>Your Arena marches</h3><span class="dur">'+(S.alArena||[]).length+' / '+SAR.slots+' slots</span></div>'+mine.map(function(m){ var hh=m.hero?heroById(m.hero):null, ci=cityIndex(m.city);
     return '<div class="bq"><span><b>'+fmt(sumT(m.t))+' troops</b> from '+esc(ci>=0?S.cities[ci].name:"?")+(hh?' led by '+esc(hh.name):'')+'<br><span class="dur">'+arStatus(m)+'</span></span></div>'; }).join("")+'</div>';
@@ -4626,8 +4694,16 @@ function arLive(){ var m=arMon(), now=Date.now(); return m && m.live ? m.live.fi
 function arCur(){ return arLive()[0] || null; } // the one closing soonest
 function arById(id){ return arLive().filter(function(c){ return c.id===id; })[0] || null; }
 function arWeakTxt(T){ return ""; } // 0.1.117: no hints. Players find each monster's weakness (and what it decimates) by fighting it
-function arTravelEst(){ if (soloArOn()) return SAR.travel0*1000/Math.min(4,Math.max(1,bMarch())); var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M) return 60000; var me=alMyTile(M), b=(M.b||[]).filter(function(x){ return x.k==="arena"; })[0], bs=M.bs||3;
-  var d=me&&b?Math.hypot(me.x-(b.x+(bs-1)/2), me.y-(b.y+(bs-1)/2)):0; return (c.travel0+c.travelTile*d)*1000/Math.min(4,Math.max(1,bMarch())); }
+/* 0.1.230: marches on the alliance map (to a rally or the Arena) move at the hero's pace too: Intelligence, dragon gear and mounts, the same factors as
+   a march on your own map, times your march-speed bonuses. Capped at AL_SPEED_MAX (the server's cap as well). No hero: march-speed bonuses only. */
+var AL_SPEED_MAX=20;
+function heroPace(h){ return h ? (1+hs(h,"int")/100)*(1+dgFx(h).spd/100)*(1+mountSpd(h)) : 1; }
+function alSpeed(hid){ return Math.min(AL_SPEED_MAX, Math.max(1, bMarch()*heroPace(hid?heroById(hid):null))); }
+// the hero for a travel estimate: the march being drafted, else the fastest free hero in this city
+function alPaceHero(hid){ if (hid!=null && hid!=="best") return hid; if (hid!=="best" && marchDraft && (marchDraft.mission==="rally"||marchDraft.mission==="arena")) return marchDraft.hero||0;
+  var best=0, bp=0; (C().heroes||[]).forEach(function(h){ if (h.away) return; var pc=heroPace(h); if (pc>bp){ bp=pc; best=h.id; } }); return best; }
+function arTravelEst(hid){ hid=alPaceHero(hid); if (soloArOn()) return SAR.travel0*1000/alSpeed(hid); var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M) return 60000; var me=alMyTile(M), b=(M.b||[]).filter(function(x){ return x.k==="arena"; })[0], bs=M.bs||3;
+  var d=me&&b?Math.hypot(me.x-(b.x+(bs-1)/2), me.y-(b.y+(bs-1)/2)):0; return (c.travel0+c.travelTile*d)*1000/alSpeed(hid); }
 function arSlots(){ var m=arMon(); return m?m.slots:5; }
 function arStatus(m){ var now=Date.now(); return m.st==="back" ? 'coming home, '+fmtT(Math.max(0,m.home-now)) : now<m.arrive ? 'arrives in '+fmtT(m.arrive-now) : 'at the Arena, waiting for the fight'; }
 function arRewardList(rw){ if (!rw) return ""; var out=[]; for (var k in rw.items) out.push(fmt(rw.items[k])+" "+((ITEMS[k]&&ITEMS[k].name)||k)); var rs=0; for (var r in rw.res) rs+=rw.res[r]; if (rs) out.push(fmt(rw.res.food||0)+" of each resource"); return out.join(", "); }
@@ -4760,7 +4836,7 @@ function arSend(){
   var ref="m"+cid+"-"+Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36);
   if (soloArOn()){ // the single-player Arena: no server
     var sc=(S.soloAr&&S.soloAr.live||[]).filter(function(c){ return c.id===d.mid; })[0]; if (!sc){ toast("The window has closed"); return; }
-    var trv=Math.round(arTravelEst()), arr=Date.now()+trv;
+    var trv=Math.round(arTravelEst(d.hero||0)), arr=Date.now()+trv;
     for (var si=0;si<12;si++) S.troops[si]=Math.max(0,S.troops[si]-t[si]); if (ens && S.items[ens]>0) S.items[ens]--;
     if (hero) hero.away=true;
     sc.joins.push({ref:ref, t:t, side:side, arrive:arr});
@@ -4768,7 +4844,7 @@ function arSend(){
     save(); toast("Marching to the Arena: arrives in "+fmtT(trv)); closeSheet(); lastView=""; refresh(); return;
   }
   ALS.arSending=true; var gb=document.getElementById("marchgo"); if (gb) gb.disabled=true;
-  alPost("/al/arena/join",{mid:d.mid, ref:ref, t:t, side:side, speed:Math.min(4,bMarch())}).then(function(r){ ALS.arSending=false;
+  alPost("/al/arena/join",{mid:d.mid, ref:ref, t:t, side:side, speed:alSpeed(d.hero)}).then(function(r){ ALS.arSending=false;
     if (r.error){ toast(r.error); if (gb) gb.disabled=false; return; }
     var ci=cityIndex(cid); if (ci<0) return;
     withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]=Math.max(0,S.troops[i]-t[i]); if (ens && S.items[ens]>0) S.items[ens]--; });
@@ -4781,7 +4857,7 @@ function arSend(){
    Members march from their kingdom square to yours and wait; at the hit time every march that made it hits in your order, and the
    server fights each wave against what the ones before it left. You get the garrison that's left; helpers get only the satisfaction. ---------- */
 var RYS={sending:false, mins:"60", time:"", from:null};
-function ryChatBtn(t){ t=String(t||""); if (!/rally targeting/.test(t)) return ''; var arena=/Monster Arena/.test(t);
+function ryChatBtn(t){ t=String(t||""); if (!/rally targeting/.test(t) || /is leaving now/.test(t)) return ''; // 0.1.227: no Join on old "is leaving now" lines var arena=/Monster Arena/.test(t);
   return (arena ? arLive().length : ryLive().length) ? ' <button class="link strong" data-act="al-go-rally"'+(arena?' data-to="arena"':'')+'>Join</button>' : ''; } // rally lines in alliance chat, while a rally is running
 function ryOn(){ return mpShown() && alOn() && !!alMine(); }
 function ryData(){ var al=alMine(); return al && al.econ && al.econ.rally; }
@@ -4808,13 +4884,13 @@ function ryListSheet(){ var L=ryOpen(), now=Date.now();
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div style="flex:1"><h2>Rallies to join</h2><div class="sub">'+(L.length?L.length+' you haven\u2019t joined':'none waiting')+'</div></div></div>';
   if (!L.length) return h+'<p class="hint">Nothing waiting. New rallies show up here (and on the flag chip at the top) until they leave.</p><button class="closebtn" data-act="close">Close</button>';
   h+='<div class="btnrow" style="justify-content:flex-end;margin:0"><button class="btn ghost small" data-act="ry-ign-all">Ignore all '+L.length+'</button></div>';
-  h+=L.map(function(R){ return '<div class="bq"><span><b>'+esc(R.host)+'\u2019s '+esc(R.name)+'</b><br><span class="dur">leaves in '+fmtT(R.hitAt-now)+(R.from?' from '+esc(R.from):'')+' \u00b7 '+(R.marches||[]).length+' march'+((R.marches||[]).length===1?'':'es')+' so far \u00b7 travel about '+fmtT(ryTravelEst(R))+'</span></span>'+
+  h+=L.map(function(R){ return '<div class="bq"><span><b>'+esc(R.host)+'\u2019s '+esc(R.name)+'</b><br><span class="dur">leaves in '+fmtT(R.hitAt-now)+(R.from?' from '+esc(R.from):'')+' \u00b7 '+(R.marches||[]).length+' march'+((R.marches||[]).length===1?'':'es')+' so far \u00b7 travel about '+fmtT(ryTravelEst(R,"best"))+'</span></span>'+
     '<div class="mbtns"><button class="btn small" data-act="ry-send" data-rid="'+R.id+'">Join</button><button class="btn ghost small" data-act="ry-ign" data-rid="'+R.id+'">Ignore</button></div></div>'; }).join("");
   return h+'<p class="hint" style="margin-top:6px">Ignoring only hides that rally from the chip; you can still join it from the Alliance tab (Rallies).</p><button class="closebtn" data-act="close">Close</button>'; }
 function ryInN(){ return ryLive().filter(function(R){ return (R.marches||[]).some(function(j){ return j.mine; }); }).length; } // rallies you have marches in
 function ryMineN(){ return ryLive().filter(function(R){ return R.mine; }).length; }
-function ryTravelEst(R){ var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M||!R) return 60000; var me=alMyTile(M), host=null; (M.k||[]).forEach(function(k){ if (k.name===R.host) host=k; });
-  if (R.mine) return 0; var d=me&&host?Math.hypot(me.x-host.x, me.y-host.y):5; return (c.travel0+c.travelTile*d)*1000/Math.min(4,Math.max(1,bMarch())); } // 0.1.191: the caller's own marches are already there
+function ryTravelEst(R, hid){ hid=alPaceHero(hid); var al=alMine(), c=arCat(), M=al&&al.map; if (!c||!M||!R) return 60000; var me=alMyTile(M), host=null; (M.k||[]).forEach(function(k){ if (k.name===R.host) host=k; });
+  if (R.mine) return 0; var d=me&&host?Math.hypot(me.x-host.x, me.y-host.y):5; return (c.travel0+c.travelTile*d)*1000/alSpeed(hid); } // 0.1.191: the caller's own marches are already there
 function ryCard(){ var el=document.getElementById("tileinfo"); if (!el || !selTile || !ryOn()) return; var q=TILE_BY[selTile]; if (!ryTargetOk(q)) return; var sec=el.querySelector(".section"); if (!sec) return;
   var mine=ryMineN()>=RY_MAX_MINE, wait=ryWait(q.k), d=document.createElement("div"); d.className="btnrow"; d.style.marginTop="8px";
   d.innerHTML=ryLocked(q.id) ? '<span class="dur">Your alliance rally is on this target'+(q.k==="wiz"||isVamp(q)?'. Join it from the Alliance tab (Rallies).':': you can still hit it yourself, and time your waves to land right after the rally (Rallies tab).')+'</span><button class="btn ghost small" data-act="al-go-rally">Open Rallies</button>'
@@ -4822,15 +4898,19 @@ function ryCard(){ var el=document.getElementById("tileinfo"); if (!el || !selTi
     : '<button class="btn small" data-act="ry-callopen" data-tile="'+q.id+'">\u2694 Call the alliance</button><span class="dur">'+(q.k==="hc"?'Once a week':q.k==="wiz"||isVamp(q)?'Any time':'Once a day')+'. '+(q.k==="wiz"?'Everyone who gets there rolls the rewards.':isVamp(q)?'If it falls, everyone who gets there takes the spoils and the kill.':'Your alliance hits it in waves you order.')+'</span>';
   sec.appendChild(d); }
 // travel from a city to the target for one troop of each type (real ms): the rally marches at the slowest type it ends up with
-function ryTrv(ci, q){ return withCity(ci, function(){ return U.map(function(u,i){ var t=Z12(); t[i]=1; return Math.round(realMs(travelMs(t,q,0))); }); }); }
+// travel from city ci to the target per troop type, with a hero's pace (0.1.229: a rally moves at its caller's hero's speed: Intelligence, dragon gear, mounts)
+function ryTrv(ci, q, hid){ return withCity(ci, function(){ return U.map(function(u,i){ var t=Z12(); t[i]=1; return Math.round(realMs(travelMs(t,q,hid||0))); }); }); }
+// the fastest hero at home in city ci: who leads the rally there and back when it's called (the caller's own march can bring a faster one)
+function ryFastHero(ci, q){ return withCity(ci, function(){ var best=0, bt=Infinity, t=Z12(); t[7]=1;
+  (C().heroes||[]).forEach(function(h){ if (h.away) return; var ms=travelMs(t,q,h.id); if (ms>0 && ms<bt){ bt=ms; best=h.id; } }); return best; }); }
 function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="why">That target is gone.</p><button class="closebtn" data-act="close">Close</button>';
   var cur=current(q), mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||0))), fci=cityIndex(RYS.from); if (fci<0){ fci=S.cur; RYS.from=C().id; }
-  var trv=ryTrv(fci,q), tmin=Math.min.apply(null,trv.filter(function(x){ return x>0; })), tmax=Math.max.apply(null,trv);
+  var fh=ryFastHero(fci,q), trv=ryTrv(fci,q,fh), tmin=Math.min.apply(null,trv.filter(function(x){ return x>0; })), tmax=Math.max.apply(null,trv);
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Call the alliance</h2><div class="sub">onto '+esc(tileName(q))+' ('+q.x+', '+q.y+')</div></div></div>'+
     '<p class="hint">Every member can march from their kingdom square to yours (you too, from any city). At the leave time, every march that made it sets off together from the city you pick below, at the pace of the slowest troop in the whole rally, and '+(q.k==="wiz"?'they fight the wizard all together when they land (Arena-style: nobody dies, the wounded go home to their Medic Camps, and if it survives it heals to full). If it falls, everyone who got a march there rolls the rewards on their own: '+wizRewardText(q.L)+'.':'hits this target one after another when they land, in the order you set on the Rallies tab; each wave fights what the ones before it left.'+(isVamp(q)?' If it falls, everyone who got a march there takes its spoils, and the kill counts on their event track.':''))+' Then they ride back to that city and everyone\u2019s troops are home at once. Your own marches are at your kingdom the moment you send them. Marches still on the way to you when it leaves turn round.'+(q.k==="wiz"?'':' If the rally wipes the garrison, everyone who got a march there in time rolls the target\u2019s full drop table on their own (medals, boxes, gems, items; the garrison has to be full when it lands, like a normal attack). No resources are looted. Every wave that wins, and every one that hits it already empty, lowers its loyalty like your own win would; if it reaches 0 the city is yours. When it\u2019s over you get the garrison that\u2019s left, so send your own waves to finish it before it refills'+(q.k==="hc"?' (historic cities refill within an hour)':'')+'.')+' '+(q.k==="hc"?'One historic city call a week':q.k==="wiz"?'Wizard calls have no limit':'One level 10 NPC city call a day')+'; calling it off gives the call back.</p>'+
     (q.k==="wiz"?'<p class="dur">Health '+fmt(WIZ[q.L].hp)+'. While the rally runs you can\u2019t attack it yourself except through the rally.</p>':'<p class="dur">Right now: '+fmt(sumT(cur.t))+' defenders, '+fmt(cur.f.reduce(function(a,b){ return a+b; },0))+' fortifications, wall level '+cur.wall+'. While the rally runs you can\u2019t attack it yourself except through the rally.</p>')+
     '<div class="farmadd"><label class="dur" for="ryfrom">Leaves from</label><select id="ryfrom">'+S.cities.map(function(c,i){ return '<option value="'+c.id+'"'+(i===fci?' selected':'')+'>'+esc(c.name)+'</option>'; }).join("")+'</select></div>'+
-    '<p class="dur" style="margin:0">From there: '+fmtT(tmin)+' for the fastest troops, '+fmtT(tmax)+' if anyone brings the slowest. Back the same way.</p>'+
+    '<p class="dur" style="margin:0">From there'+(fh&&heroById(fh)?', at '+esc(heroById(fh).name)+'\u2019s pace':'')+': '+fmtT(tmin)+' for the fastest troops, '+fmtT(tmax)+' if anyone brings the slowest. Back the same way. Join with a faster hero yourself and the rally speeds up to match.</p>'+
     '<div class="farmadd"><label class="dur" for="rymins">Leaves in</label><select id="rymins">'+[[5,"5 minutes"],[15,"15 minutes"],[30,"30 minutes"],[60,"1 hour"],[120,"2 hours"],[240,"4 hours"],[480,"8 hours"],[720,"12 hours"],[1440,"24 hours"]].map(function(o){ return '<option value="'+o[0]+'"'+(o[0]===mins?' selected':'')+'>'+o[1]+'</option>'; }).join("")+'</select></div>'+
     '<p class="dur">The waves leave at about '+trClock(S.gt+mins*60000*S.speed)+'. You can move the time or send them early from the Rallies tab.</p>'+
     '<div class="act"><span></span><button class="btn" data-act="ry-call" id="rycallgo"'+(RYS.sending?' disabled':'')+'>Call the alliance</button></div><button class="closebtn" data-act="close">Cancel</button>';
@@ -4838,7 +4918,7 @@ function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="
 function ryCall(){ var q=TILE_BY[sheetFor.tile]; if (!q || RYS.sending) return; var mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||60)));
   var b=baseOf(q), hh=S.map.hit[q.id], RT=q.k==="hc"?1*3.6e6:REGEN_T, f0=hh?Math.min(1,(S.gt-hh.at)/RT):1, rk=isVamp(q)?"vamp":q.k;
   var fci=cityIndex(RYS.from); if (fci<0) fci=S.cur;
-  var body={x:q.x, y:q.y, tname:tileName(q), k:rk, L:q.L, B:{t:b.t, f:b.f, wall:b.wall, r:b.r, am:b.am||1, fb:b.fb||1, hint:b.hint||0}, H:hh?{t:hh.t, f:hh.f}:{t:b.t, f:b.f}, f0:f0, rt:realMs(RT), mins:mins, from:S.cities[fci].name, trv:ryTrv(fci,q)};
+  var body={x:q.x, y:q.y, tname:tileName(q), k:rk, L:q.L, B:{t:b.t, f:b.f, wall:b.wall, r:b.r, am:b.am||1, fb:b.fb||1, hint:b.hint||0}, H:hh?{t:hh.t, f:hh.f}:{t:b.t, f:b.f}, f0:f0, rt:realMs(RT), mins:mins, from:S.cities[fci].name, trv:ryTrv(fci,q,ryFastHero(fci,q))};
   RYS.sending=true; lastSheet=""; renderSheet();
   alPost("/al/rally/call", body).then(function(r){ RYS.sending=false; if (r.error){ toast(r.error); lastSheet=""; renderSheet(); return; }
     ryLocks().push({rid:r.rid, tile:q.id, aid:ALS.aid, at:Date.now(), k:rk}); save(); closeSheet(); toast("The alliance is called! The waves leave in "+fmtT(r.hitAt-Date.now())); ALS.sub="rally"; ALS.last=0; alSync(); lastView=""; refresh(); })
@@ -4859,7 +4939,11 @@ function rySend(){
   var side={research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack())};
   var ref="r"+cid+"-"+Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36);
   RYS.sending=true; var gb=document.getElementById("marchgo"); if (gb) gb.disabled=true;
-  alPost("/al/rally/join",{rid:d.rid, ref:ref, t:t, side:side, speed:Math.min(4,bMarch()), city:S.name, hero:hero?hero.name:""}).then(function(r){ RYS.sending=false;
+  var jb={rid:d.rid, ref:ref, t:t, side:side, speed:alSpeed(d.hero), city:S.name, hero:hero?hero.name:""};
+  var Rj=ryById(d.rid); if (Rj && Rj.mine && hero){ // 0.1.229: your own rally: your hero's pace, from the launch city to the target
+    var lk=ryLocks().filter(function(x){ return x.rid===d.rid && x.aid===ALS.aid; })[0], tq=lk&&TILE_BY[lk.tile], lci=-1; S.cities.forEach(function(c,i){ if (lci<0 && Rj.from && c.name===Rj.from) lci=i; }); if (lci<0) lci=cityIndex(cid);
+    if (tq && lci>=0) jb.trv=withCity(lci,function(){ return U.map(function(u,i){ var tt=Z12(); tt[i]=1; return Math.round(realMs(travelMs(tt,tq,hero.id))); }); }); }
+  alPost("/al/rally/join",jb).then(function(r){ RYS.sending=false;
     if (r.error){ toast(r.error); if (gb) gb.disabled=false; return; }
     var ci=cityIndex(cid); withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]=Math.max(0,S.troops[i]-t[i]); if (ens && S.items[ens]>0) S.items[ens]--; });
     if (hero) hero.away=true;
@@ -4875,7 +4959,7 @@ function arFightsHtml(al){ var E=al.econ, A=arCat(), out={live:"", marches:"", r
     h+=ryFold(key, '<span class="ryt"><b>Arena: level '+cur.lv+' '+esc(T.n)+'</b><span class="dur">closes in <b class="arleft" data-ends="'+cur.ends+'">'+fmtT(cur.ends-now)+'</b></span></span><span class="dur rys">Summoned by '+esc(cur.by)+' · '+cur.joins.length+' march'+(cur.joins.length===1?'':'es')+', '+fmt(tot)+' troops</span>',
       '<p class="hint" style="margin:0 0 4px">'+esc(T.d||"")+'</p><p class="dur" style="margin:0 0 4px">'+arWeakTxt(T)+'</p>'+
       ((T.lv[cur.lv-1])?'<p class="dur" style="margin:0 0 6px">Reward if it falls: '+esc(T.lv[cur.lv-1].reward)+'.</p>':'')+
-      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst())+' from your kingdom')+'</span></div>'+
+      '<div class="btnrow"><button class="btn small" data-act="al-arena-send" data-mid="'+cur.id+'"'+(full?' disabled':'')+'>Send a march</button><span class="dur">'+(full?'Every Arena slot is in use':'Travel about '+fmtT(arTravelEst("best"))+' from your kingdom')+'</span></div>'+
       (cur.joins.length?'<div class="h3" style="margin-top:8px">On the way ('+cur.joins.length+')</div>'+cur.joins.map(function(j){ return '<p class="dur" style="margin:2px 0"><b>'+esc(j.name)+'</b>: '+fmt(j.n)+' troops'+(j.arrive>now?', arriving in '+fmtT(j.arrive-now):', arrived')+'</p>'; }).join(""):'<p class="dur">Nobody has marched yet.</p>')); });
   if ((mon.live||[]).some(function(c){ return now>=c.ends; })) h+='<div class="section"><p class="hint">An Arena window has closed: that fight is being decided…</p></div>';
   out.live=h; h='';
@@ -4905,7 +4989,7 @@ function alRallyHtml(al){
     h+=
       '<p class="dur" style="margin:0 0 4px">At ('+R.x+', '+R.y+') on '+esc(R.host)+'\u2019s map'+(R.from?', leaving from '+esc(R.from):'')+(gone?'. On the road: no more marches can join.':', at '+wvClock(S.gt+(R.hitAt-now)*S.speed)+'.')+' '+(wz?'Health '+fmt(WIZ[R.L]?WIZ[R.L].hp:0)+'; it heals to full if it survives.':'Defenders now '+fmt(sumT(g.t))+' (about '+fmt(g.atHit)+' by the leave time, as it refills), fortifications '+fmt((g.f||[]).reduce(function(a,b){ return a+b; },0))+', wall level '+(g.wall||0)+'.')+'</p>'+
       (R.land&&!wz?'<p class="dur" style="margin:0 0 4px">Lands at <b>'+wvClock(S.gt+(R.land-now)*S.speed)+'</b>'+(gone?'':' if nobody slower joins')+'.'+(R.mine?' <button class="link strong" data-act="ry-waves" data-rid="'+R.id+'">Time waves to land after it</button>':'')+'</p>':'')+
-      (gone?'':'<div class="btnrow"><button class="btn small" data-act="ry-send" data-rid="'+R.id+'">Send a march</button><span class="dur">Travel about '+fmtT(ryTravelEst(R))+(R.mine?' (your own kingdom)':' from your kingdom')+(mineN?' \u00b7 you have '+mineN+' in it':'')+'</span></div>');
+      (gone?'':'<div class="btnrow"><button class="btn small" data-act="ry-send" data-rid="'+R.id+'">Send a march</button><span class="dur">Travel about '+fmtT(ryTravelEst(R,"best"))+(R.mine?' (your own kingdom)':' from your kingdom')+(mineN?' \u00b7 you have '+mineN+' in it':'')+'</span></div>');
     h+='<div class="h3" style="margin-top:8px">'+(wz?'Marches':'Waves, in hitting order')+' ('+ms.length+' marches, '+fmt(total)+' troops)</div>';
     if (!ms.length) h+='<p class="dur">Nobody has marched yet.</p>';
     ms.forEach(function(j,i){ var mm=j.mine&&j.ref?mine.filter(function(x){ return x.ref===j.ref; })[0]:null;
@@ -5585,11 +5669,17 @@ function cbLoadState(obj, cloud, at, rev){ // swap the running game for a downlo
 // every troop a city owns: home, marching or stationed away, reinforcing an ally, at the Arena, on an invasion, and waiting in the Medic Camp
 function cityArmy(c){ var t=S.troops.slice();
   (c.wounded||[]).forEach(function(b){ b.t.forEach(function(n,j){ t[j]+=n; }); });
+  cityAwayAdd(c, t, true);
+  return t; }
+// 0.1.228: every troop of this city that's away and coming back: marches and camps, reinforcing an ally, at the Arena, on an invasion, in an alliance rally.
+// One list for power (cityArmy) and for troop goals and auto-train (armyCount), so a march in a rally still counts as the city's.
+// withWounded: Arena marches coming home also carry their wounded (cityArmy counts the Medic Camp too; troop goals don't)
+function cityAwayAdd(c, t, withWounded){
   S.marches.forEach(function(m){ if (m.city===c.id) m.t.forEach(function(n,j){ t[j]+=n; }); });
   var rfd=rfData(); if (rfd) (rfd.mine||[]).forEach(function(x){ if (x.fromCity===c.id && x.st!=="home" && x.st!=="done") (x.t||[]).forEach(function(n,j){ t[j]+=n; }); }); // out reinforcing an ally
-  (S.alArena||[]).forEach(function(m){ if (m.city!==c.id) return; if (m.st==="out") m.t.forEach(function(n,j){ t[j]+=n; }); else for (var j=0;j<12;j++) t[j]+=(m.back[j]||0)+(m.wounded[j]||0); });
+  (S.alArena||[]).forEach(function(m){ if (m.city!==c.id) return; if (m.st==="out") m.t.forEach(function(n,j){ t[j]+=n; }); else for (var j=0;j<12;j++) t[j]+=(m.back[j]||0)+(withWounded?(m.wounded[j]||0):0); });
   if (c.away && c.away.t) c.away.t.forEach(function(n,j){ t[j]+=n||0; }); // out on an invasion
-  (S.alRally||[]).forEach(function(m){ if (m.city===c.id) (m.st==="back"?m.back:m.t).forEach(function(n,j){ t[j]+=n||0; }); }); // in an alliance rally
+  (S.alRally||[]).forEach(function(m){ if (m.city===c.id) (m.st==="back"?(m.back||m.t):m.t).forEach(function(n,j){ t[j]+=n||0; }); }); // in an alliance rally
   return t; }
 /* ---------- power (0.1.130): what a player could fight with right now. Prestige only ever grows; power drops when troops die.
    Power = the prestige value of every troop owned (see cityArmy). Heroes don't count (0.1.132). Invasions and alliance wars match by it. */
@@ -6401,6 +6491,7 @@ var ITEMS = {
   warhorn2:{name:"Great War Horn",icon:"rally"},
   corselet2:{name:"Great Corselet",icon:"helm"}
 };
+var WHEEL_GEMS={pF:0.2, gemF:[1,2], gemD:[3,8]}, WHEEL_RES={other:3000, gold:1500}; // the Gems slice: 20% Flawless, else Delicate; resource slices pay this much per Town Hall level
 function rollWheel(){ var r=Math.random()*WSUM; for (var i=0;i<WHEEL.length;i++){ r-=WHEEL[i].w; if (r<0) return i; } return 0; }
 function spinIndex(){
   S.pity++;
@@ -6416,9 +6507,9 @@ function awardPrize(i, forced){
     S.wheelLog.unshift("Guaranteed Legendary hero"); S.wheelLog = S.wheelLog.slice(0,8);
     return {txt:txt, big:true, tier:"legendary", forced:true};
   }
-  if (RES.indexOf(s.k)>=0){ var amt = (s.k==="gold"?1500:3000)*S.th; S.res[s.k]+=amt; txt = fmt(amt)+" "+RNAME[s.k].toLowerCase(); }
+  if (RES.indexOf(s.k)>=0){ var amt = (s.k==="gold"?WHEEL_RES.gold:WHEEL_RES.other)*S.th; S.res[s.k]+=amt; txt = fmt(amt)+" "+RNAME[s.k].toLowerCase(); }
   else if (ITEMS[s.k]){ S.items[s.k]=(S.items[s.k]||0)+1; txt = ITEMS[s.k].name; }
-  else if (s.k==="stones"){ if (Math.random()<0.2){ var fn=1+Math.floor(Math.random()*2); S.items.gemF=(S.items.gemF||0)+fn; txt=fn+" Flawless Gem"+(fn>1?"s":""); } else { var sn=3+Math.floor(Math.random()*6); S.items.gemD=(S.items.gemD||0)+sn; txt=sn+" Delicate Gems"; } }
+  else if (s.k==="stones"){ var gk=Math.random()<WHEEL_GEMS.pF?"gemF":"gemD", gn=qtyRoll(WHEEL_GEMS[gk]); S.items[gk]=(S.items[gk]||0)+gn; txt=lootTxt(gk,gn); }
   else if (s.k==="gear"){ var wm=MAT[gearTierFor(Math.min(12,2+S.th))]; S.items[wm]=(S.items[wm]||0)+1; txt="a "+ITEMS[wm].name; }
   else if (s.k==="medal"){ var mi=rollMedal(); S.medals[MEDALS[mi][0]]++; achMedal(MEDALS[mi][0]); txt = "a "+MEDALS[mi][1]+" medal"; }
   else {
@@ -9267,6 +9358,7 @@ function bullyBase(){
     res:{food:tr,lumber:tr,stone:tr,iron:tr,gold:tr}, am:1+0.05*B.tech+B.hero[0]/100, hint:B.hero[1], fb:1+0.1*B.tech};
 }
 // you attacked the bully's camp
+var BULLY_LOOT={books:{tome:0.5, codex:0.35, annals:0.15}, mats:{mithril:0.75, starmetal:0.25}}; // taking a stronghold: one of each group, by weight
 function bullyCampBattle(m){
   var A=AL(), B=A.bully, b=bullyOf(), q=TILE_BY[m.tile], hero=m.hero?heroById(m.hero):null;
   if (!B || !b){ m.phase="back"; m.bs=S.gt; m.ret=S.gt+m.travel; m.loot={}; return true; }
@@ -9283,8 +9375,7 @@ function bullyCampBattle(m){
   if (won){
     var cap=0; for (i=0;i<12;i++) cap += r.attacker[i]*LOAD[i]*loadMul();
     var tr=Math.round(B.treasury/5); RES.forEach(function(k){ loot[k]=Math.min(tr, Math.floor(cap/5)); });
-    var bk=Math.random(); var it = bk<0.15 ? "annals" : bk<0.5 ? "codex" : "tome"; S.items[it]=(S.items[it]||0)+1; drops.push(ITEMS[it].name);
-    var mt = Math.random()<0.25 ? "starmetal" : "mithril"; S.items[mt]=(S.items[mt]||0)+1; drops.push(ITEMS[mt].name);
+    Object.keys(BULLY_LOOT).forEach(function(g){ var it=pickW(BULLY_LOOT[g]); S.items[it]=(S.items[it]||0)+1; drops.push(ITEMS[it].name); }); // one book and one material, from BULLY_LOOT
     gain=Math.min(8000, 2500*(0.6+b.iq/200)*(1+0.25*b.wins)); b.losses++;
     addRep(gain, "took "+b.name+"'s stronghold"); endBully("lost the stronghold and fled "+realmName()+"");
     note("alliance","You took "+b.name+"'s stronghold! +"+fmt(Math.round(gain))+" kingdom rep.");
@@ -9493,27 +9584,152 @@ function cosBuy(kind,id){
     if (d && d.ok){ COS=d.state; S.me[kind]=id; save(); profSync(); applyTheme(); toast("Bought "+COSM[kind][id].name+" "+kind); } else toast((d&&d.error)||"Couldn\u2019t buy that");
     lastSheet=""; renderSheet(); }).catch(function(){ cosBusy=false; toast("Can\u2019t reach the server"); });
 }
-/* ---------- drop tables: every item, where it drops and how often (base chances, built from this game's own drop code) ---------- */
-var DROPS=[{"n":"Cross medal","c":"Medals","l":[{"s":"Flat","u":"per win","p":["L1–10 at 0.129% to 0.9%"],"q":"","t":"c"},{"s":"Flat valley","u":"per win","p":["L1 at 0.45%","L2 at 0.337%","L7 at 0.18%","L8 at 0.3%","L9–10 at 0.9%"],"q":"","t":"c"},{"s":"Grassland valley","u":"per win","p":["L1 at 0.6%","L2 at 0.491%"],"q":"","t":"c"},{"s":"Forest, Swamp, Desert valleys","u":"per win","p":["L1 at 0.45%","L2 at 0.337%"],"q":"","t":"c"},{"s":"Lake, Hill valleys","u":"per win","p":["L1 at 0.3%","L2 at 0.245%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.162%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 4 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Junior Medal Box: 2 to 4"],"q":"","t":"r"}]},{"n":"Rose medal","c":"Medals","l":[{"s":"Lake, Hill valleys","u":"per win","p":["L1 at 0.6%","L2 at 0.491%","L3–4 at 0.675%"],"q":"","t":"c"},{"s":"Flat, Forest, Swamp, Desert valleys","u":"per win","p":["L1 at 0.45%","L2 at 0.337%","L3–4 at 0.54%"],"q":"","t":"c"},{"s":"Grassland valley","u":"per win","p":["L1 at 0.3%","L2 at 0.245%","L3–4 at 0.54%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L1 at 0.45%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH1 at 0.45%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.135%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 2 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Junior Medal Box: 2 to 4"],"q":"","t":"r"}]},{"n":"Lion medal","c":"Medals","l":[{"s":"NPC city","u":"per win","p":["L2 at 0.54%","L3–4 at 0.386%","L5 at 0.298%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH2 at 0.54%","TH3–4 at 0.386%","TH5 at 0.3%"],"q":"","t":"c"},{"s":"Flat, Forest, Swamp, Desert valleys","u":"per win","p":["L2 at 0.225%","L3–4 at 0.36%","L5 at 0.45%"],"q":"","t":"c"},{"s":"Lake, Hill valleys","u":"per win","p":["L2 at 0.164%","L3–4 at 0.225%","L5 at 0.45%"],"q":"","t":"c"},{"s":"Grassland valley","u":"per win","p":["L2 at 0.164%","L3–4 at 0.36%","L5 at 0.45%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.0976%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["Medium Medal Box: 2"],"q":"","t":"r"}]},{"n":"Honor medal","c":"Medals","l":[{"s":"Flat, Lake, Desert valleys","u":"per win","p":["L5 at 0.45%","L6 at 0.3%"],"q":"","t":"c"},{"s":"Forest, Hill valleys","u":"per win","p":["L5 at 0.45%","L6 at 0.257%"],"q":"","t":"c"},{"s":"Grassland valley","u":"per win","p":["L5 at 0.45%","L6 at 0.3%","L7 at 0.18%","L8 at 0.3%","L9 at 0.45%"],"q":"","t":"c"},{"s":"Swamp valley","u":"per win","p":["L5 at 0.45%","L6 at 0.18%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L1 at 0.45%","L2 at 0.36%","L3–4 at 0.257%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH1 at 0.45%","TH2 at 0.36%","TH3–4 at 0.257%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.0651%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["Medium Medal Box: 2"],"q":"","t":"r"}]},{"n":"Courage medal","c":"Medals","l":[{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1–3 at 0.36%"],"q":"","t":"c"},{"s":"Lake, Desert valleys","u":"per win","p":["L6 at 0.3%","L7 at 0.45%"],"q":"","t":"c"},{"s":"Flat, Grassland valleys","u":"per win","p":["L6 at 0.3%","L7 at 0.36%"],"q":"","t":"c"},{"s":"Forest, Hill valleys","u":"per win","p":["L6 at 0.257%","L7 at 0.36%"],"q":"","t":"c"},{"s":"Swamp valley","u":"per win","p":["L6 at 0.18%","L7 at 0.225%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L3–4 at 0.257%","L5 at 0.199%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH3–4 at 0.257%","TH5 at 0.2%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.038%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["Medium Medal Box: 2"],"q":"","t":"r"}]},{"n":"Wisdom medal","c":"Medals","l":[{"s":"Forest valley","u":"per win","p":["L6 at 0.386%","L7 at 0.54%","L8–10 at 0.9%"],"q":"","t":"c"},{"s":"Lake, Desert valleys","u":"per win","p":["L6 at 0.3%","L7 at 0.45%","L8–10 at 0.9%"],"q":"","t":"c"},{"s":"Swamp valley","u":"per win","p":["L6 at 0.54%","L7 at 0.675%","L8–10 at 0.9%"],"q":"","t":"c"},{"s":"Hill valley","u":"per win","p":["L6 at 0.386%","L7 at 0.54%","L8 at 0.9%"],"q":"","t":"c"},{"s":"Flat, Grassland valleys","u":"per win","p":["L6 at 0.3%","L7 at 0.36%","L8 at 0.6%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH5 at 0.2%","TH6–9 at 0.45%","TH10 at 0.225%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L5 at 0.199%","L6–9 at 0.448%","L10 at 0.222%"],"q":"","t":"c"},{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1–3 at 0.36%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.112%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.0217%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["Medium Medal Box: 2"],"q":"","t":"r"}]},{"n":"Freedom medal","c":"Medals","l":[{"s":"NPC city","u":"per win","p":["L5 at 0.199%","L6–9 at 0.448%","L10 at 0.222%"],"q":"","t":"c"},{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1–3 at 0.18%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.112%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.0135%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["Senior Medal Box: 1"],"q":"","t":"r"}]},{"n":"Justice medal","c":"Medals","l":[{"s":"Historic city","u":"per win","p":["L12–18 at 0.337%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L10 at 0.222%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.00542%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 1 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Senior Medal Box: 1"],"q":"","t":"r"}]},{"n":"Nation medal","c":"Medals","l":[{"s":"Grassland valley","u":"per win","p":["L9 at 0.45%","L10 at 0.9%"],"q":"","t":"c"},{"s":"Hill valley","u":"per win","p":["L9–10 at 0.9%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.337%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH10 at 0.225%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L10 at 0.222%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.00271%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 1 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Senior Medal Box: 1"],"q":"","t":"r"}]},{"n":"Junior Medal Box","c":"Medal boxes","l":[{"s":"NPC city","u":"per win","p":["L5–9 at 0.5%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.2%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["King Package: 1"],"q":"","t":"r"}]},{"n":"Medium Medal Box","c":"Medal boxes","l":[{"s":"NPC city","u":"per win","p":["L10 at 0.995%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.2%"],"q":"","t":"c"}]},{"n":"Senior Medal Box","c":"Medal boxes","l":[{"s":"NPC city","u":"per win","p":["L10 at 0.5%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.2%"],"q":"","t":"c"}]},{"n":"15-minute speed-up","c":"Speed-ups","l":[{"s":"Monster Arena: Golem","u":"per fight won","p":["2 to the power (L - 1) (L = monster level) guaranteed"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["2.27%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L5–10 at 0.4%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["18 quests, 23 in total"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["3 puzzle ratings, 3 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Beginner Package: 1","Lords Package: 2","King Package: 2","Gift code (secret package): 80"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["4"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["3"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["3"],"q":"","t":"r"}]},{"n":"1-hour speed-up","c":"Speed-ups","l":[{"s":"Wheel of Fortune","u":"per spin","p":["1.31%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L5–6 at 0.5%","L7–10 at 0.2%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["15 quests, 19 in total"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["15 puzzle ratings, 15 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Beginner Package: 1","Lords Package: 2","King Package: 2"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["2 rungs, 3 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["2"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["2"],"q":"","t":"r"}]},{"n":"2.5-hour speed-up","c":"Speed-ups","l":[{"s":"Wheel of Fortune","u":"per spin","p":["0.867%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L7–9 at 0.3%","L10 at 0.2%"],"q":"","t":"c"},{"s":"War College","u":"once each","p":["30 puzzle ratings, 30 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Beginner Package: 1","Lords Package: 2","King Package: 2"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["2 rungs, 3 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["2 rungs, 3 in total"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["2 rungs, 3 in total"],"q":"","t":"r"}]},{"n":"8-hour speed-up","c":"Speed-ups","l":[{"s":"Wheel of Fortune","u":"per spin","p":["0.488%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L10 at 0.1%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["7 quests, 8 in total"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["5 puzzle ratings, 5 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Beginner Package: 1","King Package: 2"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["3 rungs, 6 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["2 rungs, 3 in total"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["2 rungs, 3 in total"],"q":"","t":"r"}]},{"n":"50% Construction Speed-up","c":"Speed-ups","l":[{"s":"NPC city","u":"per win","p":["L10 at 0.1%"],"q":"","t":"c"}]},{"n":"March Speed-up","c":"Speed-ups","l":[{"s":"NPC city","u":"per win","p":["L7–10 at 1%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH7–10 at 1%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 1%"],"q":"","t":"c"},{"s":"Kingdom War","u":"per war","p":["5 rungs, 12 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["6 rungs, 15 in total"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["6 rungs, 15 in total"],"q":"","t":"r"}]},{"n":"Soldier's Primer","c":"Hero books","l":[{"s":"Flat, Forest, Lake, Grassland, Swamp, Desert, Hill valleys","u":"per win","p":["L1–3 at 1%","L4–10 at 0.5%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L1–3 at 1%","L4–10 at 0.5%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH1–3 at 1%","TH4–10 at 0.5%"],"q":"","t":"c"},{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1–3 at 1%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.5%"],"q":"","t":"c"}]},{"n":"Tome of Wisdom","c":"Hero books","l":[{"s":"Bully stronghold","u":"","p":["50%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["6.51%"],"q":"","t":"c"},{"s":"Flat, Forest, Lake, Grassland, Swamp, Desert, Hill valleys","u":"per win","p":["L4–6 at 0.5%","L7–10 at 0.3%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L4–6 at 0.5%","L7–10 at 0.3%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH4–6 at 0.5%","TH7–10 at 0.3%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.3%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 1 in total"],"q":"","t":"r"}]},{"n":"War Codex","c":"Hero books","l":[{"s":"Bully stronghold","u":"","p":["35%"],"q":"","t":"c"},{"s":"Flat, Forest, Lake, Grassland, Swamp, Desert, Hill valleys","u":"per win","p":["L7–9 at 0.2%","L10 at 0.15%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L7–9 at 0.2%","L10 at 0.15%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH7–9 at 0.2%","TH10 at 0.15%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.15%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 1 in total"],"q":"","t":"r"}]},{"n":"Annals of Conquest","c":"Hero books","l":[{"s":"Monster Arena: Ent","u":"per fight won","p":["L squared (L = monster level) guaranteed"],"q":"","t":"c"},{"s":"Bully stronghold","u":"","p":["15%"],"q":"","t":"c"},{"s":"Flat, Forest, Lake, Grassland, Swamp, Desert, Hill valleys","u":"per win","p":["L10 at 0.05%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L10 at 0.05%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH10 at 0.05%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.05%"],"q":"","t":"c"}]},{"n":"Rough Ore","c":"Gear materials","l":[{"s":"Monster Arena: Iron Titan","u":"per fight won","p":["1 guaranteed"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["TH 1 at 1.03%","TH 2–4 at 0.813%","TH 5–7 at 0.596%","TH 8–9 at 0.38%","TH 10 at 0.217%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L1–3 at 0.8%","L4–10 at 0.4%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH1–3 at 0.8%","TH4–10 at 0.4%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.4%"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 1 in total"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["5 puzzle ratings, 15 in total"],"q":"","t":"r"}]},{"n":"Fine Ingot","c":"Gear materials","l":[{"s":"Monster Arena: Iron Titan","u":"per fight won","p":["L1–10 at 7% to 43%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["TH 1 at 0.0542%","TH 2–4 at 0.238%","TH 5–7 at 0.38%","TH 8–9 at 0.434%","TH 10 at 0.488%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L4–6 at 0.4%","L7–10 at 0.25%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH4–6 at 0.4%","TH7–10 at 0.25%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.25%"],"q":"","t":"c"},{"s":"War College","u":"once each","p":["33 puzzle ratings, 59 in total"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["6 rungs, 21 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["6 rungs, 28 in total"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["6 rungs, 28 in total"],"q":"","t":"r"}]},{"n":"Mithril","c":"Gear materials","l":[{"s":"Bully stronghold","u":"","p":["75%"],"q":"","t":"c"},{"s":"Monster Arena: Iron Titan","u":"per fight won","p":["L1–10 at 2.5% to 16%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["TH 2–4 at 0.0325%","TH 5–7 at 0.0976%","TH 8–9 at 0.238%","TH 10 at 0.325%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L7–9 at 0.15%","L10 at 0.1%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH7–9 at 0.15%","TH10 at 0.1%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.1%"],"q":"","t":"c"},{"s":"War College","u":"once each","p":["59 puzzle ratings, 89 in total"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["3 rungs, 6 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["4 rungs, 10 in total"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["4 rungs, 10 in total"],"q":"","t":"r"}]},{"n":"Star Metal","c":"Gear materials","l":[{"s":"Bully stronghold","u":"","p":["25%"],"q":"","t":"c"},{"s":"Monster Arena: Iron Titan","u":"per fight won","p":["L1–10 at 1% to 5.5%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["TH 5–7 at 0.0109%","TH 8–9 at 0.0325%","TH 10 at 0.0542%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L10 at 0.05%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH10 at 0.05%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.05%"],"q":"","t":"c"},{"s":"War College","u":"once each","p":["43 puzzle ratings, 82 in total"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["1"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["1"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["1"],"q":"","t":"r"}]},{"n":"Dragon Scale","c":"Gear materials","l":[{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1 at 16%","L2 at 20%","L3 at 24%"],"q":"","t":"c"},{"s":"War College","u":"once each","p":["12 puzzle ratings, 12 in total"],"q":"","t":"r"}]},{"n":"Delicate Gems","c":"Gems","l":[{"s":"Monster Arena: Goblin","u":"per fight won","p":["L (L = monster level) guaranteed","10% for +1 more","5% for +2 more"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L1–10 at 35%"],"q":" (1–4 each)","t":"c"},{"s":"AI lord city","u":"per win","p":["TH1–10 at 35%"],"q":" (1–4 each)","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 35%"],"q":" (1–7 each)","t":"c"},{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1–3 at 35%"],"q":" (1–2 each)","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["5.2%"],"q":" (3–8 each)","t":"c"},{"s":"Quests","u":"once each","p":["2 quests, 12 in total"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["29 puzzle ratings, 548 in total"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["2 rungs, 25 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["10"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["10"],"q":"","t":"r"},{"s":"Scrap a piece of gear","u":"","p":["Common gear: 2 + 1 per star","Rare gear: 5 + 1 per star","Epic gear: 10 + 1 per star","Legendary gear: 20 + 1 per star","Mythic gear: 40 + 1 per star"],"q":"","t":"r"}]},{"n":"Flawless Gems","c":"Gems","l":[{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"per kill","p":["L1–3 at 100%"],"q":" (1–3 each)","t":"c"},{"s":"Monster Arena: Dragon","u":"per fight won","p":["L (L = monster level) guaranteed","10% for +1 more","5% for +2 more"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12 at 11%","L14 at 13%","L16 at 15%","L18 at 17%"],"q":" (1–2 each)","t":"c"},{"s":"NPC city","u":"per win","p":["L5–10 at 4% to 9%"],"q":" (1–2 each)","t":"c"},{"s":"AI lord city","u":"per win","p":["TH5–10 at 4% to 9%"],"q":" (1–2 each)","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["1.31%"],"q":" (1–2 each)","t":"c"},{"s":"Quests","u":"once each","p":["1 quest, 1 in total"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["118 puzzle ratings, 3,615 in total"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Lords Package: 20","King Package: 20"],"q":"","t":"r"},{"s":"Kingdom War","u":"per war","p":["5 rungs, 47 in total"],"q":"","t":"r"},{"s":"Battlefield (single player)","u":"per battle","p":["5 rungs, 53 in total"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["5 rungs, 53 in total"],"q":"","t":"r"},{"s":"AI lord's wave on your city","u":"","p":["1 + 1 per 5,000 attacking troops (max 30)"],"q":"","t":"r"}]},{"n":"War Ensign","c":"Battle and city items","l":[{"s":"NPC city","u":"per win","p":["L10 at 0.7%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH10 at 0.7%"],"q":"","t":"c"},{"s":"Historic city","u":"per win","p":["L12–18 at 0.7%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.162%"],"q":"","t":"c"}]},{"n":"War Horn","c":"Battle and city items","l":[{"s":"NPC city","u":"per win","p":["L5–10 at 0.4%"],"q":"","t":"c"}]},{"n":"Corselet","c":"Battle and city items","l":[{"s":"NPC city","u":"per win","p":["L5–10 at 0.4%"],"q":"","t":"c"}]},{"n":"Field Surgeon’s Kit","c":"Battle and city items","l":[{"s":"Battlefield (single player)","u":"per battle","p":["1"],"q":"","t":"r"},{"s":"PvP Battlefield","u":"per match","p":["1"],"q":"","t":"r"}]},{"n":"Banishment Order","c":"Battle and city items","l":[{"s":"Kingdom War","u":"per war","p":["1"],"q":"","t":"r"}]},{"n":"City Teleport","c":"Battle and city items","l":[{"s":"Wheel of Fortune","u":"per spin","p":["1.62%"],"q":"","t":"c"},{"s":"NPC city","u":"per win","p":["L1–10 at 1.5%"],"q":"","t":"c"},{"s":"AI lord city","u":"per win","p":["TH1–10 at 1.5%"],"q":"","t":"c"},{"s":"Boxes & packages","u":"","p":["Beginner Package: 1","Lords Package: 1"],"q":"","t":"r"}]},{"n":"Michelangelo’s Script","c":"Battle and city items","l":[{"s":"NPC city","u":"per win","p":["L5–10 at 0.5% to 1%"],"q":"","t":"c"},{"s":"Wheel of Fortune","u":"per spin","p":["0.5%"],"q":"","t":"c"}]},{"n":"Rare hero","c":"Heroes","l":[{"s":"Wheel of Fortune","u":"per spin","p":["2.71%"],"q":"","t":"c"}]},{"n":"Epic hero","c":"Heroes","l":[{"s":"Wheel of Fortune","u":"per spin","p":["0.867%"],"q":"","t":"c"}]},{"n":"Legendary hero","c":"Heroes","l":[{"s":"Wheel of Fortune","u":"per spin","p":["0.217%","guaranteed every 100th spin"],"q":"","t":"c"}]},{"n":"Legendary hero Beta","c":"Heroes","l":[{"s":"Boxes & packages","u":"","p":["Beta Tester Chest: 1"],"q":"","t":"r"}]},{"n":"Historic hero","c":"Heroes","l":[{"s":"Historic city","u":"per win","p":["L12 at 10%","L14–18 at 20%"],"q":"","t":"c"}]},{"n":"Food","c":"Resources","l":[{"s":"Wheel of Fortune","u":"per spin","p":["15.2%"],"q":" (3,000 × Town Hall)","t":"c"}]},{"n":"Lumber","c":"Resources","l":[{"s":"Wheel of Fortune","u":"per spin","p":["15.2%"],"q":" (3,000 × Town Hall)","t":"c"}]},{"n":"Stone","c":"Resources","l":[{"s":"Wheel of Fortune","u":"per spin","p":["15.2%"],"q":" (3,000 × Town Hall)","t":"c"}]},{"n":"Iron","c":"Resources","l":[{"s":"Wheel of Fortune","u":"per spin","p":["15.2%"],"q":" (3,000 × Town Hall)","t":"c"}]},{"n":"Gold","c":"Resources","l":[{"s":"Wheel of Fortune","u":"per spin","p":["13.1%"],"q":" (1,500 × Town Hall)","t":"c"}]},{"n":"Resources","c":"Resources","l":[{"s":"Monster Arena: Ent","u":"per fight won","p":["5% of the summon cost in each resource guaranteed"],"q":"","t":"c"},{"s":"Quests","u":"once each","p":["52 quests"],"q":"","t":"r"},{"s":"War College","u":"once each","p":["20 puzzle ratings"],"q":"","t":"r"},{"s":"Boxes & packages","u":"","p":["Beta Tester Chest: 200,000 of each of the 5 resources","Beginner Package: 25,000 of each of the 5 resources","Lords Package: 100,000 of each of the 5 resources","King Package: 250,000 of each of the 5 resources","Gift code (secret package): 200,000 of each of the 5 resources"],"q":"","t":"r"},{"s":"Bully stronghold","u":"per stronghold taken","p":["One fifth of its treasury, up to what your army can carry"],"q":"","t":"r"},{"s":"NPC city","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Historic city","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Flat","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Forest valley","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Lake valley","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Grassland valley","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Swamp valley","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Desert valley","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Hill valley","u":"amounts in the full table","p":[],"q":"","t":"p"},{"s":"Monster (Wyvern, Troll, Hydra, Behemoth)","u":"amounts in the full table","p":[],"q":"","t":"p"}]}];
-var DT={q:"", cat:""};
-function dtCats(){ var o=[]; DROPS.forEach(function(x){ if (o.indexOf(x.c)<0) o.push(x.c); }); return o; }
-function dtListHtml(){
-  var q=DT.q.trim().toLowerCase(), out=[], lastC="";
-  DROPS.forEach(function(x){
-    if (DT.cat && x.c!==DT.cat) return;
-    var hitName=!q || x.n.toLowerCase().indexOf(q)>=0, lines=x.l.filter(function(l){ return hitName || (l.s+" "+l.p.join(" ")+" "+(l.q||"")).toLowerCase().indexOf(q)>=0; });
-    if (!lines.length) return;
-    if (x.c!==lastC){ out.push('<div class="h3" style="margin:10px 0 4px">'+esc(x.c)+'</div>'); lastC=x.c; }
-    out.push('<details class="det dtitem"'+(q?' open':'')+'><summary><b>'+esc(x.n)+'</b> <span class="dur">'+lines.length+' source'+(lines.length===1?'':'s')+'</span></summary>'+lines.map(function(l){
-      return '<div class="dtl"><b>'+esc(l.s)+'</b>'+(l.u?' <span class="dur">'+esc(l.u)+'</span>':'')+'<div>'+l.p.map(esc).join(' \u00b7 ')+'</div>'+(l.q?'<div class="dur">'+esc(l.q)+'</div>':'')+'</div>'; }).join("")+'</details>');
-  });
-  return out.length?out.join(""):'<p class="hint">Nothing matches.</p>';
-}
+/* ---------- drop tables (0.1.226): live, read from the same rules and tables the game rolls with ----------
+   Places: every source of items, each with its levels (and kinds, for valleys and Arena monsters). Each place's rows come straight from
+   DROP_RULES / medalRates / boxRates (map fights), WHEEL, WIZ_LOOT, VAMP_SPOILS, BULLY_LOOT, sarLoot, the ladders, quests, packages and the War College.
+   Change one of those and this screen changes with it. Your achievement bonuses are applied unless "Base chances" is picked.
+   A row: {k (item key, "m:<medal>", "h:<tier>" or "res"), p (chance 0..1; null = a fixed reward), n (quantity spec or text), note} */
+var DT={mode:"place", place:"npc", lv:{}, v:{}, q:"", base:false, open:{}};
+var DT_CATS=[["Medals",function(k){ return /^m:/.test(k); }],["Medal boxes",function(k){ return /^medalbox/.test(k); }],["Speed-ups",function(k){ return ["s15","s60","s150","s480","build50","marchsp"].indexOf(k)>=0; }],
+  ["Hero books",function(k){ return ["primer","tome","codex","annals"].indexOf(k)>=0; }],["Gear materials",function(k){ return MAT.indexOf(k)>=0; }],["Gems",function(k){ return k==="gemD"||k==="gemF"; }],
+  ["Heroes",function(k){ return /^h:/.test(k); }],["Battle and city items",function(k){ return !!ITEMS[k]; }],["Resources",function(k){ return k==="res"; }],["Decorations",function(k){ return k==="deco"; }]];
+function dtCatOf(k){ for (var i=0;i<DT_CATS.length;i++) if (DT_CATS[i][1](k)) return DT_CATS[i][0]; return "Other"; }
+function dtName(k){ if (/^m:/.test(k)) return medalName(k.slice(2))+" medal"; if (/^h:/.test(k)){ var t=k.slice(2); return t==="beta"?"Legendary hero Beta":t==="dracula"?"Dracula (historic hero)":(TIERS[t]?TIERS[t].name:t)+" hero"; }
+  if (k==="res") return "Resources"; if (k==="deco") return "Decorations"; return (ITEMS[k]&&ITEMS[k].name)||k; }
+function dtIcon(k){ if (/^m:/.test(k)){ for (var i=0;i<MEDALS.length;i++) if (MEDALS[i][0]===k.slice(2)) return medalIcon(i,22); }
+  if (/^h:/.test(k)) return '<span class="dtico" style="color:'+((TIERS[k.slice(2)]||TIERS.legendary).color)+'">'+ICON.crest+'</span>';
+  if (k==="res") return '<span class="dtico">'+ICON.gold+'</span>'; if (k==="deco") return '<span class="dtico">'+(ICON.flag||ICON.crest)+'</span>';
+  return '<span class="dtico">'+(ICON[(ITEMS[k]||{}).icon]||ICON.crest)+'</span>'; }
+// chance text: always / percent with sensible digits / one in N
+function dtPct(p){ if (p>=0.9995) return "Always"; var x=p*100, t=x>=10?x.toFixed(0):x>=1?x.toFixed(1):String(+x.toPrecision(2)); if (+t>=1 && x<10) t=(+t).toFixed(1); return t+"%"; }
+function dtOneIn(p){ if (!(p>0) || p>=0.5) return ""; var n=1/p; return "1 in "+fmt(n>=100?Math.round(n/10)*10:Math.round(n)); }
+function dtBar(p){ var w=p>=1?100:Math.max(3, Math.min(100, (Math.log10(Math.max(p,1e-5))+5)/5*100)); return '<span class="dtbar"><i style="width:'+w.toFixed(1)+'%"></i></span>'; } // log scale: 0.001% to 100%
+function dtQ(n){ return typeof n==="string" ? n : qtyTxt(n); }
+// a map target for the rules, at level L
+function dtT(k,L){ return {k:k, L:L, x:0, y:0, id:"dt"}; }
+function dtFight(q, b, extra){ var rows=[], bx=boxRates(q);
+  bx.list.forEach(function(r){ if (r.p>0) rows.push({k:r.k, p:r.p, n:1}); });
+  medalRates(q).forEach(function(m){ rows.push({k:"m:"+MEDALS[m.i][0], p:m.p, n:1}); });
+  lootRates(q, b).forEach(function(r){ rows.push({k:r.k, p:r.p, n:r.n, note:r.grp?"at most one "+r.grp.toLowerCase().replace(/s$/,"")+" a win":""}); });
+  return rows.concat(extra||[]); }
+function dtRange(a,b){ var o=[]; for (var i=a;i<=b;i++) o.push(i); return o; }
+function dtPlaces(b){ var P=[], gt=Math.min(12,2+(S.th||1));
+  var lv=function(a){ return a.map(function(L){ return {id:String(L), t:"Level "+L, L:L}; }); };
+  P.push({id:"valley", g:"Map", n:"Valleys and flats", u:"per win", vs:Object.keys(VTYPES).map(function(k){ return {id:k, t:VTYPES[k].name}; }), lvs:lv(dtRange(1,10)),
+    rows:function(L,v){ return dtFight(dtT(v,L), b); }, note:"Valleys and flats never drop gems or gear materials. Holding one (occupying it) doesn\u2019t change what a win drops."});
+  P.push({id:"npc", g:"Map", n:"NPC cities", u:"per win at full garrison", lvs:lv(dtRange(1,10)), rows:function(L){ return dtFight(dtT("npc",L), b); },
+    note:"An NPC city drops medals and items only if its troop garrison was full when you hit it; otherwise you get just its resources."});
+  P.push({id:"ai", g:"Map", n:"AI lords", u:"per win at full garrison", lvs:dtRange(1,10).map(function(L){ return {id:String(L), t:"Town Hall "+L, L:L}; }), rows:function(L){ return dtFight(dtT("ai",L), b); },
+    note:"Like NPC cities, an AI lord drops items only if its garrison was full when you hit it."});
+  P.push({id:"hc", g:"Map", n:"Historic cities", u:"per win", lvs:lv([12,14,16,18]), rows:function(L){ return dtFight(dtT("hc",L), b, [{k:"h:historic", p:HC_HERO_P(L), n:1, note:"once per city: after that, never again from it"}]); }});
+  P.push({id:"monster", g:"Map", n:"Monsters", u:"per kill", lvs:lv([1,2,3]), rows:function(L){ return dtFight(dtT("monster",L), b); },
+    note:"Wyverns, trolls, hydras and behemoths, drawn to a level 14 historic city for the day."});
+  P.push({id:"wiz", g:"Map", n:"Wizards", u:"per kill, for everyone who brought it down", lvs:[1,2].map(function(L){ return {id:String(L), t:WIZ[L].n, L:L}; }),
+    rows:function(L){ var W=WIZ_LOOT[L], r=[]; for (var k in W.items) r.push({k:k, p:1, n:W.items[k]}); r.push({k:"res", p:1, n:fmt(W.res)+" of each resource"}); return r; }});
+  P.push({id:"vamp", g:"Map", n:"Vampires (Hallow\u2019s Eve)", u:"per kill, for everyone who brought it down", lvs:[1,2,3].map(function(L){ return {id:String(L), t:MONSTERS[VAMP_KIND[L]], L:L}; }),
+    rows:function(L){ var V=VAMP_SPOILS[L], r=[]; for (var k in V) r.push({k:k, p:1, n:V[k]}); r.push({k:"deco", p:null, n:"its decoration", note:"the first of each kind you slay, yours for good"});
+      var T=EV_TRACK.halloween; if (T) T.miles.forEach(function(m){ r.push(m.hero?{k:"h:dracula", p:null, n:1, note:m.n+" vampires slain (event track)"}:{k:"ore", p:null, n:m.ore, note:m.n+" vampires slain (event track)"}); }); return r; },
+    note:"Only while the event runs."});
+  P.push({id:"bully", g:"Map", n:"Bully strongholds", u:"per stronghold taken", rows:function(){ var r=[]; for (var g in BULLY_LOOT){ var w=BULLY_LOOT[g], t=0, k; for (k in w) t+=w[k]; for (k in w) r.push({k:k, p:w[k]/t, n:1, note:"one "+(g==="books"?"book":"material")+" each time"}); }
+    r.push({k:"res", p:1, n:"a fifth of its treasury, up to what your army can carry"}); return r; }});
+  // Arena: solo from its own tables; multiplayer from the server's catalogue (text)
+  if (soloArOn()) P.push({id:"sar", g:"Alliance", n:"Monster Arena", u:"per monster slain", vs:SAR_TYPES.map(function(T){ return {id:T.k, t:T.n}; }), lvs:lv(dtRange(1,SAR.maxLv)),
+    rows:function(L,v){ var R=sarLoot(v,L), r=R.items.map(function(it){ return {k:it.k, p:it.p, n:it.n}; }); if (R.res) r.push({k:"res", p:1, n:fmt(R.res)+" of each resource"}); return r; }});
+  else { var AC=ALS.cat && ALS.cat.arena; if (AC && AC.types) P.push({id:"mar", g:"Alliance", n:"Monster Arena", u:"per monster slain, for everyone who joined", vs:AC.types.map(function(T){ return {id:T.k, t:T.n}; }), lvs:lv(dtRange(1,(AC.types[0].lv||[]).length||10)),
+    rows:function(L,v){ var T=AC.types.filter(function(x){ return x.k===v; })[0], e=T&&T.lv[L-1]; return e?[{k:"txt", p:null, n:e.reward}]:[]; }, note:"The alliance Arena\u2019s rewards are set by the server."}); }
+  var ladder=function(id,n,u,L,lab,note){ P.push({id:id, g:"Alliance", n:n, u:u, lvs:L.map(function(r,i){ return {id:String(i+1), t:"Rung "+(i+1), L:i+1}; }), ladder:L,
+    rows:function(i){ var R=L[i-1].r, r=[]; for (var k in R) r.push({k:k, p:null, n:R[k], note:lab(L[i-1])}); return r; }, note:note}); };
+  ladder("war","Kingdom War","per war, every rung you reach",WAR_LADDER,function(x){ return "at "+x.p+" war points"; },"Each rung pays once per war, on top of the ones below it.");
+  ladder("bf","Battlefield and PvP","per battle, every rung you reach",BF_LADDER,function(x){ return "at "+Math.round(x.f*100)+"% of the average army\u2019s value in points"; },"Each rung pays once per battle, on top of the ones below it. PvP matches use the same rungs.");
+  // the Wheel: each slice's share, with its own sub-rolls
+  P.push({id:"wheel", g:"Other", n:"Wheel of Fortune", u:"per spin", rows:function(){ var r=[], gw=gearTierW(gt), bs=BOX_W.reduce(function(a,c){ return a+c; },0);
+    WHEEL.forEach(function(s){ var p=s.w/WSUM;
+      if (RES.indexOf(s.k)>=0) r.push({k:"res", nm:RNAME[s.k], ico:s.k, p:p, n:(s.k==="gold"?WHEEL_RES.gold:WHEEL_RES.other)*(S.th||1), note:fmt(s.k==="gold"?WHEEL_RES.gold:WHEEL_RES.other)+" per Town Hall level (yours: "+(S.th||1)+")"});
+      else if (s.k==="stones"){ r.push({k:"gemF", p:p*WHEEL_GEMS.pF, n:WHEEL_GEMS.gemF}); r.push({k:"gemD", p:p*(1-WHEEL_GEMS.pF), n:WHEEL_GEMS.gemD}); }
+      else if (s.k==="gear") gw.forEach(function(x,i){ if (x>0) r.push({k:MAT[i], p:p*x, n:1, note:"material odds for Town Hall "+(S.th||1)}); });
+      else if (s.k==="medal") BOX_W.forEach(function(x,i){ r.push({k:"m:"+MEDALS[i][0], p:p*x/bs, n:1}); });
+      else if (s.tier) r.push({k:"h:"+s.tier, p:p, n:1, note:s.tier==="legendary"?"and guaranteed every "+PITY+" spins without one":"needs room in your Feasting Hall"});
+      else if (ITEMS[s.k]) r.push({k:s.k, p:p, n:1}); });
+    return r; }});
+  P.push({id:"boxes", g:"Other", n:"Medal boxes", u:"per box opened", vs:Object.keys(MEDAL_BOXES).map(function(k){ return {id:k, t:MEDAL_BOXES[k].name}; }),
+    rows:function(L,v){ var B=MEDAL_BOXES[v], r=[]; if (B.roll) B.medals.forEach(function(m){ r.push({k:"m:"+m, p:1, n:[BOX_MEDALS[0],BOX_MEDALS[1]]}); }); else for (var m in B.fixed) r.push({k:"m:"+m, p:1, n:B.fixed[m]}); return r; }});
+  var sumRw=function(list, get){ var tot={}, cnt={}; list.forEach(function(x){ var rw=get(x); if (!rw) return; (Array.isArray(rw)?rw:[rw]).forEach(function(w){ if (!w) return;
+      for (var k in (w.items||{})){ tot[k]=(tot[k]||0)+w.items[k]; cnt[k]=(cnt[k]||0)+1; } for (var m in (w.medals||{})){ tot["m:"+m]=(tot["m:"+m]||0)+w.medals[m]; cnt["m:"+m]=(cnt["m:"+m]||0)+1; }
+      var rs=0; for (var q in (w.res||{})) rs+=w.res[q]; if (rs){ tot.res=(tot.res||0)+rs; cnt.res=(cnt.res||0)+1; } }); });
+    return Object.keys(tot).map(function(k){ return {k:k, p:null, n:k==="res"?fmt(tot[k])+" in all":tot[k], note:cnt[k]+" reward"+(cnt[k]>1?"s":"")+" pay"+(cnt[k]>1?"":"s")+" it, "+fmt(tot[k])+" in total"}; }); };
+  P.push({id:"quests", g:"Other", n:"Quests", u:"once each", rows:function(){ return sumRw(QUESTS, function(x){ return x.rw; }); }});
+  P.push({id:"wc", g:"Other", n:"War College", u:"once per rating", rows:function(){ return sumRw(WC, function(x){ return x.rewards; }); }});
+  P.push({id:"pkg", g:"Other", n:"Packages", u:"once each", vs:PACKAGES.map(function(x){ return {id:x.id, t:x.name}; }),
+    rows:function(L,v){ var K=PACKAGES.filter(function(x){ return x.id===v; })[0], r=[]; if (!K) return r; for (var k in K.items) r.push({k:k, p:null, n:K.items[k]}); if (K.hero) r.push({k:"h:"+K.hero, p:null, n:1}); if (K.res) r.push({k:"res", p:null, n:fmt(K.res)+" of each resource"}); return r; }});
+  P.push({id:"taunt", g:"Other", n:"Surviving a taunted lord", u:"per wave you hold off", rows:function(){ return [{k:"gemF", p:1, n:TAUNT_GEMS.base+" + 1 per "+fmt(TAUNT_GEMS.per)+" attackers (up to "+TAUNT_GEMS.max+")"}]; }});
+  P.push({id:"scrap", g:"Other", n:"Scrapping gear", u:"per piece", vs:GEAR_TIERS.map(function(t,i){ return {id:String(i), t:TIERS[t]?TIERS[t].name:t}; }),
+    rows:function(L,v){ return [{k:"gemD", p:1, n:GEAR_SCRAP[+v]+" + 1 per star"}]; }});
+  return P; }
+function dtPlace(P){ for (var i=0;i<P.length;i++) if (P[i].id===DT.place) return P[i]; return P[0]; }
+function dtSel(pl){ var L=pl.lvs?(pl.lvs.filter(function(x){ return x.id===DT.lv[pl.id]; })[0]||pl.lvs[pl.lvs.length-1]):null, V=pl.vs?(pl.vs.filter(function(x){ return x.id===DT.v[pl.id]; })[0]||pl.vs[0]):null; return {L:L, V:V}; }
+// rows merged by item (the same item from two rules adds up), most likely first; fixed rewards after chances
+function dtMerge(rows){ var by={}, out=[]; rows.forEach(function(r){ var key=r.k+"|"+(r.nm||"")+"|"+(r.p==null?"f":"c")+"|"+(typeof r.n==="object"?JSON.stringify(r.n):r.n)+"|"+(r.note||"");
+    if (by[key] && r.p!=null){ by[key].p=Math.min(1, by[key].p+r.p); return; } by[key]={k:r.k, p:r.p, n:r.n, note:r.note, nm:r.nm, ico:r.ico}; out.push(by[key]); });
+  return out.sort(function(a,c){ var pa=a.p==null?-1:a.p, pc=c.p==null?-1:c.p; return pc-pa; }); }
+function dtRowHtml(r, sub){ var ch=r.p==null?'<span class="dtp fixed">Reward</span>':'<span class="dtp">'+dtPct(r.p)+(dtOneIn(r.p)?'<small>'+dtOneIn(r.p)+'</small>':'')+'</span>';
+  var nm=r.k==="txt"?esc(r.n):esc(r.nm||dtName(r.k)), qn=r.k==="txt"?"":dtQ(r.n);
+  return '<div class="dtrow">'+(r.k==="txt"?'<span class="dtico">'+ICON.crest+'</span>':r.ico&&ICON[r.ico]?'<span class="dtico">'+ICON[r.ico]+'</span>':dtIcon(r.k))+'<span class="dtn"><b>'+nm+'</b>'+(qn&&qn!=="1"?' <span class="dtx">\u00d7 '+esc(qn)+'</span>':'')+
+    ((sub||r.note)?'<span class="dur">'+esc(sub||"")+(sub&&r.note?' \u00b7 ':'')+esc(r.note||"")+'</span>':'')+'</span>'+ch+(r.p!=null?dtBar(r.p):'<span class="dtbar off"></span>')+'</div>'; }
+function dtMatch(r, q){ return !q || dtName(r.k).toLowerCase().indexOf(q)>=0 || (r.k==="txt" && String(r.n).toLowerCase().indexOf(q)>=0); }
+function dtPlaceHtml(P, b){ var q=DT.q.trim().toLowerCase(), h='', groups=[];
+  P.forEach(function(p){ if (groups.indexOf(p.g)<0) groups.push(p.g); });
+  // with a search, show every place's matching rows; without, the picked place
+  if (q){ var any=false; P.forEach(function(pl){ var placeHit=pl.n.toLowerCase().indexOf(q)>=0, sel=dtSel(pl), rows=dtMerge(pl.rows(sel.L?sel.L.L:0, sel.V?sel.V.id:null)).filter(function(r){ return placeHit || dtMatch(r,q); });
+      if (!rows.length) return; any=true; h+='<div class="dtcard"><div class="dthead"><b>'+esc(pl.n)+'</b><span class="dur">'+esc([sel.V&&sel.V.t, sel.L&&sel.L.t].filter(Boolean).join(" \u00b7 "))+'</span><button class="link" data-act="dt-go" data-v="'+pl.id+'">Open</button></div>'+rows.map(function(r){ return dtRowHtml(r); }).join("")+'</div>'; });
+    return any?h:'<p class="hint">Nothing matches \u201c'+esc(DT.q)+'\u201d.</p>'; }
+  h+='<div class="dtplaces" id="dtplaces">'+groups.map(function(g){ return '<span class="dtg">'+g+'</span>'+P.filter(function(p){ return p.g===g; }).map(function(p){ return '<button class="chipbtn'+(p.id===DT.place?' on':'')+'" data-act="dt-place" data-v="'+p.id+'">'+esc(p.n)+'</button>'; }).join(""); }).join("")+'</div>';
+  var pl=dtPlace(P), sel=dtSel(pl);
+  h+='<div class="dtcard"><div class="dthead"><b>'+esc(pl.n)+'</b><span class="dur">'+esc(pl.u||"")+'</span></div>';
+  if (pl.vs) h+='<div class="dtchips sm">'+pl.vs.map(function(v){ return '<button class="chipbtn'+(v===sel.V?' on':'')+'" data-act="dt-v" data-p="'+pl.id+'" data-v="'+esc(v.id)+'">'+esc(v.t)+'</button>'; }).join("")+'</div>';
+  if (pl.lvs && pl.lvs.length>1){ var li=pl.lvs.indexOf(sel.L);
+    h+='<div class="dtlv"><button class="btn ghost small" data-act="dt-lv" data-p="'+pl.id+'" data-v="'+(li>0?pl.lvs[li-1].id:"")+'"'+(li>0?'':' disabled')+' aria-label="Lower">\u25c0</button><span><b>'+esc(sel.L.t)+'</b></span><button class="btn ghost small" data-act="dt-lv" data-p="'+pl.id+'" data-v="'+(li<pl.lvs.length-1?pl.lvs[li+1].id:"")+'"'+(li<pl.lvs.length-1?'':' disabled')+' aria-label="Higher">\u25b6</button>'+
+      '<input type="range" min="0" max="'+(pl.lvs.length-1)+'" value="'+li+'" data-dtlv="'+pl.id+'" aria-label="Level"></div>'; }
+  var rows=dtMerge(pl.rows(sel.L?sel.L.L:0, sel.V?sel.V.id:null)), ch=rows.filter(function(r){ return r.p!=null; }), fx=rows.filter(function(r){ return r.p==null; });
+  if (ch.length){ var exp=0; ch.forEach(function(r){ if (r.k!=="res" && r.k!=="txt") exp+=r.p; });
+    h+=ch.map(function(r){ return dtRowHtml(r); }).join("");
+    if (pl.u && /per (win|kill|spin)/.test(pl.u) && exp<50) h+='<p class="dur dtsum">About '+(exp>=1?exp.toFixed(1):exp.toFixed(2))+' item drops '+esc(pl.u.replace(/,.*$/,"").replace(/ at full garrison/,""))+' on average.</p>'; }
+  if (fx.length) h+=(ch.length?'<div class="h3" style="margin:10px 0 2px">Rewards</div>':'')+fx.map(function(r){ return dtRowHtml(r); }).join("");
+  if (!rows.length) h+='<p class="hint">Nothing drops here.</p>';
+  if (pl.note) h+='<p class="hint" style="margin:8px 0 0">'+esc(pl.note)+'</p>';
+  return h+'</div>'; }
+// by item: every place and level an item comes from, best chance first
+function dtIndex(P){ var I={};
+  P.forEach(function(pl){ var vs=pl.vs||[null], lvs=pl.lvs||[null];
+    vs.forEach(function(V){ lvs.forEach(function(Lv){ dtMerge(pl.rows(Lv?Lv.L:0, V?V.id:null)).forEach(function(r){ if (r.k==="txt") return;
+      var e=(I[r.k]=I[r.k]||{}), key=pl.id+"|"+(V?V.id:"")+"|"+(r.p==null?"f":"c"), x=e[key];
+      if (!x) x=e[key]={pl:pl, V:V, lo:null, hi:null, best:0, fixed:r.p==null, n:r.n, note:r.note, lvs:[]};
+      if (Lv) x.lvs.push({t:Lv.t, L:Lv.L, p:r.p}); if (r.p!=null && r.p>x.best){ x.best=r.p; x.n=r.n; }
+      if (r.p==null && pl.ladder && typeof r.n==="number") x.tot=(x.tot||0)+r.n; }); }); }); });
+  return I; }
+function dtLvSpan(x){ if (!x.lvs.length) return ""; var ps=x.lvs.map(function(l){ return l.p; }), lo=Math.min.apply(null,ps), hi=Math.max.apply(null,ps), a=x.lvs[0], z=x.lvs[x.lvs.length-1];
+  var tl=a.t===z.t?a.t:(a.t.replace(/ \d+$/,"")===z.t.replace(/ \d+$/,"")&&/\d+$/.test(a.t)?a.t+"\u2013"+z.t.replace(/^.* /,""):a.t+" to "+z.t);
+  if (x.pl.ladder) return x.lvs.length>1?x.lvs.length+" rungs":tl;
+  if (x.fixed || lo===hi) return tl; var best=x.lvs.filter(function(l){ return l.p===hi; })[0];
+  return tl+' \u00b7 '+dtPct(lo)+' to '+dtPct(hi)+(best&&best!==z?' (best at '+best.t+')':''); }
+function dtItemHtml(P){ var I=dtIndex(P), q=DT.q.trim().toLowerCase(), h='', last="";
+  var keys=Object.keys(I).sort(function(a,c){ var ca=DT_CATS.map(function(x){ return x[0]; }).indexOf(dtCatOf(a)), cc=DT_CATS.map(function(x){ return x[0]; }).indexOf(dtCatOf(c)); return ca-cc || dtName(a).localeCompare(dtName(c)); });
+  keys.forEach(function(k){ var src=Object.keys(I[k]).map(function(s){ return I[k][s]; }), nmHit=!q || dtName(k).toLowerCase().indexOf(q)>=0;
+    if (!nmHit) src=src.filter(function(x){ return x.pl.n.toLowerCase().indexOf(q)>=0 || (x.V&&x.V.t.toLowerCase().indexOf(q)>=0); });
+    if (!src.length) return;
+    src.sort(function(a,c){ return (c.fixed?-1:c.best)-(a.fixed?-1:a.best); });
+    var c=dtCatOf(k); if (c!==last){ h+='<div class="h3 dtcat">'+esc(c)+'</div>'; last=c; }
+    var best=src.filter(function(x){ return !x.fixed; })[0];
+    h+='<details class="dtitem" data-det="dt_'+esc(k)+'"'+(q||DET["dt_"+k]?' open':'')+'><summary>'+dtIcon(k)+'<span class="dtn"><b>'+esc(dtName(k))+'</b><span class="dur">'+src.length+' source'+(src.length>1?'s':'')+(best?' \u00b7 '+(best.best>=0.9995?'always':'best '+dtPct(best.best))+' from '+esc(best.pl.n.replace(/ \(.*\)$/,"")+(best.V?" ("+best.V.t+")":"")):'')+'</span></span>'+(best?dtBar(best.best):'<span class="dtbar off"></span>')+'</summary>'+
+      src.map(function(x){ return '<div class="dtsrc" role="button" tabindex="0" data-act="dt-go" data-v="'+x.pl.id+'"'+(x.V?' data-vv="'+esc(x.V.id)+'"':'')+(x.lvs.length?' data-lv="'+esc(String(x.lvs.filter(function(l){ return l.p===(x.fixed?l.p:x.best); })[0].L))+'"':'')+'><span><b>'+esc(x.pl.n)+(x.V?' \u00b7 '+esc(x.V.t):'')+'</b><span class="dur">'+esc([dtLvSpan(x), x.pl.u||""].filter(Boolean).join(" \u00b7 "))+'</span></span><span class="dtp'+(x.fixed?' fixed':'')+'">'+(x.fixed?esc(x.tot?fmt(x.tot)+' in all':'\u00d7 '+dtQ(x.n)):dtPct(x.best))+'</span></div>'; }).join("")+'</details>'; });
+  return h||'<p class="hint">Nothing matches \u201c'+esc(DT.q)+'\u201d.</p>'; }
+function dtBonusTxt(){ var a=[]; if (achLv("medal")) a.push("Decorated tier "+achLv("medal")+": item chances \u00d7"+bItems().toFixed(2)); if (achLv("gear")) a.push("Starforged tier "+achLv("gear")+": +"+(bMats()*100).toFixed(0)+" points on gems, a little on materials"); return a; }
+function dtListHtml(){ var b=lootB(DT.base), P=dtPlaces(b); return DT.mode==="item"?dtItemHtml(P):dtPlaceHtml(P,b); }
 function dropsSheet(){
-  var h='<div class="head lbhead"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Drop tables</h2><div class="sub">Every item, where it drops and how often</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
-  h+='<input type="search" id="dtq" placeholder="Search an item or a place (e.g. Mithril, NPC city, wheel)" value="'+esc(DT.q)+'" style="width:100%;margin:2px 0 8px">';
-  h+='<div class="lbtabs">'+[["","All"]].concat(dtCats().map(function(c){ return [c,c]; })).map(function(c){ return '<button class="chipbtn'+(DT.cat===c[0]?' on':'')+'" data-act="dt-cat" data-c="'+esc(c[0])+'">'+esc(c[1])+'</button>'; }).join("")+'</div>';
-  h+='<p class="hint" style="margin-top:8px">Base chances before achievement bonuses (Decorated adds 1% per tier to item drops; Starforged adds flat points to materials). NPC cities and AI lords drop items only if their garrison was full when you hit them; valleys and flats never drop gems or gear materials.</p>';
+  var h='<div class="head lbhead"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Drop tables</h2><div class="sub">Live: read from the same tables the game rolls with</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
+  h+='<div class="speeds dtmode"><button data-act="dt-mode" data-v="place" aria-pressed="'+(DT.mode==="place")+'">By place</button><button data-act="dt-mode" data-v="item" aria-pressed="'+(DT.mode==="item")+'">By item</button></div>';
+  h+='<input type="search" id="dtq" placeholder="Search an item or a place (Mithril, NPC, wheel\u2026)" value="'+esc(DT.q)+'" style="width:100%;margin:8px 0">';
+  var bt=dtBonusTxt();
+  h+='<div class="dtbonus">'+(bt.length?'<div class="speeds"><button data-act="dt-base" data-v="0" aria-pressed="'+!DT.base+'">With your bonuses</button><button data-act="dt-base" data-v="1" aria-pressed="'+DT.base+'">Base chances</button></div><p class="dur" style="margin:4px 0 0">'+esc(bt.join(" \u00b7 "))+'</p>':'<p class="dur" style="margin:0">Base chances. The Decorated and Starforged achievements raise them as you earn tiers.</p>')+'</div>';
   return h+'<div id="dtlist">'+dtListHtml()+'</div>';
 }
 /* ---------- player profiles: tap a name (high scores, chat, alliance lists) to see that player ---------- */
@@ -10296,16 +10512,7 @@ function boxText(k){ var b=MEDAL_BOXES[k];
   return Object.keys(b.fixed).map(function(m){ return b.fixed[m]+" "+medalName(m); }).join(", ")+" medal"+(Object.keys(b.fixed).length>1?"s":"");
 }
 // a victory can drop at most one box, and a box replaces the single-medal roll entirely
-function rollMedalBox(q){
-  if (q.k!=="npc") return null;
-  if (q.L>=10){
-    if (Math.random()<BOX_DROP.npc10senior) return "medalbox3";
-    if (Math.random()<BOX_DROP.npc10medium) return "medalbox2";
-    return null;
-  }
-  if (q.L>=5 && Math.random()<BOX_DROP.npc5junior) return "medalbox";
-  return null;
-}
+function rollMedalBox(q){ var R=boxRules(q); for (var i=0;i<R.length;i++) if (Math.random()<R[i][1]) return R[i][0]; return null; }
 var PACKAGES=[
   {id:"beta",name:"Beta Tester Chest",th:1,res:200000,items:{},hero:"beta"},
   {id:"beginner",name:"Beginner Package",th:1,res:25000,items:{s15:1,s60:1,s150:1,s480:1,teleport:1}},
@@ -10902,7 +11109,7 @@ function renderSheetCore(){
   if (sheetFor.page) h=h.replace(/<button class="closebtn" data-act="close">[^<]*<\/button>/g,"").replace(/<button class="btn ghost small" data-act="close" aria-label="Close">[^<]*<\/button>/g,"");
   if (h===lastSheet) return;
   lastSheet=h; sheetBody.innerHTML=h; wireDetails(sheetBody);
-  if (!sheetFor.page) sheet.classList.toggle("full", sheetFor.kind==="lb" || sheetFor.kind==="wc" || sheetFor.kind==="replay"); if (sheetFor.kind==="lb"){ var lbt=document.querySelector("#lbtabs .on"); if (lbt) lbt.scrollIntoView({block:"nearest",inline:"center"}); }
+  if (!sheetFor.page) sheet.classList.toggle("full", sheetFor.kind==="lb" || sheetFor.kind==="wc" || sheetFor.kind==="replay" || sheetFor.kind==="drops"); if (sheetFor.kind==="lb"){ var lbt=document.querySelector("#lbtabs .on"); if (lbt) lbt.scrollIntoView({block:"nearest",inline:"center"}); } if (sheetFor.kind==="drops"){ var dpo=document.querySelector("#dtplaces .on"), dpw=document.getElementById("dtplaces"); if (dpo && dpw) dpw.scrollLeft=Math.max(0, dpo.offsetLeft-dpw.offsetLeft-(dpw.clientWidth-dpo.offsetWidth)/2); }
   if (!sheetFor.page){ var fitOn=sheetFor.kind==="report" && repFit; sheet.classList.toggle("fit", fitOn); if (fitOn && sheet.open) fitReport(); }
   if (sheetFor && sheetFor.focus){ var fe=document.getElementById(sheetFor.focus==="gear"?"herogear":sheetFor.focus); sheetFor.focus=null; if (fe && fe.scrollIntoView) fe.scrollIntoView({block:"start"}); }
   var sa0=document.getElementById("saveage"); if (sa0) sa0.textContent=saveAge();
@@ -10966,11 +11173,10 @@ function startTrain(tu,tn,slot){
   S.train.push({slot:slot,u:tu,n:tn,paid:tc,start:S.gt,end:S.gt+trainTime(tu)*tn});
   return true;
 }
-function armyCount(){ // home + training + in the field, for this city
-  var c=S.troops.slice(), me=C().id;
+function armyCount(){ // home + training + away and coming back (marches, rallies, the Arena, reinforcing, invasions), for this city
+  var c=S.troops.slice();
   S.train.forEach(function(t){ c[t.u]+=t.n; });
-  S.marches.forEach(function(m){ if (m.city===me) m.t.forEach(function(n,i){ c[i]+=n; }); });
-  return c;
+  return cityAwayAdd(C(), c, false);
 }
 var AUTO_BATCH_MS=30*60000;
 /* troop goals: ordered lines, worked top to bottom. Each line: t = target per unit, o = unit order (left to right), b = batch size (0 = about 30 minutes of work) */
@@ -11151,7 +11357,7 @@ document.addEventListener("click",function(e){
   if (act==="gif-pick"){ var gp=GIFS.list[+a.dataset.i]; if (!gp) return; closeSheet(); chatSendText(GIFS.tgt, gp.u); return; }
   if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
   if (act==="ry-call"){ ryCall(); return; }
-  if (act==="al-go-rally"){ tab="guild"; ALS.sub=a.dataset.to==="arena"?"arena":"rally"; lastView=""; refresh(); window.scrollTo({top:0}); return; }
+  if (act==="al-go-rally"){ tab="guild"; ALS.sub="rally"; /* 0.1.225: Arena fights are joined from the Rallies tab too */ lastView=""; refresh(); window.scrollTo({top:0}); return; }
   if (act==="ry-send"){ var srid=+a.dataset.rid; if (!ryById(srid)){ toast("That rally has already hit"); return; } openMarch(homeTileId(),"rally",srid); return; }
   if (act==="ry-move"){ var mR=ryById(+a.dataset.rid); if (!mR) return; var ordm={}; (mR.order||[]).forEach(function(id,i){ ordm[id]=i; });
     var ids=mR.marches.slice().sort(function(x,y){ return (ordm[x.id]!=null?ordm[x.id]:1e6+x.arrive)-(ordm[y.id]!=null?ordm[y.id]:1e6+y.arrive); }).map(function(j){ return j.id; }), mi=ids.indexOf(+a.dataset.id), mj=mi+(+a.dataset.d);
@@ -11313,7 +11519,12 @@ document.addEventListener("click",function(e){
   if (act==="tax"){ S.tax=Math.max(0,Math.min(80,S.tax+(+a.dataset.d))); save(); tickText(); lastView=""; renderView(true); return; }
   if (act==="quests"){ goPage("quests"); return; }
   if (act==="drops-open"){ openSheet({kind:"drops"}); return; }
-  if (act==="dt-cat"){ DT.cat=a.dataset.c||""; lastSheet=""; renderSheet(); return; }
+  if (act==="dt-mode"){ DT.mode=a.dataset.v; lastSheet=""; renderSheet(); return; }
+  if (act==="dt-base"){ DT.base=a.dataset.v==="1"; lastSheet=""; renderSheet(); return; }
+  if (act==="dt-place"){ DT.place=a.dataset.v; lastSheet=""; renderSheet(); return; }
+  if (act==="dt-v"){ DT.v[a.dataset.p]=a.dataset.v; lastSheet=""; renderSheet(); return; }
+  if (act==="dt-lv"){ if (a.dataset.v) DT.lv[a.dataset.p]=a.dataset.v; lastSheet=""; renderSheet(); return; }
+  if (act==="dt-go"){ DT.mode="place"; DT.place=a.dataset.v; if (a.dataset.vv) DT.v[a.dataset.v]=a.dataset.vv; if (a.dataset.lv) DT.lv[a.dataset.v]=a.dataset.lv; DT.q=""; lastSheet=""; renderSheet(); var sb=document.getElementById("sheet"); if (sb) sb.scrollTop=0; return; }
   if (act==="ry-list"){ openSheet({kind:"rylist"}); return; }
   if (act==="ev-open"){ evBoardFetch(); openSheet({kind:"event"}); return; }
   if (act==="ry-fold"){ var fv=a.dataset.v==="1"; (a.dataset.keys||"").split(" ").forEach(function(k){ if (k) DET[k]=fv; }); lastView=""; renderView(true); return; }
@@ -11995,7 +12206,8 @@ document.addEventListener("input",function(e){
   if (invInput(e)) return;
   if (e.target.id && /^aw-[gaw]\d+$/.test(e.target.id)){ awChange(e); return; }
   if (e.target.id==="decoq"){ DECO_Q=e.target.value; decoFilter(); return; }
-  if (e.target.id==="dtq"){ DT.q=e.target.value; var dl=document.getElementById("dtlist"); if (dl) dl.innerHTML=dtListHtml(); return; }
+  if (e.target.id==="dtq"){ DT.q=e.target.value; var dl=document.getElementById("dtlist"); if (dl){ dl.innerHTML=dtListHtml(); wireDetails(dl); } return; }
+  if (e.target.dataset && e.target.dataset.dtlv){ var dpl=null, dP=dtPlaces(lootB(DT.base)); dP.forEach(function(x){ if (x.id===e.target.dataset.dtlv) dpl=x; }); if (dpl && dpl.lvs){ DT.lv[dpl.id]=dpl.lvs[+e.target.value].id; var dl2=document.getElementById("dtlist"); if (dl2){ dl2.innerHTML=dtListHtml(); wireDetails(dl2); } } return; }
   if (e.target.id && e.target.id.indexOf("rf-")===0){ RF.t[+e.target.id.slice(3)]=e.target.value; return; }
   if (e.target.id && e.target.id.indexOf("tp-")===0){ TP.res[e.target.id.slice(3)]=e.target.value; tpPreview(); return; }
   if (e.target.id==="pvcode"){ PV.code=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6); return; }
