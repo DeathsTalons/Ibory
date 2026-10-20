@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.223
+Version 0.1.224
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.224** Hallow's Eve hunters board: the event page shows who has slain the most vampires, single player and multiplayer together (top 25, medals for the top three, your own rank if you're further down). It loads when the page opens, sends your own count first, and refreshes every minute or with Refresh hunters. Server: new `ev_id`/`ev_n` columns on players (added automatically) and a hidden `ev_halloween` board; deploy the worker.
 - **0.1.223** The last two historic hero portraits: Pericles (from Philipp Foltz, Pericles' Funeral Oration, 1852) and Cyrus the Great (from Rembrandt, Daniel and Cyrus before the Idol Bel, 1633). All 40 historic heroes and Dracula now have paintings.
 - **0.1.222** Ten more historic hero portraits: Constantine, Leonidas, Boudica, Ramesses II, Richard the Lionheart, Scipio Africanus, Hannibal Barca, Xerxes, Sun Tzu and William Wallace. That's 38 of 40, plus Dracula. Cyrus the Great and Pericles keep the drawn portrait until public-domain images are found.
 - **0.1.221** Historic heroes get public-domain portraits: 28 of the 40, plus Dracula. They are built in (`HPORT_BUILTIN`, made by `art/tools/build_heroes.py` from `art/heroes/*.jpg`; sources in `art/heroes/SOURCE.md`), and a player's own picture still replaces one. The other 12 keep the drawn portrait until theirs are added: drop a 256 px `art/heroes/<name>.jpg` in and rerun the script.
