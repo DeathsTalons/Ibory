@@ -803,7 +803,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.211";
+var APP_VERSION = "0.1.212";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2450,7 +2450,7 @@ function resolveMarch0(m){
   var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(won && !fullGar?". Garrison wasn’t full, so no drops, only resources":"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
   note("march",msg+loyNote);
   var saved=surgeonHeal(m.t, r.attacker), alive = saved.some(function(n){ return n>0; });
-  woundFrom(m.city, m.t, saved, true);
+  woundFrom(m.city, m.t, saved, true, isVamp(q)?1:null); // 0.1.212: nobody dies fighting a vampire: every loss goes to the Medic Camp
   if (!alive){ if (hero) hero.away=false; return false; }
   if (occ && m.camp){ // the occupying army stays as a camp; its plunder goes home
     RES.forEach(function(k){ S.res[k]+=loot[k]||0; });
@@ -4885,7 +4885,7 @@ function ryResults(Y){
       else if (r.k==="vamp"){ var vd=[]; vampSpoilsGive(r.L, vd); evKill("halloween", vd); roll={drops:vd, medal:-1}; } // 0.1.209: a vampire: the spoils and a kill on the event track for each player
       else roll = r.full ? winDrops({id:"rally:"+r.id, k:r.k, L:r.L}) : {drops:[], medal:-1, nofull:true}; }
     Object.keys(r.mine||{}).forEach(function(ref){ var m=L.filter(function(x){ return x.ref===ref; })[0]; if (!m || m.st!=="out") return; var o=r.mine[ref];
-      m.st="back"; m.back=(o.left||m.t).slice(); if (o.wd) m.wd=o.wd.slice(); m.home=Math.max(Date.now(), o.home||0); /* 0.1.191: home the moment the rally is back at its launch city */ m.res=o; ch=true; var rw=fresh.indexOf(ref)>=0?roll:null; if (rw) roll=null; try { ryReport(r, m, o, rw); } catch(e){}
+      m.st="back"; m.back=(o.left||m.t).slice(); if (o.wd) m.wd=o.wd.slice(); else if (r.k==="vamp") m.wd=m.t.map(function(n,i){ return Math.max(0,n-(m.back[i]||0)); }); /* 0.1.212: a vampire rally: every loss is wounded */ m.home=Math.max(Date.now(), o.home||0); /* 0.1.191: home the moment the rally is back at its launch city */ m.res=o; ch=true; var rw=fresh.indexOf(ref)>=0?roll:null; if (rw) roll=null; try { ryReport(r, m, o, rw); } catch(e){}
       if (!rw && !r.isHost) note("rally","The rally on "+r.host+"\u2019s "+r.name+" "+(o.cancelled||r.cancelled?"was called off: your march is heading home.":o.late?"left without your march (it arrived too late).":o.idle?"wiped it out before your wave was needed.":o.wave?"hit: your wave "+(o.won?"won":"was thrown back")+".":"is over.")); });
     var key=ALS.aid+":"+r.id; if (r.isHost && !S.alRallyDone[key]){ S.alRallyDone[key]=Date.now(); ch=true;
       var lk=ryLocks().filter(function(x){ return x.rid===r.id && x.aid===ALS.aid; })[0]; if (lk){ var q=TILE_BY[lk.tile];
@@ -4914,7 +4914,7 @@ function ryReport(r, m, o, rw){
   var id=S.nextMarchId++, name="Rally: "+r.host+"\u2019s "+r.name;
   var rep={id:id, at:S.gt, rally:1, name:name, result:o.wave?(o.won?1:2):0, host:r.host, target:r.name, wave:o.wave||0, waves:(r.fights||[]).length, late:!!o.late, idle:!!o.idle, cancelled:!!o.cancelled, rounds:o.rounds||0,
     sent:m.t.slice(), left:(o.left||m.t).slice(), killed:(o.killed||Z12()).slice(), city:ci>=0?S.cities[ci].name:"?", hero:hh?hh.name:"", players:r.players||[], fights:r.fights||[], def:0, win:!!r.win,
-    wiz:r.k==="wiz"?1:0, aww:r.k==="wiz"&&o.wave?{rally:1, aid:ALS.aid, mid:r.id}:null};
+    wiz:r.k==="wiz"?1:0, vamp:r.k==="vamp"?1:0, aww:r.k==="wiz"&&o.wave?{rally:1, aid:ALS.aid, mid:r.id}:null};
   if (rw){ rep.drops=rw.drops||[]; rep.medal=rw.medal; rep.nofull=!!rw.nofull;
     var got=(rw.medal>=0?[MEDALS[rw.medal][1]+" medal"]:[]).concat(rw.drops||[]);
     note("rally","The rally on "+r.host+"\u2019s "+r.name+" wiped it out. "+(rw.nofull?"Its garrison wasn\u2019t full when it hit, so nothing dropped.":got.length?"Your share of the spoils: "+got.join(", ")+".":"Nothing dropped for you this time.")); }
@@ -4926,12 +4926,12 @@ function rallyRepHtml(r){ var row=function(l,v){ return '<div class="merow"><spa
   var h='<div class="mestats">'+row("Target",esc(r.host)+'\u2019s '+esc(r.target))+row("Your wave",r.cancelled?'called off':r.late?'arrived too late':r.idle?'not needed (already wiped out)':(r.wave+' of '+r.waves))+
     (r.wave?row("Result",r.result===1?'<span class="okc">Won</span>':'<span class="badc">Thrown back</span>')+row("Rounds",fmt(r.rounds)):'')+row("Who fought",esc((r.players||[]).join(", ")||"nobody"))+'</div>';
   var rows=[]; for (var j=0;j<12;j++) if (r.sent[j]) rows.push('<tr><td>'+U[j].name+'</td><td>'+fmt(r.sent[j])+'</td><td>'+fmt(r.left[j]||0)+'</td><td>'+fmt(Math.max(0,r.sent[j]-(r.left[j]||0)))+'</td></tr>');
-  h+='<div class="h3" style="margin-top:8px">Your march <span class="dur">from '+esc(r.city)+(r.hero?', led by '+esc(r.hero):'')+'</span></div><div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Troop</th><th>Sent</th><th>Left</th><th>'+(r.wiz?'Wounded':'Fallen')+'</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>';
+  h+='<div class="h3" style="margin-top:8px">Your march <span class="dur">from '+esc(r.city)+(r.hero?', led by '+esc(r.hero):'')+'</span></div><div class="tscroll"><table class="gt" style="min-width:0"><thead><tr><th>Troop</th><th>Sent</th><th>Left</th><th>'+(r.wiz||r.vamp?'Wounded':'Fallen')+'</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>';
   var kr=[]; for (var k=0;k<12;k++) if (r.killed[k]) kr.push(fmt(r.killed[k])+' '+uname(k,r.killed[k]));
   if (kr.length) h+='<p class="dur">You killed: '+kr.join(", ")+'.</p>';
   if (r.drops){ var got=(r.medal>=0?[MEDALS[r.medal][1]+" medal"]:[]).concat(r.drops); h+='<p class="'+(got.length?'okc':'dur')+'" style="margin:6px 0">'+(r.nofull?'The garrison wasn\u2019t full when the rally hit, so nothing dropped.':got.length?'Your spoils: '+esc(got.join(", "))+'.':'Your spoils: nothing this time.')+'</p>'; }
   if (r.fights && r.fights.length) h+='<div class="h3" style="margin-top:8px">Every wave</div>'+r.fights.map(function(f){ return '<p class="dur" style="margin:2px 0">'+f.wave+'. '+esc(f.name)+': '+(f.won?'won':'thrown back')+', killed '+fmt(f.killed)+', lost '+fmt(f.lost)+' of '+fmt(f.sent)+'</p>'; }).join("");
-  return h+'<p class="hint">'+(r.wiz?'Nobody dies fighting a wizard: every loss is wounded':'Some of the fallen are only wounded')+' and waits in your city\u2019s Medic Camp (heal them within 24 hours).</p>'; }
+  return h+'<p class="hint">'+(r.wiz?'Nobody dies fighting a wizard: every loss is wounded':r.vamp?'Nobody dies fighting a vampire: every loss is wounded':'Some of the fallen are only wounded')+' and waits in your city\u2019s Medic Camp (heal them within 24 hours).</p>'; }
 // every second: rally marches that came home (the fallen go through the normal wounded rule)
 function ryTick(){
   var lks0=ryLocks(), lks1=lks0.filter(function(lk){ return !((ALS.d && ALS.aid!==lk.aid) || Date.now()-(lk.at||0)>26*3600e3); }); if (lks1.length!==lks0.length){ S.rallyLocks=lks1; save(); } // left the alliance, or the rally is long over: free the target
@@ -8276,7 +8276,7 @@ function woundAdd(cityId, i, lost){ if (!(lost>0)) return 0; var ci=cityIndex(ci
 function defWoundRate(cityId){ var ci=cityIndex(cityId), med=0; if (ci>=0) withCity(ci, function(){ med=S.tech.medicine||0; }); return med<=10 ? 0.5+0.03*med : Math.min(0.95, 0.8+0.01*(med-10)); }
 function woundFrom(cityId, before, after, attach, rateOver, def){
   var ci=cityIndex(cityId); if (ci<0) return 0; var rate=rateOver!=null?rateOver:woundRate(cityId), b=null, tot=0;
-  rate=Math.min(0.95, rate+alFx("wound")+alFx((def||rateOver!=null)?"defwound":"atkwound")); // War Memorial: Chapel of the Cross
+  rate = rateOver>=1 ? 1 : Math.min(0.95, rate+alFx("wound")+alFx((def||rateOver!=null)?"defwound":"atkwound")); // War Memorial: Chapel of the Cross. 0.1.212: rateOver 1 = everyone is only wounded (vampires)
   for (var i=0;i<12;i++){ var n=Math.round(Math.max(0,(before[i]||0)-(after[i]||0))*rate); if (!n) continue; if (!b) b=woundBucket(S.cities[ci]); b.t[i]+=n; tot+=n; }
   if (!tot) return 0;
   var r=S.reports[0]; if (attach && r && r.at===S.gt && !r.scout) r.wounded=(r.wounded||0)+tot; else pendingWound+=tot;

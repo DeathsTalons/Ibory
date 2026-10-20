@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.211
+Version 0.1.212
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.212** Nobody dies fighting a vampire. Every loss goes to the Medic Camp, like with wizards (heal within 24 hours). This covers solo attacks, won or lost (`woundFrom(..., 1)`: a rate of 1 skips the usual 95% cap), and vampire rallies (`m.wd` set from the losses; the rally report says "Wounded"). Other fights keep the usual rate. Test: `t/t79.py`.
 - **0.1.211** The Arena report filter is now **Monsters**. It shows Arena fights, wizards, map monsters and vampires, solo or in a rally. Older reports are matched by name (`monLog`, `MON_RX`), so past fights show up too. Monster fights on the map still count as Attacks as well.
 - **0.1.210** Two new decoration packs, each a 50-coin unlock (needs the new worker for `decopack:castlewalls` and `decopack:ruins`). Both are drawn 64 px to a tile.
   - **Castle Walls:** Castle Wall, Castle Wall with windows and Castle Gate. They join each other and any other wall in all directions: corners, T-junctions, side walls and end towers. There are 16 neighbour tiles per kind, built by `art/tools/build210.py`. The gate and windows show on straight east-west runs. Joining pieces now carry their own pixels-per-tile (`AUTOX[k].ppt`, `wallCanvas().ps`).
