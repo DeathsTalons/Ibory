@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.209
+Version 0.1.211
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,18 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.211** The Arena report filter is now **Monsters**. It shows Arena fights, wizards, map monsters and vampires, solo or in a rally. Older reports are matched by name (`monLog`, `MON_RX`), so past fights show up too. Monster fights on the map still count as Attacks as well.
+- **0.1.210** Two new decoration packs, each a 50-coin unlock (needs the new worker for `decopack:castlewalls` and `decopack:ruins`). Both are drawn 64 px to a tile.
+  - **Castle Walls:** Castle Wall, Castle Wall with windows and Castle Gate. They join each other and any other wall in all directions: corners, T-junctions, side walls and end towers. There are 16 neighbour tiles per kind, built by `art/tools/build210.py`. The gate and windows show on straight east-west runs. Joining pieces now carry their own pixels-per-tile (`AUTOX[k].ppt`, `wallCanvas().ps`).
+  - **Ruins** (by Blood Seller): 44 free pieces.
+    - Ruined walls with arches, timber arches, shored and boarded doors and windows, breaches and a lean-to, plus the same set with a corner pillar.
+    - Long walls, crumbling ends and pillars, tall side walls.
+    - Twin arches, rubble, stairs.
+    - A boarded door, a crate, wooden posts, timber brackets and two pits.
+  - Pack credits come from `IMGPK[pid].by`. The Castle Walls artist and both licences still need recording (art/castlewalls and art/ruins SOURCE.md).
+  - Decorate lists Event pieces first, above every pack. During Hallow's Eve, the AI Pack's Halloween section sits right under them, still tagged AI.
+  - **Clear all** on the march screen (attacks, occupying, rallies, Arena and the rest; it clears the cargo too), the preset editor, alliance reinforcements and each War College wave. Battlefield and invasions already had Clear.
+  - Valleys are held per city, up to that city's Town Hall level. That was already the rule; `t/t78.py` now checks it with two cities.
 - **0.1.209** Vampires can be rallied (needs the new worker). Call the alliance onto any vampire, any time, with no call limit (worker `k:"vamp"`, `RY_LIMIT.vamp`).
   - The waves fight its brood one after another, like an NPC rally.
   - If it falls, every player who got a march there gets that vampire's spoils and a kill on their event track (`vampSpoilsGive` + `evKill` in `ryResults`; the worker always marks it `full`). The vampire leaves the caller's map.
