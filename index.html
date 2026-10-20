@@ -803,7 +803,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.218";
+var APP_VERSION = "0.1.220";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2421,6 +2421,7 @@ function resolveMarch0(m){
   var occ=false;
   if (won && m.mission==="occupy" && VTYPES[q.k] && ownedIds().length < S.th){ S.map.owned[q.id]=C().id; S.map.ownedL[q.id]=q.L; S.map.ownedK=S.map.ownedK||{}; S.map.ownedK[q.id]=q.k; qbump("occupy"); delete S.map.hit[q.id]; occ=true; miniDirty=true; }
   var founded=null, histHero=null, loyNote="";
+  if (won && m.mission==="occupy" && VTYPES[q.k] && !occ) loyNote=" Not held: "+C().name+" already holds "+ownedIds().length+" of "+S.th+" valleys and flats (Town Hall "+S.th+"), so the troops are coming home."; // 0.1.219
   if (won && q.k==="hc" && !S.map.heroTaken[q.id] && Math.random() < (q.L===12?0.1:0.2)){
     histHero=historicHero(q); S.map.heroTaken[q.id]=true;
     if (S.heroes.length < hallCap()) S.heroes.push(histHero); else S.waiting.push(histHero);
@@ -2908,7 +2909,7 @@ function viewMap(){
   var opts='<option value="npc">NPC city</option><option value="ai">AI lord</option><option value="hc">Historic city</option>'+Object.keys(VTYPES).map(function(k){ return '<option value="'+k+'">'+VTYPES[k].name+'</option>'; }).join("");
   var lv='<option value="0">Any level</option>'; for (var i=1;i<=10;i++) lv+='<option value="'+i+'">Level '+i+'</option>'; [12,14,16,18].forEach(function(i){ lv+='<option value="'+i+'">Level '+i+'</option>'; });
   return '<div class="btnrow" style="margin:0 0 8px;align-items:center;flex-wrap:nowrap"><button class="btn ghost small" style="flex:0 0 auto" data-act="march-open" data-tile="'+homeTileId()+'" data-mission="hide">Hide troops in the woods</button>'+bmJumpHtml()+'</div>'+
-    '<div class="section"><div class="shead"><h3 id="realmh">'+esc(realmName())+'</h3><span class="dur" id="mapstat"></span></div>'+
+    '<div class="section"><div class="shead"><h3 id="realmh">'+esc(realmName())+'</h3><button class="link dur" id="mapstat" data-act="held-open" title="See every valley and flat you hold"></button></div>'+
     '<div class="maptools" style="flex-wrap:nowrap"><button class="btn ghost small" data-act="map-zoom" data-z="1" aria-label="Zoom in">+</button><button class="btn ghost small" data-act="map-zoom" data-z="-1" aria-label="Zoom out">\u2212</button><button class="btn ghost small" data-act="map-home">My city</button><span class="dur" id="mapcoord" style="flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span><button class="btn ghost small dpickbtn" data-act="dpick" aria-pressed="'+(DPICK.on?'true':'false')+'" title="Tap decorations instead of tiles" aria-label="Pick decorations" style="margin-left:auto">\ud83d\uddbc\ufe0f</button></div>'+
     '<div class="mapview" id="mapview"><canvas id="mapc" aria-label="Map. Drag to pan, tap a tile to see it."></canvas><div class="mpop" id="mappop" hidden></div><div class="paintbar" id="paintbar" hidden></div></div>'+
     '<div class="mapbottom"><canvas id="minic" width="'+MAPW+'" height="'+MAPH+'" aria-label="Overview map. Tap to jump there."></canvas>'+
@@ -3184,6 +3185,20 @@ function findNearest(type, lvl){
 /* ---------- occupy flats: one tap sends a preset to the nearest free flats of a chosen level ---------- */
 function occSet(){ var o=S.occ=S.occ||{lvl:1,p:0,n:1}; o.lvl=Math.max(1,Math.min(10,+o.lvl||1)); o.p=Math.max(0,Math.min(S.presets.length-1,+o.p||0)); o.n=Math.max(1,Math.min(99,Math.floor(+o.n||1))); return o; }
 function occPendingHere(){ var me=C().id; return S.marches.filter(function(m){ return m.city===me && m.mission==="occupy" && (m.phase==="out"||m.phase==="wait"); }).length; }
+// 0.1.219: why the Rally Spot is full, in words: how many slots marches, camps and rally marches take
+// 0.1.220: every valley and flat you hold, by city; tap one to see it on the map
+function heldSheet(){ var now=S.cur, h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1"><h2>Held valleys and flats</h2><div class="sub">tap one to see it on the map</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>';
+  S.cities.forEach(function(c,ci){ withCity(ci,function(){ var ids=ownedIds().slice().sort(function(a,b){ var A=a.split(",").map(Number), B=b.split(",").map(Number); return ((A[0]-c.x)*(A[0]-c.x)+(A[1]-c.y)*(A[1]-c.y))-((B[0]-c.x)*(B[0]-c.x)+(B[1]-c.y)*(B[1]-c.y)); });
+    h+='<div class="h3" style="margin-top:8px">'+esc(c.name)+' <span class="dur">'+ids.length+' / '+S.th+(occPendingHere()?' \u00b7 '+occPendingHere()+' on the way':'')+'</span></div>';
+    if (!ids.length){ h+='<p class="dur" style="margin:2px 0">None held.</p>'; return; }
+    h+='<div class="gearlist">'+ids.map(function(id){ var xy=id.split(",").map(Number), q=tileAt(xy[0],xy[1]), vt=VTYPES[q.k], camp=campAt(id, c.id), d=Math.round(Math.hypot(xy[0]-c.x, xy[1]-c.y));
+      return '<button class="gearrow" style="text-align:left;cursor:pointer;width:100%;font:inherit" data-act="held-go" data-tile="'+id+'"><span class="gn">Level '+q.L+' '+esc(vt?vt.name:q.k)+'</span><span class="gb">('+xy[0]+', '+xy[1]+')</span>'+
+        '<span class="dur" style="grid-column:1/-1">'+d+' tiles away'+(vt&&vt.res?' \u00b7 +'+pct(VALLEY_BONUS*q.L)+' '+vt.res:'')+(camp?' \u00b7 camp: '+fmt(sumT(camp.t))+' troops':'')+'</span></button>'; }).join("")+'</div>'; }); });
+  return h+'<button class="closebtn" data-act="close">Close</button>'; }
+function rallyFullWhy(){ var me=C().id, ms=S.marches.filter(function(m){ return m.city===me; }), camps=ms.filter(function(m){ return m.phase==="stay"; }).length, rys=(S.alRally||[]).filter(function(m){ return m.city===me; }).length, moving=ms.length-camps;
+  var bits=[]; if (moving) bits.push(moving+" marching"); if (camps) bits.push(camps+" camped on tiles (a camp keeps its slot until it packs up)"); if (rys) bits.push(rys+" in alliance rallies");
+  return "Rally Spot is full: "+S.name+"\u2019s level "+rallyLv()+" Rally Spot sends "+rallyLv()+" marches at once"+(bits.length?" ("+bits.join(", ")+")":"")+". Raise the Rally Spot, or wait for one to come home."; }
+function occFullWhy(){ var held=ownedIds().length, pend=occPendingHere(); return S.name+" holds "+held+" of "+S.th+" valleys and flats (Town Hall "+S.th+")"+(pend?", with "+pend+" more on the way to be occupied":"")+". Raise its Town Hall, or occupy from another city."; }
 function occRoom(){ return Math.max(0, S.th-ownedIds().length-occPendingHere()); }
 function occTargeted(){ var s={}; S.marches.forEach(function(m){ if (m.mission==="occupy"||m.mission==="found") s[m.tile]=1; }); return s; }
 function findFlats(lvl, n){ // the n nearest free flats of this level that no army is already walking to
@@ -3219,7 +3234,7 @@ function occupyFlats(){
   if (!presetTotal(pr)){ toast("That preset has no troops"); return; }
   if (presetTotal(pr)>armyCap()){ toast("That preset is over the "+fmt(armyCap())+"-troop march limit"); return; }
   var free=rl-rallyUsed(), room=occRoom(), want=Math.min(o.n, free, room);
-  if (free<=0){ toast("Rally Spot is full ("+rl+" marches)"); return; }
+  if (free<=0){ toast(rallyFullWhy()); return; }
   if (room<=0){ toast("No room to hold more: Town Hall "+S.th+" holds "+S.th+" valleys and flats"); return; }
   var list=findFlats(o.lvl, want);
   if (!list.length){ toast("No free level "+o.lvl+" flats found"); return; }
@@ -3409,7 +3424,8 @@ function renderMarchBox(){
       return '<div class="gearrow"><span class="gn">Level '+q.L+' '+VTYPES[q.k].name+'</span><span class="gb">'+bonus+'</span><span class="dur">('+q.x+', '+q.y+'), '+tdist(q).toFixed(1)+' tiles</span><span class="btnrow" style="justify-content:flex-end"><button class="link" data-act="goto-tile" data-tile="'+id+'">Show</button><button class="link" data-act="release" data-tile="'+id+'">Release</button></span></div>'; }).join("")+'</div>';
   }
   el.innerHTML=h+'</div>';
-  var ms=document.getElementById("mapstat"); if (ms) ms.textContent = ownedIds().length+' / '+S.th+' valleys held';
+  var ms=document.getElementById("mapstat"); if (ms){ var allH=Object.keys(S.map.owned).filter(function(k){ return cityIndex(S.map.owned[k])>=0; }).length, allC=S.cities.reduce(function(a,c){ return a+(c.th||0); },0);
+    ms.textContent = ownedIds().length+' / '+S.th+' valleys held'+(S.cities.length>1?' (all cities '+allH+' / '+allC+')':''); }
 }
 function reportTable(r){
   var h='<div class="tscroll"><table class="gt"><thead><tr><th>Unit</th><th>Sent</th><th>Lost</th><th>Enemy had</th><th>Enemy lost</th></tr></thead><tbody>';
@@ -3462,14 +3478,14 @@ function marchWhy(){
   if (d.mission==="rally") return ryWhy(n);
   if (ryBlocks(d.tile)) return "Your alliance rally is on this wizard: march through the Rallies tab";
   if (!rallyLv()) return "Build a Rally Spot first";
-  if (rallyUsed()>=rallyLv()) return "Rally Spot is full ("+rallyLv()+" marches)";
+  if (rallyUsed()>=rallyLv()) return rallyFullWhy();
   if (!n) return "Choose some troops";
   if (d.mission==="scout"){ var sw=scoutWhy(d); if (sw) return sw; }
   if (n>armyCap(d.ensign, d.hero?heroById(d.hero):null)) return "Army limit is "+fmt(armyCap(d.ensign, d.hero?heroById(d.hero):null))+" troops"+(ensKey(d.ensign)?" (with the "+ITEMS[ensKey(d.ensign)].name+")":"");
   var av=draftAvail(); if (d.from && !draftCamp()) return "That camp is gone";
   for (var i=0;i<12;i++) if (d.t[i]>av[i]) return "Not enough "+U[i].name+"s"+(d.from?" at the camp":"");
   if (d.mission==="station" && S.map.owned[d.tile]!==C().id) return "Hold this tile first";
-  if (d.mission==="occupy" && ownedIds().length>=S.th) return "Valley limit reached (Town Hall "+S.th+")";
+  if (d.mission==="occupy" && occRoom()<=0) return occFullWhy(); // 0.1.219: marches already on their way to occupy count too
   if (d.mission==="transport" || (d.mission==="reinforce" && cargoTotal())){
     for (var r3=0;r3<RES.length;r3++) if ((d.cargo[RES[r3]]||0) > S.res[RES[r3]]) return "Not enough "+RNAME[RES[r3]].toLowerCase();
     if (d.mission==="transport" && !cargoTotal()) return "Choose resources to send";
@@ -5738,7 +5754,7 @@ function allCitiesSheet(){
     var units=[]; for (var i=0;i<12;i++){ var all=t[i]+out[i]; if (all||tr[i]||wd[i]) units.push('<li>'+U[i].name+': <b>'+fmt(all)+'</b>'+(out[i]?' ('+fmt(out[i])+' out)':'')+(tr[i]?', '+fmt(tr[i])+' training':'')+(wd[i]?', '+fmt(wd[i])+' wounded':'')+'</li>'); }
     h+='<div class="acity"><h4><span>'+esc(c.name)+'</span><span class="dur">('+c.x+','+c.y+') \u00b7 Town Hall '+S.th+(c.away?' \u00b7 away':'')+'</span><span style="flex:1"></span>'+(ci>0?'<button class="btn ghost small" data-act="city-move" data-city="'+ci+'" data-d="-1" aria-label="Move '+esc(c.name)+' up">\u2191</button>':'')+(ci<S.cities.length-1?'<button class="btn ghost small" data-act="city-move" data-city="'+ci+'" data-d="1" aria-label="Move '+esc(c.name)+' down">\u2193</button>':'')+(ci!==keep?'<button class="link strong" data-act="city-go" data-city="'+ci+'">Go</button>':'<span class="dur">viewing</span>')+'</h4>'+
       '<div class="rgrid">'+RES.map(function(k){ var rr=k==="gold"?r.gold:r[k]; return '<span>'+RNAME[k]+' <b>'+fmt(Math.floor(S.res[k]||0))+'</b> <span class="'+(rr<0?'why':'dur')+'">'+(rr<0?'\u2212':'+')+fmt(Math.abs(Math.round(rr)))+'/h</span></span>'; }).join("")+
-      '<span>Population <b>'+fmt(Math.floor(S.pop))+'</b> <span class="dur">/ '+fmt(popCap())+'</span></span><span>Marches <b>'+nm+'</b> <span class="dur">/ '+rl+'</span></span></div>'+
+      '<span>Population <b>'+fmt(Math.floor(S.pop))+'</b> <span class="dur">/ '+fmt(popCap())+'</span></span><span>Marches <b>'+nm+'</b> <span class="dur">/ '+rl+'</span></span><span data-act="held-open" role="button" style="cursor:pointer;text-decoration:underline dotted">Valleys held <b>'+ownedIds().length+'</b> <span class="dur">/ '+S.th+(occPendingHere()?' \u00b7 '+occPendingHere()+' on the way':'')+'</span></span></div>'+
       '<details class="det" data-det="ac'+c.id+'"'+(DET["ac"+c.id]?' open':'')+'><summary>Troops <b>'+fmt(home+away)+'</b>'+(away?' <span class="dur">('+fmt(away)+' out)</span>':'')+(inTr?' <span class="dur">+'+fmt(inTr)+' training</span>':'')+(hurt?' <span class="dur">+'+fmt(hurt)+' wounded</span>':'')+'</summary>'+(units.length?'<ul>'+units.join("")+'</ul>':'<p class="hint">No troops.</p>')+'</details>'+
       (jobs.length?'<ul>'+jobs.map(function(j){ return '<li>'+esc(j[1])+' <span class="dur">'+(isFinite(j[0])?fmtT(realMs(j[0]-S.gt)):'on guard')+'</span></li>'; }).join("")+'</ul>':'<p class="dur" style="margin:4px 0 0">Nothing building, researching or training.</p>')+
       ((S.alBld||S.alAcad)?'<p class="dur" style="margin:2px 0 0">Helping the alliance: '+[S.alBld?S.alBld+' builder'+(S.alBld>1?'s':''):'', S.alAcad?'the Academy':''].filter(Boolean).join(' and ')+'</p>':'')+
@@ -10692,6 +10708,8 @@ function renderSheetCore(){
     h=dropsSheet();
   } else if (sheetFor.kind==="rylist"){
     h=ryListSheet();
+  } else if (sheetFor.kind==="held"){
+    h=heldSheet();
   } else if (sheetFor.kind==="evintro"){
     h=evIntroSheet();
   } else if (sheetFor.kind==="event"){
@@ -11535,6 +11553,8 @@ document.addEventListener("click",function(e){
   if (act==="bm-add"){ var bl=bmList(); if (bl.length>=BM_MAX){ toast("Bookmarks are full ("+BM_MAX+"). Remove one first."); return; } if (!bmAt(a.dataset.tile)) bl.push({id:a.dataset.tile, n:""}); save(); renderTileInfo(); bmRefresh(); toast("Bookmarked"); return; }
   if (act==="bm-del"){ S.bm=bmList().filter(function(b){ return b.id!==a.dataset.tile; }); save(); renderTileInfo(); bmRefresh(); toast("Bookmark removed"); return; }
   if (act==="bm-go"){ mapGo(a.dataset.tile); return; }
+  if (act==="held-open"){ openSheet({kind:"held"}); return; }
+  if (act==="held-go"){ var hgt=a.dataset.tile; closeSheet(); if (tab!=="map" && !bfOn()){ tab="map"; lastView=""; renderView(true); } setTimeout(function(){ mapGo(hgt); }, 60); return; }
   if (act==="mpop-close"){ MPOP.hide=true; mapPop(); return; }
   if (act==="mpop-more"){ var mti=document.getElementById("tileinfo"); if (mti && mti.scrollIntoView) mti.scrollIntoView({behavior:"smooth",block:"start"}); return; }
   if (act==="bm-sort"){ bmSort=a.dataset.s; bmRefresh(); return; }

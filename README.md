@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.218
+Version 0.1.220
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,13 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.220** A list of every valley and flat you hold (`heldSheet`). Open it by tapping "N / M valleys held" on the map or "Valleys held" on All cities. It's grouped by city, nearest first, with type, level, coordinates, distance, the production bonus and any camp. Tap one to jump to it on the map. Test: `t/t85.py`.
+- **0.1.219** Valleys and flats held per city, and clearer limits.
+  - **All cities** shows each city's "Valleys held N / Town Hall" and any occupy marches on the way. The map header adds the all-cities total.
+  - **The march screen counts occupy marches already on the way** (`occRoom`). Before, you could send more occupy marches than a city had room for, and the extras won but quietly came home.
+  - A won occupy with no room now says so in the report ("Not held: ... already holds N of N").
+  - **"Rally Spot is full"** now says what uses the slots: marching, camped on tiles (a camp keeps its slot until it packs up), and alliance rallies (`rallyFullWhy`). The march slot limit (Rally Spot level) is separate from the hold limit (Town Hall level).
+  - Test: `t/t85.py`.
 - **0.1.218** Abandoning a city loses no troops or heroes. Everything moves to the nearest city.
   - Troops at home, the Medic Camp's wounded, and every march (alliance rally and Arena marches too) move there. Troops still in training are refunded there.
   - Heroes leading marches go into that city's hall so they can lead their marches home. Other heroes fill the hall, and the rest wait at the gate.
