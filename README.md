@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.216
+Version 0.1.218
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,13 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.218** Abandoning a city loses no troops or heroes. Everything moves to the nearest city.
+  - Troops at home, the Medic Camp's wounded, and every march (alliance rally and Arena marches too) move there. Troops still in training are refunded there.
+  - Heroes leading marches go into that city's hall so they can lead their marches home. Other heroes fill the hall, and the rest wait at the gate.
+  - Marches heading to the abandoned city turn round, and camps on its valleys pack up and go home.
+  - Buildings, fortifications and resources are still lost. The note under Abandon says so.
+  - Test: `t/t84.py`.
+- **0.1.217** Abandoning a city leaves an NPC city at its Town Hall level (1 to 10) with a full garrison, instead of a flat (`S.map.npc`). This undoes an accidental capture, or lets you make an NPC of any level: found a city on a flat, raise its Town Hall, abandon it. The Abandon note and the toast say which level. Test: `t/t83.py`.
 - **0.1.216** Rally marches show in each city's march list (`ryMarchRows`, `ryMarchInfo`). The line changes with each stage: "arrives in" (marching to the caller's kingdom), "launches in" (waiting there), "hits in" (on the way to the target), then waiting for the result, then "home in". It shows the hero and troops, and has Recall until the rally leaves. The next event at the top counts them too. Rally times are real time.
   - Your own rallies' marches are drawn on your map, the same as other marches (`ryMapMarches`): red from the launch city toward the target after they leave, at the target until the result, then gold on the way home. The target tile and launch city are kept on the march (`m.tile`, `m.from`); older marches find them from your rally locks.
   - Test: `t/t82.py`.
