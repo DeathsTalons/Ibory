@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.220
+Version 0.1.223
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,9 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.223** The last two historic hero portraits: Pericles (from Philipp Foltz, Pericles' Funeral Oration, 1852) and Cyrus the Great (from Rembrandt, Daniel and Cyrus before the Idol Bel, 1633). All 40 historic heroes and Dracula now have paintings.
+- **0.1.222** Ten more historic hero portraits: Constantine, Leonidas, Boudica, Ramesses II, Richard the Lionheart, Scipio Africanus, Hannibal Barca, Xerxes, Sun Tzu and William Wallace. That's 38 of 40, plus Dracula. Cyrus the Great and Pericles keep the drawn portrait until public-domain images are found.
+- **0.1.221** Historic heroes get public-domain portraits: 28 of the 40, plus Dracula. They are built in (`HPORT_BUILTIN`, made by `art/tools/build_heroes.py` from `art/heroes/*.jpg`; sources in `art/heroes/SOURCE.md`), and a player's own picture still replaces one. The other 12 keep the drawn portrait until theirs are added: drop a 256 px `art/heroes/<name>.jpg` in and rerun the script.
 - **0.1.220** A list of every valley and flat you hold (`heldSheet`). Open it by tapping "N / M valleys held" on the map or "Valleys held" on All cities. It's grouped by city, nearest first, with type, level, coordinates, distance, the production bonus and any camp. Tap one to jump to it on the map. Test: `t/t85.py`.
 - **0.1.219** Valleys and flats held per city, and clearer limits.
   - **All cities** shows each city's "Valleys held N / Town Hall" and any occupy marches on the way. The map header adds the all-cities total.
