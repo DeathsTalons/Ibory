@@ -589,6 +589,48 @@ body.bfmode #chatdock{display:none!important}
 .rxbar .rxq{font-size:1.15rem;background:none;border:0;padding:2px 4px}
 .rxbar input{width:84px;padding:4px 6px;font-size:1rem}
 .rxbar .rxwho{flex-basis:100%;font-size:.8rem;color:var(--muted)}
+.rxago{font-size:.8rem;color:var(--muted);margin:3px 0 0}
+/* 0.1.205: Hallow's Eve */
+.evchip{color:#e8893a}
+.evchip b{font-size:.72rem;margin-left:2px}
+.evban{position:relative;overflow:hidden;border-radius:12px;padding:26px 16px 18px;text-align:center;color:#f3e6cf;
+  background:radial-gradient(120% 90% at 50% 120%,#5a1a1a 0%,#2a0d1e 45%,#120a1c 100%);border:1px solid #3c1d2c}
+.evban.sm{padding:16px 14px 12px}
+.evmoon{position:absolute;right:-16px;top:-18px;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 38% 38%,#ffd9a0 0%,#f08a3a 45%,#a8321e 100%);box-shadow:0 0 30px 8px rgba(240,120,50,.35)}
+.evban.sm .evmoon{width:52px;height:52px;top:-14px;right:-12px}
+.evtitle{position:relative;font:700 2rem/1.1 var(--display);letter-spacing:.06em;color:#f6c46a;text-shadow:0 2px 0 #5a1414,0 0 18px rgba(246,150,70,.45)}
+.evban.sm .evtitle{font-size:1.4rem}
+.evsub{position:relative;margin-top:6px;font:700 .82rem var(--display);letter-spacing:.12em;text-transform:uppercase;color:#d9b9a0}
+.evbats{position:absolute;inset:0;pointer-events:none;color:#6b2c48}
+.evbat{position:absolute;width:26px;height:13px;animation:evflap 0.35s ease-in-out infinite alternate, evfly 9s linear infinite}
+.evbat.b0{top:18%;left:-10%;animation-delay:0s,0s}.evbat.b1{top:40%;left:-10%;width:18px;height:9px;animation-delay:.1s,-3s}.evbat.b2{top:10%;left:-10%;width:14px;height:7px;animation-delay:.2s,-6s}
+@keyframes evflap{to{transform:scaleY(.45)}}
+@keyframes evfly{0%{left:-10%;margin-top:0}50%{margin-top:10px}100%{left:110%;margin-top:-4px}}
+.evlore{margin:0;font-style:italic;color:var(--muted)}
+.vcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.vcard{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 10px;overflow:hidden;border-radius:10px;border:1px solid #3c1d2c;background:linear-gradient(#1a0f22,#2a1220);color:#f3e6cf;cursor:pointer;font:inherit;text-align:center;min-width:0}
+.vcard b{font:700 .82rem/1.15 var(--display);color:#f6c46a}
+.vcard .dur{color:#c8a890}
+.vsp-sp{font-size:.72rem;line-height:1.25;color:#d9c3ad;margin-top:4px}
+.vsp{display:block;max-width:100%;margin:-16px 0 -14px;image-rendering:pixelated;background-repeat:no-repeat;animation:vIdle .8s steps(4) infinite}
+.vcard:hover .vsp,.vcard:focus .vsp{animation:vAtk 1.3s steps(12) infinite}
+@keyframes vIdle{from{background-position:0 0}to{background-position:calc(var(--fw) * -4) 0}}
+@keyframes vAtk{from{background-position:calc(var(--fw) * -4) 0}to{background-position:calc(var(--fw) * -16) 0}}
+@media (prefers-reduced-motion:reduce){.vsp,.vcard:hover .vsp,.evbat{animation:none}}
+.evmiles{display:grid;gap:6px}
+.evmile{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.evmile.big{border-color:#a8321e}
+.evmile.got{opacity:.75}
+.evmn{font:700 1rem var(--display);color:#e8893a;min-width:2.2em;text-align:center}
+.evms{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.evmile.got .evms{color:var(--green,#4c9a5c);font-weight:700}
+.evcount{text-align:center}.evcount b{font:700 1.8rem var(--display);color:#e8893a}
+.evbar{position:relative;height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);overflow:visible}
+.evfill{height:100%;border-radius:7px;background:linear-gradient(90deg,#7a1e1e,#e8893a)}
+.evtick{position:absolute;top:-3px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:var(--muted)}
+.evtick.got{background:#f6c46a}
+.btn.evgo{background:#a8321e;border-color:#7a1e1e;color:#fff}
+.alm[data-act="rx-sel"]{cursor:pointer}
 .tgline{background:var(--panel2);border-radius:10px;padding:8px 12px;margin-top:6px;border-left:4px solid transparent}
 .tgline.on{border-left-color:var(--brass)}
 .tgline.done{opacity:.75}
@@ -693,6 +735,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
   <header>
     <div class="hdl"><button class="hdav" id="hdav" data-act="me" aria-label="Me: your character and account" title="Me"></button><div style="min-width:0"><h1 id="cityname">Stonewatch</h1><div class="lordline" id="lordline"></div></div></div>
     <div class="chiprow">
+    <button class="speedchip iconchip evchip" data-act="ev-open" id="evchip" style="display:none" aria-label="Hallow’s Eve event" title="Event"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 9.2c.5-.9 1.1-1.4 1.6-1.6l.3 1.6c1.6-.2 3.5-1.6 4.6-3.6 1 1.1 2.9 1.9 5 1.7-1 1.3-1.6 3.1-1.4 4.9-1.3-.6-2.9-.6-4 .1-.5-1.1-1.6-1.8-2.7-1.8-.6 1-1.5 2.3-3.4 3.9-1.9-1.6-2.8-2.9-3.4-3.9-1.1 0-2.2.7-2.7 1.8-1.1-.7-2.7-.7-4-.1.2-1.8-.4-3.6-1.4-4.9 2.1.2 4-.6 5-1.7 1.1 2 3 3.4 4.6 3.6l.3-1.6c.5.2 1.1.7 1.6 1.6z"/></svg><b id="evn"></b></button>
     <button class="speedchip iconchip chatchip" id="chatchip" data-act="chat-open" aria-label="Chat" title="Chat" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="cbadge" id="chatbadge"></span></button>
     <button class="speedchip" data-act="settings" id="speedtag" style="display:none;color:var(--red)" aria-label="Testing speed is on"></button>
     <button class="speedchip iconchip" data-act="ach" data-tab="ach" aria-label="Achievements" title="Achievements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.2L7 21l5-3 5 3-1.6-7.8"/></svg><b id="abadge"></b></button>
@@ -760,7 +803,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.202";
+var APP_VERSION = "0.1.207";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -1448,6 +1491,7 @@ function tileAt(x,y){
   var id=x+","+y, c=cityAtXY(x,y);
   if (c) return {x:x,y:y,id:id,k:"home",L:0,city:c.id};
   var mo=monsterAt(id); if (mo) return {x:x,y:y,id:id,k:"monster",L:mo.L,mon:mo.kind,ev:mo.ev||""};
+  var vp=vampAt(id); if (vp) return {x:x,y:y,id:id,k:"monster",L:vp.L,mon:VAMP_KIND[vp.L],ev:vp.ev};
   var wz=wizAt(id); if (wz) return {x:x,y:y,id:id,k:"wiz",L:wz.L,base:wz.base};
   var A_=S.alliance; if (A_){ if (A_.bully && A_.bully.tile===id) return {x:x,y:y,id:id,k:"bully",L:0}; if (A_.war && A_.war.active){ var we=warAt(id); if (we>=0) return {x:x,y:y,id:id,k:"war",L:0,eid:we}; } if (A_.challenges && A_.challenges.length){ var ch=chalAt(id); if (ch) return ch.seat ? {x:x,y:y,id:id,k:"chal",L:12,cid:ch.c.id,seat:true} : {x:x,y:y,id:id,k:"chal",L:0,cid:ch.c.id,j:ch.j}; } var sa=A_.sat[id]; if (sa) return {x:x,y:y,id:id,k:"allycity",L:sa.L,ally:sa.ally}; }
   var hc=HC_AT[id]; if (hc && !(S.map.hcTaken && S.map.hcTaken[id])) return {x:x,y:y,id:id,k:"hc",L:hc.L,name:hc.name,hero:hc.hero};
@@ -1485,10 +1529,20 @@ function vampFrame(g, L, f, x, y, z){ var vs=VAMP[L], im=vampImg(L); if (!im) re
 function vampFxDraw(g, x0, y0, x1, y1, z){ var now=Date.now(); VAMP_FX=VAMP_FX.filter(function(f){ return now-f.t0 < VAMP[f.L].die[1]*120+400; });
   VAMP_FX.forEach(function(f){ if (f.x<x0-1||f.x>x1+1||f.y<y0-1||f.y>y1+1) return; var d=VAMP[f.L].die, k=Math.min(d[1]-1, Math.floor((now-f.t0)/120)); EVM_VIS=true;
     vampFrame(g, f.L, d[0]+k, (f.x-mv.x)*z, (f.y-mv.y)*z, z); }); }
+// 0.1.203: a slain vampire's spoils, always the same: L1 a 15-minute speed-up; L2 also 4 Flawless Gems; L3 also 1 Rough Ore. The first kill of each level
+// also unlocks that vampire as a one-tile decoration, for good (place it as often as you like)
+function vampDrops(q){ var L=VAMP_K[q.mon], drops=[], add=function(k,n){ S.items[k]=(S.items[k]||0)+n; drops.push((n>1?n+" ":"a ")+ITEMS[k].name+(n>1&&!/s$/.test(ITEMS[k].name)?"s":"")); };
+  add("s15",1); if (L>=2) add("gemF",4); if (L>=3) add("ore",1);
+  var D=decoS(), dk="dv_vamp"+L; D.unl=D.unl||{}; if (!D.unl[dk]){ D.unl[dk]=1; drops.push("the "+DECOS[dk].n+" decoration (yours for good)"); }
+  VAMP_FX.push({x:q.x, y:q.y, L:L, t0:Date.now()});
+  if (S.map.monsters && S.map.monsters.list) S.map.monsters.list=S.map.monsters.list.filter(function(x){ return x.id!==q.id; });
+  if (S.vamp) S.vamp.list=S.vamp.list.filter(function(x){ return x.id!==q.id; }); delete S.map.hit[q.id]; miniDirty=true;
+  evKill(q.ev||"halloween", drops);
+  return {drops:drops, medal:-1, box:null}; }
 function vampImg(L){ if (VAMP_IMG[L]) return VAMP_IMG[L].ok?VAMP_IMG[L].im:null; var im=new Image(); VAMP_IMG[L]={im:im}; im.onload=function(){ VAMP_IMG[L].ok=true; try { requestDraw(); } catch(e){} }; im.src=VAMP[L].src; return null; }
 /* ---------- holiday events (0.1.149): event monsters roam near every city and drop map decorations ----------
    Decorations go on any tile of your own map, as many as you like, and can be picked up again; the tile works exactly as before. */
-var EVENTS=[{id:"halloween", off:true, name:"Hallow\u2019s Eve", from:Date.UTC(2026,9,24,4), to:Date.UTC(2026,10,3,5), kinds:["jack","horseman","pking"]}]; // Oct 24 to Nov 2, Eastern time
+var EVENTS=[{id:"halloween", name:"Hallow\u2019s Eve", from:Date.UTC(2026,9,20,4), to:Date.UTC(2026,10,3,5), kinds:["jack","horseman","pking"]}]; // 0.1.205: on, Oct 20 to the end of Nov 2, Eastern time (set off:true to switch it off)
 function evNow(){ var t=Date.now(); for (var i=0;i<EVENTS.length;i++) if (!EVENTS[i].off && t>=EVENTS[i].from && t<EVENTS[i].to) return EVENTS[i]; return null; }
 var DECOS={pumpkin:{n:"Jack-o\u2019-Lantern",e:"\ud83c\udf83",r:1}, bats:{n:"Bats",e:"\ud83e\udd87",r:1}, web:{n:"Spider Web",e:"\ud83d\udd78\ufe0f",r:1}, candle:{n:"Candle",e:"\ud83d\udd6f\ufe0f",r:1}, candy:{n:"Candy Pile",e:"\ud83c\udf6c",r:1},
   ghost:{n:"Ghost",e:"\ud83d\udc7b",r:2}, grave:{n:"Gravestone",e:"\ud83e\udea6",r:2}, cat:{n:"Black Cat",e:"\ud83d\udc08\u200d\u2b1b",r:2}, spider:{n:"Giant Spider",e:"\ud83d\udd77\ufe0f",r:2},
@@ -1499,7 +1553,7 @@ var SPRITES={deadtree:{ppt:20, ax:19.5, ay:44, pal:{O:"#1c1310",T:"#281d17",D:"#
   rows:["........................................", "........................................", "........T.....T...............T.........", ".....T..T.....T...............T.T.......", ".....TTT.....T.................TT.......", "...T.T.......T...................T.T....", "...T.T....T..TTT.T......T...T....T.T....", "...T..T...T.T....T.T....TTT.T...T..T....", "...T..T....T.....T.T...T...T....T..T....", "..TTTTT....T......TT...T...T....TTTTT...", "......T.O.T.....T..T..T.....T.O.T.......", ".......TLOT.....T..T..T.....TOLT........", "......OHMDT.....TT..TT......THMDO.......", ".......OLMDO....T...T..T...OLMDO........", ".......OHMDO...T....T..T...OHMDO........", "........OHMDOOT.....T...TOOHMDO.........", ".........OHMMLT....OLO..THLMDO..........", "..........OLMMDO..OLMDOOLMMDO...........", "..........OHMMDO..OLDO.OHMMDO...........", "...........OHMMDO.OLDOOHMMDO............", "............OHMMDOOLDOOHMDO.............", ".............OLMMMLMDOLMMDO.............", ".............OHMMMMMMMMMDO..............", "..............OHMMMMMMMMDO..............", "..............OHMMMMMMMMDO..............", "...............OLMMMMMMDO.BB............", "..........T....OHMMMMMDDyBeB............", "..........T.....OHMMMDDO.BBBBB..........", "..........T.O..OHMMMDDO...BBBBBB..T.....", "...........TLO.OLMMMDDOOOOLgOg...T......", "..........OHDDOOHMMMMDMLLLMMLLOTT.......", ".........TTOHDDOHMMMMDMMMMMMDDDO.T......", "............OHMMMMDMMMDDOOOOOLO.........", ".............OLMMMDDDDDO.....O..........", "..............OOHMDKKDDO................", "................OHDKKDDO................", "................OHMMLMDDO...............", "................OLMMMMDDO...............", "................OHMMMMDDO...............", "................OHMMMMDDO...............", "...............OOHMDMMMDDO..............", "............OOOLLMMDMMMDDOOO............", "..........OOHLLMMMMDMMMMMMLLOOO.........", ".......SSOHLDMMMMMMDMMMMMMDMMLLOS.......", ".....SSSOHMDDOOOOOOOOOOOOOOHMMDDOSS.....", ".......SSOOOOSSSSSSSSSSSSSSOOOOOS......."]}};
 var SPR_CACHE={}, IMGPK_IM={}, DECO_ANIM=false;
 // artist packs (0.1.185) come as one atlas each (IMGPK below), decoded the first time a piece is needed
-function imgPk(id){ var o=IMGPK_IM[id]; if (o) return o.ok?o.im:null; var pk=IMGPK[id]; if (!pk) return null; var im=new Image(); IMGPK_IM[id]={im:im};
+function imgPk(id){ var o=IMGPK_IM[id]; if (o) return o.ok?o.im:null; var pk=IMGPK[id]||XIMG[id]; if (!pk) return null; var im=new Image(); IMGPK_IM[id]={im:im};
   im.onload=function(){ IMGPK_IM[id].ok=true; ICON_CACHE={}; try { requestDraw(); } catch(e){} try { if (sheetFor && sheetFor.kind==="deco"){ lastSheet=""; renderSheet(); } } catch(e){} }; im.src=pk.src; return null; }
 // an animated piece shows the frame for now; each tile starts its loop at a different point so a herd doesn't move in step
 function sprFrame(id, ph){ var sp=SPRITES[id]; if (!sp || !(sp.nf>1)) return sprCanvas(id); DECO_ANIM=true; return sprCanvas(id, Math.floor(Date.now()/sp.ms+ph)%sp.nf); }
@@ -1539,6 +1593,9 @@ var DSHOP=[{id:"ai", name:"AI Pack", ai:1, groups:AI_GROUPS}].concat(DPACKS.filt
 (function(){ DPACKS.forEach(function(pk){ pk[2].forEach(function(it){ var k=it[0], road=/^road_/.test(k), wall=/^wall_/.test(k), bg=/^bgv?_/.test(k); DECOS[k]={n:it[1], spr:(road||wall||bg)?"":k, pack:dpOwner(pk[0]), grp:pk[0], road:road, wall:wall, bg:bg}; }); }); })();
 
 var DECO_RAR=["","Common","Uncommon","Rare"];
+// 0.1.203: the Hallow's Eve vampires as one-tile decorations (idle loop), unlocked for good by slaying one of that level (S.deco.unl)
+var XIMG={}; [1,2,3].forEach(function(L){ var v=VAMP[L]; XIMG["vamp"+L]={src:v.src}; SPRITES["dv_vamp"+L]={ppt:v.ih, ax:v.w/2, ay:v.h-v.feet, img:"vamp"+L, r:[0,0,v.w,v.h], nf:v.n, ms:200};
+  DECOS["dv_vamp"+L]={n:MONSTERS[{1:"jack",2:"horseman",3:"pking"}[L]], spr:"dv_vamp"+L, unl:1}; });
 // 0.1.202: icons are cached (each one is a PNG encode); cleared whenever a pack picture finishes loading
 var ICON_CACHE={};
 function decoIcon(k, px){ var ck=k+"|"+(px||""); if (ICON_CACHE[ck]!=null) return ICON_CACHE[ck]; var r=decoIcon0(k, px); if (r) ICON_CACHE[ck]=r; return r; }
@@ -1547,7 +1604,7 @@ function decoIcon0(k, px){ var d=DECOS[k]; if (!d) return "?"; if (d.bg){ try { 
 function decoS(){ if (!S.deco) S.deco={inv:{}, at:{}}; if (!S.deco.w161){ S.deco.w161=1; for (var t in S.deco.at) S.deco.at[t]=S.deco.at[t].map(function(k){ return String(k).split("|")[0]==="cwall"?"wall_stone":k; }); } return S.deco; }
 function decoHave(){ var v=decoS().inv; for (var k in v) if (v[k]>0) return true; return Object.keys(DECOS).some(function(k){ return DECOS[k].spr && decoOwn(k); }); }
 // pixel decorations are unlocks bought in the cosmetics shop (Cosmo Coins): own it once, place it anywhere, as often as you like. Event (emoji) pieces are single items.
-function decoOwn(k){ var d=DECOS[k]; if (!d) return false; return d.pack ? cosHas("decopack",d.pack) : (decoS().inv[k]||0)>0; }
+function decoOwn(k){ var d=DECOS[k]; if (!d) return false; if (d.unl) return !!(decoS().unl||{})[k]; return d.pack ? cosHas("decopack",d.pack) : (decoS().inv[k]||0)>0; }
 function decoPrice(pid){ var p=cosPrice("decopack",pid); return p>=0?p:50; }
 // roads: a 16 px tile drawn for the neighbours it joins (mask: 1 up, 2 right, 4 down, 8 left)
 var ROAD_CV={};
@@ -1719,7 +1776,7 @@ function decoIsRoad(k){ var d=DECOS[String(k).split("|")[0]]; return !!(d&&d.roa
 function roadAt(x,y){ var l=S.deco&&S.deco.at[x+","+y]; if (!l) return ""; for (var i=0;i<l.length;i++){ var k=String(l[i]).split("|")[0]; if (DECOS[k]&&DECOS[k].road) return k; } return ""; }
 var PAINT={k:"", n:0}, DECO_N=1; // painting: tap tiles to place the chosen decoration, n left
 function paintOne(tid){ var D=decoS(), k=PAINT.k; if (!k || !decoOwn(k)) { PAINT.k=""; PAINT.n=0; return false; }
-  if (!DECOS[k].pack){ D.inv[k]--; if (!D.inv[k]) delete D.inv[k]; }
+  if (!DECOS[k].pack && !DECOS[k].unl){ D.inv[k]--; if (!D.inv[k]) delete D.inv[k]; }
   var L0=(D.at[tid]=D.at[tid]||[]); if (DECOS[k].road){ for (var ri=L0.length-1; ri>=0; ri--) if (decoIsRoad(L0[ri])) L0.splice(ri,1); L0.unshift(k); } else if (DECOS[k].wall){ for (var wi=L0.length-1; wi>=0; wi--) if (decoIsWall(L0[wi])) L0.splice(wi,1); L0.push(k); }
   else if (DECOS[k].bg){ for (var bi=L0.length-1; bi>=0; bi--) if (decoIsBg(L0[bi])) L0.splice(bi,1); L0.unshift(k); miniDirty=true; } else L0.push(k); /* one road a tile, always at the back */ PAINT.n--; if (PAINT.n<=0 || !decoOwn(k)){ PAINT.k=""; PAINT.n=0; toast("Done placing"); }
   save(); paintBar(); drawMap(); return true; }
@@ -1762,7 +1819,7 @@ function decoPickSheet(){ try { drawMap(); } catch(e){} var hs=decoHitsAt(DPICK.
   return h; }
 function clrRect(){ if (!CLR.a) return null; var p=CLR.a.split(","), q=(CLR.b||CLR.a).split(","); return {x0:Math.min(+p[0],+q[0]), x1:Math.max(+p[0],+q[0]), y0:Math.min(+p[1],+q[1]), y1:Math.max(+p[1],+q[1])}; }
 function decoClear(r, doIt){ var D=decoS(), n=0, t=0; Object.keys(D.at).forEach(function(id){ var xy=id.split(","), x=+xy[0], y=+xy[1], l=D.at[id]; if (r && (x<r.x0||x>r.x1||y<r.y0||y>r.y1)) return; if (!l||!l.length) return; t++; n+=l.length;
-    if (doIt){ l.forEach(function(e){ var k=String(e).split("|")[0]; if (DECOS[k] && !DECOS[k].pack) D.inv[k]=(D.inv[k]||0)+1; }); delete D.at[id]; } });
+    if (doIt){ l.forEach(function(e){ var k=String(e).split("|")[0]; if (DECOS[k] && !DECOS[k].pack && !DECOS[k].unl) D.inv[k]=(D.inv[k]||0)+1; }); delete D.at[id]; } });
   if (doIt && D.hide){ for (var hid in D.hide){ var hxy=hid.split(","), hx=+hxy[0], hy=+hxy[1]; if (!r || (hx>=r.x0&&hx<=r.x1&&hy>=r.y0&&hy<=r.y1)) delete D.hide[hid]; } save(); } // clearing also puts back what was hidden there
   if (doIt && n){ miniDirty=true; save(); } return {n:n, t:t}; }
 function decoHideArea(r, v){ var D=decoS(), n=0; if (!D.hide) D.hide={}; for (var y=r.y0;y<=r.y1;y++) for (var x=r.x0;x<=r.x1;x++){ if (x<0||y<0||x>=MAPW||y>=MAPH) continue; var q=tileAt(x,y); if (!decoHideable(q)) continue; D.hide[q.id]=v; n++; } if (n) save(); return n; }
@@ -1805,24 +1862,16 @@ function ensureMonsters(){
       var q=tileAt(x,y); if (!VTYPES[q.k] || S.map.owned[id]) continue;
       var r3=u(3); list.push({id:id, kind:kinds[Math.floor(u(4)*kinds.length)], L: r3<0.55?1:r3<0.88?2:3}); n++;
     } });
-  var ev=evNow();
-  if (ev) S.cities.forEach(function(c){ // event monsters: two a day near every city, tougher ones rarer
-    for (var n=0, tries=0; n<2 && tries<200; tries++){
-      var u=function(k){ return hash3(c.x*29+tries, c.y*23+n*11+k, S.map.seed+day*173+c.id+977); };
-      var x=c.x+Math.round((u(1)-0.5)*20), y=c.y+Math.round((u(2)-0.5)*20); if (x<0||y<0||x>=MAPW||y>=MAPH) continue;
-      var id=x+","+y; if (list.some(function(m){ return m.id===id; })) continue;
-      var q=tileAt(x,y); if (!VTYPES[q.k] || S.map.owned[id]) continue;
-      var r3=u(3), L=r3<0.6?1:r3<0.9?2:3; list.push({id:id, kind:ev.kinds[L-1], L:L, ev:ev.id}); n++;
-    } });
-  if (ev){ S.evSeen=S.evSeen||{}; if (!S.evSeen[ev.id]){ S.evSeen[ev.id]=1; note("event", ev.name+" has begun! Pumpkin monsters roam near your cities every day until "+new Date(ev.to-1).toLocaleDateString(undefined,{month:"short",day:"numeric"})+". Slay them for decorations you can place on any tile of your map."); } }
+  // 0.1.205: event monsters no longer come in a daily batch; vampires spawn every hour and stay until slain (vampSpawn)
   S.map.monsters={day:day, list:list}; miniDirty=true;
 }
 function monsterAt(id){ var ml=S.map.monsters&&S.map.monsters.list; if (!ml || S.map.monsters.day!==gameDay()) return null; for (var i=0;i<ml.length;i++) if (ml[i].id===id) return ml[i]; return null; }
 function monsterBase(q){
   var m=[1,3,8][q.L-1], t=[0,0,0,0,0,0,0,0,0,0,0,0];
   if (q.ev){ // event monsters: beatable from mid game, the Vampire Lord needs a real army
-    if (q.mon==="jack"){ t[1]=2000; t[3]=800; } else if (q.mon==="horseman"){ t[6]=3000; t[7]=800; } else { t[4]=15000; t[5]=10000; t[7]=3000; }
-    return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:5*q.L,medicine:5*q.L,iron_working:5*q.L,horseback_riding:5*q.L,compass:5*q.L}, res:{food:0,lumber:0,stone:0,iron:0,gold:20000*m}, am:0.7+0.3*q.L}; }
+    // 0.1.203: easy on purpose. Each falls to its own warrior army with ~20% losses, mid research (5s): L1 20k warriors + a 150-attack hero, L2 50k + 200, L3 100k + 250
+    if (q.mon==="jack"){ t[1]=5400; t[3]=2200; } else if (q.mon==="horseman"){ t[1]=3000; t[3]=3000; t[4]=3700; } else { t[4]=5400; t[5]=3200; t[7]=1100; }
+    return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:2*q.L,medicine:2*q.L,iron_working:2*q.L,horseback_riding:2*q.L,compass:2*q.L}, res:{food:0,lumber:0,stone:0,iron:0,gold:20000*m}, am:0.7+0.3*q.L}; }
   if (q.mon==="wyvern"){ t[7]=12000*m; t[8]=4000*m; } else if (q.mon==="troll"){ t[1]=40000*m; t[3]=15000*m; }
   else if (q.mon==="hydra"){ t[5]=20000*m; t[11]=1500*m; } else { t[10]=3000*m; t[4]=15000*m; }
   return {t:t, f:[0,0,0,0,0], wall:0, r:{archery:10,medicine:10,iron_working:10,horseback_riding:10,compass:10}, res:{food:0,lumber:0,stone:0,iron:0,gold:200000*m}, am:1.5+0.5*q.L};
@@ -1853,18 +1902,107 @@ function wizSpread(){ var W=wizS(); if (W.sp181) return; W.sp181=1; var busy=wiz
   miniDirty=true; }
 function wizCount(L){ return wizS().list.filter(function(w){ return w.L===L; }).length; }
 function wizFarmed(){ var f={}; S.cities.forEach(function(c){ (c.presets||[]).forEach(function(pr){ (pr.farm||[]).forEach(function(id){ f[id]=1; }); }); }); S.marches.forEach(function(m){ f[m.tile]=1; }); return f; }
-function wizPlace(L, busy){ var W=wizS();
-  for (var tries=0; tries<400; tries++){ var c=S.cities[Math.floor(Math.random()*S.cities.length)]; if (!c) return false;
-    var x=c.x+Math.round((Math.random()-0.5)*2*WIZ_R), y=c.y+Math.round((Math.random()-0.5)*2*WIZ_R); if (x<0||y<0||x>=MAPW||y>=MAPH) continue;
-    var id=x+","+y; if (busy[id] || S.map.owned[id] || wizAt(id) || monsterAt(id) || !wizRoom(x,y)) continue;
+// 0.1.205: wizards turn up anywhere on the map (they used to stay within WIZ_R of your cities, where the vampires now rise)
+function wizPlace(L, busy){ var W=wizS(); if (!S.cities.length) return false;
+  for (var tries=0; tries<400; tries++){
+    var x=Math.floor(Math.random()*MAPW), y=Math.floor(Math.random()*MAPH);
+    var id=x+","+y; if (busy[id] || S.map.owned[id] || wizAt(id) || monsterAt(id) || vampAt(id) || decoOnTile(id) || !wizRoom(x,y) || !vampRoom(x,y,2,4)) continue;
     var q=tileAt(x,y); if (!VTYPES[q.k]) continue; // valleys and flats only, never on anything you hold or farm
     W.list.push({id:id, L:L, base:q.k, at:S.gt}); return true; }
   return false; }
 // every game hour: 10 more of each level, up to 30 of each on the map
-function wizSpawn(){ if (!TILES || !S.cities.length) return; wizSpread(); var W=wizS(), hr=Math.floor(S.gt/3600e3); if (W.h==null) W.h=hr-1; if (W.h>=hr) return;
+function wizSpawn(){ if (!TILES || !S.cities.length) return; wizSpread(); wizScatter(); var W=wizS(), hr=Math.floor(S.gt/3600e3); if (W.h==null) W.h=hr-1; if (W.h>=hr) return;
   var busy=wizFarmed(), loops=0;
   while (W.h<hr && loops<72){ W.h++; loops++; [1,2].forEach(function(L){ for (var k=0;k<WIZ_PER_H && wizCount(L)<WIZ_CAP;k++) if (!wizPlace(L, busy)) break; });
     if (wizCount(1)>=WIZ_CAP && wizCount(2)>=WIZ_CAP){ W.h=hr; break; } } }
+// 0.1.205: the wizards that were already near your cities move out across the whole map, once. Any you're farming, marching on or rallying stay put.
+function wizScatter(){ var W=wizS(); if (W.sc205) return; W.sc205=1; var busy=wizFarmed(), held={}; try { ryLocks().forEach(function(L){ held[L.tile]=1; }); } catch(e){}
+  W.list.slice().forEach(function(w){ if (busy[w.id] || held[w.id] || S.map.hit[w.id]) return; W.list=W.list.filter(function(o){ return o!==w; });
+    if (wizPlace(w.L, busy)){ var nw=W.list[W.list.length-1]; nw.at=w.at; } else W.list.push(w); });
+  miniDirty=true; }
+function decoOnTile(id){ var l=S.deco&&S.deco.at&&S.deco.at[id]; return !!(l&&l.length) || !!(S.deco&&S.deco.hide&&S.deco.hide[id]===1); } // never spawn into a decorated scene
+
+/* ---------- Hallow's Eve vampires (0.1.205) ----------
+   They rise every game hour on valleys and flats near your cities (where the wizards used to be): 6 Fledglings, 3 Stalkers and a Lord,
+   up to 30 on the map at once. They stay until slain, and all of them leave when the event ends. Slaying them counts toward the event track. */
+var VAMP_KIND={1:"jack",2:"horseman",3:"pking"}, VAMP_PER_H={1:6,2:3,3:1}, VAMP_CAP=30;
+function vampS(){ if (!S.vamp) S.vamp={h:null, ev:"", list:[]}; return S.vamp; }
+var VIX={list:null, n:-1, at:{}}; // tile id -> vampire, rebuilt whenever the list changes (the minimap asks for every tile)
+function vampAt(id){ var V=S.vamp; if (!V || !V.list.length) return null; var ev=evNow(); if (!ev || V.ev!==ev.id) return null;
+  if (VIX.list!==V.list || VIX.n!==V.list.length){ VIX={list:V.list, n:V.list.length, at:{}}; V.list.forEach(function(v){ VIX.at[v.id]=v; }); }
+  return VIX.at[id]||null; }
+// no vampire within dx across or dy up and down (they're about a tile wide and tall, so 1 and 1 keeps them apart)
+function vampRoom(x, y, dx, dy){ var V=S.vamp; if (!V) return true; dx=dx==null?1:dx; dy=dy==null?1:dy; return !V.list.some(function(v){ var xy=v.id.split(","); return Math.abs(+xy[0]-x)<=dx && Math.abs(+xy[1]-y)<=dy; }); }
+function vampPlace(L, busy, ev){ var V=vampS();
+  for (var tries=0; tries<400; tries++){ var c=S.cities[Math.floor(Math.random()*S.cities.length)]; if (!c) return false;
+    var x=c.x+Math.round((Math.random()-0.5)*2*WIZ_R), y=c.y+Math.round((Math.random()-0.5)*2*WIZ_R); if (x<0||y<0||x>=MAPW||y>=MAPH) continue;
+    var id=x+","+y; if (busy[id] || S.map.owned[id] || wizAt(id) || monsterAt(id) || vampAt(id) || decoOnTile(id) || !vampRoom(x,y) || !wizRoom(x,y)) continue;
+    var q=tileAt(x,y); if (!VTYPES[q.k]) continue;
+    V.list.push({id:id, L:L, ev:ev.id, at:S.gt}); return true; }
+  return false; }
+function vampSpawn(){ if (!TILES || !S.cities.length) return; var V=vampS(), ev=evNow();
+  if (!ev){ if (V.list.length){ V.list=[]; miniDirty=true; } return; }
+  if (V.ev!==ev.id){ V.ev=ev.id; V.list=[]; V.h=null; }
+  var hr=Math.floor(S.gt/3600e3); if (V.h==null) V.h=hr-1; if (V.h>=hr) return;
+  var busy=wizFarmed(), loops=0, ch=false;
+  while (V.h<hr && loops<72){ V.h++; loops++;
+    var batch=[]; [1,2,3].forEach(function(L){ for (var k=0;k<VAMP_PER_H[L];k++) batch.push(L); });
+    for (var i=batch.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=batch[i]; batch[i]=batch[j]; batch[j]=t; } // shuffled, so a nearly full map still gets a mix
+    for (var b=0;b<batch.length && V.list.length<VAMP_CAP;b++) if (vampPlace(batch[b], busy, ev)) ch=true;
+    if (V.list.length>=VAMP_CAP){ V.h=hr; break; } }
+  if (ch) miniDirty=true; }
+
+/* the event track: vampires slain this event. 25 brings the historic hero Dracula; 50, 75 and 100 bring 1, 2 and 3 Rough Ore */
+var EV_TRACK={halloween:{max:100, miles:[{n:25, hero:"Dracula", label:"Dracula, a historic hero"},{n:50, ore:1, label:"1 Rough Ore"},{n:75, ore:2, label:"2 Rough Ore"},{n:100, ore:3, label:"3 Rough Ore"}]}};
+function evk(id){ S.evk=S.evk||{}; var e=S.evk[id]; if (!e) e=S.evk[id]={n:0, got:{}}; return e; }
+// Dracula: a historic hero like the rest (every stat 160-170, his specialty 200-250). Attack: Vlad III was a warlord first.
+var DRACULA={name:"Dracula", pol:164, atk:238, int:169};
+function draculaHero(){ var d=DRACULA; return {id:S.nextHeroId++, name:d.name, tier:"historic", level:1, xp:0, pol:d.pol, atk:d.atk, int:d.int, pts:0, base:{pol:d.pol, atk:d.atk, int:d.int}}; }
+function evKill(id, drops){ var T=EV_TRACK[id]; if (!T) return; var e=evk(id); e.n++;
+  T.miles.forEach(function(m){ if (e.n<m.n || e.got[m.n]) return; e.got[m.n]=S.gt;
+    if (m.hero){ var h=draculaHero(), full=S.heroes.length>=hallCap(); if (full) S.waiting.push(h); else S.heroes.push(h);
+      drops.push("Dracula, a historic hero, for slaying "+m.n+" vampires"+(full?" (waiting at the gate: your Feasting Hall is full)":""));
+      note("heroes","🧛 "+m.n+" vampires slain: Dracula answers your call and joins "+C().name+(full?" (he waits at the gate until there’s room in the Feasting Hall)":"")+"."); }
+    if (m.ore){ S.items.ore=(S.items.ore||0)+m.ore; drops.push(m.label+" for slaying "+m.n+" vampires"); note("march","🧛 "+m.n+" vampires slain: "+m.label+"."); } });
+  lastSheet=""; }
+
+/* Hallow's Eve screens: the one-time intro (shown the first time the game opens while the event runs) and the event menu (the bat at the top) */
+var EV_BATS='<span class="evbats" aria-hidden="true">'+[0,1,2].map(function(i){ return '<svg class="evbat b'+i+'" viewBox="0 0 24 12"><path fill="currentColor" d="M12 4.2c.5-.9 1.1-1.4 1.6-1.6l.3 1.6c1.6-.2 3.5-1.6 4.6-3.6 1 1.1 2.9 1.9 5 1.7-1 1.3-1.6 3.1-1.4 4.9-1.3-.6-2.9-.6-4 .1-.5-1.1-1.6-1.8-2.7-1.8-.6 1-1.5 2.3-3.4 3.9-1.9-1.6-2.8-2.9-3.4-3.9-1.1 0-2.2.7-2.7 1.8-1.1-.7-2.7-.7-4-.1.2-1.8-.4-3.6-1.4-4.9 2.1.2 4-.6 5-1.7 1.1 2 3 3.4 4.6 3.6l.3-1.6c.5.2 1.1.7 1.6 1.6z"/></svg>'; }).join("")+'</span>';
+function evDay(t){ return new Date(t).toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"America/New_York"}); }
+function evBanner(ev, small){ return '<div class="evban'+(small?' sm':'')+'"><span class="evmoon" aria-hidden="true"></span>'+EV_BATS+'<div class="evtitle">'+esc(ev.name)+'</div><div class="evsub">'+evDay(ev.from)+' – '+evDay(ev.to-1)+'</div></div>'; }
+function vampSpoils(L){ return ["A 15-minute speed-up","A 15-minute speed-up and 4 Flawless Gems","A 15-minute speed-up, 4 Flawless Gems and a Rough Ore"][L-1]; }
+function vampCards(withSpoils){ return '<div class="vcards">'+[1,2,3].map(function(L){ return '<button class="vcard" type="button" aria-label="'+MONSTERS[VAMP_KIND[L]]+'"><span class="vsp vsp'+L+'"></span><b>'+MONSTERS[VAMP_KIND[L]]+'</b><span class="dur">Level '+L+'</span>'+(withSpoils?'<span class="vsp-sp">'+vampSpoils(L)+'</span>':'')+'</button>'; }).join("")+'</div>'; }
+function evMilesHtml(id){ var T=EV_TRACK[id], e=evk(id);
+  return '<div class="evmiles">'+T.miles.map(function(m){ var got=!!e.got[m.n]; return '<div class="evmile'+(got?' got':'')+(m.hero?' big':'')+'"><span class="evmn">'+m.n+'</span><span>'+(m.hero?'🧛 ':'⛏️ ')+esc(m.label)+'</span><span class="evms">'+(got?'✓ Yours':(m.n-e.n)+' to go')+'</span></div>'; }).join("")+'</div>'; }
+function evIntroSheet(){ var ev=evNow()||EVENTS[0];
+  return evBanner(ev)+
+    '<p class="evlore">The old graves of '+esc(realmName())+' are restless. As night falls, the dead walk again and gather on the valleys and flats around your cities.</p>'+
+    '<div class="h3">Who rises</div>'+vampCards(false)+
+    '<p class="hint" style="margin:0">Tap one to see it move. How to bring them down is for you to work out.</p>'+
+    '<div class="h3">The hunt</div>'+
+    '<p style="margin:0">New vampires rise near your cities every hour, up to 30 at a time. They stay until they’re slain or the event ends after '+evDay(ev.to-1)+'. Every vampire you slay drops spoils, and the first of each kind joins your decorations for good.</p>'+
+    '<div class="h3">The track</div>'+
+    '<p style="margin:0 0 6px">Slay 100 vampires to finish it. At 25, a historic hero answers your call: <b>Dracula</b>.</p>'+evMilesHtml(ev.id)+
+    '<p class="hint" style="margin:0">Follow your hunt from the bat at the top of the screen.</p>'+
+    '<div class="btnrow"><button class="btn evgo" data-act="ev-hunt">Begin the hunt</button></div>'; }
+function evSheet(){ var ev=evNow(); if (!ev || !EV_TRACK[ev.id]) return '<div class="head"><div style="flex:1"><h2>Events</h2></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div><p class="hint">No event is running right now.</p>';
+  var T=EV_TRACK[ev.id], e=evk(ev.id), pct=Math.min(100, e.n/T.max*100), onMap=(S.vamp&&S.vamp.ev===ev.id)?S.vamp.list.length:0;
+  return evBanner(ev, true)+
+    '<div class="evcount"><b>'+fmt(Math.min(e.n,T.max))+'</b> <span>of '+T.max+' vampires slain</span>'+(e.n>T.max?' <span class="dur">('+fmt(e.n)+' in all)</span>':'')+'</div>'+
+    '<div class="evbar" role="progressbar" aria-valuemin="0" aria-valuemax="'+T.max+'" aria-valuenow="'+Math.min(e.n,T.max)+'"><div class="evfill" style="width:'+pct.toFixed(1)+'%"></div>'+
+      T.miles.map(function(m){ return '<span class="evtick'+(e.got[m.n]?' got':'')+'" style="left:'+(m.n/T.max*100)+'%"></span>'; }).join("")+'</div>'+
+    evMilesHtml(ev.id)+
+    '<div class="h3">Vampires</div>'+vampCards(true)+
+    '<p class="hint" style="margin:0">'+onMap+' on your map right now. More rise every hour (up to 30 at once). The event ends after '+evDay(ev.to-1)+'; any vampires left then are gone, but everything you earned stays.</p>'+
+    '<div class="btnrow"><button class="btn ghost small" data-act="ev-intro">See the intro again</button><button class="btn small" data-act="close">Close</button></div>'; }
+// the first time the game opens while an event runs, once everything else on screen is out of the way
+setInterval(function(){ try { var ev=evNow(); if (!ev || !EV_TRACK[ev.id] || saveLocked || sheetFor || !S || !S.cities || !S.cities.length) return; S.evIntro=S.evIntro||{}; if (S.evIntro[ev.id]) return;
+  S.evIntro[ev.id]=Date.now(); save(); openSheet({kind:"evintro"}); } catch(e){} }, 2000);
+// the vampire sprites as CSS backgrounds (idle loop; tap or hover plays the attack)
+(function(){ var css='', SC=2; [1,2,3].forEach(function(L){ var v=VAMP[L], fr=v.die[0]+v.die[1];
+  css+='.vsp'+L+'{--fw:'+(v.w*SC)+'px;width:'+(v.w*SC)+'px;height:'+(v.h*SC)+'px;background-image:url('+v.src+');background-size:'+(fr*v.w*SC)+'px '+(v.h*SC)+'px}'; });
+  var st=document.createElement("style"); st.textContent=css; document.head.appendChild(st); })();
+
 function wizRoll(L){ var ri=function(a,b){ return a+Math.floor(Math.random()*(b-a+1)); }, out={items:{}, res:{}};
   if (L===1){ out.items.gemF=ri(2,12); out.items.s15=ri(1,4); RES.forEach(function(k){ out.res[k]=1e6; }); }
   else { out.items.gemF=ri(10,20); out.items.s60=ri(1,2); RES.forEach(function(k){ out.res[k]=5e6; }); }
@@ -2099,7 +2237,8 @@ var HIST_SPEC={
   // Intelligence: strategists and thinkers
   "Julius Caesar":"int","Saladin":"int","Sun Tzu":"int","Scipio Africanus":"int","Themistocles":"int","Belisarius":"int","Marcus Aurelius":"int",
   // Politics: rulers, builders and lawgivers
-  "Charlemagne":"pol","Cleopatra":"pol","Xerxes":"pol","Cyrus the Great":"pol","Ramesses II":"pol","Pericles":"pol","Constantine":"pol","Justinian":"pol","Octavian":"pol","Hadrian":"pol","Zenobia":"pol","Otto the Great":"pol","Theodoric":"pol"
+  "Charlemagne":"pol","Cleopatra":"pol","Xerxes":"pol","Cyrus the Great":"pol","Ramesses II":"pol","Pericles":"pol","Constantine":"pol","Justinian":"pol","Octavian":"pol","Hadrian":"pol","Zenobia":"pol","Otto the Great":"pol","Theodoric":"pol",
+  "Dracula":"atk" // 0.1.205: the Hallow's Eve reward (not in HISTORIC, so no historic city holds him)
 };
 // a historic hero's starting stats, the same for every player. 0.1.169: 160-170 in every stat and the specialty 200-250
 // (before: 120-130, specialty 160-199; old=true gives those, so heroes already captured can be moved up by the difference)
@@ -2140,7 +2279,7 @@ function captureCity(q, troops){
     CAP_FIELDS.forEach(function(t,i){ for (var k=0;k<3;k++) nc.fields[i*3+k]={type:t,level:L}; });
     capFill(nc, L); nc.cap={k:q.k, L:L};
   } else {
-    nc.fieldCap=L; nc.th=L; ["farm","sawmill","quarry","ironmine"].forEach(function(t,i){ nc.fields[i]={type:t,level:L}; }); // a historic city: Town Hall and one field of each kind at its level, the rest empty (0.1.194: the Town Hall used to start at 1)
+    nc.fieldCap=L; nc.th=L; nc.wall=L; ["farm","sawmill","quarry","ironmine"].forEach(function(t,i){ nc.fields[i]={type:t,level:L}; }); // 0.1.204: and walls at its level too // a historic city: Town Hall and one field of each kind at its level, the rest empty (0.1.194: the Town Hall used to start at 1)
   }
   S.cities.push(nc); delete S.map.hit[q.id]; delete S.map.loy[q.id]; delete S.map.npc[q.id];
   if (nc.fieldCap===14 && S.map.monsters){ S.map.monsters.day=-1; }
@@ -2181,6 +2320,7 @@ function allyTransportArrive(m){
 }
 // the item and medal rolls for one victory over q (a normal attack, or each player in a rally that wiped a full garrison)
 function winDrops(q){
+  if (q.k==="monster" && q.ev && VAMP_K[q.mon]) return vampDrops(q);
   var boxKey = rollMedalBox(q), drops=[], medal=-1;
   if (boxKey){ S.items[boxKey]=(S.items[boxKey]||0)+1; drops.push("a "+ITEMS[boxKey].name); }
   else if (Math.random()<MEDAL_RATE){ medal=rollMedalFor(q); if (medal>=0){ S.medals[MEDALS[medal][0]]++; achMedal(MEDALS[medal][0]); } }
@@ -3215,7 +3355,7 @@ function renderTileInfoBase(){
   if (q.k==="ai") h+='<p class="hint">A '+q.ai.pers.n.toLowerCase()+' with Town Hall '+q.ai.th+' and research around level '+q.ai.tech+'. Growing '+(q.ai.rate<0.7?'slowly':q.ai.rate<1.1?'steadily':'quickly')+'. AI lords never attack unless you provoke them; they slowly grow, train and hoard. Troops you kill return over a game day, and their stockpile refills over two.</p>';
   if (q.k==="npc"||q.k==="hc"||q.k==="ai") h+='<p class="hint">Loyalty '+Math.round(loyOf(q))+' of 100. '+(q.k==="hc"?'Every attack you win knocks off 3 until it is down to 10, then 1 a hit, so about 40 wins in quick succession take the city. It holds for an hour after your last win, then recovers 10 per hour. You need room in your title for another city.':'Every attack you win knocks off 10. It holds for an hour after your last win, then recovers 10 per hour, so 10 wins in quick succession takes the city, if your title has room for another.')+
     (q.k==="ai"?' A conquered lord\u2019s city comes with its buildings and fields at Town Hall level, plus its research.':q.k==="hc"?' A conquered historic city starts empty inside, with one of each resource field at level '+q.L+' (and room to build them that high).':' A conquered NPC city comes with one of every building, its walls and twelve fields at level '+q.L+'.')+'</p>';
-  if (q.k==="monster" && q.ev) h+='<p class="hint">A '+esc(evNow()?evNow().name:"holiday")+' monster. It leaves at the end of the day. Slay it for map decorations: '+(q.L===1?'a 70% chance at a common one':q.L===2?'one for sure, sometimes uncommon':'two, with a good chance at uncommon and rare ones')+'. Decorations go on any tile of your map (tap a tile, then Decorate).</p>';
+  if (q.k==="monster" && q.ev) h+='<p class="hint">A '+esc(evNow()?evNow().name:"holiday")+' monster. It stays until it\u2019s slain or the event ends, and counts toward the event track. Slay it for a 15-minute speed-up'+(q.L>=2?', 4 Flawless Gems':'')+(q.L>=3?', a Rough Ore':'')+', and the first one of each level unlocks it as a decoration for good (place it as often as you like).</p>';
   else if (q.k==="monster") h+='<p class="hint">Drawn to your level 14 historic city, it leaves at the end of the day. Slay it for Flawless Gems and a '+Math.round((0.12+0.04*q.L)*100)+'% chance at a Dragon Scale, the material for Mythic gear (the tier above Legendary).</p>';
   if (VTYPES[q.k] && !S.map.owned[q.id] && placeLeft()>0) h+='<div class="farmadd"><span class="dur">Place an NPC city here ('+placeLeft()+' left today):</span><select id="placelvl">'+[1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===10?' selected':'')+'>Level '+n+'</option>'; }).join("")+'</select><button class="btn small" data-act="npc-place" data-tile="'+q.id+'">Place</button></div>';
   if (q.k==="npc"||q.k==="ai") h+='<p class="hint">'+(q.k==="ai"?'An AI lord':'An NPC')+' only drops medals and items if its troop garrison is full when you hit it; otherwise you get just its resources. Let it recover before you hit it again.</p>';
@@ -3798,7 +3938,10 @@ function alApplyHelps(hp){
   if (got){ toast("Your alliance helped "+got+" time"+(got>1?"s":"")+": "+what.slice(0,3).join(", ")+(what.length>3?"\u2026":"")); if (advance(Date.now())) flushFinished(); save(); refresh(); }
 }
 function alTick(){
-  if (document.hidden) return;
+  if (document.hidden){ // 0.1.204: in the background, keep an eye on rallies (only with phone notifications on, and only while the phone lets the app run)
+    if (!S.phoneNotif || !noteOn("rally") || pushLive() || !mpShown() || !alOn() || !alMine()) return; // 0.1.206: with push on, the server tells the phone
+    ryTick(); var bgDue=(S.alRally||[]).some(function(m){ return m.st==="out" && Date.now()>(m.land||m.hitAt)-60000; }) || ryLive().some(function(R){ return R.mine && R.hitAt-Date.now()<60000; }) ? 10000 : 30000;
+    if (Date.now()-ALS.last>=bgDue) alSync(); return; }
   alBoxOutTick(); // Warehouse box withdrawals on their way
   sarTick(); // the single-player Arena (and wiping it once multiplayer is on)
   if (!mpShown() && !mpNeedsGrace()){ arTick(); return; } // multiplayer off: no alliance traffic (unless a member still has to make their one-time choice)
@@ -4712,8 +4855,16 @@ function alRallyHtml(al){
   return h;
 }
 // results from the server: each of my marches heads home with what's left; the caller's map gets the garrison that's left
+// 0.1.204: a note (and a phone notification, in the background) when someone else calls a rally; the ones already open when the game starts are just marked seen
+var RY_NOTE_READY=false;
+function ryNoteNew(Y){ var seen=S.rySeen=S.rySeen||{}, now=Date.now(), any=false;
+  (Y.live||[]).forEach(function(R){ var k=ALS.aid+":"+R.id; if (seen[k]) return; seen[k]=now; any=true;
+    if (!RY_NOTE_READY || R.mine || now>=R.hitAt || ryIgn()[k]) return;
+    note("rally","⚔ "+R.host+" called a rally on "+R.name+(R.from?" from "+R.from:"")+". It leaves in "+fmtT(R.hitAt-now)+": join from the Alliance tab."); });
+  for (var k2 in seen) if (seen[k2]<now-4*864e5) delete seen[k2];
+  RY_NOTE_READY=true; return any; }
 function ryResults(Y){
-  if (!Y) return; var L=S.alRally||[], ch=false; S.alRallyDone=S.alRallyDone||{};
+  if (!Y) return; var L=S.alRally||[], ch=ryNoteNew(Y); S.alRallyDone=S.alRallyDone||{};
   S.alRallyRoll=S.alRallyRoll||{};
   (Y.live||[]).forEach(function(R0){ if (R0.mine && R0.land) ryLocks().forEach(function(lk){ if (lk.rid===R0.id && lk.aid===ALS.aid && lk.land!==R0.land){ lk.land=R0.land; ch=true; } }); });
   (Y.live||[]).forEach(function(R0){ if (R0.land) L.forEach(function(m){ if (m.rid===R0.id && m.st==="out" && m.land!==R0.land){ m.land=R0.land; ch=true; } }); }); // when the rally lands (for the fallback below)
@@ -4726,11 +4877,12 @@ function ryResults(Y){
         roll={drops:Object.keys(wr.items).map(function(k3){ return fmt(wr.items[k3])+" "+((ITEMS[k3]&&ITEMS[k3].name)||k3); }).concat([fmt(wr.res.food)+" of each resource (sent to "+S.cities[wci].name+")"]), medal:-1}; }
       else roll = r.full ? winDrops({id:"rally:"+r.id, k:r.k, L:r.L}) : {drops:[], medal:-1, nofull:true}; }
     Object.keys(r.mine||{}).forEach(function(ref){ var m=L.filter(function(x){ return x.ref===ref; })[0]; if (!m || m.st!=="out") return; var o=r.mine[ref];
-      m.st="back"; m.back=(o.left||m.t).slice(); if (o.wd) m.wd=o.wd.slice(); m.home=Math.max(Date.now(), o.home||0); /* 0.1.191: home the moment the rally is back at its launch city */ m.res=o; ch=true; var rw=fresh.indexOf(ref)>=0?roll:null; if (rw) roll=null; try { ryReport(r, m, o, rw); } catch(e){} });
+      m.st="back"; m.back=(o.left||m.t).slice(); if (o.wd) m.wd=o.wd.slice(); m.home=Math.max(Date.now(), o.home||0); /* 0.1.191: home the moment the rally is back at its launch city */ m.res=o; ch=true; var rw=fresh.indexOf(ref)>=0?roll:null; if (rw) roll=null; try { ryReport(r, m, o, rw); } catch(e){}
+      if (!rw && !r.isHost) note("rally","The rally on "+r.host+"\u2019s "+r.name+" "+(o.cancelled||r.cancelled?"was called off: your march is heading home.":o.late?"left without your march (it arrived too late).":o.idle?"wiped it out before your wave was needed.":o.wave?"hit: your wave "+(o.won?"won":"was thrown back")+".":"is over.")); });
     var key=ALS.aid+":"+r.id; if (r.isHost && !S.alRallyDone[key]){ S.alRallyDone[key]=Date.now(); ch=true;
       var lk=ryLocks().filter(function(x){ return x.rid===r.id && x.aid===ALS.aid; })[0]; if (lk){ var q=TILE_BY[lk.tile];
-        if (q && q.k==="wiz"){ if (r.win && !r.cancelled){ var WS=wizS(); WS.list=WS.list.filter(function(w){ return w.id!==q.id; }); WIZ_FX.push({x:q.x, y:q.y, L:q.L, t0:Date.now(), dead:true}); note("alliance","Your alliance brought down the "+tileName(q)+"!"); }
-          else if (!r.cancelled) note("alliance","The "+tileName(q)+" survived your alliance\u2019s rally and healed back to full."); }
+        if (q && q.k==="wiz"){ if (r.win && !r.cancelled){ var WS=wizS(); WS.list=WS.list.filter(function(w){ return w.id!==q.id; }); WIZ_FX.push({x:q.x, y:q.y, L:q.L, t0:Date.now(), dead:true}); note("rally","Your alliance brought down the "+tileName(q)+"!"); }
+          else if (!r.cancelled) note("rally","The "+tileName(q)+" survived your alliance\u2019s rally and healed back to full."); }
         else if (q && r.final && !r.cancelled){ var cur=current(q); S.map.hit[q.id]={t:r.final.t.slice(), f:r.final.f.slice(), res:cur.res, at:S.gt}; miniDirty=true;
           // 0.1.179: every rally wave that won, and every one that hit it already empty, knocks loyalty down like your own win would; at 0 the city is the caller's (it's on your map)
           var lhits=(r.fights||[]).filter(function(f){ return f.won; }).length+(r.idleN||0), lnote="", qname=tileName(q);
@@ -4738,7 +4890,7 @@ function ryResults(Y){
             if (loy<=0){ if (S.cities.length<cityCap()){ var rcc=captureCity(q, Z12()); lnote=" Its loyalty broke under "+lhits+" winning wave"+(lhits>1?"s":"")+": "+rcc.name+" is yours! It starts with no troops of its own."; }
               else lnote=" Its loyalty is broken ("+lhits+" winning waves), but your title has no room for another city."; }
             else lnote=" "+lhits+" winning wave"+(lhits>1?"s":"")+" took its loyalty down to "+Math.round(loy)+"."; }
-          note("alliance","Your rally on "+qname+" is over: "+(sumT(r.final.t)?fmt(sumT(r.final.t))+" defenders are left":"the garrison is wiped out")+"."+lnote+(lnote.indexOf("is yours")<0?" Send your waves to finish it before it refills"+(q.k==="hc"?" (within the hour)":"")+".":"")); }
+          note("rally","Your rally on "+qname+" is over: "+(sumT(r.final.t)?fmt(sumT(r.final.t))+" defenders are left":"the garrison is wiped out")+"."+lnote+(lnote.indexOf("is yours")<0?" Send your waves to finish it before it refills"+(q.k==="hc"?" (within the hour)":"")+".":"")); }
         S.rallyLocks=ryLocks().filter(function(x){ return x!==lk; }); } } });
   var lks=ryLocks(), keep=lks.filter(function(x){ return x.aid!==ALS.aid || (Y.live||[]).some(function(R){ return R.id===x.rid; }) || (Y.recent||[]).some(function(r){ return r.id===x.rid; }); }); // gone without a trace
   if (keep.length!==lks.length){ S.rallyLocks=keep; ch=true; }
@@ -4754,7 +4906,7 @@ function ryReport(r, m, o, rw){
     wiz:r.k==="wiz"?1:0, aww:r.k==="wiz"&&o.wave?{rally:1, aid:ALS.aid, mid:r.id}:null};
   if (rw){ rep.drops=rw.drops||[]; rep.medal=rw.medal; rep.nofull=!!rw.nofull;
     var got=(rw.medal>=0?[MEDALS[rw.medal][1]+" medal"]:[]).concat(rw.drops||[]);
-    note("alliance","The rally on "+r.host+"\u2019s "+r.name+" wiped it out. "+(rw.nofull?"Its garrison wasn\u2019t full when it hit, so nothing dropped.":got.length?"Your share of the spoils: "+got.join(", ")+".":"Nothing dropped for you this time.")); }
+    note("rally","The rally on "+r.host+"\u2019s "+r.name+" wiped it out. "+(rw.nofull?"Its garrison wasn\u2019t full when it hit, so nothing dropped.":got.length?"Your share of the spoils: "+got.join(", ")+".":"Nothing dropped for you this time.")); }
   S.reports.unshift(rep); trimKeepFav(S.reports, FULL_CAP);
   S.log.unshift({id:id, at:S.gt, sc:0, n:name, tile:null, r:o.wave?(o.won?1:2):0, d:0, l:sumT(lost), k:sumT(o.killed||[]), lo:0, m:rw&&rw.medal>=0?rw.medal:-1, g:rw?(rw.drops||[]).slice():[], h:null, f:null, o:0, c:rep.city, ry:1, sent:sumT(m.t)}); trimKeepFav(S.log, LOG_CAP);
   if (m.keep) keepRep(id);
@@ -4781,7 +4933,7 @@ function ryHome(m){ var ci=cityIndex(m.city); if (ci<0) return; var c=S.cities[c
   withCity(ci,function(){ for (var i=0;i<12;i++) S.troops[i]+=m.back[i]||0; });
   if (m.wd){ var wb2=null; for (var wi=0;wi<12;wi++) if (m.wd[wi]){ if (!wb2) wb2=woundBucket(c); wb2.t[wi]+=m.wd[wi]; wd+=m.wd[wi]; } } // a wizard: every loss is wounded
   else wd=woundFrom(c.id, m.t, m.back, false);
-  note("alliance","Your rally march is back in "+c.name+": "+fmt(back)+" troops"+(wd?", and "+fmt(wd)+" wounded in the Medic Camp":"")+(m.lost?". The rally\u2019s result never arrived, so everyone came home":"")+"."); }
+  note("rally","Your rally march is back in "+c.name+": "+fmt(back)+" troops"+(wd?", and "+fmt(wd)+" wounded in the Medic Camp":"")+(m.lost?". The rally\u2019s result never arrived, so everyone came home":"")+"."); }
 /* ---------- Alliance Wars (0.1.120): sign up, give troops, scout, attack, man the wall; the server runs the war ---------- */
 var AW_ON=false; // Alliance Wars are finished but parked: flip to true (and set AW_ON=1 on the Worker) to switch them on
 var AWS={d:null, last:0, busy:false, err:"", role:"attacker", city:-1, hero:0, give:{to:"", from:-1, t:{}}, atk:{target:"", t:{}}, wall:{t:{}}, open:{hours:"24", practice:false, quick:false}, applied:{}};
@@ -5064,7 +5216,7 @@ function alMapHtml(al){
 function fillAlChat(){
   var el=document.getElementById("alchat"); if (!el) return;
   var al=alMine(), my=al&&al.my, hh=ALS.chat.length?chatOlderBtn('al')+ALS.chat.map(function(c){
-    if (c.sys) return '<div class="alm sys"><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+ryChatBtn(c.text)+'</div>';
+    if (c.sys) return '<div class="alm sys"'+rxSysAttr("a",c.id)+'><span class="dur">'+alTime(c.at)+'</span> '+esc(c.text)+ryChatBtn(c.text)+rxSysTail("a",c.id)+'</div>';
     var canDel=!c.del && (isMe(c.name) || (my&&my.can.chat));
     return '<div class="alm"'+(c.del?'':rxMsgAttr("a",c.id))+'><span class="dur">'+alTime(c.at)+'</span> <b>'+plChat(c.name)+'</b> '+(c.del?'<span class="dur">(removed)</span>':linkify(c.text))+(canDel?' <button class="link" data-act="al-del" data-id="'+c.id+'" aria-label="Remove message">\u00d7</button>':'')+(c.del?'':rxTail("a",c.id))+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
   if (el._sig===hh || rxTyping()) return;
@@ -5096,9 +5248,16 @@ function rxTake(ch, map, from){ if (!map) return; var R=RX[ch]; for (var id in R
 function rxFromOf(list){ var n=list.length; return n ? list[Math.max(0,n-150)].id : 0; }
 function rxOne(e){ e=String(e||"").trim(); if (!e) return ""; try { if (window.Intl && Intl.Segmenter){ var it=new Intl.Segmenter().segment(e)[Symbol.iterator]().next(); e=it.value?it.value.segment:e; } else e=Array.from(e)[0]; } catch(x){ e=Array.from(e)[0]; }
   return (/[A-Za-z0-9\s<>&"']/.test(e.replace(/[#*0-9]\ufe0f?\u20e3/g,"")) || !/[\u2190-\u2bff\u3030\u303d\u3297\u3299\u20e3]|[\ud83c-\ud83e][\udc00-\udfff]/.test(e)) ? "" : e; }
+// 0.1.204: tapping a chat line also shows how long ago it was sent (and the exact time)
+function chatAgo(t){ var s=Math.max(0,Math.floor((Date.now()-t)/1000)), m=Math.floor(s/60), h=Math.floor(m/60), d=Math.floor(h/24);
+  return s<45?"just now":m<1?"1 min ago":m<60?m+" min ago":h<24?h+" h"+(m%60?" "+(m%60)+" min":"")+" ago":d===1?"1 day ago":d+" days ago"; }
+function chatMsgAt(ch, id){ var L=ch==="w"?(WCH&&WCH.lines):ch==="a"?ALS.chat:DMS.lines; if (!L) return 0; for (var i=L.length-1;i>=0;i--) if (String(L[i].id)===String(id)) return L[i].at||0; return 0; }
+function chatAgoHtml(ch, id){ var at=chatMsgAt(ch,id); return at ? '<div class="rxago">Sent '+chatAgo(at)+' · '+esc(alTime(at))+'</div>' : ''; }
+function rxSysAttr(ch, id){ return id ? ' data-act="rx-sel" data-sys="1" data-ch="'+ch+'" data-id="'+id+'"' : ''; }
+function rxSysTail(ch, id){ return id && RXSEL===ch+":"+id ? chatAgoHtml(ch,id) : ''; }
 function rxTail(ch, id){ var L=RX[ch][id]||[], sel=RXSEL===ch+":"+id, h="";
   if (L.length) h+='<div class="rxs">'+L.map(function(r){ return '<button class="rxc'+(r[2]?' on':'')+'" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+esc(r[0])+'" title="'+esc(r[3])+'" aria-label="'+esc(r[0])+' '+r[1]+(r[2]?', including you':'')+'">'+esc(r[0])+' '+r[1]+'</button>'; }).join("")+'</div>';
-  if (sel) h+='<div class="rxbar">'+RX_QUICK.map(function(q){ return '<button class="rxq" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+q+'" aria-label="React '+q+'">'+q+'</button>'; }).join("")+
+  if (sel) h+=chatAgoHtml(ch,id)+'<div class="rxbar">'+RX_QUICK.map(function(q){ return '<button class="rxq" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+q+'" aria-label="React '+q+'">'+q+'</button>'; }).join("")+
     '<input id="rxin" type="text" autocomplete="off" enterkeyhint="send" placeholder="Any emoji" aria-label="Type any emoji"><button class="btn small" data-act="rx-any" data-ch="'+ch+'" data-id="'+id+'">React</button><button class="link" data-act="rx-close">Close</button>'+
     (L.length?'<div class="rxwho">'+L.map(function(r){ return esc(r[0])+' '+esc(r[3]); }).join(" \u00b7 ")+'</div>':'')+'</div>';
   return h; }
@@ -5146,12 +5305,12 @@ function decoSheet(tid){ var D=decoS(), q=TILE_BY[tid], here=D.at[tid]||[], inv=
   if (decoHideable(q)){ var ho=D.hide&&D.hide[tid], hs=ho===1?"1":ho===0?"0":"a";
     h+='<div class="h3" style="margin-top:8px">What\u2019s under the decorations <span class="dur">'+(decoHid(q)?'hidden now':'showing now')+'</span></div><div class="speeds">'+[["a","Follow setting"],["0","Always show"],["1","Always hide"]].map(function(o){ return '<button data-act="deco-hide" data-tile="'+tid+'" data-v="'+o[0]+'" aria-pressed="'+(hs===o[0])+'">'+o[1]+'</button>'; }).join("")+'</div>'+
       '<p class="hint" style="margin-top:4px">Hidden shows only the ground here: no '+(VTYPES[q.k]?'level or refill':'settlement or level')+'. It still works when you tap it. The setting is in Settings \u2192 Decorated tiles ('+(S.decoHide?'hide':'show')+').</p>'; }
-  var owned=DPACKS.filter(function(pk){ return cosHas("decopack",dpOwner(pk[0])); }), shop=DSHOP.filter(function(sp){ return !cosHas("decopack",sp.id); }).map(function(sp){ var its=[], firsts=[]; DPACKS.forEach(function(pk){ if (sp.groups.indexOf(pk[0])>=0 && pk[0]!=="backgrounds"){ firsts.push(pk[2][0]); its=its.concat(pk[2].slice(1)); } }); DPACKS.forEach(function(pk){ if (pk[0]==="backgrounds" && sp.groups.indexOf("backgrounds")>=0) its=its.concat(pk[2]); }); return [sp.id, sp.name, firsts.concat(its), sp.ai, sp.by]; }), loose=Object.keys(DECOS).filter(function(k){ return !DECOS[k].pack && (D.inv[k]||0)>0; });
+  var owned=DPACKS.filter(function(pk){ return cosHas("decopack",dpOwner(pk[0])); }), shop=DSHOP.filter(function(sp){ return !cosHas("decopack",sp.id); }).map(function(sp){ var its=[], firsts=[]; DPACKS.forEach(function(pk){ if (sp.groups.indexOf(pk[0])>=0 && pk[0]!=="backgrounds"){ firsts.push(pk[2][0]); its=its.concat(pk[2].slice(1)); } }); DPACKS.forEach(function(pk){ if (pk[0]==="backgrounds" && sp.groups.indexOf("backgrounds")>=0) its=its.concat(pk[2]); }); return [sp.id, sp.name, firsts.concat(its), sp.ai, sp.by]; }), loose=Object.keys(DECOS).filter(function(k){ return !DECOS[k].pack && (DECOS[k].unl ? decoOwn(k) : (D.inv[k]||0)>0); });
   if (owned.length||loose.length) h+='<div class="farmadd" style="margin-top:8px"><label for="decon" class="sub">How many to place</label><select id="decon">'+[1,2,3,5,10,20,50,0].map(function(n){ return '<option value="'+n+'"'+(n===DECO_N?' selected':'')+'>'+(n||'Until I tap Done')+'</option>'; }).join("")+'</select><span class="dur">tap one: it goes here, then tap more tiles</span></div>';
   var q=DECO_Q, qOn=!!String(q).trim(), pn=function(pk){ return pk[1]+" "+pk[2].map(function(it){ return it[1]; }).join(" "); };
   if (owned.length||loose.length||shop.length) h+='<div class="farmadd" id="decofind" style="margin-top:6px"><input id="decoq" type="search" value="'+esc(q)+'" placeholder="Search decorations (gate, tree, road\u2026)" enterkeyhint="search" autocomplete="off" style="width:auto;flex:1"></div>'+
     '<p class="dur" id="decnone"'+(qOn && !owned.concat(shop).some(function(pk){ return decoMatch(pn(pk),q); }) && !loose.some(function(k){ return decoMatch(DECOS[k].n,q); })?'':' hidden')+'>No decorations match.</p>';
-  var cell=function(k, pk){ var dd=DECOS[k], nm=dd.n+(pk?" "+pk[1]:""); return '<button class="decocell" data-act="deco-put" data-tile="'+tid+'" data-k="'+k+'" data-n="'+esc(nm)+'" title="'+esc(dd.n)+'"'+(decoMatch(nm,q)?'':' style="display:none"')+'><span class="decoe">'+decoIcon(k,30)+'</span><span class="decon">'+esc(dd.n)+(dd.pack?'':' ('+D.inv[k]+')')+'</span></button>'; };
+  var cell=function(k, pk){ var dd=DECOS[k], nm=dd.n+(pk?" "+pk[1]:""); return '<button class="decocell" data-act="deco-put" data-tile="'+tid+'" data-k="'+k+'" data-n="'+esc(nm)+'" title="'+esc(dd.n)+'"'+(decoMatch(nm,q)?'':' style="display:none"')+'><span class="decoe">'+decoIcon(k,30)+'</span><span class="decon">'+esc(dd.n)+(dd.pack||dd.unl?'':' ('+D.inv[k]+')')+'</span></button>'; };
   var aiOwned=owned.filter(function(pk){ return dpOwner(pk[0])==="ai"; }), artOwned=owned.filter(function(pk){ return dpOwner(pk[0])!=="ai"; });
   owned=artOwned.concat(aiOwned); // packs by artists first, then the AI Pack's sections under their own heading
   owned.forEach(function(pk,oi){ var vis=decoMatch(pn(pk),q);
@@ -5196,7 +5355,7 @@ function dmSync(){
   .catch(function(){ DMS.busy=false; DMS.last=Date.now(); });
 }
 function dmTick(){
-  if (!dmOn()) return; if (document.hidden && !S.phoneNotif) return;
+  if (!dmOn()) return; if (document.hidden && (!S.phoneNotif || pushLive())) return;
   var gap = DMS.open && dockOpen && dockCh==="dm" ? 4000 : dockOpen && dockCh==="dm" ? 8000 : 30000;
   if (Date.now()-DMS.last>=gap) dmSync();
 }
@@ -5288,13 +5447,13 @@ function renderDock(){
     else if (WCH.mutedUntil>Date.now()){ canSay=false; hint="You’re muted until "+wcTime(WCH.mutedUntil)+"."; }
     else if (WCH.err) hint=WCH.err;
     msgs=WCH.lines; var lw=msgs[msgs.length-1]; lastTxt=lw?(lw.sys?lw.text:chatName(lw.name)+": "+chatPlain(lw.text)):(cbOn()?"No messages yet":"Sign in to chat");
-    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ if (c.sys) return '<div class="alm sys">'+esc(c.text)+'</div>'; return '<div class="alm"'+rxMsgAttr("w",c.id)+'><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+linkify(c.text,{blur:true})+rxTail("w",c.id)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
+    hh=msgs.length ? chatOlderBtn('world')+msgs.map(function(c){ if (c.sys) return '<div class="alm sys"'+rxSysAttr("w",c.id)+'>'+esc(c.text)+rxSysTail("w",c.id)+'</div>'; return '<div class="alm"'+rxMsgAttr("w",c.id)+'><b>'+plChat(c.name)+'</b>'+(c.tag?'<span class="wtag">['+esc(c.tag)+']</span>':'')+' '+linkify(c.text,{blur:true})+rxTail("w",c.id)+'</div>'; }).join("") : '<p class="hint">'+(cbOn()?(WCH.last?'No messages yet. Say hello to everyone.':'Loading…'):'')+'</p>';
     setText(document.getElementById("dkch"), "World");
   } else {
     var al=alMine(), my=(al&&al.my)||{}; if (my.mutedUntil>Date.now()){ canSay=false; hint="You’re muted in alliance chat for now."; }
     msgs=ALS.chat.filter(function(c){ return !c.del; }); var la=null; for (var i=msgs.length-1;i>=0;i--) if (!msgs[i].sys){ la=msgs[i]; break; }
     lastTxt=la?chatName(la.name)+": "+chatPlain(la.text):"No messages yet";
-    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys">'+esc(c.text)+ryChatBtn(c.text)+'</div>' : '<div class="alm"'+rxMsgAttr("a",c.id)+'><b>'+plChat(c.name)+'</b> '+linkify(c.text)+rxTail("a",c.id)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
+    hh=msgs.length ? chatOlderBtn('al')+msgs.map(function(c){ return c.sys ? '<div class="alm sys"'+rxSysAttr("a",c.id)+'>'+esc(c.text)+ryChatBtn(c.text)+rxSysTail("a",c.id)+'</div>' : '<div class="alm"'+rxMsgAttr("a",c.id)+'><b>'+plChat(c.name)+'</b> '+linkify(c.text)+rxTail("a",c.id)+'</div>'; }).join("") : '<p class="hint">No messages yet. Say hello.</p>';
     setText(document.getElementById("dkch"), "Alliance");
   }
   setText(document.getElementById("dklast"), lastTxt);
@@ -6304,6 +6463,11 @@ function migrate(s){
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   if (s.v===47){ s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  if (!s.hc204){ s.hc204=1; // 0.1.204: historic cities now start with walls at the city's level; ones taken before this get them raised, and any wall upgrade at or below that level is refunded and dropped
+    (s.cities||[]).forEach(function(cc){ var L=cc.fieldCap; if (!L || (cc.wall||0)>=L) return; cc.wall=L;
+      cc.builds=(cc.builds||[]).filter(function(b){ if (!(b && b.where==="wall" && b.to<=L)) return true;
+        var cost=costFor("walls",b.to); for (var k in cost){ if (k==="script"){ s.items=s.items||{}; s.items.script=(s.items.script||0)+cost[k]; } else if (cc.res && k in cc.res) cc.res[k]+=cost[k]; } return false; });
+      cc.bq=(cc.bq||[]).filter(function(b){ return !(b && (b.w==="wall" || b.type==="walls") && (b.to==null || b.to<=L)); }); }); }
   if (!s.hc194){ s.hc194=1; // 0.1.194: historic cities taken before this got a level 1 Town Hall; bring it (and its four starting fields) up to the city's level
     (s.cities||[]).forEach(function(cc){ var L=cc.fieldCap; if (!L) return; if ((cc.th||1)<L) cc.th=L;
       cc.builds=(cc.builds||[]).filter(function(b){ return !(b.type==="townhall" && b.to<=L); }); cc.bq=(cc.bq||[]).filter(function(b){ return !(b && b.type==="townhall" && b.to<=L); });
@@ -6448,12 +6612,49 @@ function rates(){
 /* ---------- time ---------- */
 var finished = [], finCats = []; // messages from the game loop, and each one's notification type
 var NOTE_TYPES=[["build","Buildings finished"],["fort","Fortifications finished"],["research","Research finished"],["train","Troops trained"],["heroes","Heroes (level ups, captures, arrivals)"],
-  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Kingdom, wars and events"],["day","New day"],["dm","Private messages"]];
+  ["march","Marches, battles and scouting"],["attack","Attacks on your cities"],["alliance","Kingdom, wars and events"],["rally","Alliance rallies (new calls and results)"],["day","New day"],["dm","Private messages"]];
 function note(cat,msg){ finished.push(msg); finCats[finished.length-1]=cat; }
 function noteOn(cat){ return !(S.notifOff&&S.notifOff[cat||"other"]); }
-function shownFinished(){ var out=[]; finished.forEach(function(m,i){ if (noteOn(finCats[i])) out.push(m); }); finished=[]; finCats=[]; return out; }
+function shownFinished(){ var out=[], cats=[]; finished.forEach(function(m,i){ if (noteOn(finCats[i])){ out.push(m); cats.push(finCats[i]||"other"); } }); finished=[]; finCats=[]; out.cats=cats; return out; }
+/* 0.1.206: real push notifications. With phone notifications on and a cloud account, this phone subscribes with the server, which then
+   sends rally calls, rally results and private messages straight to it, even when Ibory is closed. Everything else still comes from the
+   game itself while it's running. PUSH.ok = the server has this phone's subscription (this session). */
+var PUSH={ok:false, busy:false, sig:"", err:"", key:""}, PUSH_KINDS={rally:1, dm:1};
+function pushCan(){ return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+function pushLive(){ return PUSH.ok && !!S.phoneNotif && cbOn(); }
+function pushPrefs(){ return {rally:noteOn("rally")?1:0, dm:noteOn("dm")?1:0}; }
+function pushKeyBytes(k){ k=String(k).replace(/-/g,"+").replace(/_/g,"/"); while (k.length%4) k+="="; var b=atob(k), a=new Uint8Array(b.length); for (var i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; }
+function pushSync(force){
+  if (PUSH.busy || !pushCan() || !S.phoneNotif || !cbOn() || Notification.permission!=="granted") return;
+  var pr=pushPrefs(), sig=S.cloud.name+"|"+pr.rally+pr.dm; if (!force && PUSH.ok && PUSH.sig===sig) return;
+  PUSH.busy=true;
+  var keyP = PUSH.key ? Promise.resolve(PUSH.key) : alPost("/push/key",{}).then(function(d){ if (!d || !d.key) throw new Error((d&&d.error)||"no key"); PUSH.key=d.key; return d.key; });
+  keyP.then(function(key){ return navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription().then(function(sub){
+      if (sub && sub.options && sub.options.applicationServerKey){ var a=new Uint8Array(sub.options.applicationServerKey), b=pushKeyBytes(key), same=a.length===b.length; for (var i=0;same&&i<a.length;i++) if (a[i]!==b[i]) same=false; if (!same) return sub.unsubscribe().then(function(){ return null; }); }
+      return sub; }).then(function(sub){ return sub || reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:pushKeyBytes(key)}); }); }); })
+  .then(function(sub){ return alPost("/push/sub",{sub:sub.toJSON(), prefs:pr}); })
+  .then(function(d){ PUSH.busy=false; if (d && d.ok){ PUSH.ok=true; PUSH.sig=sig; PUSH.err=""; } else { PUSH.ok=false; PUSH.err=(d&&d.error)||"The server said no"; } lastSheet=""; if (tab==="settings") lastView=""; })
+  .catch(function(e){ PUSH.busy=false; PUSH.ok=false; PUSH.err=String(e&&e.message||e).slice(0,120); if (tab==="settings") lastView=""; });
+}
+function pushStop(){ PUSH.ok=false; PUSH.sig=""; if (!pushCan()) return;
+  navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); }).then(function(sub){ if (!sub) return; var ep=sub.endpoint; sub.unsubscribe().catch(function(){}); if (LB_URL) alPost("/push/off",{endpoint:ep}).catch(function(){}); }).catch(function(){}); }
+function pushHtml(){ if (!S.phoneNotif) return '';
+  var st = !pushCan() ? 'This browser can\u2019t take push notifications, so rallies and messages only arrive while Ibory is running.'
+    : !cbOn() ? 'Sign in to a cloud save (below) and rallies and private messages will reach this phone even when Ibory is closed.'
+    : PUSH.ok ? '<span class="okc">\u2713 Rallies and private messages reach this phone even when Ibory is closed.</span>'
+    : PUSH.busy ? 'Signing this phone up for rallies and messages\u2026' : PUSH.err ? 'Couldn\u2019t sign this phone up for rallies and messages: '+esc(PUSH.err) : 'Signing this phone up for rallies and messages\u2026';
+  return '<p class="hint" style="margin-top:4px">'+st+'</p>'+(PUSH.ok?'<div class="btnrow" style="margin:4px 0 0"><button class="btn ghost small" data-act="push-test">Send a test notification</button></div>':(cbOn()&&pushCan()&&!PUSH.busy?'<div class="btnrow" style="margin:4px 0 0"><button class="btn ghost small" data-act="push-retry">Try again</button></div>':'')); }
+function pushTest(){ alPost("/push/test",{}).then(function(d){ toast(d && d.sent ? "Sent. Close Ibory: it should arrive in a few seconds." : (d&&d.error)||"No phone is signed up yet"); }).catch(function(){ toast("Couldn\u2019t reach the server"); }); }
+setTimeout(function(){ pushSync(); }, 6000); setInterval(function(){ pushSync(); }, 60000);
+// tapping a pushed notification: go to the rallies or the messages
+function pushOpen(k){ try { if (sheetFor) closeSheet();
+  if (k==="rally"){ if (ryOn() && ryOpen().length) openSheet({kind:"rylist"}); else if (mpShown()){ tab="guild"; ALS.sub="rally"; lastView=""; renderView(true); } ALS.last=0; }
+  else if (k==="dm" && dmOn()){ dockCh="dm"; dockOpen=true; dockSave(); renderDock(); DMS.last=0; } } catch(e){} }
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var d=ev.data||{}; if (d.ibory==="open") setTimeout(function(){ pushOpen(d.k); }, 300); });
+(function(){ var m=/^#go-(rally|dm)$/.exec(location.hash||""); if (!m) return; try { history.replaceState(null,"",location.pathname+location.search); } catch(e){} setTimeout(function(){ pushOpen(m[1]); }, 4000); })();
 // phone notifications: shown only while the app is still running in the background (the phone freezes it after a few minutes)
 function phoneNotify(list){
+  if (list.cats && pushLive()){ var cs=list.cats; list=list.filter(function(m,i){ return !PUSH_KINDS[cs[i]]; }); } // 0.1.206: the server pushes these itself (even with the app closed), so don't show them twice
   if (!list.length || !S.phoneNotif || !document.hidden || !("Notification" in window) || Notification.permission!=="granted") return;
   var body=list[list.length-1]+(list.length>1?" (and "+(list.length-1)+" more)":"");
   try { if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(function(reg){ reg.showNotification("Ibory",{body:body, icon:"icon-192.png", badge:"badge-96.png", tag:"ibory"}); }); else new Notification("Ibory",{body:body, icon:"icon-192.png", tag:"ibory"}); } catch(e){}
@@ -6551,6 +6752,7 @@ function advance(now){
   S.cur=viewing;
   if (TILES && S.map.monsters && S.map.monsters.day!==gameDay() && gameDay()===S.map.day) ensureMonsters();
   try { wizSpawn(); } catch(e){}
+  try { vampSpawn(); } catch(e){}
   if (TILES && gameDay()!==S.map.day){ applyDailyLevels(false); if (S.alliance) allianceDaily(); note("day","A new day dawns: unheld valleys and flats have gained a level (except ones you attacked in the last 5 hours), and historic garrisons have changed."); changed=true; }
   return changed;
 }
@@ -6688,6 +6890,7 @@ function tickText(){
     var rsp=document.getElementById("qr-sp"); if (rsp){ var rfree=realMs(S.research.end-S.gt)<=FREE_MS; setText(rsp, rfree ? "Finish free" : "Speed up"); var rdisp=(rfree||hasSpeedups(true))?"":"none"; if (rsp.style.display!==rdisp) rsp.style.display=rdisp; } }
   if (document.getElementById("m-have")) updateMarket();
   var hcp=document.getElementById("helpchip"); if (hcp){ var hn=(alMine()&&ALS.d.help)?ALS.d.help.canHelp:0, hd=hn?"":"none"; if (hcp.style.display!==hd) hcp.style.display=hd; setText(document.getElementById("helpn"), hn?String(hn):""); }
+  var evc=document.getElementById("evchip"); if (evc){ var evo=evNow(), evd=evo&&EV_TRACK[evo.id]?"":"none"; if (evc.style.display!==evd) evc.style.display=evd; if (evo&&EV_TRACK[evo.id]){ var evkn=evk(evo.id).n; setText(document.getElementById("evn"), evkn<EV_TRACK[evo.id].max?String(evkn):"\u2713"); } }
   var ryc=document.getElementById("rychip"); if (ryc){ var ryl=ryOn()?ryOpen().length:0, ryd=ryl?"":"none"; if (ryc.style.display!==ryd) ryc.style.display=ryd; setText(document.getElementById("ryn"), ryl?String(ryl):""); if (sheetFor && sheetFor.kind==="rylist") renderSheet(); }
   var wtc=document.getElementById("wtchip"); if (wtc){ var wtl=alMine()?wtList().length:0, wtd=wtl?"":"none"; if (wtc.style.display!==wtd) wtc.style.display=wtd; setText(document.getElementById("wtn"), wtl?String(wtl):""); if (sheetFor && sheetFor.kind==="watch") renderSheet(); }
   var mcp=document.getElementById("monchip"); if (mcp){ var mc=arCur(), md=mc?"":"none"; if (mcp.style.display!==md) mcp.style.display=md; if (mc){ var mln=arLive().length; setText(document.getElementById("monn"), (mln>1?mln+" \u00b7 ":"")+fmtT(Math.max(0,mc.ends-Date.now()))); } }
@@ -6799,8 +7002,11 @@ function heroDrawn(h, px){
   if (royal) o+='<path d="M22 15l3 5 3.5-6 3.5 6 3.5-6 3.5 6 3-5v6H22z" fill="#d4af37" stroke="#7a5c12" stroke-width=".8"/>';
   return o+'</svg>';
 }
+// 0.1.207: built-in portraits for special heroes (a player's own picture still wins). Dracula: the Ambras Castle portrait of Vlad III (16th century, public domain)
+var HPORT_BUILTIN={"Dracula":"data:image/jpeg;base64,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"};
 function heroPortrait(h, px, ext){ // ext: {k: account key, hu: picture version} for another player's hero
   var src = ext ? (ext.hu ? LB_URL+"/me/heroimg?k="+encodeURIComponent(ext.k)+"&h="+h.id+"&v="+ext.hu : "") : himgGet(h);
+  if (!src && h && h.tier==="historic" && HPORT_BUILTIN[h.name]) src=HPORT_BUILTIN[h.name];
   return '<span class="hport" style="width:'+px+'px;height:'+px+'px;box-shadow:0 0 0 2px '+(TIERS[h.tier]||TIERS.common).color+'">'+(src?'<img alt="" loading="lazy" src="'+esc(src)+'" onerror="this.style.display=\'none\'">':'')+heroDrawn(h, px)+'</span>';
 }
 function heroImageFromFile(h, f){
@@ -10367,7 +10573,7 @@ function renderSheetCore(){
         '<p class="hint">Pick which pop-ups the game shows. Everything still happens and still lands in your reports; this only hides the message.</p>'+
         NOTE_TYPES.map(function(t){ return '<label class="ntrow"><input type="checkbox" data-note="'+t[0]+'"'+(noteOn(t[0])?' checked':'')+'> '+t[1]+'</label>'; }).join("")+
         '<div class="h3" style="margin-top:10px">Phone notifications</div><label class="ntrow"><input type="checkbox" id="nt-phone"'+(S.phoneNotif?' checked':'')+'> Also send these as phone notifications</label>'+
-        '<p class="hint">'+(!("Notification" in window)?'This browser can\u2019t show notifications.':Notification.permission==="denied"?'Notifications are blocked for Ibory. Allow them in your phone\u2019s settings for this app, then turn this on.':'They arrive while Ibory is open or was just switched away from. Phones freeze background apps after a few minutes, so a build finishing hours later won\u2019t notify you yet.')+'</p></details>'+
+        '<p class="hint">'+(!("Notification" in window)?'This browser can\u2019t show notifications.':Notification.permission==="denied"?'Notifications are blocked for Ibory. Allow them in your phone\u2019s settings for this app, then turn this on.':'Builds, research, marches and the rest arrive while Ibory is open or was just switched away from (phones freeze background apps after a few minutes).')+'</p>'+pushHtml()+'</details>'+
       cbSection()+bkSection()+
       '<div><div class="h3" style="margin-bottom:6px">Move your save</div><p class="hint">Save a backup file to your phone, or copy a save code and paste it into the game on another device. The code holds everything: every city, hero, gear piece and the whole map.</p>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="save-file">Save to file</button><button class="btn ghost small" data-act="load-file">Load from file</button><button class="btn ghost small" data-act="save-export">Show save code</button><button class="btn ghost small" data-act="save-import-open">Load a save code</button></div>'+
@@ -10417,6 +10623,10 @@ function renderSheetCore(){
     h=dropsSheet();
   } else if (sheetFor.kind==="rylist"){
     h=ryListSheet();
+  } else if (sheetFor.kind==="evintro"){
+    h=evIntroSheet();
+  } else if (sheetFor.kind==="event"){
+    h=evSheet();
   } else if (sheetFor.kind==="watch"){
     h=wtSheet();
   } else if (sheetFor.kind==="player"){
@@ -10807,7 +11017,7 @@ document.addEventListener("click",function(e){
     if (PAINT.k){ closeSheet(); MPOP.hide=true; renderTileInfo(); } else { lastSheet=""; renderSheet(); renderTileInfo(); } return; }
   if (act==="deco-layer"){ var Dl=decoS().at[a.dataset.tile]||[], li=+a.dataset.i, lj=li+(+a.dataset.d); if (lj<0||lj>=Dl.length) return; var lt=Dl[li]; Dl[li]=Dl[lj]; Dl[lj]=lt; save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="deco-flip"){ var Df=decoS().at[a.dataset.tile]||[], fi=+a.dataset.i, fk=Df[fi]; if (!fk) return; var fp=String(fk).split("|"); Df[fi]=fp[0]+(fp[1]==="f"?"":"|f"); save(); lastSheet=""; renderSheet(); drawMap(); return; }
-  if (act==="deco-take"){ var Dt=decoS(), tt=a.dataset.tile, tl=Dt.at[tt]||[], ti=+a.dataset.i, tk=tl[ti]; if (!tk) return; tk=String(tk).split("|")[0]; tl.splice(ti,1); if (!tl.length) delete Dt.at[tt]; Dt.inv[tk]=(Dt.inv[tk]||0)+1; save(); lastSheet=""; renderSheet(); renderTileInfo(); drawMap(); return; }
+  if (act==="deco-take"){ var Dt=decoS(), tt=a.dataset.tile, tl=Dt.at[tt]||[], ti=+a.dataset.i, tk=tl[ti]; if (!tk) return; tk=String(tk).split("|")[0]; tl.splice(ti,1); if (!tl.length) delete Dt.at[tt]; if (DECOS[tk] && !DECOS[tk].pack && !DECOS[tk].unl) Dt.inv[tk]=(Dt.inv[tk]||0)+1; save(); lastSheet=""; renderSheet(); renderTileInfo(); drawMap(); return; }
   if (act==="gif-pick"){ var gp=GIFS.list[+a.dataset.i]; if (!gp) return; closeSheet(); chatSendText(GIFS.tgt, gp.u); return; }
   if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
   if (act==="ry-call"){ ryCall(); return; }
@@ -10947,10 +11157,10 @@ document.addEventListener("click",function(e){
   if (act==="cb-restore"){ var slot=a.dataset.v; if (armed!=="cbr-"+slot){ armed="cbr-"+slot; lastSheet=""; renderSheet(); return; } armed=null; cbRestore(slot); return; }
   if (act==="cb-outothers"){ if (armed!=="cboth"){ armed="cboth"; lastSheet=""; renderSheet(); return; } armed=null; if (!cbOn() || CB.busy) return; CB.busy=true; cbUi("Signing out other devices\u2026", true);
     cbPost("/backup/signout-others",{name:S.cloud.name, token:S.cloud.token}).then(function(r){ return r.json(); }).then(function(d){ CB.busy=false;
-      if (d && d.ok && d.token){ S.cloud.token=d.token; save(); toast("Every other device is signed out"); cbUi("Signed out everywhere else. Only this device can save to your account now.", true); }
+      if (d && d.ok && d.token){ S.cloud.token=d.token; save(); toast("Every other device is signed out"); PUSH.ok=false; pushSync(true); /* their pushes stop too; this phone signs up again */ cbUi("Signed out everywhere else. Only this device can save to your account now.", true); }
       else cbUi((d&&d.error)||"Couldn\u2019t sign out other devices"); }).catch(function(){ CB.busy=false; cbUi("Couldn\u2019t reach the backup server. Check your connection."); });
     return; }
-  if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; var keepName=S.cloud&&S.cloud.name, keepDisp=cbName(); S.cloud={name:keepName, display:keepDisp}; if (S.lb && S.lb.needAcct) S.lb.needAcct=0; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
+  if (act==="cb-signout"){ if (armed!=="cbout"){ armed="cbout"; lastSheet=""; renderSheet(); return; } armed=null; pushStop(); var keepName=S.cloud&&S.cloud.name, keepDisp=cbName(); S.cloud={name:keepName, display:keepDisp}; if (S.lb && S.lb.needAcct) S.lb.needAcct=0; CB.found=null; CB.msg="Signed out. Your backups stay online."; CB.good=true; save(); lastSheet=""; renderSheet(); return; }
   if (act==="save-import"){
     var inp=document.getElementById("saveinput"), code=(inp&&inp.value||"").trim(), obj=null;
     try { obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,""))))); } catch(e){ obj=null; }
@@ -10971,6 +11181,11 @@ document.addEventListener("click",function(e){
   if (act==="drops-open"){ openSheet({kind:"drops"}); return; }
   if (act==="dt-cat"){ DT.cat=a.dataset.c||""; lastSheet=""; renderSheet(); return; }
   if (act==="ry-list"){ openSheet({kind:"rylist"}); return; }
+  if (act==="ev-open"){ openSheet({kind:"event"}); return; }
+  if (act==="push-test"){ pushTest(); return; }
+  if (act==="push-retry"){ PUSH.err=""; pushSync(true); lastSheet=""; lastView=""; refresh(); return; }
+  if (act==="ev-intro"){ openSheet({kind:"evintro"}); return; }
+  if (act==="ev-hunt"){ closeSheet(); if (tab!=="map" && !bfOn()){ tab="map"; lastView=""; renderView(true); window.scrollTo({top:0}); } return; }
   if (act==="ry-ign"){ ryIgn()[ALS.aid+":"+a.dataset.rid]=Date.now(); save(); lastSheet=""; renderSheet(); return; }
   if (act==="ry-ign-all"){ var ign=ryIgn(); ryOpen().forEach(function(R){ ign[ALS.aid+":"+R.id]=Date.now(); }); var icut=Date.now()-3*864e5; for (var ik in ign) if (ign[ik]<icut) delete ign[ik]; save(); closeSheet(); toast("Ignored"); return; }
   if (act==="wt-open"){ openSheet({kind:"watch"}); return; }
@@ -11709,11 +11924,11 @@ document.addEventListener("change",function(e){
   if (e.target.dataset && e.target.dataset.bforder!=null && bfOn()){ var op=BF().p[+e.target.dataset.bforder]; if (op && op.kind==="ally"){ op.order=e.target.value; op.nextAt=Math.min(op.nextAt||0, BF().t+3000); toast(op.name+": "+e.target.options[e.target.selectedIndex].text.toLowerCase()); } }
   if (e.target.dataset && e.target.dataset.bffavor!=null && bfOn()){ var fp=BF().p[+e.target.dataset.bffavor]; if (fp && fp.kind==="ally"){ fp.favor=e.target.value; toast(fp.name+" will favor "+e.target.options[e.target.selectedIndex].text.toLowerCase()); } }
   if (e.target.id==="m-res"){ mkt.res=e.target.value; updateMarket(); }
-  if (e.target.dataset && e.target.dataset.note){ S.notifOff=S.notifOff||{}; if (e.target.checked) delete S.notifOff[e.target.dataset.note]; else S.notifOff[e.target.dataset.note]=1; save(); lastSheet=""; renderSheet(); }
+  if (e.target.dataset && e.target.dataset.note){ S.notifOff=S.notifOff||{}; if (e.target.checked) delete S.notifOff[e.target.dataset.note]; else S.notifOff[e.target.dataset.note]=1; save(); lastSheet=""; renderSheet(); if (PUSH_KINDS[e.target.dataset.note]) pushSync(); }
   if (e.target.id==="nt-phone"){
-    if (!e.target.checked){ S.phoneNotif=false; save(); lastSheet=""; renderSheet(); }
+    if (!e.target.checked){ S.phoneNotif=false; pushStop(); save(); lastSheet=""; renderSheet(); }
     else if (!("Notification" in window)){ e.target.checked=false; toast("This browser can\u2019t show notifications"); }
-    else Notification.requestPermission().then(function(r){ S.phoneNotif = r==="granted"; save(); lastSheet=""; renderSheet(); toast(r==="granted"?"Phone notifications on":"Notifications weren\u2019t allowed"); });
+    else Notification.requestPermission().then(function(r){ S.phoneNotif = r==="granted"; save(); lastSheet=""; renderSheet(); toast(r==="granted"?"Phone notifications on":"Notifications weren\u2019t allowed"); if (r==="granted") pushSync(true); });
   }
   if (e.target.dataset && e.target.dataset.wch!=null && sheetFor && sheetFor.kind==="wc"){ var wcp3=wcById(sheetFor.id); if (wcp3){ wcDraftOf(wcp3).waves[+e.target.dataset.wch].hero=+e.target.value; lastSheet=""; renderSheet(); } }
   if (e.target.dataset && e.target.dataset.wdh!=null && sheetFor && sheetFor.kind==="wc"){ var wdp2=wcById(sheetFor.id); if (wdp2 && wdp2.kind==="defense"){ wcdDraftOf(wdp2).hero=+e.target.value; lastSheet=""; renderSheet(); } }
