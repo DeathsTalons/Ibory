@@ -828,7 +828,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.230";
+var APP_VERSION = "0.1.231";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -4013,7 +4013,11 @@ function alSync(){
     if (ALS.chat.length>1000) ALS.chat=ALS.chat.slice(-1000);
     if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
     alRender();
-  }).catch(function(){ ALS.busy=false; ALS.err="Couldn\u2019t reach the server. Check your connection."; alRender(); });
+  }).catch(function(e){ ALS.busy=false; var net=!e || (e.name==="TypeError" && /fetch|network|load/i.test(e.message||"")) || /JSON/.test((e&&e.message)||"");
+    // 0.1.231: a bug in the game while handling the answer used to read as a lost connection; say what it is (and log it)
+    if (!net){ try { console.error(e); } catch(x){} ALS.err="Something in the game broke while showing the alliance (not your connection): "+String(e.message||e).slice(0,140)+". Please report it."; }
+    else ALS.err="Couldn\u2019t reach the server. Check your connection.";
+    try { alRender(); } catch(x){} });
 }
 function alList(){
   if (!alOn() || ALS.listBusy) return; ALS.listBusy=true; ALS.listAt=Date.now();
@@ -4857,7 +4861,7 @@ function arSend(){
    Members march from their kingdom square to yours and wait; at the hit time every march that made it hits in your order, and the
    server fights each wave against what the ones before it left. You get the garrison that's left; helpers get only the satisfaction. ---------- */
 var RYS={sending:false, mins:"60", time:"", from:null};
-function ryChatBtn(t){ t=String(t||""); if (!/rally targeting/.test(t) || /is leaving now/.test(t)) return ''; // 0.1.227: no Join on old "is leaving now" lines var arena=/Monster Arena/.test(t);
+function ryChatBtn(t){ t=String(t||""); if (!/rally targeting/.test(t) || /is leaving now/.test(t)) return ''; /* 0.1.227: no Join on old "is leaving now" lines */ var arena=/Monster Arena/.test(t);
   return (arena ? arLive().length : ryLive().length) ? ' <button class="link strong" data-act="al-go-rally"'+(arena?' data-to="arena"':'')+'>Join</button>' : ''; } // rally lines in alliance chat, while a rally is running
 function ryOn(){ return mpShown() && alOn() && !!alMine(); }
 function ryData(){ var al=alMine(); return al && al.econ && al.econ.rally; }
