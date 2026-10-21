@@ -828,9 +828,10 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.233";
+var APP_VERSION = "0.1.234";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
+var SAVE_V = 48; // the save format this build writes (the last migrate step sets s.v to it); newer saves are refused everywhere they can come in
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
 function tri(L){ return L*(L+1)/2; }
@@ -971,9 +972,10 @@ function giftCity(aid, allyId){
   var ai=cityIndex(aid), ac=S.cities[ai], A=AL(), q=TILE_BY[allyId];
   if (giftWhy(ac) || !q || !isAlly(allyId)) return false;
   var L=ac.fieldCap, tid=ac.x+","+ac.y, rep=GIFT_REP[L]||GIFT_REP[12];
+  tpTurnBack(aid); // 0.1.234: marches from your other cities heading here turn round with their troops and hero (they used to be deleted outright)
   S.marches.filter(function(m){ return m.city===aid; }).forEach(function(m){ var hh=m.hero?heroById(m.hero):null; if (hh) hh.away=false; });
   ac.heroes.forEach(function(hh){ hh.away=false; S.waiting.push(hh); });
-  S.marches=S.marches.filter(function(m){ return m.city!==aid && !(TILE_BY[m.tile] && TILE_BY[m.tile].city===aid); });
+  S.marches=S.marches.filter(function(m){ return m.city!==aid; });
   S.aiWar=S.aiWar.filter(function(w){ return w.city!==aid; });
   A.help=(A.help||[]).filter(function(h){ return h.city!==aid; });
   for (var ok in S.map.owned) if (S.map.owned[ok]===aid){ delete S.map.owned[ok]; delete S.map.ownedL[ok]; }
@@ -1919,7 +1921,7 @@ function startTrainSplit(tu,tn,mode){
   pl.parts.forEach(function(b){
     var disc=1-0.01*Math.max(0,S.inside[b.slot].level-10), tc={}; for (var ck in U[tu].cost) tc[ck]=Math.ceil(U[tu].cost[ck]*b.n*disc);
     pay(tc,1); S.pop -= U[tu].pop*b.n;
-    if (trainingAt(b.slot)) S.train.push({slot:b.slot,u:tu,n:b.n,paid:tc,q:true,dur:T*b.n,start:Infinity,end:Infinity});
+    if (trainingAt(b.slot)) S.train.push({slot:b.slot,u:tu,n:b.n,paid:tc,q:true,dur:T*b.n,start:0,end:0}); // 0.1.234: queued batches have no end yet (Infinity saved as null and finished them on reload)
     else S.train.push({slot:b.slot,u:tu,n:b.n,paid:tc,start:S.gt,end:S.gt+T*b.n});
   });
   return pl.parts.length;
@@ -3733,7 +3735,7 @@ function drawMap(){
       if (vf<1){ g.fillStyle=tileFade(vcol); g.fillRect(x,y,z,z); var vfh=Math.round(z*vf); g.fillStyle=vcol; g.fillRect(x,y+z-vfh,z,vfh); } else { g.fillStyle=vcol; g.fillRect(x,y,z,z); }
       if (detail){ g.fillStyle=(q.k==="desert"||q.k==="flat")?"rgba(0,0,0,.55)":"rgba(255,255,255,.8)"; numOk&&g.fillText(q.L,x+z/2,y+z/2+1); } }
     if (S.map.owned[q.id]){ g.strokeStyle=brass; g.lineWidth=Math.max(1.5,z/10); g.strokeRect(x+1.5,y+1.5,z-3,z-3);
-      if (campAt(q.id)){ var tw=z*0.42, tx=x+z-tw-2, ty=y+3; g.fillStyle="#c0503c"; g.beginPath(); g.moveTo(tx+tw/2,ty); g.lineTo(tx+tw,ty+tw*0.85); g.lineTo(tx,ty+tw*0.85); g.closePath(); g.fill(); g.strokeStyle="#2a1a12"; g.lineWidth=1; g.stroke(); } }
+      if (campAt(q.id)){ var tw=z*0.42, cx=x+z-tw-2, cy=y+3; g.fillStyle="#c0503c"; g.beginPath(); g.moveTo(cx+tw/2,cy); g.lineTo(cx+tw,cy+tw*0.85); g.lineTo(cx,cy+tw*0.85); g.closePath(); g.fill(); g.strokeStyle="#2a1a12"; g.lineWidth=1; g.stroke(); } } // 0.1.234: the camp flag used tx/ty, the tile loop's own counters, and threw the loop off whenever a camp was on screen
     if ((q.k==="ai" && isAlly(q.id)) || (q.k==="npc" && S.alliance && S.alliance.farms[q.id])){ g.strokeStyle="#5fd17f"; g.lineWidth=Math.max(1.5,z/10); g.strokeRect(x+1.5,y+1.5,z-3,z-3); }
   } catch(err){ if (!drawMap.warned){ drawMap.warned=true; if (window.console) console.warn("tile draw", tx, ty, err); } } }
   var hcDone=false;
@@ -4590,6 +4592,7 @@ function alSync(){
     if (aid!==ALS.aid){ ALS.aid=aid; ALS.chat=[]; ALS.top=0; ALS.d=d; if (aid){ ALS.last=0; } alRender(); if (aid) setTimeout(alSync,50); return; }
     if (firstChat) ALS.moreOld=(d.chat||[]).length>=60; // a full first page means there may be older messages
     ALS.d=d; tpApply(d.al?d.al.trade:d.trade); rfApply(d.al&&d.al.reinf); if (d.help) alApplyHelps(d.help); if (d.al && d.al.econ && d.al.econ.mon) arResults(d.al.econ.mon); if (d.al && d.al.econ && d.al.econ.rally) ryResults(d.al.econ.rally);
+    ALS.resAt=Date.now(); // 0.1.234: the last sync that really answered (the "never heard back" fallbacks in arTick and ryTick wait for one after their grace period)
     (d.chat||[]).forEach(function(c){ var at=-1; for (var i=ALS.chat.length-1;i>=0;i--) if (ALS.chat[i].id===c.id){ at=i; break; } if (at>=0) ALS.chat[at]=c; else ALS.chat.push(c); if (c.id>ALS.top) ALS.top=c.id; });
     if (ALS.chat.length>1000) ALS.chat=ALS.chat.slice(-1000);
     if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
@@ -5392,9 +5395,22 @@ function arwSheet(){ var v=ARW.v, r=ARW.r, R0=v.rounds, before=v.hp[Math.max(0,r
   h+='<p class="hint">Every round each troop type hits the monster, then the monster\u2019s blow is shared over everyone by how many they are and how tough. Nobody dies at the Arena: the wounded go to the Medic Camp.</p>';
   return h+'<button class="closebtn" data-act="arww-back">'+(ARW.back&&ARW.back.kind==="report"?'Back to the report':'Close')+'</button>'; }
 // every second: marches that came home; a march whose result never came back returns whole after 15 minutes
+var LATE_GRACE=15*60000;
+// 0.1.234: an Arena or rally march that never got its result comes home whole after 15 minutes, but only once the server has really been asked.
+// It used to fire on the clock alone, so reopening the app a while after a fight sent every march home before the first sync could land its losses and report.
+// Solo Arena fights are decided on this phone, so the clock is enough there.
+function lateMarchLost(m, at){
+  var deadline=(at||0)+LATE_GRACE; if (Date.now()<=deadline) return false;
+  if (m.aid==="solo") return true;
+  if (!ALS.resAt || ALS.resAt<=deadline) return false; // no answer from the server since the grace period ran out: keep waiting
+  var Y=ryData(), M=arMon(); // the fight is still listed as running: not lost, just slow
+  if (m.rid!=null && Y && (Y.live||[]).some(function(R){ return R.id===m.rid; })) return false;
+  if (m.mid!=null && M && (M.live||[]).some(function(c){ return c.id===m.mid; })) return false;
+  return true;
+}
 function arTick(){
   var L=S.alArena; if (!L || !L.length) return; var now=Date.now(), ch=false;
-  L.forEach(function(m){ if (m.st==="out" && now>m.ends+15*60000){ m.st="back"; m.back=m.t.slice(); m.wounded=m.t.map(function(){ return 0; }); m.home=now; m.lost=1; ch=true; } });
+  L.forEach(function(m){ if (m.st==="out" && lateMarchLost(m, m.ends)){ m.st="back"; m.back=m.t.slice(); m.wounded=m.t.map(function(){ return 0; }); m.home=now; m.lost=1; ch=true; } });
   for (var i=L.length-1;i>=0;i--){ var m=L[i]; if (m.st==="back" && now>=m.home){ arHome(m); L.splice(i,1); ch=true; } }
   if (ch){ reconcileHeroes(); save(); flushFinished(); refresh(); }
 }
@@ -5684,7 +5700,7 @@ function rallyRepHtml(r){ var row=function(l,v){ return '<div class="merow"><spa
 function ryTick(){
   var lks0=ryLocks(), lks1=lks0.filter(function(lk){ return !((ALS.d && ALS.aid!==lk.aid) || Date.now()-(lk.at||0)>26*3600e3); }); if (lks1.length!==lks0.length){ S.rallyLocks=lks1; save(); } // left the alliance, or the rally is long over: free the target
   var L=S.alRally; if (!L || !L.length) return; var now=Date.now(), ch=false;
-  L.forEach(function(m){ if (m.st==="out" && now>(m.land||m.hitAt)+15*60000){ m.st="back"; m.back=m.t.slice(); m.home=now; m.lost=1; ch=true; } });
+  L.forEach(function(m){ if (m.st==="out" && lateMarchLost(m, m.land||m.hitAt)){ m.st="back"; m.back=m.t.slice(); m.home=now; m.lost=1; ch=true; } });
   for (var i=L.length-1;i>=0;i--){ var m=L[i]; if (m.st==="back" && now>=m.home){ ryHome(m); L.splice(i,1); ch=true; } }
   if (ch){ reconcileHeroes(); save(); flushFinished(); refresh(); }
 }
@@ -6395,6 +6411,7 @@ function cbRestore(slot, opt){
     enc=r.headers.get("X-Enc")||"plain"; rev=+(r.headers.get("X-Rev")||0); at=+(r.headers.get("X-At")||0); return r.text();
   }).then(function(body){ return cbUnpack(body, enc); }).then(function(txt){
     var obj=JSON.parse(txt); if (!obj || !obj.v || !(obj.cities||obj.res)) throw new Error("That backup looks damaged");
+    if (newerSaveWhy(obj)) throw new Error(newerSaveWhy(obj));
     return cbKeepUndo().then(function(){
       CB.busy=false; CB.found=null; CB.conflict=null; CB.msg="";
       cbLoadState(obj, cloud, slot==="latest"?at:Date.now(), rev);
@@ -6465,7 +6482,7 @@ function allCitiesSheet(){
     S.builds.forEach(function(b){ jobs.push([b.end, (b.type==="townhall"?"Town Hall":DEF[b.type].name)+" to "+b.to]); });
     if (S.research) jobs.push([S.research.end, TECH[S.research.tech].name+" "+S.research.to]);
     if (S.fortQ) jobs.push([S.fortQ.end, "Fortifications"]);
-    var tEnd=null; S.train.forEach(function(x){ if (tEnd==null || x.end<tEnd) tEnd=x.end; });
+    var tEnd=null; S.train.forEach(function(x){ if (!x.q && (tEnd==null || x.end<tEnd)) tEnd=x.end; });
     if (tEnd!=null) jobs.push([tEnd, "Training ("+busy+" of "+bar.length+" Barracks busy, "+fmt(inTr)+" troops)"]);
     S.marches.filter(function(m){ return m.city===c.id; }).forEach(function(m){ var q=TILE_BY[m.tile]; jobs.push([m.phase==="back"?m.ret:m.phase==="stay"?Infinity:m.arr, marchVerb(m)+(q?tileName(q):m.tile)]); });
     jobs.sort(function(a,b){ return a[0]-b[0]; });
@@ -7121,7 +7138,9 @@ function newState(){
     build:null,research:null});
 }
 var FRAMES_FOR_ALL=["bughunter"]; // frames every account owns for now (beta). When the beta cutoff comes, empty this list and give the frame to the testers by hand.
+function newerSaveWhy(o){ return o && o.v>SAVE_V ? "That game was saved by a newer Ibory (save "+o.v+", this app reads up to "+SAVE_V+"). Update the app first." : ""; }
 function migrate(s){
+  if (s.v>SAVE_V) throw new Error(newerSaveWhy(s)); // 0.1.234: a newer save used to be taken as-is and then lock the game at the next start
   if (s.v===1){
     s.heroes=[]; s.nextHeroId=1; s.mayor=null; s.innOffers=[]; s.innRefreshAt=0;
     s.waiting=[]; s.items={s15:0,s60:0,s480:0,tome:0}; s.wheelLog=[]; s.spins=0; s.v=2;
@@ -7311,7 +7330,7 @@ function bkSnapshot(why, force){
 function bkList(){ var out=[]; [BK_BEST].concat(BK_RING,BK_PRE).forEach(function(k){ var m=bkMeta(k); try { if (m && localStorage.getItem(k)) out.push({k:k,m:m}); } catch(e){} }); out.sort(function(a,b){ return b.m.at-a.m.at; }); return out; }
 var S;
 var loadRaw=null;
-try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=48) S = migrate(p); else loadFail={why:(p&&p.v>48)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
+try { loadRaw = localStorage.getItem(SAVE_KEY); if (loadRaw){ var p = JSON.parse(loadRaw); if (p && p.v>=1 && p.v<=SAVE_V) S = migrate(p); else loadFail={why:(p&&p.v>SAVE_V)?"newer":"bad"}; } } catch(e){ loadFail={why:"error", err:String(e&&e.message||e)}; }
 if (loadFail){ try { localStorage.setItem(BK_RESCUE, loadRaw); } catch(e){} saveLocked=true; } // a save that won't open is never written over
 else if (!loadRaw){ var bkb=bkMeta(BK_BEST); if (bkb && bkb.score>=1000) recoverOffer=true; }
 if (!S) S = newState();
@@ -7319,6 +7338,7 @@ S.speed=1; // real time
 installProxies(S);
 if (S.bf && S.bf.active) S.bf.last=Date.now(); // time with the app closed never counts
 S.cities.forEach(function(cc,ci){ withCity(ci,function(){
+  S.train.forEach(function(t){ if (t.q){ t.start=0; t.end=0; } }); // 0.1.234: older saves kept Infinity here, which came back as null
   S.train.slice().forEach(function(t){ var b=S.inside[t.slot];
     if (b && b.type==="barracks" && b.level>=barracksReq(t.u)) return;
     var ns=-1; if (!t.q) barracksList().forEach(function(sl){ if (ns<0 && !trainingAt(sl) && S.inside[sl].level>=barracksReq(t.u)) ns=sl; });
@@ -7479,6 +7499,25 @@ function accrueAll(ms){
   S.amulets += AMULET_PER_HOUR*ms/3.6e6;
 }
 function tagFinished(before, ci, viewing){ if (ci!==viewing && S.cities.length>1) for (var j=before;j<finished.length;j++) finished[j]=S.cities[ci].name+": "+finished[j]; }
+// 0.1.234: a handler threw. Log it and move or drop that one event so the clock keeps going; the error is kept in S.evErr for the Settings page.
+function evSkipBroken(ev, err, target){
+  try { console.error("advance: event failed", ev && ev.w, err); } catch(e){}
+  S.evErr={w:ev&&ev.w, at:Date.now(), msg:String(err&&err.message||err).slice(0,200)};
+  var later=target+3600e3;
+  try {
+    if (ev.w==="m" && ev.m){ if (ev.m.phase==="out") ev.m.arr=later; else if (ev.m.phase==="wait") ev.m.dep=later; else ev.m.ret=later; }
+    else if (ev.w==="ai"){ S.aiWar=S.aiWar.filter(function(x){ return x!==ev.a; }); }
+    else if (ev.w==="al"){ var A=S.alliance, e=ev.e; if (!A) return;
+      if (e.w==="wave"){ if (A.bully){ A.bully.next=null; A.bully.until=Math.min(A.bully.until||later, later); } }
+      else if (e.w==="end"){ A.bully=null; }
+      else if (e.w==="warend"){ if (A.war) A.war.active=false; }
+      else if (e.w==="warlaunch"){ if (A.war && A.war.enemies[e.i]) A.war.enemies[e.i].out=true; }
+      else if (e.w==="warhit"){ if (A.war) A.war.pending.splice(e.j,1); }
+      else { A.challenges=(A.challenges||[]).filter(function(c){ return c.id!==e.id; }); } }
+    else { var c=S.cities[ev.ci]; if (!c) return;
+      if (ev.w==="b" && c.builds[ev.bi]) c.builds[ev.bi].end=later; else if (ev.w==="r" && c.research) c.research.end=later; else if (ev.w==="f" && c.fortQ) c.fortQ.end=later; else if (ev.w==="t" && c.train[ev.ti]) c.train[ev.ti].end=later; }
+  } catch(e2){}
+}
 function advance(now){
   var dtG = Math.max(0,(now - S.real))*S.speed; S.real = now;
   if (dtG>0) for (var aw=0; aw<S.cities.length; aw++) if (S.cities[aw].away) invHold(S.cities[aw], dtG);
@@ -7490,7 +7529,7 @@ function advance(now){
       var c=S.cities[ci];
       for (var bi=0; bi<c.builds.length; bi++) if (c.builds[bi].end < next){ next=c.builds[bi].end; ev={ci:ci,w:"b",bi:bi}; }
       if (c.research && c.research.end < next){ next=c.research.end; ev={ci:ci,w:"r"}; }
-      for (var ti=0; ti<c.train.length; ti++) if (c.train[ti].end < next){ next=c.train[ti].end; ev={ci:ci,w:"t",ti:ti}; }
+      for (var ti=0; ti<c.train.length; ti++) if (!c.train[ti].q && c.train[ti].end < next){ next=c.train[ti].end; ev={ci:ci,w:"t",ti:ti}; } // queued batches wait for their slot
       if (c.fortQ && c.fortQ.end < next){ next=c.fortQ.end; ev={ci:ci,w:"f"}; }
     }
     var me=nextMarchEvent(); if (me && me.t < next){ next=me.t; ev={w:"m",m:me.m}; }
@@ -7504,6 +7543,7 @@ function advance(now){
       changed=true; break; }
     accrueAll(next - S.gt); S.gt = Math.max(S.gt,next);
     var before=finished.length;
+    try {
     if (ev.w==="al"){ handleAlliance(ev.e); }
     else if (ev.w==="ai"){ var aci=cityIndex(ev.a.city); handleAi(ev.a); tagFinished(before, aci, viewing); }
     else if (ev.w==="m"){ var mci=cityIndex(ev.m.city); handleMarch(ev.m); S.cur=mci; processQueues(); if (typeof processAuto==="function") processAuto(); S.cur=viewing; tagFinished(before, mci, viewing); }
@@ -7513,6 +7553,7 @@ function advance(now){
       processQueues(); if (typeof processAuto==="function") processAuto();
       S.cur=viewing; tagFinished(before, ev.ci, viewing);
     }
+    } catch(err){ S.cur=viewing; evSkipBroken(ev, err, target); } // 0.1.234: one broken event used to throw every tick and freeze game time for good
     changed=true;
   }
   accrueAll(target - S.gt); S.gt = target;
@@ -8247,6 +8288,7 @@ function endBully(why){
 }
 function bullyWave(){
   var A=AL(), B=A.bully, b=bullyOf(), w=B&&B.next; if (!w) return;
+  if (!b){ endBully("packed up and left"); return; } // 0.1.234: a bully missing from the roster used to throw here on every tick
   B.next=null; B.waves++;
   var q=TILE_BY[w.target];
   if (!q || !isAlly(w.target)){ planWave(); return; }
@@ -8371,7 +8413,7 @@ function A_log(t){ var A=AL(); A.log.unshift({at:S.gt, t:t}); if (A.log.length>4
 function warLaunch(i){
   var w=W(), E=w.enemies[i]; if (!E || E.out) return;
   E.nextAt=S.gt+(6+Math.random()*6)*3600000; // two to four raids a day
-  var b=rosterById(E.rid), f=friendOf(b);
+  var b=rosterById(E.rid), f=friendOf(b); if (!b){ E.out=true; return; } // 0.1.234: an enemy missing from the roster sits the war out instead of throwing
   var frac = (f && f.allin) ? 1 : b.iq<90 ? 0.3+Math.random()*0.2 : b.iq<140 ? 0.4+Math.random()*0.2 : 0.5+Math.random()*0.2;
   var t=E.army.map(function(n){ return Math.floor(n*frac); });
   if (sumT(t)<100) return;
@@ -8640,8 +8682,11 @@ function chalDefeated(c, why){
   miniDirty=true;
 }
 // the three days are up: everything they have left marches on the city
+function chalDropMissing(c){ // 0.1.234: a challenger whose roster entry is gone (an edited or very old save) leaves quietly instead of throwing every tick
+  var A=AL(); A.challenges=(A.challenges||[]).filter(function(x){ return x!==c; }); try { console.warn("challenge dropped: no roster entry", c.rid); } catch(e){}
+}
 function chalSiege(c){
-  var b=rosterById(c.rid), army=chalArmy(c);
+  var b=rosterById(c.rid); if (!b){ chalDropMissing(c); return; } var army=chalArmy(c);
   // if you (or another challenger) took their target in the meantime, they turn on the nearest free level 12
   var still=hcTileOf(c.target).k==="hc" && !CH().some(function(x){ return x!==c && x.phase==="settled" && x.seat===c.target; });
   if (!still){
@@ -8675,7 +8720,7 @@ function chalSiege(c){
 // a settled challenger raids, one or two times a day
 function chalRaid(c){
   c.nextAt=S.gt+(12+Math.random()*12)*3600000;
-  var b=rosterById(c.rid), f=friendOf(b);
+  var b=rosterById(c.rid), f=friendOf(b); if (!b){ chalDropMissing(c); return; } // 0.1.234
   var frac=(f&&f.allin)?1:0.4+Math.random()*0.3, t=c.army.map(function(n){ return Math.floor(n*frac); });
   if (sumT(t)<100) return;
   for (var k=0;k<12;k++) c.army[k]-=t[k];
@@ -9448,7 +9493,7 @@ function invTake(j){
   if (v){ if (v.role==="invader") invMarkAway(v); if (v.id!==IV.seenId){ IV.seenId=v.id; IV.map=null; IV.draft=Z12(); IV.armed="";
       if (v.role==="defender"){ toast("An invasion has begun against you"); note("inv", "Invasion: "+(v.camp?esc(v.camp.name):"someone")+" has landed a camp on your map."); } } }
   if (j.results && j.results.length) invApply(j.results);
-  lastView=""; if (typeof renderView==="function") renderView(true);
+  if (j.p || j.view || (j.results && j.results.length) || IV.err!==IV.shownErr){ IV.shownErr=IV.err; lastView=""; if (typeof renderView==="function") renderView(true); } // 0.1.234: only redraw when there is news
 }
 function invMarkAway(v){
   var ci=-1; S.cities.forEach(function(c,i){ if (c.id===v.city.id) ci=i; }); if (ci<0) return;
@@ -9461,6 +9506,7 @@ function invPoll(force){
   shopSync(); // gifts and purchases waiting on the server (at most every 15 minutes)
   var v=IV.st&&IV.st.inv, now=Date.now(), every=!IV.st?1000:v?(tab==="alliance"?(v.status==="fighting"?3000:6000):30000):IV.search?20000:(tab==='alliance'?15000:90000);
   if (!force && (now-IV.lastPoll<every || document.hidden)) return;
+  if (force && (now-IV.lastPoll<(IV.err?5000:1500) || document.hidden)) return; // 0.1.234: the Alliance tab asked on every redraw while the server was down (a poll loop); forced asks now wait a moment too
   IV.lastPoll=now; IV.busy=1;
   var go;
   if (IV.search && !v && now-IV.lastSearch>20000){ IV.lastSearch=now; go=invPost("launch",{pack:invPack(), city:IV.searchCity}); }
@@ -12066,6 +12112,7 @@ document.addEventListener("click",function(e){
           try { ob=JSON.parse(txt); } catch(e1){ try { ob=JSON.parse(decodeURIComponent(escape(atob(txt.replace(/\s+/g,""))))); } catch(e2){ ob=null; } }
           fi.value="";
           if (!ob || !ob.v || !(ob.cities||ob.res)){ toast("That file isn\u2019t an Ibory save."); return; }
+          if (newerSaveWhy(ob)){ toast(newerSaveWhy(ob)); return; }
           if (!window.confirm("Replace your current game with this save file?")) return;
           bkSnapshot("pre",true); ob.real=Date.now(); ob.speed=1; ob.testSpeed=0; S=migrate(ob); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
           document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded from file."); };
@@ -12090,6 +12137,7 @@ document.addEventListener("click",function(e){
     var inp=document.getElementById("saveinput"), code=(inp&&inp.value||"").trim(), obj=null;
     try { obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,""))))); } catch(e){ obj=null; }
     if (!obj || !obj.v || !(obj.cities||obj.res)){ document.getElementById("importmsg").textContent="That doesn\u2019t look like a save code."; return; }
+    if (newerSaveWhy(obj)){ document.getElementById("importmsg").textContent=newerSaveWhy(obj); return; }
     if (armed!=="import"){ armed="import"; var keep=code; lastSheet=""; renderSheet(); var ni=document.getElementById("saveinput"); if (ni) ni.value=keep; return; }
     armed=null; saveUi=""; bkSnapshot("pre",true); obj.real=Date.now(); obj.speed=1; obj.testSpeed=0; S=migrate(obj); installProxies(S); setTimeout(capFixToast,1500); genMap(); sim=null; simOut=null; selTile=null; mv.init=false; lastPrize=null;
     document.getElementById("cityname").textContent=S.name; closeSheet(); save(); lastView=""; refresh(); toast("Save loaded. Welcome back, "+TITLES[S.title].name+"."); return; }
