@@ -343,6 +343,7 @@ select,input[type=number],input[type=text],input[type=search],input[type=time]{f
 .gearlist{display:grid;gap:6px;margin-top:8px}
 .gearrow{display:grid;grid-template-columns:1fr auto;gap:0 10px;text-align:left;border:1px solid var(--line);border-left-width:4px;background:var(--panel2);border-radius:8px;padding:7px 10px;cursor:pointer}
 .gearrow .gn{font:700 .95rem var(--display)} .gearrow .gb{font-weight:700;text-align:right}
+.hacts{margin:8px 0 10px;padding:10px 12px} .hacts .det{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel2)} .hacts .det[open]{padding-bottom:10px} .hacts .gearrow{cursor:default} .hacts .btnrow{flex-wrap:wrap} /* 0.1.238: the hero sheet's action block */
 @media (max-width:420px){ .gearslots{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .statgrid{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
 .statgrid .sv{font:700 1.1rem var(--display);min-width:2.2em;text-align:right}
@@ -828,7 +829,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.237";
+var APP_VERSION = "0.1.240";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var SAVE_V = 48; // the save format this build writes (the last migrate step sets s.v to it); newer saves are refused everywhere they can come in
@@ -1882,15 +1883,31 @@ function idlePop(){ return Math.max(0, Math.floor(S.pop - workersNeeded())); }
 var OFFICES=[["mayor","Mayor","pol","Production and building speed"],["trainer","Trainer","atk","Training speed"],["researcher","Researcher","int","Research speed"],["wallHero","Wall hero","atk","Leads the city\u2019s troops when it is attacked"]];
 var OFFICE_OF={pol:"mayor", atk:"trainer", int:"researcher"};
 function isOfficer(h){ return !!h && (h.id===S.mayor || h.id===S.trainer || h.id===S.researcher || h.id===S.wallHero); }
+function seatLocked(h){ return isOfficer(h) && !(h.autoSeat && h.id!==S.wallHero); } // 0.1.239: kept home by an office; a seat auto-fill gave out (autoSeat) doesn't hold a hero back
 function officeOf(h){ for (var i=0;i<OFFICES.length;i++) if (h && S[OFFICES[i][0]]===h.id) return OFFICES[i]; return null; }
 function officer(role){ var id=S[role]; return id ? heroById(id) : null; }
 function officerActive(role){ var o=officer(role); if (role==="wallHero") return o; return o && !(S.res.gold<=0 && salary()>0) ? o : null; } // the wall hero never stops: the captain goes down with the ship
 // the hero who leads this city's defense (every fight at home: AI lords, bullies, invasions, the sim's "my defense"). No wall hero = no hero leads.
 function wallHero(){ var h=officer("wallHero"); return h && !h.away ? h : null; }
-function bestFor(stat){
-  if (!S.autoMayor) return officerActive(OFFICE_OF[stat]);
-  if (S.res.gold<=0 && salary()>0) return null;
-  var best=null; S.heroes.forEach(function(h){ if (!h.away && (!best || hs(h,stat)>hs(best,stat))) best=h; }); return best;
+// 0.1.239: every office does its own job: the mayor builds and sets production, the trainer trains, the researcher researches. Nothing else fills in.
+// (Before, with auto-swap on, the best hero at home quietly did every job and the Trainer and Researcher seats were decoration.)
+function bestFor(stat){ return officerActive(OFFICE_OF[stat]); }
+// Auto-swap (S.autoMayor): keep the mayor, trainer and researcher seats filled with the best free hero for each stat, one seat per hero.
+// A seat changes hands only when it is empty, its holder is away, or a hero who holds no seat beats the holder on that stat. The wall hero is left alone.
+// Returns the number of seats that changed (so callers can refresh).
+// A seat you picked by hand is locked: its hero can't march and auto-fill leaves it alone. A seat auto-fill gave out is soft (h.autoSeat):
+// the hero still marches; while away the seat goes to the next best free hero, and he gets it back when he's home and still the best.
+function autoOffices(){
+  if (!S.autoMayor) return 0; var changed=0;
+  ["mayor","trainer","researcher"].forEach(function(role){
+    var stat=OFFICES.filter(function(o){ return o[0]===role; })[0][2], cur=officer(role);
+    if (cur && !cur.autoSeat && !cur.away) return; // hand-picked and here: yours
+    var best=cur && !cur.away ? cur : null;
+    S.heroes.forEach(function(h){ if (h.away || h.id===S.wallHero || (isOfficer(h) && h.id!==(cur&&cur.id))) return; if (!best || hs(h,stat)>hs(best,stat)) best=h; });
+    if ((best&&best.id)!==(cur&&cur.id)){ if (cur) cur.autoSeat=false; S[role]=best?best.id:null; changed++; }
+    if (best) best.autoSeat=true;
+  });
+  return changed;
 }
 function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.9975, m?hs(m,"atk"):0)/bTrain(); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
 function barracksList(){ var out=[]; S.inside.forEach(function(x,i){ if (x && x.type==="barracks" && x.level>0) out.push(i); }); return out; }
@@ -3174,7 +3191,7 @@ function repeatMarch(m){
   if (!q || !farmTarget(m.tile)) why="that target is gone";
   else if (!rallyLv() || rallyUsed()>=rallyLv()) why="no free march slot";
   else { var gone=[]; for (var ti=0;ti<12;ti++) if (t0[ti]>0 && !(t[ti]>0)) gone.push(U[ti].name); if (gone.length) why="no "+gone.join(", ")+" left at home to send"; }
-  if (!why && hid){ var rh=heroById(hid); if (!rh || C().heroes.indexOf(rh)<0 || rh.away || isOfficer(rh)) why="the leading hero isn’t free"; }
+  if (!why && hid){ var rh=heroById(hid); if (!rh || C().heroes.indexOf(rh)<0 || rh.away || seatLocked(rh)) why="the leading hero isn’t free"; }
   if (!why && S.res.food<marchFood(t,m.mission,travelMs(t,q,hid,m.mission))) why="not enough food for rations";
   if (why){ note("march","Repeat stopped at "+tileName(q)+": "+why); return; }
   var nm=launchMarch(m.tile,m.mission,t,hid,{}); nm.rep=true; nm.rsl=!!m.rsl; if (m.keep) nm.keep=1; nm.t0=t0.slice(); nm.hero0=hid;
@@ -3184,7 +3201,7 @@ function repeatMarch(m){
 var HERO_BEST=-1, HERO_ANY=-2, HERO_FAST=-3; // 0.1.192: fastest = the free hero whose Intelligence, Warhorse and dragon speed the march most
 function heroSpeed(h){ return h ? (1+hs(h,"int")/100)*(1+dgFx(h).spd/100)*(1+mountSpd(h)) : 1; }
 function presetAutoHero(v){ return v===HERO_BEST || v===HERO_ANY || v===HERO_FAST; }
-function presetFreeHeroes(used){ return C().heroes.filter(function(x){ return !x.away && !isOfficer(x) && !(used&&used[x.id]); }); }
+function presetFreeHeroes(used){ return C().heroes.filter(function(x){ return !x.away && !seatLocked(x) && !(used&&used[x.id]); }); }
 function pickHero(mode, used){ var f=presetFreeHeroes(used); if (!f.length) return null;
   if (mode===HERO_FAST){ f.sort(function(a,b){ return heroSpeed(b)-heroSpeed(a) || hs(b,"atk")-hs(a,"atk"); }); return f[0]; }
   f.sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); }); return mode===HERO_BEST ? f[0] : f[f.length-1]; }
@@ -3205,10 +3222,10 @@ function processAuto(){
     if (!pr.auto || !pr.farm.length) return;
     if (S.marches.some(function(m){ return m.city===C().id && m.preset===pi; })) return;
     if (rallyUsed()>=rl || !presetReady(pr)) return;
-    var ph=presetHero(pr), phid=ph&&!ph.away&&!isOfficer(ph)?ph.id:0;
+    var ph=presetHero(pr), phid=ph&&!ph.away&&!seatLocked(ph)?ph.id:0;
     var nid=pr.farm[pr.idx % pr.farm.length], nq=nid&&TILE_BY[nid]; if (nq && S.res.food < marchFood(pr.t,"attack",travelMs(pr.t,nq,phid))) return; // wait for rations
     var h=pr.hero>0?heroById(pr.hero):null;
-    if (h && C().heroes.indexOf(h)>=0 && (h.away || isOfficer(h))) return; // a named hero: wait for them (Best / Any never wait)
+    if (h && C().heroes.indexOf(h)>=0 && (h.away || seatLocked(h))) return; // a named hero: wait for them (Best / Any never wait)
     var tries=0; while (tries<pr.farm.length && !farmTarget(pr.farm[pr.idx % pr.farm.length])){ pr.farm.splice(pr.idx % pr.farm.length,1); tries++; if (!pr.farm.length) return; }
     var id=pr.farm[pr.idx % pr.farm.length];
     if (pr.fullOnly){ // 0.1.232: only NPC cities and AI lords that will be at full garrison when this march lands; skip ahead in the rotation, or wait
@@ -3233,7 +3250,7 @@ function presetsSection(){
   return h+'</div></div>';
 }
 function presetSheet(pi){
-  var pr=S.presets[pi], fh=S.heroes.filter(function(x){ return !isOfficer(x); });
+  var pr=S.presets[pi], fh=S.heroes.filter(function(x){ return !seatLocked(x); });
   var h='<div class="head"><span class="ico">'+ICON.rally+'</span><div><h2>Edit '+esc(pr.name)+'</h2><div class="sub">'+esc(S.name)+'</div></div></div>';
   h+='<div><label class="sub" for="pname">Name</label><input type="text" id="pname" data-pfield="name" value="'+esc(pr.name)+'" maxlength="24"></div>';
   h+='<div class="btnrow" style="justify-content:flex-end;margin:0"><button class="btn ghost small" data-act="preset-clear" data-p="'+pi+'">Clear all</button></div>';
@@ -3387,7 +3404,7 @@ function hmsPick(el){ var box=el.closest(".hms"); if (!box) return; var ss=box.q
 var waveDraft=null;
 function wavePlan(){
   var d=waveDraft, q=TILE_BY[d.tile], list=[], need=[0,0,0,0,0,0,0,0,0,0,0,0], heroUsed={};
-  S.presets.forEach(function(pr,pi){ for (var k=0;k<(d.n[pi]||0);k++){ var hero=presetHero(pr, heroUsed); var hid = hero && !hero.away && !isOfficer(hero) && !heroUsed[hero.id] ? hero.id : 0; if (hid) heroUsed[hid]=1;
+  S.presets.forEach(function(pr,pi){ for (var k=0;k<(d.n[pi]||0);k++){ var hero=presetHero(pr, heroUsed); var hid = hero && !hero.away && !seatLocked(hero) && !heroUsed[hero.id] ? hero.id : 0; if (hid) heroUsed[hid]=1;
     list.push({pi:pi, t:pr.t.slice(), hero:hid, travel:travelMs(pr.t,q,hid)}); pr.t.forEach(function(n,i){ need[i]+=n; }); } });
   var why="";
   if (!rallyLv()) why="Build a Rally Spot first";
@@ -3914,7 +3931,7 @@ function occupyFlats(){
   for (var k=0;k<list.length;k++){
     var q=list[k];
     if (!presetReady(pr)){ why="the troops for another march aren’t home"; break; }
-    var ph=presetHero(pr), phid=ph&&!ph.away&&!isOfficer(ph)?ph.id:0;
+    var ph=presetHero(pr), phid=ph&&!ph.away&&!seatLocked(ph)?ph.id:0;
     if (pr.hero>0 && !phid){ why="the preset’s hero isn’t free"; break; }
     var tm=travelMs(pr.t,q,phid,"occupy");
     if (S.res.food<marchFood(pr.t,"occupy",tm)){ why="not enough food for rations"; break; }
@@ -4128,7 +4145,7 @@ function renderReports(){
   el.innerHTML=h+'</div>';
 }
 function mapDynamic(){ renderTileInfo(); renderMarchBox(); drawMap(); var oi=document.getElementById("occinfo"); if (oi) oi.textContent=occInfoText(); }
-function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && !isOfficer(h); }); }
+function freeHeroes(){ return S.heroes.filter(function(h){ return !h.away && !seatLocked(h); }); }
 function marchHeroes(){ return freeHeroes().sort(function(a,b){ return hs(b,"atk")-hs(a,"atk") || b.level-a.level; }); }
 function openMarch(tile, mission, mid){
   var friendly = mission==="transport" || mission==="reinforce" || mission==="hide";
@@ -7489,8 +7506,12 @@ function completeFort(){
   var q=S.fortQ; S.forts[q.f]+=q.n; addPrestige(Math.round(q.n*FORTS[q.f].prest));
   note("fort",fmt(q.n)+" "+FORTS[q.f].name+" built"); S.fortQ=null;
 }
+// 0.1.240: troops trained in this city over the last game hour (each finished batch is logged; old entries drop off)
+function trainedLog(c){ c=c||C(); if (!c.trainLog) c.trainLog=[]; var cut=S.gt-3600e3; if (c.trainLog.length && c.trainLog[0].at<cut) c.trainLog=c.trainLog.filter(function(e){ return e.at>=cut; }); return c.trainLog; }
+function trainedLastHour(c){ return trainedLog(c).reduce(function(a,e){ return a+e.n; },0); }
 function completeTrain(ti){
   var t=S.train[ti]; S.troops[t.u]+=t.n; achStore().trained[t.u]+=t.n; addPrestige(Math.round(t.n*PREST_U[t.u]));
+  trainedLog().push({at:S.gt, n:t.n});
   note("train",fmt(t.n)+" "+uname(t.u,t.n)+" trained");
   S.train.splice(ti,1); promoteQueue(t.slot);
 }
@@ -7780,7 +7801,7 @@ function wallChip(){ var h=officer("wallHero");
   if (h) return '<div class="wchip" role="button" tabindex="0" data-act="hero" data-id="'+h.id+'">'+heroPortrait(h,40)+'<span><span class="dur">Wall hero</span><b>'+esc(h.name)+'</b><span class="dur">Atk '+hs(h,"atk")+' \u00b7 Int '+hs(h,"int")+'</span></span></div>';
   return '<button class="btn small" data-act="wh-pick">Assign a wall hero</button>'; }
 function whPickSheet(){
-  var free=S.heroes.filter(function(x){ return !x.away && !isOfficer(x); }).sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); });
+  var free=S.heroes.filter(function(x){ return !x.away && !seatLocked(x); }).sort(function(a,b){ return hs(b,"atk")-hs(a,"atk"); });
   var h='<div class="head"><span class="ico">'+ICON.walls+'</span><div><h2>Wall hero</h2><div class="sub">Leads '+esc(S.name)+'\u2019s troops whenever the city is attacked</div></div></div>'+
     '<p class="hint">With no wall hero, no hero leads the defense. Attack makes the defenders hit harder, intelligence makes them harder to kill. Office holders and marching heroes aren\u2019t listed.</p>';
   h+=free.length?'<div class="herolist">'+free.map(function(x){ return '<div class="hcard" style="grid-template-columns:56px 1fr auto">'+heroPortrait(x,56)+'<div class="hcb"><b class="hn" style="font:700 1rem var(--display)">'+esc(x.name)+'</b><div class="dur"><span style="color:'+TIERS[x.tier].color+';font-weight:700">'+TIERS[x.tier].name+'</span> \u00b7 Lv '+x.level+'</div><div class="hcs"><span>Atk <b>'+hs(x,"atk")+'</b></span><span>Int <b>'+hs(x,"int")+'</b></span></div></div><button class="btn small" data-act="wh-set" data-id="'+x.id+'">Choose</button></div>'; }).join("")+'</div>'
@@ -7859,6 +7880,24 @@ function heroPortrait(h, px, ext){ // ext: {k: account key, hu: picture version}
   if (!src && h && h.tier==="historic" && HPORT_BUILTIN[h.name]) src=HPORT_BUILTIN[h.name];
   return '<span class="hport" style="width:'+px+'px;height:'+px+'px;box-shadow:0 0 0 2px '+(TIERS[h.tier]||TIERS.common).color+'">'+(src?'<img alt="" loading="lazy" src="'+esc(src)+'" onerror="this.style.display=\'none\'">':'')+heroDrawn(h, px)+'</span>';
 }
+// 0.1.238: the hero sheet's actions in one place at the top: office, experience books (folded, with Use all), reset points, dismiss
+var XP_BOOKS=["primer","tome","codex","annals"];
+function bookXpAll(){ return XP_BOOKS.reduce(function(a,bk){ return a+(S.items[bk]||0)*ITEMS[bk].xp; },0); }
+function bookCount(){ return XP_BOOKS.reduce(function(a,bk){ return a+(S.items[bk]||0); },0); }
+function heroActionsHtml(hr){
+  var hoff=officeOf(hr), spentPts=heroSpent(hr), rsWait=respecWait(hr), nb=bookCount(), canRead=hr.level<HERO_MAX;
+  var h='<div class="section hacts"><div class="h3" style="margin-top:0">Office</div><div class="btnrow">'+
+    (hoff?'<button class="btn ghost" data-act="unoffice">Step down as '+hoff[1].toLowerCase()+'</button>':OFFICES.map(function(o){ return '<button class="btn'+(o[0]==="mayor"?'':' ghost')+' small" data-act="office" data-role="'+o[0]+'">'+o[1]+'</button>'; }).join(""))+'</div>';
+  h+='<details class="det" data-det="hbooks"'+(DET.hbooks?' open':'')+'><summary><b>Experience books</b> <span class="dur">'+(nb?nb+' book'+(nb===1?'':'s')+', +'+fmt(bookXpAll())+' experience':'none')+'</span></summary>'+
+    '<div class="gearlist">'+XP_BOOKS.map(function(bk){ var n=S.items[bk]||0; return '<div class="gearrow"><span class="gn"><b>'+ITEMS[bk].name+'</b><div class="dur">+'+fmt(ITEMS[bk].xp)+' each</div></span><span class="gb">'+n+'</span>'+
+      '<span class="btnrow" style="grid-column:1/-1;margin-top:4px"><button class="btn small" data-act="tome" data-book="'+bk+'"'+(n&&canRead?'':' disabled')+'>Use 1</button><button class="btn ghost small" data-act="tome-all" data-book="'+bk+'"'+(n>1&&canRead?'':' disabled')+'>Use all '+(n>1?'('+n+')':'')+'</button></span></div>'; }).join("")+'</div>'+
+    '<div class="btnrow" style="margin-top:6px"><button class="btn small" data-act="tome-every"'+(nb&&canRead?'':' disabled')+'>'+(armed==="tomeevery"?'Tap again: read all '+nb+' books (+'+fmt(bookXpAll())+')':'Use every book')+'</button></div></details>';
+  h+='<div class="btnrow" style="margin-top:8px"><button class="btn ghost small" data-act="respec"'+(spentPts&&!rsWait?'':' disabled')+'>'+(rsWait?"Reset points: again in "+fmtT(rsWait):armed==="respec"?"Tap again: take back "+spentPts+" point"+(spentPts>1?"s":""):"Reset points"+(spentPts?" ("+spentPts+")":""))+'</button></div></div>';
+  return h; }
+// read books until they run out (or the hero can't level further); returns [books read, levels gained, experience given]
+function readBooks(h, kinds){ var read=0, ups=0, xp=0;
+  kinds.forEach(function(bk){ while ((S.items[bk]||0)>0 && h.level<HERO_MAX){ S.items[bk]--; read++; xp+=ITEMS[bk].xp; ups+=giveXp(h, ITEMS[bk].xp); } });
+  return [read, ups, xp]; }
 function heroImageFromFile(h, f){
   if (!f || !h) return; if (f.type && !/^image\//.test(f.type) && !/\.(png|jpe?g|webp|gif|bmp|avif|heic|heif)$/i.test(f.name||"")){ toast("That file isn’t an image"); return; }
   var url=URL.createObjectURL(f), img=new Image();
@@ -7951,14 +7990,12 @@ function viewHeroes(){
     return '<div class="empty-state"><p>Build a Feasting Hall to house heroes and an Inn to hire them. Legendary heroes won on the wheel wait at the gate until you have room; lesser ones move on.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
   var mb=mayorBonus(), anyOff=OFFICES.some(function(o){ return officer(o[0]); });
   h+='<div class="section"><div class="shead"><h3>Offices</h3><span class="dur">'+OFFICES.filter(function(o){ return officer(o[0]); }).length+' of '+OFFICES.length+' filled</span></div>'+
-    '<p class="hint">Four jobs, four heroes. Office holders stay home (they never appear in march lists) and earn experience while they serve. Appoint from a hero\u2019s page. The wall hero leads your troops whenever this city is attacked: with no wall hero, no hero leads the defense. The wall hero keeps working even when the treasury is empty.</p><div class="gearlist">'+
+    '<p class="hint">Four jobs, four heroes. A hero you seat yourself stays home (never in a march list); a seat auto-fill hands out doesn\u2019t hold its hero back. Officers earn experience while they serve. Appoint from a hero\u2019s page. The wall hero leads your troops whenever this city is attacked: with no wall hero, no hero leads the defense. The wall hero keeps working even when the treasury is empty.</p><div class="gearlist">'+
     OFFICES.map(function(o){ var oh=officer(o[0]), eff = o[0]==="mayor" ? 'production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster' : o[0]==="trainer" ? 'training '+pct(mb.train)+' faster' : o[0]==="wallHero" ? 'leading the defense' : 'research '+pct(1-1/(1+mb.research))+' faster';
-      return '<div class="gearrow"><span class="gn">'+o[1]+'</span><span class="gb">'+(oh?esc(oh.name)+' ('+STATN[o[2]].slice(0,3)+' '+hs(oh,o[2])+')':'vacant')+'</span><span class="dur" style="grid-column:1/-1">'+o[3]+' ('+STATN[o[2]]+').'+(oh?' Now: '+eff+'.':'')+'</span></div>'; }).join("")+'</div>';
+      return '<div class="gearrow"><span class="gn">'+o[1]+'</span><span class="gb">'+(oh?esc(oh.name)+' ('+STATN[o[2]].slice(0,3)+' '+hs(oh,o[2])+')'+(oh.autoSeat&&o[0]!=="wallHero"?' <span class="dur">auto</span>':''):'vacant')+'</span><span class="dur" style="grid-column:1/-1">'+o[3]+' ('+STATN[o[2]]+').'+(oh?' Now: '+eff+'.':'')+'</span></div>'; }).join("")+'</div>';
   if (anyOff && S.res.gold<=0 && salary()>0) h+='<p class="warn">Your treasury is empty, so your mayor, trainer and researcher have stopped working (the wall hero stays on the wall). Raise taxes or trade for gold.</p>';
-  var bp=bestFor("pol"), bi=bestFor("int"), ba=bestFor("atk");
-  h+='<label class="chk" style="margin-top:8px"><input type="checkbox" id="automayor"'+(S.autoMayor?' checked':'')+'> Auto-swap the best hero into each job</label>'+
-    (S.autoMayor?'<p class="hint">Each time something starts, the best hero at home briefly takes that office, then hands it back. Your appointed mayor still sets production.</p>'+
-      '<div class="us" style="margin-top:4px"><span>Building <b>'+(bp?esc(bp.name)+' ('+hs(bp,"pol")+')':'nobody')+'</b></span><span>Research <b>'+(bi?esc(bi.name)+' ('+hs(bi,"int")+')':'nobody')+'</b></span><span>Training <b>'+(ba?esc(ba.name)+' ('+hs(ba,"atk")+')':'nobody')+'</b></span></div>':'');
+  h+='<label class="chk" style="margin-top:8px"><input type="checkbox" id="automayor"'+(S.autoMayor?' checked':'')+'> Auto-fill each seat with the best free hero</label>'+
+    (S.autoMayor?'<p class="hint">Each seat is kept filled with the best free hero for its job (Politics for the mayor, Attack for the trainer, Intelligence for the researcher), one seat per hero. A seat marked <i>auto</i> doesn\u2019t keep its hero home: he still marches, the next best hero holds the seat while he\u2019s away, and he gets it back when he\u2019s home. A seat you pick yourself is locked (no marches) and auto-fill leaves it alone. The wall hero is always yours to pick.</p>':'<p class="hint">You pick every officer. An empty seat does no work: no mayor means no production bonus, no trainer means no training bonus, no researcher means no research bonus.</p>');
   h+='</div>';
   h+='<div class="section"><div class="shead"><h3>Feasting Hall</h3><span class="dur">'+S.heroes.length+' / '+cap+' heroes'+(salary()?', salaries '+fmt(salary())+' gold/h':'')+'</span></div>';
   if (!cap) h+='<p class="hint">Build a Feasting Hall to keep heroes.</p>';
@@ -10872,7 +10909,7 @@ function viewArmy(){
     '<p class="hint">Troops eat food but never starve; food just stops at zero. Training draws from idle people (population not working the fields): <b id="idlepop"></b> right now.</p>'+troopTotals();
   if (!bl.length) h+='<p class="warn">Build a Barracks on an empty city plot to train troops.</p>';
   var sp=hasSpeedups(), nBusy=bl.filter(function(sl){ return trainingAt(sl); }).length, lastEnd=0; bl.forEach(function(sl){ if (trainingAt(sl)) lastEnd=Math.max(lastEnd, slotFree(sl)); });
-  if (bl.length) h+='<details class="det" data-det="barr"'+(DET.barr?' open':'')+' style="margin-top:6px"><summary><b>Barracks</b> <span class="dur">'+bl.length+' \u00b7 '+nBusy+' training, '+(bl.length-nBusy)+' idle'+(lastEnd?' \u00b7 all done '+trClock(lastEnd):'')+'</span></summary>';
+  if (bl.length) h+='<details class="det" data-det="barr"'+(DET.barr?' open':'')+' style="margin-top:6px"><summary><b>Barracks</b> <span class="dur">'+bl.length+' \u00b7 '+nBusy+' training, '+(bl.length-nBusy)+' idle'+(lastEnd?' \u00b7 all done '+trClock(lastEnd):'')+' \u00b7 '+fmt(trainedLastHour())+' trained in the last hour</span></summary>';
   bl.forEach(function(slot,n){
     var t=trainingAt(slot);
     h+='<div class="bq"><span>Barracks '+(n+1)+', level '+S.inside[slot].level+(t?': '+fmt(t.n)+' '+uname(t.u,t.n):'<span class="dur"> '+idleWhy(slot)+'</span>')+'</span>';
@@ -11690,10 +11727,11 @@ function renderSheetCore(){
     if (!hr){ closeSheet(); return; }
     var isM = S.mayor===hr.id, need=xpNeed(hr.level);
     var renameRow = hr.fixedName ? '<p class="hint">'+esc(hr.name)+' keeps this name.</p>' : hr.tier==="queen" ? '<div><label class="sub" for="hname">Name</label><div style="display:flex;align-items:center;gap:6px"><b>Queen</b><input type="text" id="hname" maxlength="22" style="flex:1" value="'+esc(hr.name.replace(/^Queen\s+/i,""))+'"></div></div>' : hr.tier!=="historic" ? '<div><label class="sub" for="hname">Name</label><input type="text" id="hname" maxlength="28" value="'+esc(hr.name)+'"></div>' : '<p class="hint">Historic heroes keep their names.</p>';
-    h='<div class="hhead">'+heroPortrait(hr,128)+'<div style="min-width:0"><h2 id="hname-h" style="margin:0;overflow-wrap:anywhere">'+esc(hr.name)+' <button class="hfav'+(hr.fav?' on':'')+'" data-act="hero-fav" data-id="'+hr.id+'" aria-label="Favourite">'+(hr.fav?'\u2605':'\u2606')+'</button></h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase():'')+'</div>'+
+    h='<div class="hhead">'+heroPortrait(hr,128)+'<div style="min-width:0"><h2 id="hname-h" style="margin:0;overflow-wrap:anywhere">'+esc(hr.name)+' <button class="hfav'+(hr.fav?' on':'')+'" data-act="hero-fav" data-id="'+hr.id+'" aria-label="Favourite">'+(hr.fav?'\u2605':'\u2606')+'</button></h2><div class="sub"><span style="color:'+TIERS[hr.tier].color+';font-weight:700">'+TIERS[hr.tier].name+'</span>, level '+hr.level+(officeOf(hr)?', '+officeOf(hr)[1].toLowerCase()+(hr.autoSeat&&officeOf(hr)[0]!=="wallHero"?' (auto)':''):'')+'</div>'+
       '<div class="btnrow" style="margin-top:6px"><button class="btn ghost small" data-act="hero-pic">'+(hr.pic?'Change picture':'Add a picture')+'</button>'+(hr.pic?'<button class="link" data-act="hero-picdel">Remove</button>':'')+'</div><input type="file" id="heroimgf" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif,.heic,.heif" hidden>'+
       '<p class="dur" style="margin:4px 0 0">'+(hr.fav?'A favourite: pinned to the top and can\u2019t be dismissed.':'Tap the star to make a favourite.')+' Pictures are seen by other players.</p></div></div>';
     h+=renameRow;
+    h+=heroActionsHtml(hr); // 0.1.238: office, experience books, reset points and dismiss, together at the top
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
     h+='<div class="statgrid">';
     [["pol","Politics","Production and building speed as mayor"],["atk","Attack","Training speed as trainer, +1% troop attack per point in battle"],["int","Intelligence","Research speed as researcher; in battle every troop's defense +1% per point (damage taken can drop by half at most), and marches 1% faster per point"]].forEach(function(s){
@@ -11717,13 +11755,7 @@ function renderSheetCore(){
         '<span class="btnrow" style="grid-column:1/-1;margin-top:4px"><button class="btn small" data-act="gset-load" data-i="'+gsi+'"'+(gin&&gin.have?'':' disabled')+'>Equip</button><button class="btn ghost small" data-act="gset-save" data-i="'+gsi+'">'+(armed==="gsave"+gsi?'Tap again to overwrite':'Save current gear')+'</button></span></div>';
     }
     h+='</div>';
-    var hoff=officeOf(hr);
-    h+='<div class="btnrow">'+(hoff?'<button class="btn ghost" data-act="unoffice">Step down as '+hoff[1].toLowerCase()+'</button>':OFFICES.map(function(o){ return '<button class="btn'+(o[0]==="mayor"?'':' ghost')+'" data-act="office" data-role="'+o[0]+'">'+o[1]+'</button>'; }).join(""))+
-      ["primer","tome","codex","annals"].map(function(bk){ return '<button class="btn ghost small" data-act="tome" data-book="'+bk+'"'+((S.items[bk]||0)&&hr.level<HERO_MAX?'':' disabled')+'>'+ITEMS[bk].name+' +'+fmt(ITEMS[bk].xp)+' ('+(S.items[bk]||0)+')</button>'; }).join("")+'</div>';
-    var spentPts=heroSpent(hr);
-    var rsWait=respecWait(hr);
-    h+='<div class="act"><button class="btn ghost small" data-act="respec"'+(spentPts&&!rsWait?'':' disabled')+'>'+(rsWait?"Reset points: again in "+fmtT(rsWait):armed==="respec"?"Tap again: take back "+spentPts+" point"+(spentPts>1?"s":""):"Reset points"+(spentPts?" ("+spentPts+")":""))+'</button></div>'+
-      '<div class="act"><button class="btn ghost danger small" data-act="dismiss">'+(armed==="dismiss"?"Tap again to dismiss":"Dismiss hero")+'</button><button class="closebtn" data-act="close">Close</button></div>';
+    h+='<div class="act" style="margin-top:14px"><button class="btn ghost danger small" data-act="dismiss"'+(hr.fav?' disabled':'')+'>'+(armed==="dismiss"?"Tap again to dismiss":"Dismiss hero")+'</button><button class="closebtn" data-act="close">Close</button></div>'; // 0.1.239: dismiss sits at the very bottom, away from Reset points
   } else {
     var w=sheetFor.w, i=sheetFor.i, s=getSlot(w,i);
     if (!s){
@@ -11925,6 +11957,7 @@ function idleWhy(slot){
     : "idle: line "+(li0+1)+" only needs units a level "+lv+" Barracks can\u2019t train";
 }
 function processQueues(){
+  autoOffices(); // 0.1.239: seats first, so the timers below use the right officers
   autoTrainStep(); autoFortStep(); autoHealStep();
   for (var k=0; k<S.bq.length && builderFree(); ){
     var st=bqState(S.bq[k]);
@@ -12678,7 +12711,7 @@ document.addEventListener("click",function(e){
     farmArmed=false; S.presets.forEach(function(pr,pi){ pr.farm=[]; pr.idx=0; pr.auto=false; delete farmMsg[C().id+":"+pi]; }); toast("Every farm list in "+S.name+" is cleared"); lastView=""; refresh(); return; }
   if (act==="farm-clear"){ var fc2=S.presets[+a.dataset.p]; fc2.farm=[]; fc2.idx=0; fc2.auto=false; lastSheet=""; renderSheet(); save(); return; }
   if (act==="march-preset"){ var mp=S.presets[+a.dataset.p], mav=draftAvail(); marchDraft.t=mp.t.map(function(n,i){ return Math.min(n,mav[i]); });
-    var mh=presetHero(mp); marchDraft.hero = marchDraft.from ? marchDraft.hero : (mh && !mh.away && !isOfficer(mh) ? mh.id : 0); marchDraft.preview=""; lastSheet=""; renderSheet(); return; }
+    var mh=presetHero(mp); marchDraft.hero = marchDraft.from ? marchDraft.hero : (mh && !mh.away && !seatLocked(mh) ? mh.id : 0); marchDraft.preview=""; lastSheet=""; renderSheet(); return; }
   if (act==="waves-mode"){ waveDraft.mode=a.dataset.v; lastSheet=""; renderSheet(); return; }
   if (act==="waves-fill"){ var wpl=wavePlan(), ws=document.getElementById("wstart"), we=document.getElementById("wevery"); waveDraft.start=ws?ws.value:waveDraft.start; waveDraft.every=Math.max(0,Math.floor(+(we?we.value:waveDraft.every)||0));
     var w0=wvParse(waveDraft.start); if (w0==null){ toast("Pick the first landing time"); return; }
@@ -12779,7 +12812,7 @@ document.addEventListener("click",function(e){
   if (act==="spin10"){ doSpin10(); return; }
   if (act==="hero"){ openSheet({kind:"hero",id:+a.dataset.id}); return; }
   if (act==="wh-pick"){ openSheet({kind:"whpick"}); return; }
-  if (act==="wh-set"){ var whh=heroById(+a.dataset.id); if (!whh || whh.away || isOfficer(whh)) return; S.wallHero=whh.id; save(); closeSheet(); lastView=""; refresh(); toast(whh.name+" now holds the walls of "+S.name); return; }
+  if (act==="wh-set"){ var whh=heroById(+a.dataset.id); if (!whh || whh.away || seatLocked(whh)) return; S.wallHero=whh.id; save(); closeSheet(); lastView=""; refresh(); toast(whh.name+" now holds the walls of "+S.name); return; }
   if (act==="hero-recmode"){ HREC_MODE=a.dataset.m==="pvp"?"pvp":"rec"; lastSheet=""; renderSheet(); return; }
   if (act==="hero-fav"){ var fh=heroById(+a.dataset.id); if (fh){ fh.fav=!fh.fav; save(); lastSheet=""; renderSheet(); lastView=""; refresh(); toast(fh.fav?fh.name+" is a favourite":fh.name+" is no longer a favourite"); } return; }
   if (act==="hero-pic"){ var hfi=document.getElementById("heroimgf"); if (hfi) hfi.click(); return; }
@@ -12791,13 +12824,19 @@ document.addEventListener("click",function(e){
   if (act==="ptall"){ var ha=heroById(sheetFor.id); if (ha && ha.pts>0){ var np=ha.pts; ha[a.dataset.stat]+=np; ha.pts=0; toast("+"+np+" "+STATN[a.dataset.stat]+" for "+ha.name); save(); } refresh(); return; }
   if (act==="pt"){ var hh=heroById(sheetFor.id); if (hh && hh.pts>0){ hh[a.dataset.stat]++; hh.pts--; } refresh(); return; }
   if (act==="office"||act==="mayor"){ var role=a.dataset.role||"mayor", oh=heroById(sheetFor.id); if (!oh) return; if (oh.away){ toast("That hero is away on a march"); return; }
-    OFFICES.forEach(function(o){ if (S[o[0]]===oh.id) S[o[0]]=null; }); S[role]=oh.id;
-    var ofl=OFFICES.filter(function(o){ return o[0]===role; })[0]; toast(oh.name+" is now "+(ofl?ofl[1].toLowerCase():role)); save(); lastSheet=""; refresh(); return; }
-  if (act==="unoffice"||act==="unmayor"){ OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; }); save(); lastSheet=""; refresh(); return; }
+    OFFICES.forEach(function(o){ if (S[o[0]]===oh.id) S[o[0]]=null; }); var prev=officer(role); if (prev) prev.autoSeat=false; S[role]=oh.id; oh.autoSeat=false; // a hand pick is locked
+    var ofl=OFFICES.filter(function(o){ return o[0]===role; })[0]; toast(oh.name+" is now "+(ofl?ofl[1].toLowerCase():role)+(role!=="wallHero"?" (a seat you pick is locked: no marches, and auto-fill leaves it alone)":"")); save(); lastSheet=""; refresh(); return; }
+  if (act==="unoffice"||act==="unmayor"){ OFFICES.forEach(function(o){ if (S[o[0]]===sheetFor.id) S[o[0]]=null; }); var uh=heroById(sheetFor.id); if (uh) uh.autoSeat=false; autoOffices(); save(); lastSheet=""; refresh(); return; }
   if (act==="tome"){
     var bkk=a.dataset.book||"tome", th=heroById(sheetFor.id); if (!th || !(S.items[bkk]>0)) return;
     S.items[bkk]--; var up=giveXp(th, ITEMS[bkk].xp);
     toast(up ? th.name+" reached level "+th.level : th.name+" gained "+fmt(ITEMS[bkk].xp)+" experience"); refresh(); return;
+  }
+  if (act==="tome-all" || act==="tome-every"){ // 0.1.238
+    var tha=heroById(sheetFor.id); if (!tha) return;
+    if (act==="tome-every" && armed!=="tomeevery"){ armed="tomeevery"; lastSheet=""; renderSheet(); return; } armed=null;
+    var rb=readBooks(tha, act==="tome-all"?[a.dataset.book]:XP_BOOKS); if (!rb[0]){ toast("No books to read"); return; }
+    toast(tha.name+" read "+rb[0]+" book"+(rb[0]===1?"":"s")+" (+"+fmt(rb[2])+" experience)"+(rb[1]?" and reached level "+tha.level:"")); refresh(); return;
   }
   if (act==="respec"){
     var rh=heroById(sheetFor.id); if (!rh || !heroSpent(rh)) return;
@@ -12940,7 +12979,7 @@ document.addEventListener("change",function(e){ markDirty();
   if (e.target.id==="autotrain"){ S.autoTrain=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="autoheal"){ S.autoHeal=e.target.checked; if (S.autoHeal) autoHealStep(); save(); processQueues(); lastView=""; refresh(); }
   if (e.target.id==="autofort"){ S.autoFort=e.target.checked; save(); processQueues(); lastView=""; refresh(); }
-  if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; save(); lastView=""; refresh(); }
+  if (e.target.id==="automayor"){ S.autoMayor=e.target.checked; autoOffices(); save(); lastView=""; refresh(); }
   if (e.target.dataset.farmlvl!=null){ var flp=+e.target.dataset.farmlvl, flr=S.presets[flp]; flr.farmLevel=+e.target.value||null; if (flr.farmMode){ farmRebuild([flp]); var flm=farmMsg[C().id+":"+flp]; if (flm) toast(flr.name+": "+flm.t); } lastView=""; refresh(); return; }
   if (e.target.id==="phero"){ S.presets[sheetFor.p].hero=+e.target.value; save(); }
   if (e.target.id==="pstop"){ S.presets[sheetFor.p].stopOnLoss=e.target.checked; save(); }

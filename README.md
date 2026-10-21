@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.237
+Version 0.1.240
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,14 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.240** "Trained in the last hour" on the Army tab's Barracks line: the troops this city finished training over the last game hour (each finished batch is logged on the city as `trainLog`; entries older than an hour drop off). Phone only; no save change (older saves start at 0). Test: `t/t101.py`.
+- **0.1.239** Offices do their own jobs. Phone only; no save change, no server change.
+  - **Each seat does its own work now.** The mayor's Politics sets building speed and production, the trainer's Attack sets training speed, the researcher's Intelligence sets research speed, and nobody fills in for an empty seat. Before, with auto-swap on, the best hero at home quietly did every job (`bestFor` ignored the seats), so Trainer and Researcher were decoration that only kept a hero out of the march list.
+  - **Auto-fill** (the old auto-swap box, same save flag) keeps the mayor, trainer and researcher seats filled with the best free hero for each stat, one seat per hero (`autoOffices`, run each tick per city). A seat it hands out is *soft* (`h.autoSeat`, marked "auto" on the Offices panel and the hero's page): the hero still marches; while he's away the next best free hero holds the seat, and he gets it back when he's home and still the best. A seat you pick yourself is locked as before (no marches) and auto-fill leaves it alone; Step down hands it back to auto-fill. The wall hero is always yours. `seatLocked(h)` is the "kept home" test everywhere that used to ask `isOfficer`.
+  - **Dismiss hero** is back at the very bottom of the hero sheet, under the gear presets, so it can't be hit while tapping Reset points. Test: `t/t100.py`.
+- **0.1.238** The hero sheet's actions, together at the top. Phone only; no save change, no server change.
+  - Right under the hero's name: an **Office** row (Mayor, Trainer, Researcher, Wall hero, or Step down), an **Experience books** dropdown (folded; its header says how many books you hold and what they're worth), then Reset points and Dismiss hero. The loose row of office buttons, four book buttons, Reset and Dismiss at the bottom of the sheet is gone; Close stays at the bottom.
+  - Each book has **Use 1** and **Use all (N)**; **Use every book** reads all four kinds (it asks for a second tap). The toast says how many were read, the experience given and the level reached. Books stop when the hero can't level further. `readBooks(hero, kinds)`, `XP_BOOKS`. Test: `t/t99.py`.
 - **0.1.237** The Alliance tab and calling rallies. Phone only; no save change, no server change.
   - **The Alliance tab opens on Battle › Rallies**, and the Chat page is gone: alliance chat lives in the chat dock at the bottom (the same place as world chat and private messages), where its unread count is cleared. The groups are now Battle, Map, Build, People, with Rallies first under Battle. Anything that used to point at the Chat page lands on Rallies.
   - **Calling a rally leaves from the city you're on.** The "Leaves from" pick used to remember the last call's city.
