@@ -1,11 +1,12 @@
 # Ibory (phone app)
 
-Version 0.1.234
+Version 0.1.235
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
 ## Files
 - `index.html`: the whole game
+- `art/`: the pictures (hero portraits, decoration packs, map sprites). Every file in it is listed in `sw.js` (`ART`); run `python3 art/tools/build_art.py` from the bundle root after adding or renaming one.
 - `sw.js`: offline worker. **Bump `CACHE` (ibory-vX.Y.Z) and `APP_VERSION` in index.html on every release.**
 - `manifest.webmanifest` and three icons (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`)
 
@@ -14,7 +15,7 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 2. Open the site in Chrome on Android, menu, **Install app** / **Add to Home screen**.
 
 ## Updating the phone
-1. Replace `index.html` and `sw.js` in the repo (keep the other files).
+1. Replace `index.html` and `sw.js` in the repo (keep the other files), and `art/` when any picture changed (0.1.235 and later; the first time, upload the whole folder).
 2. Open the app online, close it fully, then open it again.
 
 ## Saves
@@ -23,6 +24,11 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.235** Smaller, lighter on the phone. No save change; no server change. **Deploy the new `art/` folder along with `index.html` and `sw.js`** (one time; after that only pictures that change need uploading).
+  - **The art is files now.** 2 MB of base64 (57% of index.html: the hero portraits, decoration packs, vampires, wizards, roads and the NPC/historic tiles) moved to `art/` as 67 PNG/JPG files with the same bytes. index.html went from 3.49 MB to 1.52 MB (1.96 MB to 467 KB gzipped), so an update downloads a quarter of what it did and the phone parses a third as much script on every cold start. The offline worker precaches `art/` (`ART` in sw.js) and, on an update, copies pictures over from the previous cache instead of fetching them again. `art/tools/build_art.py` keeps that list in step; `art/tools/split_art.mjs` moves any new base64 out of index.html; `build_heroes.py` writes portrait files now. Test: `t/t96.py`.
+  - **Saving on a dirty flag.** The game serialised all of its state to localStorage every 5 seconds whether or not anything had changed. It now writes when something marked the game changed (a tap, a finished job, a march, healing, the inn) or after a minute regardless; every explicit save in the game is still immediate, and leaving the app still saves. A failed save (storage full or blocked) used to be swallowed silently; it now toasts once and shows under Settings › Saving (`saveErr`). The save code in Settings is built once when you open it instead of twice a second. Test: `t/t97.py`.
+  - **In the background, only the clock runs.** With the app hidden, the half-second tick still advances the game and raises notifications for finished jobs, but no longer redraws, polls invasions or runs the Battlefield; the high-scores, cloud-save and rescue-copy timers wait until the app is back in front (leaving the app already saves once on the way out).
+  - The app looks for a new build when it comes back to the front (at most every 10 minutes) and says "Ibory has updated. Close the app fully and open it again" once the new version has been fetched; before, a new build was only picked up by Force update.
 - **0.1.234** Seven fixes from the 0.1.232 code review. No save change; no server change.
   - **Rally and Arena marches no longer come home whole when the result arrives late.** Any march still out 15 minutes after the hit was sent home with its full army and no report, and that fired before the first sync after reopening the app, so closing the app during a rally skipped the losses, the wounded and the report (and was a way to dodge losses). The 15-minute fallback now waits until the server has really answered after the grace period, and never fires while the server still lists the fight as running (`lateMarchLost`, `ALS.resAt`). Solo Arena fights are decided on the phone, so they keep the plain clock. Test: `t/t95.py`.
   - **A queued barracks batch no longer finishes the moment the page reloads.** Batches waiting behind a busy Barracks were saved with `end:Infinity`, which JSON writes as `null`, and `advance()` took that as "due now". Queued batches now carry `end:0`, the scheduler skips them, and older saves are repaired on load. Test: `t/t94.py`.
