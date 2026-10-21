@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.240
+Version 0.1.242
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,12 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.242** Auto-fill picks the right hero for each seat. Phone only; no save change, no server change. The three seats are now filled together instead of one after another: the mayor seat used to grab an all-round hero first (best Politics *and* best Attack), so the trainer seat got the second-best Attack hero and main trainers ended up as mayors or researchers. Now every assignment of free heroes to the open seats is scored by each hero's stat relative to the best on offer for that seat, and the highest total wins; a sitting holder keeps the seat on a tie. Hand-picked seats and the wall hero are left out as before. Test: `t/t100.py` (the tester's case and a scarce-scholar case).
+- **0.1.241** 21 new War College puzzles in three tiers (93 in all). Phone only; no save change, no server change. Every threshold was set on the engine with the design doc's reference gear (decent → Commanding, high → Masterful, x1.1), replayed in the game, and checked against lazy single-troop plans (which earn Victory at most).
+  - **Beast Hunts** (after NPC cities): the four map monsters at tiers I to III, each lair allowing only some troops so the easy answer is gone. Troll Warren (no siege engines: Archers, enough of them, before the horde arrives), Behemoth Hollow (no Ballistas or Catapults: Rams take the Rams), Hydra Marsh (no horse: Rams soak the volleys), Wyvern Crag (no siege: a firefight against cavalry; this one bleeds). The small Troll and Behemoth hunts are smallest-army puzzles; the rest are loss puzzles. One to three waves.
+  - **Precision Strikes**: NPC cities 2, 4, 6, 8 and 10, one wave, rated by how few troops you send (`mode:"sent"`); losses don't count. A level 2 falls to six Catapults; a level 10 wants about 20,000. New goal type in `wcRating` (`{sent:N}`); the result box and bests show "sent".
+  - **Warlords' Camps** (after the Citadels): four bully strongholds of 300,000 troops in the warlord's style (Brute, Raider, Tactician, Sieger), level 9 wall, heavy fortifications, a 126-Attack hero, five waves, each with its own allowed troops. Losses in the tens of thousands; Masterful needs high gear.
+  - The design harness is in `war-college-tools/wc/` (README there). The `hint` strings on puzzles are data only, as before.
 - **0.1.240** "Trained in the last hour" on the Army tab's Barracks line: the troops this city finished training over the last game hour (each finished batch is logged on the city as `trainLog`; entries older than an hour drop off). Phone only; no save change (older saves start at 0). Test: `t/t101.py`.
 - **0.1.239** Offices do their own jobs. Phone only; no save change, no server change.
   - **Each seat does its own work now.** The mayor's Politics sets building speed and production, the trainer's Attack sets training speed, the researcher's Intelligence sets research speed, and nobody fills in for an empty seat. Before, with auto-swap on, the best hero at home quietly did every job (`bestFor` ignored the seats), so Trainer and Researcher were decoration that only kept a hero out of the march list.
