@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.235
+Version 0.1.237
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,10 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.237** The Alliance tab and calling rallies. Phone only; no save change, no server change.
+  - **The Alliance tab opens on Battle › Rallies**, and the Chat page is gone: alliance chat lives in the chat dock at the bottom (the same place as world chat and private messages), where its unread count is cleared. The groups are now Battle, Map, Build, People, with Rallies first under Battle. Anything that used to point at the Chat page lands on Rallies.
+  - **Calling a rally leaves from the city you're on.** The "Leaves from" pick used to remember the last call's city.
+  - **Send your own march with the call.** The call sheet has "Send my own march right after calling" (on by default): as soon as the server lists the new rally, your march form opens on it from the city you're on, so you don't have to find your own rally on the Rallies tab and join it. Untick it to only call. Test: `t/t98.py` (against the local worker).
 - **0.1.236** Server hardening. **Worker only: deploy the worker; the phone files are unchanged (still 0.1.235).** No save change. Accounts, tokens and push subscriptions all carry over; nobody is signed out.
   - **Passwords and sign-ins.** Password hashes move from 2,000 to 20,000 PBKDF2 rounds (`PASS_ITERS`; each row remembers its own count in a new `iters` column and is re-hashed on its next good login, so old accounts migrate on their own). New accounts need 8+ characters; existing ones keep theirs. Session tokens are stored hashed (`backups.token` is now a JSON list of hashes, up to 5 devices; a plain token from before is accepted once and hashed on the spot). Each sign-in hands out a token of its own; earlier devices stay signed in until the sixth, and Sign out other devices still clears them all. Wrong-password locks now escalate (every tenth wrong guess locks for 15 min, 30, 60 … up to a day; the count no longer resets), and 30 wrong passwords from one address lock that address for an hour, whatever the account (`auth_ip`).
   - **Admin key.** Compared in constant time; five wrong keys lock the address for an hour.

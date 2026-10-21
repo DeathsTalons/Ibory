@@ -828,7 +828,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.235";
+var APP_VERSION = "0.1.237";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var SAVE_V = 48; // the save format this build writes (the last migrate step sets s.v to it); newer saves are refused everywhere they can come in
@@ -4552,7 +4552,7 @@ function lbFetch(cat){
     .catch(function(){ lbBusy=false; lbErr="Couldn\u2019t reach the high scores. Check your connection."; lastSheet=""; renderSheet(); });
 }
 /* ---------- player alliances (need a cloud save; the server keeps everything) ---------- */
-var ALS={d:null, list:null, chat:[], top:0, busy:false, err:"", msg:"", sub:"chat", last:0, listAt:0, listBusy:false, sort:"prestige", armed:null, aid:null};
+var ALS={d:null, list:null, chat:[], top:0, busy:false, err:"", msg:"", sub:"rally", last:0, listAt:0, listBusy:false, sort:"prestige", armed:null, aid:null};
 var AL_PERM_NAMES={accept:"Answer applications", kick:"Remove members", promote:"Change ranks", desc:"Edit the description", chat:"Moderate chat", bank:"Spend the alliance bank", map:"Move things on the alliance map", monster:"Summon monsters", research:"Start alliance research"};
 function alOn(){ return cbOn(); }
 /* ---------- single player / multiplayer ----------
@@ -4597,6 +4597,7 @@ function alSync(){
     if (ALS.chat.length>1000) ALS.chat=ALS.chat.slice(-1000);
     if (tab==="guild" && ALS.sub==="chat" && ALS.top>(S.alSeen||0)) S.alSeen=ALS.top;
     alRender();
+    if (ALS.onSync){ var fnS=ALS.onSync; ALS.onSync=null; try { fnS(); } catch(e2){} }
   }).catch(function(e){ ALS.busy=false; var net=!e || (e.name==="TypeError" && /fetch|network|load/i.test(e.message||"")) || /JSON/.test((e&&e.message)||"");
     // 0.1.231: a bug in the game while handling the answer used to read as a lost connection; say what it is (and log it)
     if (!net){ try { console.error(e); } catch(x){} ALS.err="Something in the game broke while showing the alliance (not your connection): "+String(e.message||e).slice(0,140)+". Please report it."; }
@@ -4702,7 +4703,7 @@ function viewAllianceList(mineId){
   return h;
 }
 // alliance pages in four groups: underlined group tabs, then the group's pages as chips (only when it has more than one)
-var AL_GROUPS=[["chat","Chat",["chat"]],["map","Map",["map"]],["build","Build",["projects","city","univ","trade"]],["battle","Battle",["arena","rally","reinf","war"]],["people","People",["members","apps","ranks","about","list"]]];
+var AL_GROUPS=[["battle","Battle",["rally","arena","reinf","war"]],["map","Map",["map"]],["build","Build",["projects","city","univ","trade"]],["people","People",["members","apps","ranks","about","list"]]]; // 0.1.237: the Chat page is gone (alliance chat lives in the chat dock); Battle › Rallies opens first
 function alGroupOf(sub){ for (var i=0;i<AL_GROUPS.length;i++) if (AL_GROUPS[i][2].indexOf(sub)>=0) return AL_GROUPS[i]; return AL_GROUPS[0]; }
 function alNavHtml(tabs, sub, dot){ var have={}; tabs.forEach(function(t){ have[t[0]]=t[1]; }); var cur=alGroupOf(sub); ALS.lastIn=ALS.lastIn||{}; ALS.lastIn[cur[0]]=sub;
   var h='<nav class="altabs" role="tablist">'+AL_GROUPS.map(function(gp){ var first=(ALS.lastIn[gp[0]]&&have[ALS.lastIn[gp[0]]])?ALS.lastIn[gp[0]]:gp[2].filter(function(k){ return have[k]; })[0];
@@ -4712,16 +4713,13 @@ function alNavHtml(tabs, sub, dot){ var have={}; tabs.forEach(function(t){ have[
   return h; }
 function viewMyAlliance(al){
   var my=al.my, rk=al.ranks, sub=ALS.sub, apps=al.apps||[];
-  if (sub==="apps" && !my.can.accept) sub="chat"; if (sub==="ranks" && my.rank!==0) sub="chat";
+  if (sub==="apps" && !my.can.accept) sub="rally"; if (sub==="ranks" && my.rank!==0) sub="rally"; if (sub==="chat") sub=ALS.sub="rally";
   var hp=ALS.d.help||{projects:[],canHelp:0};
-  var tabs=[["chat","Chat"],["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["univ","University"+(al.econ&&al.econ.rs&&al.econ.rs.length?" \u2022":"")],["arena","Arena"+(arCur()?" \u2022":"")],["rally","Rallies"+(ryLive().length?" \u2022":"")],["reinf","Reinforce"+((al.reinf&&al.reinf.here&&al.reinf.here.length)?" ("+al.reinf.here.length+")":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["war",!AW_ON?"War (coming soon)":"War"+((AWS.d&&AWS.d.war&&AWS.d.war.status!=="settled"&&AWS.d.war.status!=="over")?" \u2022":AWS.d&&AWS.d.round?" (sign-ups)":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
+  var tabs=[["projects","Projects"+(hp.canHelp?" ("+hp.canHelp+")":"")],["city","Alliance City"],["univ","University"+(al.econ&&al.econ.rs&&al.econ.rs.length?" \u2022":"")],["arena","Arena"+(arCur()?" \u2022":"")],["rally","Rallies"+(ryLive().length?" \u2022":"")],["reinf","Reinforce"+((al.reinf&&al.reinf.here&&al.reinf.here.length)?" ("+al.reinf.here.length+")":"")],["trade","Trade"+((al.trade&&al.trade.in&&al.trade.in.length)?" ("+al.trade.in.length+")":"")],["war",!AW_ON?"War (coming soon)":"War"+((AWS.d&&AWS.d.war&&AWS.d.war.status!=="settled"&&AWS.d.war.status!=="over")?" \u2022":AWS.d&&AWS.d.round?" (sign-ups)":"")],["map","Map"],["members","Members ("+al.members.length+")"],["list","All alliances"]]; if (my.can.accept) tabs.push(["apps","Applications"+(apps.length?" ("+apps.length+")":"")]); if (my.rank===0) tabs.push(["ranks","Ranks"]); tabs.push(["about","About"]);
   var h='<div class="section"><div class="shead"><h3>'+esc(al.name)+' <span class="dur">['+esc(al.tag)+']</span></h3><span class="dur">'+al.members.length+' / '+al.cap+' members</span></div>'+
     '<p class="dur" style="margin:0">You are <b>'+esc(rk[my.rank].n)+'</b>. Your honor: '+fmt(ALS.d.honor||0)+'.'+(ALS.err?' <span class="why">'+esc(ALS.err)+'</span>':'')+'</p>'+
     '</div>'+alNavHtml(tabs, sub, {build:!!(hp.canHelp||(al.trade&&al.trade.in&&al.trade.in.length)), battle:!!(arCur()||ryLive().length||(al.reinf&&al.reinf.here&&al.reinf.here.length)||(AW_ON&&AWS.d&&AWS.d.war&&AWS.d.war.status!=="settled"&&AWS.d.war.status!=="over")), people:!!apps.length});
-  if (sub==="chat"){
-    h+='<div class="section"><label class="chk" style="margin-bottom:8px"><input type="checkbox" id="dockpin"'+(dockPin?' checked':'')+'> Pin the chat to the bottom of every page</label><div id="alchat" class="alchat"></div>'+
-      (my.mutedUntil>Date.now()?'<p class="why">You\u2019re muted until '+alTime(my.mutedUntil)+'.</p>':'<div class="farmadd" style="margin-top:8px"><input id="alchatin" type="text" maxlength="300" autocomplete="off" placeholder="Message your alliance" style="width:auto;flex:1"><button class="btn ghost small" data-act="chat-pic" data-tgt="al" aria-label="Send a picture">&#128247;</button><button class="btn ghost small" data-act="chat-gif" data-tgt="al">GIF</button><button class="btn small" data-act="al-send">Send</button></div>')+'</div>';
-  } else if (sub==="projects"){
+  if (sub==="projects"){
     var others=al.members.length-1;
     h+='<div class="section"><div class="shead"><h3>Projects</h3>'+(hp.canHelp?'<button class="btn small" data-act="al-help">Help all ('+hp.canHelp+')</button>':'<span class="dur">nothing left to help</span>')+'</div>'+
       '<p class="hint">Every build and research a member starts shows up here. Each member can help each one once, and every help takes '+Math.round((hp.helpSec||60)/60)+' minute'+((hp.helpSec||60)>=120?'s':'')+' off. The Help button next to Settings helps them all with one tap.</p>'+
@@ -5457,7 +5455,7 @@ function arSend(){
 /* ---------- Alliance rallies (0.1.131): call the alliance onto a level 10 NPC city (once a day, resets at midnight Eastern) or a historic city (once a week) on your map.
    Members march from their kingdom square to yours and wait; at the hit time every march that made it hits in your order, and the
    server fights each wave against what the ones before it left. You get the garrison that's left; helpers get only the satisfaction. ---------- */
-var RYS={sending:false, mins:"60", time:"", from:null};
+var RYS={sending:false, mins:"60", time:"", from:null, sendToo:true}; // sendToo (0.1.237): open your own march to the rally right after calling it
 function ryChatBtn(t){ t=String(t||""); if (!/rally targeting/.test(t) || /is leaving now/.test(t)) return ''; /* 0.1.227: no Join on old "is leaving now" lines */ var arena=/Monster Arena/.test(t);
   return (arena ? arLive().length : ryLive().length) ? ' <button class="link strong" data-act="al-go-rally"'+(arena?' data-to="arena"':'')+'>Join</button>' : ''; } // rally lines in alliance chat, while a rally is running
 function ryOn(){ return mpShown() && alOn() && !!alMine(); }
@@ -5514,6 +5512,7 @@ function ryCallSheet(){ var q=TILE_BY[sheetFor.tile]; if (!q) return '<p class="
     '<p class="dur" style="margin:0">From there'+(fh&&heroById(fh)?', at '+esc(heroById(fh).name)+'\u2019s pace':'')+': '+fmtT(tmin)+' for the fastest troops, '+fmtT(tmax)+' if anyone brings the slowest. Back the same way. Join with a faster hero yourself and the rally speeds up to match.</p>'+
     '<div class="farmadd"><label class="dur" for="rymins">Leaves in</label><select id="rymins">'+[[5,"5 minutes"],[15,"15 minutes"],[30,"30 minutes"],[60,"1 hour"],[120,"2 hours"],[240,"4 hours"],[480,"8 hours"],[720,"12 hours"],[1440,"24 hours"]].map(function(o){ return '<option value="'+o[0]+'"'+(o[0]===mins?' selected':'')+'>'+o[1]+'</option>'; }).join("")+'</select></div>'+
     '<p class="dur">The waves leave at about '+trClock(S.gt+mins*60000*S.speed)+'. You can move the time or send them early from the Rallies tab.</p>'+
+    '<label class="chk" style="margin:6px 0"><input type="checkbox" id="rysend"'+(RYS.sendToo?' checked':'')+'> Send my own march right after calling (the march form opens from '+esc(C().name)+')</label>'+
     '<div class="act"><span></span><button class="btn" data-act="ry-call" id="rycallgo"'+(RYS.sending?' disabled':'')+'>Call the alliance</button></div><button class="closebtn" data-act="close">Cancel</button>';
   return h; }
 function ryCall(){ var q=TILE_BY[sheetFor.tile]; if (!q || RYS.sending) return; var mins=Math.max(5,Math.min(1440,Math.floor(+RYS.mins||60)));
@@ -5522,7 +5521,9 @@ function ryCall(){ var q=TILE_BY[sheetFor.tile]; if (!q || RYS.sending) return; 
   var body={x:q.x, y:q.y, tname:tileName(q), k:rk, L:q.L, B:{t:b.t, f:b.f, wall:b.wall, r:b.r, am:b.am||1, fb:b.fb||1, hint:b.hint||0}, H:hh?{t:hh.t, f:hh.f}:{t:b.t, f:b.f}, f0:f0, rt:realMs(RT), mins:mins, from:S.cities[fci].name, trv:ryTrv(fci,q,ryFastHero(fci,q))};
   RYS.sending=true; lastSheet=""; renderSheet();
   alPost("/al/rally/call", body).then(function(r){ RYS.sending=false; if (r.error){ toast(r.error); lastSheet=""; renderSheet(); return; }
-    ryLocks().push({rid:r.rid, tile:q.id, aid:ALS.aid, at:Date.now(), k:rk}); save(); closeSheet(); toast("The alliance is called! The waves leave in "+fmtT(r.hitAt-Date.now())); ALS.sub="rally"; ALS.last=0; alSync(); lastView=""; refresh(); })
+    ryLocks().push({rid:r.rid, tile:q.id, aid:ALS.aid, at:Date.now(), k:rk}); save(); closeSheet(); toast("The alliance is called! The waves leave in "+fmtT(r.hitAt-Date.now())); ALS.sub="rally"; ALS.last=0;
+    if (RYS.sendToo) ALS.onSync=function(){ if (ryById(r.rid) && !sheetFor) openMarch(homeTileId(),"rally",r.rid); }; // 0.1.237: once the sync lists the new rally, open your own march to it
+    alSync(); lastView=""; refresh(); })
     .catch(function(){ RYS.sending=false; toast("Couldn\u2019t reach the server"); lastSheet=""; renderSheet(); }); }
 function ryWhy(n){
   var d=marchDraft, R=ryById(d.rid); if (!R) return "That rally has already hit";
@@ -11994,7 +11995,7 @@ document.addEventListener("click",function(e){
   if (act==="deco-flip"){ var Df=decoS().at[a.dataset.tile]||[], fi=+a.dataset.i, fk=Df[fi]; if (!fk) return; var fp=String(fk).split("|"); Df[fi]=fp[0]+(fp[1]==="f"?"":"|f"); save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="deco-take"){ var Dt=decoS(), tt=a.dataset.tile, tl=Dt.at[tt]||[], ti=+a.dataset.i, tk=tl[ti]; if (!tk) return; tk=String(tk).split("|")[0]; tl.splice(ti,1); if (!tl.length) delete Dt.at[tt]; if (DECOS[tk] && !DECOS[tk].pack && !DECOS[tk].unl) Dt.inv[tk]=(Dt.inv[tk]||0)+1; save(); lastSheet=""; renderSheet(); renderTileInfo(); drawMap(); return; }
   if (act==="gif-pick"){ var gp=GIFS.list[+a.dataset.i]; if (!gp) return; closeSheet(); chatSendText(GIFS.tgt, gp.u); return; }
-  if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
+  if (act==="ry-callopen"){ RYS.mins=RYS.mins||"60"; RYS.from=C().id; /* 0.1.237: leaves from the city you're on */ openSheet({kind:"rycall", tile:a.dataset.tile}); return; }
   if (act==="ry-call"){ ryCall(); return; }
   if (act==="al-go-rally"){ tab="guild"; ALS.sub="rally"; /* 0.1.225: Arena fights are joined from the Rallies tab too */ lastView=""; refresh(); window.scrollTo({top:0}); return; }
   if (act==="ry-send"){ var srid=+a.dataset.rid; if (!ryById(srid)){ toast("That rally has already hit"); return; } openMarch(homeTileId(),"rally",srid); return; }
@@ -12960,6 +12961,7 @@ document.addEventListener("change",function(e){ markDirty();
   if (e.target.id==="hsort1"||e.target.id==="hsort2"){ var hso=C().heroSort=C().heroSort||{a:"level",b:"atk"}; if (e.target.id==="hsort1") hso.a=e.target.value; else hso.b=e.target.value; e.target.blur(); save(); lastView=""; renderView(true); return; }
   if (e.target.id && e.target.id.indexOf("hauto-")===0 && sheetFor && sheetFor.kind==="hero"){ var hah=heroById(sheetFor.id); if (hah){ var cur0=HAD[hah.id]||Object.assign({pol:0,atk:0,int:0},hah.auto||{}); cur0[e.target.id.slice(6)]=Math.max(0,Math.min(9,Math.floor(+e.target.value||0))); HAD[hah.id]=cur0; } return; }
   if (e.target.id==="meimg"){ var mf0=e.target.files&&e.target.files[0]; e.target.value=""; meImageFromFile(mf0); return; }
+  if (e.target.id==="rysend"){ RYS.sendToo=e.target.checked; return; }
   if (e.target.id==="dockpin"){ dockPin=e.target.checked; dockSave(); renderDock(); toast(dockPin?"Chat pinned: it shows as a bar at the bottom on other pages":"Chat unpinned"); }
   if (e.target.id==="marchfrom"){ marchDraft.from=e.target.value||""; marchDraft.t=[0,0,0,0,0,0,0,0,0,0,0,0]; var mfc=draftCamp(); marchDraft.hero = mfc ? (mfc.hero||0) : ((marchHeroes()[0]||{}).id||0); marchDraft.preview=""; e.target.blur(); lastSheet=""; renderSheet(); }
   if (e.target.id==="npcsel"){ setPreset(e.target.value); lastView=""; renderView(true); }
