@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.232
+Version 0.1.233
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.233** New battle engine, same fights. The old engine was a port of sonya75's Age 1 calculator (no licence), in the game, in the worker and in `tp/sim.js`. All three now use one new engine written from a behavioural spec (`t/engine/SPEC.md`) by someone who never saw the old code. Nothing changes in play: the same armies, research, heroes, forts and random seed give byte-identical results, logs, traces and replays. Checked by 200,000+ random fights against the old engine, every War College puzzle (72 puzzles, 864 plans, 2,215 fights), Playwright t3/t50/t53/t64/t72 and every worker harness test (same output on old and new). `node t/engine/golden.mjs` checks 5,000 frozen fights against the engine in index.html; run it before any release that touches the engine. Server change: deploy the worker (same fights, new code). No save change.
 - **0.1.232** Auto-farm "Only hit NPC cities and AI lords at full garrison" (per preset): it works out whether each target will be back to a full troop garrison when the march lands (the same test the fight uses for drops, `garFullAt`), skips ones that won't be or that another of your marches is already heading to, launches at the next one in the rotation that will be, and waits if none will ("Waiting for a full garrison" on the preset). Valleys and historic cities are never skipped. The presets screen now explains priority: a hero on several auto-farm presets goes to the highest ready one each time he's home (t93 simulates a level 10 list taking him about once an hour, level 5s in between).
 - **0.1.231** Fixed alliance features showing "Couldn't reach the server" (since 0.1.227): a `//` note added to the middle of a line commented out the rest of it, so drawing rally lines in alliance chat threw an error, and the alliance sync reported any error as a lost connection. The sync now tells the two apart: a real connection problem still says so; a bug in the game says "Something in the game broke while showing the alliance (not your connection)" with the error, and logs it. New end-to-end test t91 (local server: sign in, alliance, rally, every alliance page, join).
 - **0.1.230** Marches on the alliance map (joining a rally, going to the Arena, and the single-player Arena) move at the hero's pace too: Intelligence, dragon gear and mounts, times your march-speed bonuses, up to 20x (it was march-speed bonuses only, up to 4x). Travel estimates on the march screen and the "too far" check use the hero you picked; the lists estimate with your fastest free hero. Server change: deploy the worker (it now accepts speeds up to 20x).

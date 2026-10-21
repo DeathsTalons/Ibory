@@ -828,7 +828,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.232";
+var APP_VERSION = "0.1.233";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -989,273 +989,839 @@ function giftCity(aid, allyId){
 function cityCap(){ return hasHC(18) ? Math.max(1,Object.keys(HC_AT).length) : TITLES[S.title].cities+alFx("citycap"); }
 function capText(){ return cityCap()===Infinity ? "unlimited" : String(cityCap()); }
 
-/* ---------- battle simulator (port of the Age 1 battle calculator) ---------- */
-var SIM = (function(){
-// Port of sonya75/EvonyAge1BattleCalc (C++) to JS, emulating float32 math.
-var F = Math.fround;
-var BASE = [ // life, attack, defense, speed, range
-  [100,5,50,180,10],[200,50,50,200,20],[100,20,50,3000,20],[300,150,150,300,50],[350,100,250,275,30],
-  [250,120,50,250,1200],[700,10,60,150,10],[500,250,180,1000,100],[1000,350,350,750,80],
-  [320,450,160,100,1400],[5000,250,160,120,600],[480,600,200,80,1500]];
-var FORT = [[0,0,0,0,5000],[0,0,0,0,5000],[2000,300,360,0,1300],[0,500,0,0,1300],[0,800,0,0,5000]];
-var MELEE = [true,true,true,true,true,false,true,true,true,false,true,false];
-var MOVE_ORDER = [2,7,8,3,4,1,0,6,10,5,9,11];
-var ATTACK_ORDER = [2,7,8,3,4,5,1,0,6,10,9,11];
-var NON_RANGED = [7,8,3,4,1,0,6,2,10];
-var RANGED = [5,9,11], MECH = [9,10,11], MOUNTED = [7,8], GROUND = [0,1,2,3,4,5];
-function dmgMod(a, t){ // a attacker type, t target type (14 = archer tower)
-  if (t===14) return F(0.3);
-  if (a===3 && (t===7||t===8)) return F(1.8);
-  if (a===4 && t===3) return F(1.1);
-  if ((a===7||a===8) && t===5) return F(1.2);
-  return 1;
-}
-function stats(side){
-  var r = side.research||{}, h = side.hero||{}, out=[];
-  var iw=r.iron_working||0, med=r.medicine||0, comp=r.compass||0, hbr=r.horseback_riding||0, arch=r.archery||0;
-  var atkM=F(side.attack_modifier||1), defM=F(side.defence_modifier||1), lifeM=F(side.life_modifier||1), intel=F(h.intel||0);
-  for (var i=0;i<12;i++){
-    var b=BASE[i], s={life:F(b[0]),attack:F(b[1]),defense:F(b[2]),speed:F(b[3]),range:F(b[4])};
-    // Iron Working and hero Intelligence ADD inside the bracket (matches dxcalc to 0.01%); Iron Working applies as 5%/level.
-    var d = F(F(1000 - F(F(F(F(iw*5+100)/100) + F(intel/100)) * s.defense) * defM) / 1000);
-    s.defense = F(Math.max(d, 0.5));
-    out.push(s);
-  }
-  GROUND.forEach(function(i){ var s=out[i]; s.life=F(F(F(s.life*(med*5+100))*lifeM)/100); s.attack=F(s.attack*atkM); s.speed=F(F(s.speed*(comp*10+100))/100); });
-  MECH.forEach(function(i){ var s=out[i]; s.life=F(s.life*lifeM); s.attack=F(s.attack*atkM); s.speed=F(F(s.speed*(hbr*5+100))/100); });
-  RANGED.forEach(function(i){ var s=out[i]; s.range=F(F(s.range*(arch*5+100))/100); });
-  MOUNTED.forEach(function(i){ var s=out[i]; s.life=F(s.life*lifeM); s.attack=F(s.attack*atkM); s.speed=F(F(s.speed*(hbr*5+100))/100); });
-  return out;
-}
-var STOP_AT_WALL=true;
-var FORT_TOUGH=1, TOWER_DMG=1, WALL_HP=50000; // tower and wall follow the Age One spec: wall HP = 50000 x L x (L+1) x Engineering, ranged units hit walls at half damage (both match dxcalc round counts)
-var TRAP_OK=function(lp){ return typeof TRAP_ALL!=='undefined' || lp.type<=5; };
-function trunc(x){ return x<0 ? Math.ceil(x) : Math.floor(x); }
-function fight(atk, def, opts){
-  opts = opts||{};
-  var rand = opts.rand || Math.random;
-  var AS = stats(atk), DS = stats(def);
-  var dr = def.research||{}, dh=def.hero||{};
-  var wall = def.wallLevel||0;
-  var FS = FORT.map(function(f){ return {life:F(f[0]),attack:F(f[1]),defense:F(f[2]),speed:F(f[3]),range:F(f[4])}; });
-  var tw = FS[2];
-  tw.life = F(F(tw.life*F(def.fortBonus||1))*F(FORT_TOUGH)); // life 2000 x Engineering only (no Medicine)
-  tw.attack = F(300); // fixed: no Military Tradition, hero or items on the tower
-  tw.defense = F(0.64); // fixed damage-taken coefficient: no Iron Working, Intel or Corselet
-  tw.range = F(F(F(F(1300*((dr.archery||0)*5+100))/100)*(wall*3+100))/100); // Archery and wall compound, 3% per wall level
-  var wallhp = Math.round(WALL_HP*wall*(wall+1)*(def.fortBonus||1));
-  var fortIn = def.fortifications||[0,0,0,0,0];
-  var fs=0, i, j;
-  // reinforcements: def.allies = [{troops, research, hero, attack_modifier, defence_modifier, life_modifier}], each with its own stats.
-  // Each troop type is still one group on the field (moves and is targeted as one), made of each owner's part.
-  var CON=[def].concat(def.allies||[]), CS=CON.map(function(c,ci){ return ci===0?DS:stats(c); });
-  var dTot=function(i){ var n=0; CON.forEach(function(c){ n+=(c.troops&&c.troops[i])||0; }); return n; };
-  [0,1,3,4,6,5,7,8,9,10,11].forEach(function(i){ if ((atk.troops[i]||0)>0 || dTot(i)>0) fs=Math.max(fs, 200+BASE[i][4]); });
-  for (i=0;i<5;i++) if ((fortIn[i]||0)>0) fs=Math.max(fs, 200+FORT[i][4]);
-  var A=[], D=[];
-  for (i=0;i<12;i++){
-    A.push({loc:0,type:i,count:atk.troops[i]||0,eff:atk.troops[i]||0,stat:AS[i],isAtk:true});
-    var pts=[]; CON.forEach(function(c,ci){ var n=(c.troops&&c.troops[i])||0; if (n>0) pts.push({own:ci,type:i,count:n,eff:n,stat:CS[ci][i]}); });
-    var big=pts.length?pts.reduce(function(a,q){ return q.count>a.count?q:a; }):null; // the biggest part sets the group's speed and range
-    D.push({loc:fs,type:i,count:pts.length>1?dTot(i):(def.troops[i]||0)+(pts.length===1&&pts[0].own?pts[0].count:0),eff:0,stat:big?big.stat:DS[i],isAtk:false,parts:pts.length>1?pts:null,solo:pts.length===1?pts[0].own:0});
-    D[i].eff=D[i].count;
-  }
-  var tower={loc:fs,type:14,count:fortIn[2]||0,eff:fortIn[2]||0,stat:tw};
-  var trap=fortIn[0]||0, abatis=fortIn[1]||0, logs=fortIn[3]||0, rocks=fortIn[4]||0;
-  var trapDie = trap>0 ? trunc(trap*(5+Math.floor(rand()*5))/100) : 0;
-  var abatisDie = trunc(abatis/10), logDie=trunc(logs/10), rockDie=trunc(rocks/10);
-  var trapKP=def.trapKillPower||(0.9+Math.floor(rand()*7)*0.1), logKP=def.logKillPower||1.25, rockKP=def.rockKillPower||0.775; // spec NPC powers; player-defended cities pass 1.25 for all three
-  var log = opts.log ? [] : null;
-  var tr = opts.trace ? [] : null, fr = null, lastMod = 1; // replay trace for the War College visualizer
-  var round, attackerAlive=false, defenderAlive=false;
+/* ---------- battle simulator (Ibory engine, written from the behavioural spec in t/engine/SPEC.md) ---------- */
+/*
+ * Ibory battle engine — written from SPEC.md (behavioural specification), not from any
+ * prior implementation.
+ *
+ * Deterministic Age-1 style battle simulator with explicit float32 rounding points
+ * (Math.fround) so that outputs are bit-identical to the C++/float reference model that
+ * the specification describes. Every formula below cites the SPEC.md section it comes from.
+ *
+ * ES5 only: this file is pasted into a no-build PWA.
+ *
+ * Public API (SPEC §1): SIM.fight, SIM.stats, SIM.MELEE, SIM.capFor, SIM.last
+ */
+var SIM = (function () {
+  "use strict";
 
-  function kills(pq, tgt, distance, share){
-    var k;
-    if (share!=null && share!==1) return killsShare(pq, tgt, distance, share);
-    if (pq.parts) return pq.parts.reduce(function(n,q){ return n+(q.count>0?kills(q,tgt,distance):0); },0); // each owner strikes with its own attack
-    if (MELEE[pq.type]){
-      var m=dmgMod(pq.type,tgt.type); lastMod=m;
-      k = trunc(F(F(F(F(m*pq.count)*pq.stat.attack)*tgt.stat.defense)/tgt.stat.life));
-    } else {
+  var f32 = Math.fround;
+
+  /** trunc toward zero (SPEC conventions). */
+  function trunc(x) { return x < 0 ? Math.ceil(x) : Math.floor(x); }
+
+  /** JavaScript "x or y" default as used throughout the spec (||). */
+  function orDefault(x, y) { return x || y; }
+
+  // ---------------------------------------------------------------------------------------
+  // §2.1 Unit base stats: [life, attack, defense(raw), speed, range]
+  // ---------------------------------------------------------------------------------------
+  var UNIT_BASE = [
+    [100, 5, 50, 180, 10],      // 0 Worker
+    [200, 50, 50, 200, 20],     // 1 Warrior
+    [100, 20, 50, 3000, 20],    // 2 Scout
+    [300, 150, 150, 300, 50],   // 3 Pikeman
+    [350, 100, 250, 275, 30],   // 4 Swordsman
+    [250, 120, 50, 250, 1200],  // 5 Archer
+    [700, 10, 60, 150, 10],     // 6 Transporter
+    [500, 250, 180, 1000, 100], // 7 Cavalry
+    [1000, 350, 350, 750, 80],  // 8 Cataphract
+    [320, 450, 160, 100, 1400], // 9 Ballista
+    [5000, 250, 160, 120, 600], // 10 Battering Ram
+    [480, 600, 200, 80, 1500]   // 11 Catapult
+  ];
+  var NUM_TYPES = 12;
+  var TOWER_TYPE = 14;
+
+  // §2.2 classification tables
+  var MELEE = [true, true, true, true, true, false, true, true, true, false, true, false];
+  var MOVE_ORDER = [2, 7, 8, 3, 4, 1, 0, 6, 10, 5, 9, 11];
+  var ATTACK_ORDER = [2, 7, 8, 3, 4, 5, 1, 0, 6, 10, 9, 11];
+  var NON_RANGED_PREF = [7, 8, 3, 4, 1, 0, 6, 2, 10];
+  var RANGED = [5, 9, 11];
+  var MECHANICAL = [9, 10, 11];
+  var MOUNTED = [7, 8];
+  var GROUND = [0, 1, 2, 3, 4, 5];
+  var FIELD_TYPES = [0, 1, 3, 4, 6, 5, 7, 8, 9, 10, 11]; // every type except Scout
+  var LOG_TARGETS = [0, 1, 2, 3, 4, 5];
+  var ABATIS_PREF = [7, 8];
+  // Attacker types that are NOT scout/transporter: used by the "scouts/transporters only" test (§5.5)
+  var COMBAT_TYPES = [0, 1, 3, 4, 5, 7, 8, 9, 10, 11];
+
+  // §2.3 fortification ranges (only the ranges, attacks and the tower life are used)
+  var FORT_RANGE = [5000, 5000, 1300, 1300, 5000];
+  var FORT_TRAPS = 0, FORT_ABATIS = 1, FORT_TOWERS = 2, FORT_LOGS = 3, FORT_ROCKS = 4;
+
+  // §2.4 constants
+  var ROUND_LIMIT = 100;
+  var WALL_HP_UNIT = 50000;
+  var TOWER_LIFE_BASE = 2000;
+  var TOWER_ATTACK = 300;
+  var TOWER_DEFENSE = f32(0.64);
+  var LOG_ATTACK = 500;
+  var ROCK_ATTACK = 800;
+  var DEFAULT_LOG_POWER = 1.25;
+  var DEFAULT_ROCK_POWER = 0.775;
+  var ABATIS_KILL_FACTOR = 0.535;
+  var TRAP_KILL_FACTOR = 0.5;
+  var RANGED_WALL_FACTOR = 0.5;
+  var MIN_DEFENSE = 0.5;
+  var RANGED_HITBACK_PENALTY = 0.25;
+  var RANGED_FAR_PENALTY = 0.5;
+  var FORT_ZONE = 5000;
+  var REPLAY_RING_SIZE = 16;
+
+  // §2.5 melee damage modifiers (float32 constants)
+  var MOD_VS_TOWER = f32(0.3);
+  var MOD_PIKE_VS_HORSE = f32(1.8);
+  var MOD_SWORD_VS_PIKE = f32(1.1);
+  var MOD_HORSE_VS_ARCHER = f32(1.2);
+
+  /** §2.5 melee modifier matrix: first matching row wins. */
+  function meleeModifier(strikerType, targetType) {
+    if (targetType === TOWER_TYPE) return MOD_VS_TOWER;
+    if (strikerType === 3 && (targetType === 7 || targetType === 8)) return MOD_PIKE_VS_HORSE;
+    if (strikerType === 4 && targetType === 3) return MOD_SWORD_VS_PIKE;
+    if ((strikerType === 7 || strikerType === 8) && targetType === 5) return MOD_HORSE_VS_ARCHER;
+    return 1;
+  }
+
+  function contains(list, v) {
+    for (var i = 0; i < list.length; i++) if (list[i] === v) return true;
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // §4 stats(side): derived unit stat records
+  // ---------------------------------------------------------------------------------------
+  function stats(side) {
+    var research = side.research || {};
+    var hero = side.hero || {};
+    var iw = orDefault(research.iron_working, 0);
+    var med = orDefault(research.medicine, 0);
+    var comp = orDefault(research.compass, 0);
+    var hbr = orDefault(research.horseback_riding, 0);
+    var arch = orDefault(research.archery, 0);
+    var atkM = f32(orDefault(side.attack_modifier, 1));
+    var defM = f32(orDefault(side.defence_modifier, 1));
+    var lifeM = f32(orDefault(side.life_modifier, 1));
+    var intel = f32(orDefault(hero.intel, 0));
+
+    // §4 defense bracket: Y = f32( f32( f32(iw*5+100)/100 ) + f32(intel/100) )
+    var Y = f32(f32(f32(iw * 5 + 100) / 100) + f32(intel / 100));
+
+    var out = [];
+    var i, rec;
+    // Step 1: base values and the damage-taken coefficient
+    for (i = 0; i < NUM_TYPES; i++) {
+      var base = UNIT_BASE[i];
+      var G = f32(Y * f32(base[2]));                       // G = f32( Y × f32(Dv) )
+      var d = f32(f32(1000 - G * defM) / 1000);            // d = f32( f32(1000 − G×defM) / 1000 )
+      out.push({
+        life: f32(base[0]),
+        attack: f32(base[1]),
+        defense: f32(Math.max(d, MIN_DEFENSE)),            // defense = f32( max(d, 0.5) )
+        speed: f32(base[3]),
+        range: f32(base[4])
+      });
+    }
+    // Step 2.1: Ground types
+    for (i = 0; i < GROUND.length; i++) {
+      rec = out[GROUND[i]];
+      rec.life = f32(f32(f32(rec.life * (med * 5 + 100)) * lifeM) / 100);
+      rec.attack = f32(rec.attack * atkM);
+      rec.speed = f32(f32(rec.speed * (comp * 10 + 100)) / 100);
+    }
+    // Step 2.2: Mechanical types
+    for (i = 0; i < MECHANICAL.length; i++) {
+      rec = out[MECHANICAL[i]];
+      rec.life = f32(rec.life * lifeM);
+      rec.attack = f32(rec.attack * atkM);
+      rec.speed = f32(f32(rec.speed * (hbr * 5 + 100)) / 100);
+    }
+    // Step 2.3: Ranged types
+    for (i = 0; i < RANGED.length; i++) {
+      rec = out[RANGED[i]];
+      rec.range = f32(f32(rec.range * (arch * 5 + 100)) / 100);
+    }
+    // Step 2.4: Mounted types (same formulas as Mechanical)
+    for (i = 0; i < MOUNTED.length; i++) {
+      rec = out[MOUNTED[i]];
+      rec.life = f32(rec.life * lifeM);
+      rec.attack = f32(rec.attack * atkM);
+      rec.speed = f32(f32(rec.speed * (hbr * 5 + 100)) / 100);
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // §5 fight core
+  // ---------------------------------------------------------------------------------------
+
+  /** §5.6 threat of a stack: f32(attack × E); composite = double sum of per-part threats. */
+  function threatOf(stack) {
+    if (stack.composite) {
+      var sum = 0;
+      for (var q = 0; q < stack.parts.length; q++) {
+        var p = stack.parts[q];
+        sum += f32(p.stat.attack * p.E);
+      }
+      return sum;
+    }
+    return f32(stack.stat.attack * stack.E);
+  }
+
+  function zeroMatrix(rows, cols) {
+    var m = [];
+    for (var r = 0; r < rows; r++) {
+      var row = [];
+      for (var c = 0; c < cols; c++) row.push(0);
+      m.push(row);
+    }
+    return m;
+  }
+
+  function pluck(stacks, field) {
+    var a = [];
+    for (var i = 0; i < stacks.length; i++) a.push(stacks[i][field]);
+    return a;
+  }
+
+  function fightCore(attacker, defender, opts) {
+    opts = opts || {};
+    var rand = opts.rand || Math.random;                              // §5.1.1
+    var wantLog = !!opts.log, wantTrace = !!opts.trace;
+    var i, j, q, p, s, stk;
+
+    // §5.1.2 side stats
+    var attackerStats = stats(attacker);
+    var cityStats = stats(defender);
+
+    // §5.1.3 wall level, fort bonus, defender archery
+    var W = orDefault(defender.wallLevel, 0);
+    var fb = orDefault(defender.fortBonus, 1);
+    var da = orDefault((defender.research || {}).archery, 0);
+
+    // §5.1.4 tower stat record
+    var towerStat = {
+      life: f32(f32(f32(TOWER_LIFE_BASE) * f32(fb)) * f32(1)),
+      attack: TOWER_ATTACK,
+      defense: TOWER_DEFENSE,
+      speed: 0,
+      range: f32(f32(f32(f32(1300 * (da * 5 + 100)) / 100) * (W * 3 + 100)) / 100)
+    };
+
+    // §5.1.5 wall HP: round( ((50000 × W) × (W+1)) × fb )
+    var H = Math.round(WALL_HP_UNIT * W * (W + 1) * fb);
+
+    // §5.1.6 fortifications
+    var forts = defender.fortifications || [0, 0, 0, 0, 0];
+
+    // §5.1.7 owners (city + allies) and per-type totals
+    var allies = defender.allies || [];
+    var hasAllies = allies.length >= 1;                               // §5.10 condition
+    var owners = [defender];
+    var ownerStats = [cityStats];
+    for (i = 0; i < allies.length; i++) {
+      owners.push(allies[i]);
+      ownerStats.push(stats(allies[i]));
+    }
+    function ownerTroops(owner, type) {
+      return orDefault(owner.troops ? owner.troops[type] : 0, 0);
+    }
+    var total = [];
+    for (i = 0; i < NUM_TYPES; i++) {
+      var t = 0;
+      for (q = 0; q < owners.length; q++) t += ownerTroops(owners[q], i);
+      total.push(t);
+    }
+
+    // §5.1.8 field length (raw table ranges)
+    var L = 0;
+    for (i = 0; i < FIELD_TYPES.length; i++) {
+      var ft = FIELD_TYPES[i];
+      if (orDefault(attacker.troops[ft], 0) > 0 || total[ft] > 0) {
+        L = Math.max(L, 200 + UNIT_BASE[ft][4]);
+      }
+    }
+    for (i = 0; i < 5; i++) {
+      if (orDefault(forts[i], 0) > 0) L = Math.max(L, 200 + FORT_RANGE[i]);
+    }
+
+    // §5.1.9 attacker stacks
+    var A = [];
+    for (i = 0; i < NUM_TYPES; i++) {
+      var an = orDefault(attacker.troops[i], 0);
+      A.push({ type: i, pos: 0, N: an, E: an, stat: attackerStats[i] });
+    }
+
+    // §5.1.10 defender stacks (possibly composite)
+    var D = [];
+    for (i = 0; i < NUM_TYPES; i++) {
+      var parts = [];
+      for (q = 0; q < owners.length; q++) {
+        var n = ownerTroops(owners[q], i);
+        if (n > 0) parts.push({ owner: q, type: i, N: n, E: n, stat: ownerStats[q][i] });
+      }
+      var cityN = orDefault(defender.troops[i], 0);
+      stk = { type: i, pos: L, N: 0, E: 0, stat: cityStats[i], composite: false, parts: null, ownerId: 0 };
+      if (parts.length >= 2) {
+        var big = parts[0];
+        for (q = 1; q < parts.length; q++) if (parts[q].N > big.N) big = parts[q];
+        stk.N = total[i];
+        stk.stat = big.stat;
+        stk.composite = true;
+        stk.parts = parts;
+      } else if (parts.length === 1 && parts[0].owner === 0) {
+        stk.N = cityN;
+      } else if (parts.length === 1) {
+        stk.N = cityN + parts[0].N;
+        stk.stat = parts[0].stat;
+        stk.ownerId = parts[0].owner;
+      } else {
+        stk.N = cityN;
+      }
+      stk.E = stk.N;
+      D.push(stk);
+    }
+
+    // §5.1.11 tower pseudo-stack
+    var tower = { type: TOWER_TYPE, pos: L, N: orDefault(forts[FORT_TOWERS], 0), E: 0, stat: towerStat };
+    tower.E = tower.N;
+
+    // §5.1.12 consumables
+    var traps = orDefault(forts[FORT_TRAPS], 0);
+    var abatis = orDefault(forts[FORT_ABATIS], 0);
+    var logs = orDefault(forts[FORT_LOGS], 0);
+    var rocks = orDefault(forts[FORT_ROCKS], 0);
+
+    // §5.1.13 / §5.3 RNG draws and volley sizes
+    var trapVolley = 0;
+    if (traps > 0) {
+      var r1 = rand();
+      trapVolley = trunc(traps * (5 + Math.floor(r1 * 5)) / 100);
+    }
+    var trapPower = defender.trapKillPower;
+    if (!trapPower) {
+      var r2 = rand();
+      trapPower = 0.9 + Math.floor(r2 * 7) * 0.1;
+    }
+    var abatisVolley = trunc(abatis / 10);
+    var logVolley = trunc(logs / 10);
+    var rockVolley = trunc(rocks / 10);
+    var logPower = orDefault(defender.logKillPower, DEFAULT_LOG_POWER);
+    var rockPower = orDefault(defender.rockKillPower, DEFAULT_ROCK_POWER);
+
+    // §5.1.14 kill-credit matrices
+    var KA = zeroMatrix(12, 13);
+    var KD = zeroMatrix(17, 12);
+
+    // Trap vulnerability (§6.9 / §8.9): only types 0..5 unless the TRAP_ALL global exists.
+    var trapAll = (typeof TRAP_ALL !== "undefined");
+
+    var log = wantLog ? [] : null;
+    var trace = wantTrace ? [] : null;
+    var lastMod = 1; // modifier of the last kill computation (§5.6.1 / §5.6.2 trace m)
+
+    /** §5.10 per-owner leftover matrix. */
+    function ownerLeftovers() {
+      var m = [];
+      for (var ci = 0; ci < owners.length; ci++) {
+        var row = [];
+        for (var ti = 0; ti < NUM_TYPES; ti++) {
+          var ds = D[ti];
+          if (ds.composite) {
+            var sum = 0;
+            for (var pi = 0; pi < ds.parts.length; pi++) if (ds.parts[pi].owner === ci) sum += ds.parts[pi].E;
+            row.push(sum);
+          } else {
+            row.push(ds.ownerId === ci ? ds.E : 0);
+          }
+        }
+        m.push(row);
+      }
+      return m;
+    }
+
+    function fortSnapshot() { return [traps, abatis, tower.E, logs, rocks]; }
+
+    // §5.1.15 / §5.9 frame 0
+    if (wantTrace) {
+      trace.push({
+        r: 0,
+        posA: pluck(A, "pos"), posD: pluck(D, "pos"),
+        cA: pluck(A, "E"), cD: pluck(D, "E"),
+        eA: pluck(A, "E"), eD: pluck(D, "E"),
+        wall: H, wallEnd: H,
+        forts: fortSnapshot(),
+        ev: []
+      });
+    }
+
+    // -------------------------------------------------------------------------------------
+    // §5.6.3 KILLS(S, T, dist [, share]) for a single (non-composite) striker.
+    // striker supplies N, stat.attack, stat.range, type; target supplies stat.defense,
+    // stat.life, stat.range and type (14 for the tower).
+    // -------------------------------------------------------------------------------------
+    function killsSingle(striker, target, dist, share) {
+      var n;
+      if (share === undefined || share === 1) n = striker.N;
+      else n = f32(striker.N * share);
+      var ts = target.stat;
+      if (MELEE[striker.type]) {
+        var m = meleeModifier(striker.type, target.type);
+        lastMod = m;
+        // k = trunc( f32( f32( f32( f32(m×n) × attack ) × defense ) / life ) )
+        return trunc(f32(f32(f32(f32(m * n) * striker.stat.attack) * ts.defense) / ts.life));
+      }
       var m2;
-      if (tgt.type!==14 && distance <= tgt.stat.range && MELEE[tgt.type]) m2=0.25;
-      else if (distance > pq.stat.range/2) m2=0.5;
-      else m2=1;
-      lastMod=m2;
-      k = Math.ceil(F(F(F(F(pq.stat.attack*tgt.stat.defense)*pq.count)*F(m2))/tgt.stat.life));
+      if (target.type !== TOWER_TYPE && dist <= ts.range && MELEE[target.type]) m2 = RANGED_HITBACK_PENALTY;
+      else if (dist > striker.stat.range / 2) m2 = RANGED_FAR_PENALTY;
+      else m2 = 1;
+      lastMod = m2;
+      // k = ceil( f32( f32( f32( f32(attack×defense) × n ) × f32(m2) ) / life ) )
+      return Math.ceil(f32(f32(f32(f32(striker.stat.attack * ts.defense) * n) * f32(m2)) / ts.life));
     }
-    return k;
-  }
-  function killsShare(pq, tgt, distance, share){ // an attacker's blow on one owner's part of a defending group, by that part's share of the group
-    var c=F(pq.count*share);
-    if (MELEE[pq.type]){ var m=dmgMod(pq.type,tgt.type); lastMod=m; return trunc(F(F(F(F(m*c)*pq.stat.attack)*tgt.stat.defense)/tgt.stat.life)); }
-    var m2; if (distance <= tgt.stat.range && MELEE[tgt.type]) m2=0.25; else if (distance > pq.stat.range/2) m2=0.5; else m2=1; lastMod=m2;
-    return Math.ceil(F(F(F(F(pq.stat.attack*tgt.stat.defense)*c)*F(m2))/tgt.stat.life));
-  }
-  function gv(x){ return x.parts ? x.parts.reduce(function(a,q){ return a+F(q.stat.attack*q.eff); },0) : F(x.stat.attack*x.eff); } // a group's threat, for target choice
-  function strikeD(p, tgt, distance){ // attacker stack p hits defending group tgt: split by size, each part takes it with its own defense and life
-    if (!tgt.parts){ var k0=kills(p,tgt,distance); return {k:k0, got:hit(tgt,k0)}; }
-    var tot=0; tgt.parts.forEach(function(q){ tot+=q.eff; }); if (!tot) return {k:0, got:0};
-    var k=0, got=0; tgt.parts.forEach(function(q){ if (q.eff<=0) return; var kp=kills(p,q,distance,q.eff/tot); k+=kp; var g=kp>q.eff?q.eff:kp; q.eff-=g; got+=g; });
-    tgt.eff=0; tgt.parts.forEach(function(q){ tgt.eff+=q.eff; }); return {k:k, got:got};
-  }
-  // kill credit: KA[attacker unit][target 0-11, 12 = archer tower], KD[defender source 0-11 units, 12+ fortifications][target]
-  var KA=[], KD=[]; for (i=0;i<12;i++){ KA.push([0,0,0,0,0,0,0,0,0,0,0,0,0]); } for (i=0;i<17;i++){ KD.push([0,0,0,0,0,0,0,0,0,0,0,0]); }
-  function hit(tgt,k){ var got = k>tgt.eff ? tgt.eff : k; tgt.eff-=got; return got; }
-  function credA(src,tgt,n){ if (n>0) KA[src][tgt.type===14?12:tgt.type]+=n; }
-  function credD(src,tgt,n){ if (n>0) KD[src][tgt.type]+=n; }
 
-  if (tr) tr.push({r:0, posA:A.map(function(x){ return x.loc; }), posD:D.map(function(x){ return x.loc; }), cA:A.map(function(x){ return x.eff; }), cD:D.map(function(x){ return x.eff; }),
-    eA:A.map(function(x){ return x.eff; }), eD:D.map(function(x){ return x.eff; }), wall:wallhp, wallEnd:wallhp, forts:[trap,abatis,tower.eff,logs,rocks], ev:[]});
-  for (round=0; round<100; ++round){
-    // movement
-    for (var mi=0; mi<MOVE_ORDER.length; mi++){
-      i=MOVE_ORDER[mi];
-      var pq=D[i];
-      if (i!==2 && i!==6 && pq.count>0){
-        var nearest=0, inRange=false, maxR=trunc(pq.loc - pq.stat.range);
-        for (j=0;j<12;j++){ var xp=A[j]; if (xp.count>0){ if (xp.loc>=maxR){ inRange=true; break; } nearest=Math.max(nearest,xp.loc); } }
-        if (!inRange) pq.loc = trunc(Math.max(nearest, pq.loc - pq.stat.speed));
-      }
-      if (i===2 || i===6){
-        var scoutOnly=true;
-        [0,1,3,4,5,7,8,9,10,11].forEach(function(k){ if (A[k].count>0) scoutOnly=false; });
-        if (!scoutOnly) continue;
-      }
-      pq=A[i];
-      if (pq.count>0){
-        var nearest2=fs, inRange2=false, maxR2=trunc(pq.loc + pq.stat.range);
-        for (j=0;j<12;j++){ var yp=D[j]; if (yp.count>0){ if (yp.loc<=maxR2){ inRange2=true; break; } nearest2=Math.min(nearest2,yp.loc); } }
-        if (!inRange2 && STOP_AT_WALL && (tower.eff>0 || wallhp>0) && fs<=maxR2) inRange2=true;
-        if (!inRange2) pq.loc = trunc(Math.min(nearest2, pq.loc + pq.stat.speed));
-      }
-    }
-    if (tr){ fr={r:round+1, posA:A.map(function(x){ return x.loc; }), posD:D.map(function(x){ return x.loc; }), cA:A.map(function(x){ return x.eff; }), cD:D.map(function(x){ return x.eff; }),
-      wall:wallhp, forts:[trap,abatis,tower.eff,logs,rocks], ev:[]}; tr.push(fr); }
-    // attacks
-    for (var ai=0; ai<ATTACK_ORDER.length; ai++){
-      i=ATTACK_ORDER[ai];
-      // defender
-      var p=D[i];
-      if (p.count>0){
-        var tgt=null, av=0, maxR3=trunc(p.loc - p.stat.range), md=-1;
-        if (MELEE[i]){
-          for (j=0;j<12;j++){ var lp=A[j];
-            if (lp.eff>0 && lp.loc>=maxR3){
-              var dd=p.loc-lp.loc, v=F(lp.stat.attack*lp.eff);
-              if (md===-1 || md>dd || (md===dd && v>av)){ tgt=lp; av=v; md=dd; }
-            } }
-        } else {
-          RANGED.forEach(function(j){ var lp=A[j]; if (lp.eff>0 && lp.loc>=maxR3){ var v=F(lp.stat.attack*lp.eff); if (v>av){ av=v; tgt=lp; } } });
-          if (!tgt){ var bs=-1; NON_RANGED.forEach(function(j){ var lp=A[j]; if (lp.eff>0 && lp.loc>=maxR3 && lp.stat.speed>bs){ tgt=lp; bs=lp.stat.speed; } }); }
+    /** §5.6.3 composite striker: sum of per-part results (parts with N > 0). */
+    function killsFrom(striker, target, dist) {
+      if (striker.composite) {
+        var sum = 0;
+        for (var pi = 0; pi < striker.parts.length; pi++) {
+          var part = striker.parts[pi];
+          if (part.N > 0) sum += killsSingle(part, target, dist);
         }
-        if (tgt){ var k=kills(p,tgt,p.loc-tgt.loc); if (log) log.push([round,'D',i,tgt.type,k]); var gotD=hit(tgt,k); credD(i,tgt,gotD);
-          if (tr) fr.ev.push({s:'D', u:i, n:p.count, t:tgt.type, d:p.loc-tgt.loc, k:k, got:gotD, m:lastMod}); }
+        return sum;
       }
-      // attacker
-      p=A[i];
-      if (p.count>0){
-        var tg=null, av2=0, maxR4=trunc(p.loc + p.stat.range), md2=-1;
-        if (MELEE[i]){
-          for (j=0;j<12;j++){ var lq=D[j];
-            if (lq.eff>0 && lq.loc<=maxR4){
-              var d2=lq.loc-p.loc, v2=gv(lq);
-              if (md2===-1 || md2>d2 || (md2===d2 && v2>av2)){ tg=lq; av2=v2; md2=d2; }
-            } }
-          if (!tg && tower.eff>0 && fs<=maxR4){ if (F(tower.stat.attack*tower.eff) > av2) tg=tower; }
-        } else {
-          RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4){ var v=gv(lq); if (v>av2){ av2=v; tg=lq; } } });
-          if (tower.eff>0 && fs<=maxR4){ if (F(tower.stat.attack*tower.eff) > av2) tg=tower; }
-          if (!tg){ var bs2=-1; NON_RANGED.forEach(function(j){ var lq=D[j]; if (lq.eff>0 && lq.loc<=maxR4 && lq.stat.speed>bs2){ tg=lq; bs2=lq.stat.speed; } }); }
+      return killsSingle(striker, target, dist);
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Targeting helpers
+    // -------------------------------------------------------------------------------------
+
+    /** Melee target choice (§5.6.1 / §5.6.2): smallest distance, ties by strictly larger threat. */
+    function pickMelee(candidates, distFn) {
+      var best = null, bestDist = 0, bestThreat = 0;
+      for (var c = 0; c < candidates.length; c++) {
+        var cand = candidates[c];
+        var dist = distFn(cand);
+        var th = threatOf(cand);
+        if (best === null || dist < bestDist || (dist === bestDist && th > bestThreat)) {
+          best = cand; bestDist = dist; bestThreat = th;
         }
-        if (tg){ var sk=tg.type===14?null:strikeD(p,tg,tg.loc-p.loc), k2=sk?sk.k:kills(p,tg,tg.loc-p.loc); if (log) log.push([round,'A',i,tg.type,k2]); var gotA=sk?sk.got:hit(tg,k2); credA(i,tg,gotA);
-          if (tr) fr.ev.push({s:'A', u:i, n:p.count, t:tg.type, d:tg.loc-p.loc, k:k2, got:gotA, m:lastMod}); }
-        else if (wallhp>0 && maxR4>=fs){ var wb=wallhp; wallhp=Math.max(wallhp - Math.floor(F(p.count*p.stat.attack*(MELEE[i]?1:0.5))),0); if (log) log.push([round,'A',i,'wall']);
-          if (tr) fr.ev.push({s:'A', u:i, n:p.count, t:'wall', d:fs-p.loc, got:wb-wallhp, m:MELEE[i]?1:0.5}); }
+      }
+      return { target: best, threat: bestThreat };
+    }
+
+    /** Among candidates of the ranged types (in order 5,9,11) the strictly largest threat (from 0). */
+    function pickRangedByThreat(candidates) {
+      var best = null, bestThreat = 0;
+      for (var r = 0; r < RANGED.length; r++) {
+        var cand = candidates[RANGED[r]];
+        if (!cand) continue;
+        var th = threatOf(cand);
+        if (th > bestThreat) { best = cand; bestThreat = th; }
+      }
+      return { target: best, threat: bestThreat };
+    }
+
+    /** Non-ranged preference list by strictly greatest speed (ties → earlier). */
+    function pickBySpeed(candidates) {
+      var best = null, bestSpeed = 0;
+      for (var r = 0; r < NON_RANGED_PREF.length; r++) {
+        var cand = candidates[NON_RANGED_PREF[r]];
+        if (!cand) continue;
+        if (best === null || cand.stat.speed > bestSpeed) { best = cand; bestSpeed = cand.stat.speed; }
+      }
+      return best;
+    }
+
+    /** Attacker stacks reachable by a defender at pos with range (§5.6.1 candidates), by type. */
+    function attackerCandidates(pos, range) {
+      var reachFrom = trunc(pos - range);
+      var out = [];
+      for (var k = 0; k < NUM_TYPES; k++) out.push((A[k].E > 0 && A[k].pos >= reachFrom) ? A[k] : null);
+      return out;
+    }
+
+    // -------------------------------------------------------------------------------------
+    // §5.5 movement
+    // -------------------------------------------------------------------------------------
+    function movementPhase() {
+      for (var oi = 0; oi < MOVE_ORDER.length; oi++) {
+        var ti = MOVE_ORDER[oi];
+        var k, nearest, reach, inRange;
+
+        // defender stack of type ti (Scouts and Transporters never move)
+        var ds = D[ti];
+        if (ti !== 2 && ti !== 6 && ds.N > 0) {
+          reach = trunc(ds.pos - ds.stat.range);
+          nearest = 0; inRange = false;
+          for (k = 0; k < NUM_TYPES; k++) {
+            if (!(A[k].N > 0)) continue;
+            if (A[k].pos >= reach) { inRange = true; break; }
+            nearest = Math.max(nearest, A[k].pos);
+          }
+          if (!inRange) ds.pos = trunc(Math.max(nearest, ds.pos - ds.stat.speed));
+        }
+
+        // attacker stack of type ti
+        var as = A[ti];
+        var skip = false;
+        if (ti === 2 || ti === 6) {
+          for (k = 0; k < COMBAT_TYPES.length; k++) if (A[COMBAT_TYPES[k]].N > 0) { skip = true; break; }
+        }
+        if (!skip && as.N > 0) {
+          reach = trunc(as.pos + as.stat.range);
+          nearest = L; inRange = false;
+          for (k = 0; k < NUM_TYPES; k++) {
+            if (!(D[k].N > 0)) continue;
+            if (D[k].pos <= reach) { inRange = true; break; }
+            nearest = Math.min(nearest, D[k].pos);
+          }
+          // stop-at-wall rule: a stack that can already hit the tower or wall halts
+          if (!inRange && (tower.E > 0 || H > 0) && L <= reach) inRange = true;
+          if (!inRange) as.pos = trunc(Math.min(nearest, as.pos + as.stat.speed));
+        }
       }
     }
-    var wallUp = !(wall>0) || wallhp>0; // fortifications sit on the wall: once it falls they stop
-    // traps
-    if (trap>0 && wallUp){
-      var pos=fs-5000, tot=0;
-      A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs) tot++; });
-      if (tot>0){
-        var mt=Math.min(trap,trapDie), kk=trunc(F(mt*0.5*trapKP)/tot);
-        A.forEach(function(lp){ if (TRAP_OK(lp) && lp.eff>0 && lp.loc>=pos && lp.loc<=fs){ var b0=lp.eff; lp.eff-=kk; if (lp.eff<0) lp.eff=0; credD(12,lp,b0-lp.eff); if (tr) fr.ev.push({s:'F', f:0, t:lp.type, got:b0-lp.eff, used:mt}); } });
-        trap-=mt;
+
+    // -------------------------------------------------------------------------------------
+    // §5.6 attacks
+    // -------------------------------------------------------------------------------------
+    function defenderStrike(round, ti, ev) {
+      var ds = D[ti];
+      if (!(ds.N > 0)) return;
+      var cands = attackerCandidates(ds.pos, ds.stat.range);
+      var target = null;
+      if (MELEE[ti]) {
+        var list = [];
+        for (var k = 0; k < NUM_TYPES; k++) if (cands[k]) list.push(cands[k]);
+        target = pickMelee(list, function (c) { return ds.pos - c.pos; }).target;
+      } else {
+        target = pickRangedByThreat(cands).target;
+        if (target === null) target = pickBySpeed(cands);
+      }
+      if (target === null) return;
+      var dist = ds.pos - target.pos;
+      var kills = killsFrom(ds, target, dist);
+      if (wantLog) log.push([round, "D", ti, target.type, kills]);
+      var removed = (kills > target.E) ? target.E : kills;
+      target.E = target.E - removed;
+      if (removed > 0) KD[ti][target.type] += removed;
+      if (wantTrace) ev.push({ s: "D", u: ti, n: ds.N, t: target.type, d: dist, k: kills, got: removed, m: lastMod });
+    }
+
+    function attackerStrike(round, ti, ev) {
+      var as = A[ti];
+      if (!(as.N > 0)) return;
+      var reachTo = trunc(as.pos + as.stat.range);
+      var cands = [];
+      var k;
+      for (k = 0; k < NUM_TYPES; k++) cands.push((D[k].E > 0 && D[k].pos <= reachTo) ? D[k] : null);
+      var towerReachable = tower.E > 0 && L <= reachTo;
+      var towerThreat = f32(TOWER_ATTACK * tower.E);
+      var target = null;
+      if (MELEE[ti]) {
+        var list = [];
+        for (k = 0; k < NUM_TYPES; k++) if (cands[k]) list.push(cands[k]);
+        var pm = pickMelee(list, function (c) { return c.pos - as.pos; });
+        target = pm.target;
+        if (target === null && towerReachable && towerThreat > pm.threat) target = tower;
+      } else {
+        var pr = pickRangedByThreat(cands);
+        target = pr.target;
+        if (towerReachable && towerThreat > pr.threat) target = tower;
+        if (target === null) target = pickBySpeed(cands);
+      }
+
+      if (target !== null) {
+        var dist = target.pos - as.pos;
+        var kills = 0, removed = 0;
+        if (target === tower || !target.composite) {
+          kills = killsSingle(as, target, dist);
+          removed = (kills > target.E) ? target.E : kills;
+          target.E = target.E - removed;
+        } else {
+          // §5.6.2 composite target: split the strike by each part's share of the live total
+          var tot = 0, pi, part;
+          for (pi = 0; pi < target.parts.length; pi++) tot += target.parts[pi].E;
+          if (tot !== 0) {
+            for (pi = 0; pi < target.parts.length; pi++) {
+              part = target.parts[pi];
+              if (!(part.E > 0)) continue;
+              var share = part.E / tot;
+              var kq = killsSingle(as, part, dist, share);
+              kills += kq;
+              var rq = (kq > part.E) ? part.E : kq;
+              part.E = part.E - rq;
+              removed += rq;
+            }
+          }
+          var sumE = 0;
+          for (pi = 0; pi < target.parts.length; pi++) sumE += target.parts[pi].E;
+          target.E = sumE;
+        }
+        if (wantLog) log.push([round, "A", ti, target.type, kills]);
+        if (removed > 0) KA[ti][target.type === TOWER_TYPE ? 12 : target.type] += removed;
+        if (wantTrace) ev.push({ s: "A", u: ti, n: as.N, t: target.type, d: dist, k: kills, got: removed, m: lastMod });
+        return;
+      }
+
+      // No target: hit the wall if it stands and is in reach
+      if (H > 0 && reachTo >= L) {
+        var factor = MELEE[ti] ? 1 : RANGED_WALL_FACTOR;
+        var dmg = Math.floor(f32(as.N * as.stat.attack * factor));
+        var oldH = H;
+        H = Math.max(H - dmg, 0);
+        if (wantLog) log.push([round, "A", ti, "wall"]);
+        if (wantTrace) ev.push({ s: "A", u: ti, n: as.N, t: "wall", d: L - as.pos, got: oldH - H, m: factor });
       }
     }
-    // abatis (kills cav, else phracts); each abatis that strikes is used up, like in dxcalc
-    if (abatis>0 && wallUp){
-      var pos2=fs-5000, c=A[7];
-      if (!(c.eff>0 && c.loc>=pos2 && c.loc<=fs)) c=A[8];
-      if (c.eff>0 && c.loc>=pos2 && c.loc<=fs){ var ma=Math.min(abatis,abatisDie), need=Math.ceil(c.eff/0.535); if (ma>need) ma=need; var b1=c.eff; c.eff=Math.max(c.eff - trunc(ma*0.535),0); credD(13,c,b1-c.eff); abatis-=ma; if (tr) fr.ev.push({s:'F', f:1, t:c.type, got:b1-c.eff, used:ma}); }
-    }
-    // rolling logs
-    if (logs>0 && wallUp){
-      var pos3=fs-(fs>=5000?5000:FS[3].range), best=0, t3=null; // logs reach 5000 on the 5K field (any trap, abatis or trebuchet), like traps
-      [0,1,2,3,4,5].forEach(function(k){ var lp=A[k]; var v=F(lp.eff*lp.stat.attack); if (lp.eff>0 && lp.loc>=pos3 && lp.loc<=fs && v>best){ t3=lp; best=v; } });
-      if (t3){ var ml=Math.min(logs,logDie), b3=t3.eff; t3.eff=Math.max(t3.eff - Math.floor(F(F(F(ml*logKP)*FS[3].attack)/F((2-t3.stat.defense)*t3.stat.life))),0); credD(15,t3,b3-t3.eff); logs-=ml; if (tr) fr.ev.push({s:'F', f:3, t:t3.type, got:b3-t3.eff, used:ml}); }
-    }
-    // trebuchets
-    if (rocks>0 && wallUp){
-      var pos4=fs-FS[4].range, best4=0, t4=null;
-      for (j=0;j<12;j++){ var lp4=A[j]; var v4=F(lp4.eff*lp4.stat.attack); if (lp4.eff>0 && lp4.loc>=pos4 && lp4.loc<=fs && v4>best4){ t4=lp4; best4=v4; } }
-      if (t4){ var b4=t4.eff;
-        var tdv=t4.eff*t4.stat.life*t4.stat.defense, tav=rockDie*rockKP*FS[4].attack;
-        if (tdv>tav){ var rd=Math.min(rocks,rockDie); rocks-=rd; t4.eff=Math.max(t4.eff - Math.floor(F(rd*FS[4].attack*rockKP)/F(t4.stat.defense*t4.stat.life)),0); }
-        else { rocks-=Math.ceil(F(t4.stat.defense*t4.stat.life*t4.eff)/F(rockKP*FS[4].attack)); if (rocks<0) rocks=0; }
-        credD(16,t4,b4-t4.eff); if (tr) fr.ev.push({s:'F', f:4, t:t4.type, got:b4-t4.eff});
+
+    function attackPhase(round, ev) {
+      for (var oi = 0; oi < ATTACK_ORDER.length; oi++) {
+        defenderStrike(round, ATTACK_ORDER[oi], ev);
+        attackerStrike(round, ATTACK_ORDER[oi], ev);
       }
     }
-    // archer towers
-    tower.count=tower.eff;
-    if (tower.count>0 && wallUp){
-      var tt=null, av5=0, maxR5=trunc(fs - tower.stat.range);
-      RANGED.forEach(function(j){ var lp=A[j]; if (lp.eff>0 && lp.loc>=maxR5){ var v=F(lp.stat.attack*lp.eff); if (v>av5){ av5=v; tt=lp; } } });
-      if (!tt){ var bs5=-1; NON_RANGED.forEach(function(j){ var lp=A[j]; if (lp.eff>0 && lp.loc>=maxR5 && lp.stat.speed>bs5){ tt=lp; bs5=lp.stat.speed; } }); }
-      if (tt){
-        var dist=fs-tt.loc, m5 = dist > tower.stat.range/2 ? 0.5 : 1;
-        // reference formula: attack*count*mod / (defense*life)
-        var k5 = trunc(F(F(F(tower.stat.attack*tower.count)*m5*TOWER_DMG) / F(tt.stat.defense*tt.stat.life)));
-        if (log) log.push([round,'T',tt.type,k5]);
-        var gotT=hit(tt,k5); credD(14,tt,gotT); if (tr) fr.ev.push({s:'F', f:2, t:tt.type, d:fs-tt.loc, k:k5, got:gotT, m:m5, n:tower.count});
+
+    // -------------------------------------------------------------------------------------
+    // §5.7 fortifications
+    // -------------------------------------------------------------------------------------
+    function inFortZone(stack, zoneStart) { return stack.E > 0 && stack.pos >= zoneStart && stack.pos <= L; }
+
+    function trapStep(ev) {                                            // §5.7.1
+      var zone = [], k;
+      for (k = 0; k < NUM_TYPES; k++) {
+        if ((trapAll || k <= 5) && inFortZone(A[k], L - FORT_ZONE)) zone.push(A[k]);
+      }
+      var cnt = zone.length;
+      if (cnt > 0) {
+        var used = Math.min(traps, trapVolley);
+        var perStack = trunc(f32(used * TRAP_KILL_FACTOR * trapPower) / cnt);
+        for (k = 0; k < zone.length; k++) {
+          var stkz = zone[k];
+          var oldE = stkz.E;
+          stkz.E = stkz.E - perStack;
+          if (stkz.E < 0) stkz.E = 0;
+          var got = oldE - stkz.E;
+          if (got > 0) KD[12][stkz.type] += got;
+          if (wantTrace) ev.push({ s: "F", f: 0, t: stkz.type, got: got, used: used });
+        }
+        traps = traps - used;
       }
     }
-    attackerAlive=false; defenderAlive=false;
-    A.forEach(function(x){ x.count=x.eff; if (x.count>0) attackerAlive=true; });
-    D.forEach(function(x){ x.count=x.eff; if (x.parts) x.parts.forEach(function(q){ q.count=q.eff; }); if (x.count>0) defenderAlive=true; });
-    if (wallhp>0) defenderAlive=true;
-    if (tr){ fr.eA=A.map(function(x){ return x.eff; }); fr.eD=D.map(function(x){ return x.eff; }); fr.wallEnd=wallhp; if (CON.length>1) fr.pD=ownLeft(); }
-    if (!attackerAlive || !defenderAlive) break;
+
+    function abatisStep(ev) {                                          // §5.7.2
+      var target = null;
+      for (var k = 0; k < ABATIS_PREF.length; k++) {
+        if (inFortZone(A[ABATIS_PREF[k]], L - FORT_ZONE)) { target = A[ABATIS_PREF[k]]; break; }
+      }
+      if (target === null) return;
+      var used = Math.min(abatis, abatisVolley);
+      var need = Math.ceil(target.E / ABATIS_KILL_FACTOR);
+      if (used > need) used = need;
+      var oldE = target.E;
+      target.E = Math.max(target.E - trunc(used * ABATIS_KILL_FACTOR), 0);
+      var got = oldE - target.E;
+      if (got > 0) KD[13][target.type] += got;
+      abatis = abatis - used;
+      if (wantTrace) ev.push({ s: "F", f: 1, t: target.type, got: got, used: used });
+    }
+
+    /** Pick, among the given types in order, the stack in zone with the strictly largest f32(E × attack). */
+    function pickByPower(types, zoneStart) {
+      var best = null, bestPower = 0;
+      for (var k = 0; k < types.length; k++) {
+        var stkp = A[types[k]];
+        if (!inFortZone(stkp, zoneStart)) continue;
+        var pw = f32(stkp.E * stkp.stat.attack);
+        if (pw > bestPower) { best = stkp; bestPower = pw; }
+      }
+      return best;
+    }
+
+    function logStep(ev) {                                             // §5.7.3
+      var zoneStart = L >= 5000 ? L - 5000 : L - 1300;
+      var target = pickByPower(LOG_TARGETS, zoneStart);
+      if (target === null) return;
+      var used = Math.min(logs, logVolley);
+      var ts = target.stat;
+      var killed = Math.floor(f32(f32(f32(used * logPower) * LOG_ATTACK) / f32((2 - ts.defense) * ts.life)));
+      var oldE = target.E;
+      target.E = Math.max(target.E - killed, 0);
+      var got = oldE - target.E;
+      if (got > 0) KD[15][target.type] += got;
+      logs = logs - used;
+      if (wantTrace) ev.push({ s: "F", f: 3, t: target.type, got: got, used: used });
+    }
+
+    function rockStep(ev) {                                            // §5.7.4
+      var all = [];
+      for (var k = 0; k < NUM_TYPES; k++) all.push(k);
+      var target = pickByPower(all, L - FORT_ZONE);
+      if (target === null) return;
+      var ts = target.stat;
+      var tough = target.E * ts.life * ts.defense;
+      var power = rockVolley * rockPower * ROCK_ATTACK;
+      var oldE = target.E;
+      if (tough > power) {
+        var used = Math.min(rocks, rockVolley);
+        rocks = rocks - used;
+        var killed = Math.floor(f32(used * ROCK_ATTACK * rockPower) / f32(ts.defense * ts.life));
+        target.E = Math.max(target.E - killed, 0);
+      } else {
+        // The volley would wipe the stack: rocks are spent, nobody dies (original behaviour).
+        rocks = rocks - Math.ceil(f32(ts.defense * ts.life * target.E) / f32(rockPower * ROCK_ATTACK));
+        if (rocks < 0) rocks = 0;
+      }
+      var got = oldE - target.E;
+      if (got > 0) KD[16][target.type] += got;
+      if (wantTrace) ev.push({ s: "F", f: 4, t: target.type, got: got });
+    }
+
+    function towerStep(round, ev, fortsActive) {                       // §5.7.5
+      tower.N = tower.E;                                               // unconditional sync
+      if (!(tower.N > 0) || !fortsActive) return;
+      var cands = attackerCandidates(L, towerStat.range);
+      var target = null, bestPower = 0;
+      for (var r = 0; r < RANGED.length; r++) {
+        var cand = cands[RANGED[r]];
+        if (!cand) continue;
+        var pw = f32(cand.stat.attack * cand.E);
+        if (pw > bestPower) { target = cand; bestPower = pw; }
+      }
+      if (target === null) target = pickBySpeed(cands);
+      if (target === null) return;
+      var dist = L - target.pos;
+      var m5 = (dist > towerStat.range / 2) ? 0.5 : 1;
+      var ts = target.stat;
+      var kills = trunc(f32(f32(f32(TOWER_ATTACK * tower.N) * m5 * 1) / f32(ts.defense * ts.life)));
+      if (wantLog) log.push([round, "T", target.type, kills]);
+      var removed = (kills > target.E) ? target.E : kills;
+      target.E = target.E - removed;
+      if (removed > 0) KD[14][target.type] += removed;
+      if (wantTrace) ev.push({ s: "F", f: 2, t: target.type, d: dist, k: kills, got: removed, m: m5, n: tower.N });
+    }
+
+    function fortificationPhase(round, ev) {
+      var fortsActive = (W <= 0) || (H > 0);
+      if (fortsActive) {
+        if (traps > 0) trapStep(ev);
+        if (abatis > 0) abatisStep(ev);
+        if (logs > 0) logStep(ev);
+        if (rocks > 0) rockStep(ev);
+      }
+      towerStep(round, ev, fortsActive);
+    }
+
+    // -------------------------------------------------------------------------------------
+    // §5.4 round loop
+    // -------------------------------------------------------------------------------------
+    var attackerAlive = false, defenderAlive = false;
+    var round;
+    for (round = 0; round < ROUND_LIMIT; round++) {
+      movementPhase();
+      var frame = null;
+      if (wantTrace) {
+        frame = {
+          r: round + 1,
+          posA: pluck(A, "pos"), posD: pluck(D, "pos"),
+          cA: pluck(A, "E"), cD: pluck(D, "E"),
+          wall: H,
+          forts: fortSnapshot(),
+          ev: []
+        };
+        trace.push(frame);
+      }
+      var ev = frame ? frame.ev : null;
+      attackPhase(round, ev);
+      fortificationPhase(round, ev);
+
+      // end of round: refresh round-start counts from live counts
+      attackerAlive = false; defenderAlive = false;
+      for (i = 0; i < NUM_TYPES; i++) {
+        A[i].N = A[i].E;
+        if (A[i].N > 0) attackerAlive = true;
+        D[i].N = D[i].E;
+        if (D[i].composite) {
+          for (q = 0; q < D[i].parts.length; q++) D[i].parts[q].N = D[i].parts[q].E;
+        }
+        if (D[i].N > 0) defenderAlive = true;
+      }
+      if (H > 0) defenderAlive = true;
+
+      if (wantTrace) {
+        frame.eA = pluck(A, "E");
+        frame.eD = pluck(D, "E");
+        frame.wallEnd = H;
+        if (hasAllies) frame.pD = ownerLeftovers();
+      }
+      if (!attackerAlive || !defenderAlive) break;
+    }
+    var rounds = Math.min(round + 1, ROUND_LIMIT);
+    var result = (attackerAlive ? 1 : 0) + (defenderAlive ? 2 : 0);
+
+    // §6 kill-credit lists
+    var kbA = [], kbD = [];
+    for (s = 0; s < 12; s++) for (j = 0; j < 13; j++) if (KA[s][j] !== 0) kbA.push([s, j, KA[s][j]]);
+    for (s = 0; s < 17; s++) for (j = 0; j < 12; j++) if (KD[s][j] !== 0) kbD.push([s, j, KD[s][j]]);
+
+    return {
+      parts: hasAllies ? ownerLeftovers() : undefined,
+      attacker: pluck(A, "N"),
+      defender: pluck(D, "N"),
+      forts: [traps, abatis, tower.N, logs, rocks],
+      wallhp: H,
+      result: result,
+      rounds: rounds,
+      fieldSize: L,
+      log: log,
+      trace: trace,
+      ranges: { A: rangesOf(A), D: rangesOf(D), tower: towerStat.range },
+      kb: { a: kbA, d: kbD }
+    };
   }
-  function ownLeft(){ return CON.map(function(c,ci){ return D.map(function(x){ return x.parts ? x.parts.filter(function(q){ return q.own===ci; }).reduce(function(n,q){ return n+q.eff; },0) : (x.solo===ci ? x.eff : 0); }); }); }
-  return {
-    parts: CON.length>1 ? ownLeft() : undefined, // what each owner has left (0 = the city, then each ally)
-    attacker: A.map(function(x){return x.count;}), defender: D.map(function(x){return x.count;}),
-    forts:[trap,abatis,tower.count,logs,rocks], wallhp:wallhp,
-    result: (attackerAlive?1:0) | (defenderAlive?2:0), rounds: Math.min(round+1,100), fieldSize:fs, log:log, trace:tr, ranges:{A:A.map(function(x){ return x.stat.range; }), D:D.map(function(x){ return x.stat.range; }), tower:tower.stat.range}, kb:packKills(KA,KD)
-  };
-}
-function packKills(KA,KD){ var a=[], d=[], s, t; // sparse [source, target, count] triples
-  for (s=0;s<KA.length;s++) for (t=0;t<KA[s].length;t++) if (KA[s][t]) a.push([s,t,KA[s][t]]);
-  for (s=0;s<KD.length;s++) for (t=0;t<KD[s].length;t++) if (KD[s][t]) d.push([s,t,KD[s][t]]);
-  return {a:a, d:d}; }
-function setOpt(k,v){ if(k==='stop') STOP_AT_WALL=v; }
 
+  function rangesOf(stacks) {
+    var a = [];
+    for (var i = 0; i < stacks.length; i++) a.push(stacks[i].stat.range);
+    return a;
+  }
 
-// War Wizard: remember the last few fights exactly (inputs and dice), so reports can be replayed round by round
-var RECENT=[];
-function fightRec(a, d, opts){
-  if (opts && opts.trace) return fight(a, d, opts);
-  var o={}, k; for (k in (opts||{})) o[k]=opts[k];
-  var base=o.rand||Math.random, rec=[]; o.rand=function(){ var v=base(); rec.push(v); return v; };
-  var inA=JSON.stringify(a), inD=JSON.stringify(d), out=fight(a, d, o);
-  RECENT.push({kb:out.kb, A:inA, D:inD, rands:rec}); if (RECENT.length>16) RECENT.shift();
-  return out;
-}
-function capFor(kb){ for (var i=RECENT.length-1;i>=0;i--) if (RECENT[i].kb===kb) return {A:RECENT[i].A, D:RECENT[i].D, rands:RECENT[i].rands.slice()}; return null; }
-return {fight:fightRec, stats:stats, MELEE:MELEE, capFor:capFor, last:function(){ return RECENT[RECENT.length-1]||null; }};
+  // ---------------------------------------------------------------------------------------
+  // §7 replay recording wrapper
+  // ---------------------------------------------------------------------------------------
+  var ring = [];
+
+  function fight(attacker, defender, opts) {
+    if (opts && opts.trace) return fightCore(attacker, defender, opts);  // traced fights are not recorded
+    var copy = {};
+    var src = opts || {};
+    for (var key in src) if (Object.prototype.hasOwnProperty.call(src, key)) copy[key] = src[key];
+    var base = src.rand || Math.random;
+    var rands = [];
+    copy.rand = function () { var v = base(); rands.push(v); return v; };
+    var aJson = JSON.stringify(attacker);
+    var dJson = JSON.stringify(defender);
+    var res = fightCore(attacker, defender, copy);
+    ring.push({ kb: res.kb, A: aJson, D: dJson, rands: rands });
+    if (ring.length > REPLAY_RING_SIZE) ring.shift();
+    return res;
+  }
+
+  function last() { return ring.length ? ring[ring.length - 1] : null; }
+
+  function capFor(kb) {
+    for (var i = ring.length - 1; i >= 0; i--) {
+      if (ring[i].kb === kb) return { A: ring[i].A, D: ring[i].D, rands: ring[i].rands.slice() };
+    }
+    return null;
+  }
+
+  return { fight: fight, stats: stats, MELEE: MELEE, capFor: capFor, last: last };
 })();
 
 /* ---------- troops ---------- */
