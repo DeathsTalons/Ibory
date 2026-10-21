@@ -828,7 +828,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.231";
+var APP_VERSION = "0.1.232";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var RES = ["food","lumber","stone","iron","gold"];
@@ -2213,9 +2213,15 @@ function baseOf(q){
   if (q.k==="npc"){ var a=NPC_RES[q.L], res={food:a[0],lumber:a[1],stone:a[2],iron:a[3],gold:a[4]}; var nh=npcHero(q.L); return {t:NPC[q.L].t.slice(), f:NPC[q.L].f.slice(), wall:q.L, r:npcSimResearch(q.L), res:res, am:1+0.05*q.L+nh[0]/100, hint:nh[1], fb:1+0.1*q.L}; }
   return {t:valleyTroops(q.L), f:[0,0,0,0,0], wall:0, r:{}, res:valleyRes(q.k,q.L)};
 }
+function regenT(q){ return q.k==="hc"?1*3.6e6:q.k==="ai"?24*3.6e6:REGEN_T; } // how long a hit garrison takes to grow back to full
+// 0.1.232: the game time a target's troop garrison is full again (items and medals only drop from NPC cities and AI lords at full garrison)
+function garFullAt(q){ var h=S.map.hit[q.id]; if (!h || VTYPES[q.k]) return 0; var b=baseOf(q), f=0;
+  // current() grows each troop type back linearly and rounds, so type i counts as full once (v-m)*ft >= (v-m)-0.5: the same test the fight uses
+  b.t.forEach(function(v,i){ var m=Math.min(h.t[i]||0, v); if (v>m) f=Math.max(f, 1-0.5/(v-m)); });
+  return f>0 ? h.at+Math.ceil(regenT(q)*f) : h.at; }
 function current(q){
   var b=baseOf(q), h=S.map.hit[q.id]; if (!h) return b;
-  var RT=q.k==="hc"?1*3.6e6:q.k==="ai"?24*3.6e6:REGEN_T, RR=q.k==="ai"?48*3.6e6:REGEN_R, ft=Math.min(1,(S.gt-h.at)/RT), fr=Math.min(1,(S.gt-h.at)/RR), res={};
+  var RT=regenT(q), RR=q.k==="ai"?48*3.6e6:REGEN_R, ft=Math.min(1,(S.gt-h.at)/RT), fr=Math.min(1,(S.gt-h.at)/RR), res={};
   RES.forEach(function(k){ res[k]=Math.round(h.res[k]+(b.res[k]-h.res[k])*fr); });
   if (VTYPES[q.k]) ft=1; // valleys and flats muster a full garrison again right after every fight
   return {t:b.t.map(function(v,i){ return Math.round(Math.min(h.t[i],v)+(v-Math.min(h.t[i],v))*ft); }), f:b.f.map(function(v,i){ return Math.round(h.f[i]+(v-h.f[i])*ft); }), wall:b.wall, r:b.r, res:res, am:b.am, fb:b.fb, hint:b.hint};
@@ -2621,6 +2627,10 @@ function heroChoiceOpts(cur, list, label, fast){ return '<option value="0"'+(!cu
 function presetTotal(pr){ return pr.t.reduce(function(a,b){return a+b;},0); }
 function presetReady(pr){ if (!presetTotal(pr) || presetTotal(pr)>armyCap()) return false; for (var i=0;i<12;i++) if (pr.t[i]>S.troops[i]) return false; return true; }
 function farmTarget(id){ var q=TILE_BY[id]; return q && (q.k==="npc"||q.k==="ai"||q.k==="hc"||(VTYPES[q.k] && !S.map.owned[q.id])); }
+var FARM_WAIT={}; // "cityId:preset" -> waiting for a full garrison somewhere on its list (shown on the preset)
+function farmFullOk(id, pr, hid){ var q=TILE_BY[id]; if (!q || (q.k!=="npc" && q.k!=="ai")) return true; // valleys and historic cities always drop
+  var arr=S.gt+travelMs(pr.t,q,hid); if (garFullAt(q)>arr) return false;
+  return !S.marches.some(function(m){ return m.tile===id && (m.mission==="attack"||m.mission==="conquer") && m.phase!=="back" && m.phase!=="stay"; }); } // one of yours will hit it first
 function processAuto(){
   var rl=rallyLv(); if (!rl) return;
   S.presets.forEach(function(pr,pi){
@@ -2632,21 +2642,25 @@ function processAuto(){
     var h=pr.hero>0?heroById(pr.hero):null;
     if (h && C().heroes.indexOf(h)>=0 && (h.away || isOfficer(h))) return; // a named hero: wait for them (Best / Any never wait)
     var tries=0; while (tries<pr.farm.length && !farmTarget(pr.farm[pr.idx % pr.farm.length])){ pr.farm.splice(pr.idx % pr.farm.length,1); tries++; if (!pr.farm.length) return; }
-    var id=pr.farm[pr.idx % pr.farm.length]; pr.idx=(pr.idx+1) % pr.farm.length;
+    var id=pr.farm[pr.idx % pr.farm.length];
+    if (pr.fullOnly){ // 0.1.232: only NPC cities and AI lords that will be at full garrison when this march lands; skip ahead in the rotation, or wait
+      id=null; for (var k=0;k<pr.farm.length;k++){ var cid=pr.farm[(pr.idx+k) % pr.farm.length]; if (farmFullOk(cid, pr, phid)){ id=cid; pr.idx=(pr.idx+k) % pr.farm.length; break; } }
+      FARM_WAIT[C().id+":"+pi]=!id; if (!id) return; }
+    pr.idx=(pr.idx+1) % pr.farm.length;
     launchMarch(id,"attack",pr.t,phid,{preset:pi});
   });
 }
 function presetSummary(pr){ var parts=[]; pr.t.forEach(function(n,i){ if (n) parts.push(fmt(n)+" "+U[i].name); }); return parts.length?parts.join(", "):"No troops set"; }
 var presetClip=null; // a copied preset: troops, hero choice and the pause-on-loss setting (never the farm list, since an NPC only sits on one list). Kept until you reload, so it can go to another city too.
 function presetsSection(){
-  var h='<div class="section"><div class="shead"><h3>March presets</h3><span class="dur">'+esc(S.name)+'</span></div><p class="hint">Ten per city, each with its own farm list. Save armies to launch in one tap, run them on an auto-farm rotation, or stack them into timed waves from a target on the Map. Copy a preset, then Paste it onto another to duplicate its troops and hero'+(presetClip?' (copied: '+esc(presetClip.name)+')':'')+'.</p><div class="unitlist">';
+  var h='<div class="section"><div class="shead"><h3>March presets</h3><span class="dur">'+esc(S.name)+'</span></div><p class="hint">Ten per city, each with its own farm list. Save armies to launch in one tap, run them on an auto-farm rotation, or stack them into timed waves from a target on the Map. Presets higher on this list go first: a hero on several auto-farm presets goes to the highest one that\u2019s ready each time he\u2019s home (with Full garrisons only on a level 10 list, he hits it about once an hour and farms the lower list in between). Copy a preset, then Paste it onto another to duplicate its troops and hero'+(presetClip?' (copied: '+esc(presetClip.name)+')':'')+'.</p><div class="unitlist">';
   S.presets.forEach(function(pr,pi){
     var hh=presetHero(pr), running=S.marches.some(function(m){ return m.city===C().id && m.preset===pi; });
     var rot=0; if (presetTotal(pr)) pr.farm.forEach(function(id){ var fq=TILE_BY[id]; if (fq) rot+=2*travelMs(pr.t,fq,hh?hh.id:0); });
     h+='<div class="unit"><h4>'+esc(pr.name)+'</h4><span class="own" style="font-size:.85rem">'+(pr.auto?'<span class="badge">Auto-farming</span>':'')+'</span>'+
       '<div class="us"><span>'+presetSummary(pr)+'</span><span>Hero <b>'+(pr.hero===HERO_BEST?'Best attack':pr.hero===HERO_FAST?'Fastest':pr.hero===HERO_ANY?'Any free':hh?esc(hh.name):"none")+'</b>'+(presetAutoHero(pr.hero)?' <span class="dur">('+(hh?'now '+esc(hh.name):'nobody free')+')</span>':'')+'</span><span>Farm list <b>'+pr.farm.length+'</b>'+(pr.farmMode?' <span class="dur">'+FARM_MODES[pr.farmMode].name+'</span>':'')+'</span>'+(rot?'<span>Full rotation <b>'+fmtT(realMs(rot))+'</b></span>':'')+(running?'<span><b>Out on a march</b></span>':'')+'</div>'+
       '<div class="trainrow"><button class="btn ghost small" data-act="preset-edit" data-p="'+pi+'">Edit</button><button class="btn ghost small" data-act="preset-copy" data-p="'+pi+'"'+(presetTotal(pr)?'':' disabled')+'>Copy</button>'+(presetClip?'<button class="btn ghost small" data-act="preset-paste" data-p="'+pi+'">Paste</button>':'')+(pr.farm.length&&presetTotal(pr)?'<button class="btn small'+(pr.auto?' ghost':'')+'" data-act="preset-auto" data-p="'+pi+'">'+(pr.auto?'Stop auto-farm':'Start auto-farm')+'</button>':'')+
-      (presetTotal(pr)>armyCap()?'<span class="why">Over the '+fmt(armyCap())+'-troop march limit</span>':pr.auto && !presetReady(pr) && !running?'<span class="why">Waiting for troops</span>':'')+'</div></div>';
+      (presetTotal(pr)>armyCap()?'<span class="why">Over the '+fmt(armyCap())+'-troop march limit</span>':pr.auto && !presetReady(pr) && !running?'<span class="why">Waiting for troops</span>':pr.auto && pr.fullOnly && !running && FARM_WAIT[C().id+":"+pi]?'<span class="why">Waiting for a full garrison</span>':'')+(pr.fullOnly?'<span class="dur">Full garrisons only</span>':'')+'</div></div>';
   });
   return h+'</div></div>';
 }
@@ -2658,6 +2672,7 @@ function presetSheet(pi){
   h+='<div class="tscroll"><table class="gt wrap1" style="min-width:0"><tbody>'+U.map(function(u,i){ return '<tr><td>'+u.name+' <span class="dur">('+fmt(S.troops[i])+' home)</span></td><td><input type="number" min="0" data-ptroop="'+i+'" value="'+(pr.t[i]||"")+'" placeholder="0"></td></tr>'; }).join("")+'</tbody></table></div>';
   h+='<div><label class="sub" for="phero">Hero</label><select id="phero">'+heroChoiceOpts(pr.hero, fh, function(x){ return esc(x.name)+', Lv '+x.level+', Atk '+hs(x,"atk")+', Int '+hs(x,"int"); }, true)+'</select></div>';
   h+='<label class="chk"><input type="checkbox" id="pstop"'+(pr.stopOnLoss?' checked':'')+'> Pause auto-farm if a battle loses any troops</label>';
+  h+='<label class="chk"><input type="checkbox" id="pfull"'+(pr.fullOnly?' checked':'')+'> Only hit NPC cities and AI lords at full garrison: auto-farm skips any that won\u2019t be full when the march lands (no medals or items drop otherwise) and waits if none will be</label>';
   h+='<label class="chk"><input type="checkbox" id="pnocap"'+(pr.noCap?' checked':'')+'> Don\u2019t capture NPC cities: this preset\u2019s farm hits never take a city, even with room under your title and its loyalty at 0</label>';
   h+='<div class="h3">Farm list ('+pr.farm.length+')</div>';
   if (!pr.farm.length) h+='<p class="hint">Empty. Tap a target on the Map and use "Add to farm list".</p>';
@@ -12307,6 +12322,7 @@ document.addEventListener("change",function(e){
   if (e.target.id==="phero"){ S.presets[sheetFor.p].hero=+e.target.value; save(); }
   if (e.target.id==="pstop"){ S.presets[sheetFor.p].stopOnLoss=e.target.checked; save(); }
   if (e.target.id==="pnocap"){ S.presets[sheetFor.p].noCap=e.target.checked; save(); }
+  if (e.target.id==="pfull"){ S.presets[sheetFor.p].fullOnly=e.target.checked; save(); }
   if (e.target.id==="wmis"){ waveDraft.mission=e.target.value; updateWaveInfo(); }
   if (e.target.dataset && e.target.dataset.dgset){ var gt=e.target.dataset.dgset, gid=+e.target.value;
     allHeroes().forEach(function(x){ if (x.h.dragon===gt) delete x.h.dragon; });

@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.231
+Version 0.1.232
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -23,6 +23,7 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.232** Auto-farm "Only hit NPC cities and AI lords at full garrison" (per preset): it works out whether each target will be back to a full troop garrison when the march lands (the same test the fight uses for drops, `garFullAt`), skips ones that won't be or that another of your marches is already heading to, launches at the next one in the rotation that will be, and waits if none will ("Waiting for a full garrison" on the preset). Valleys and historic cities are never skipped. The presets screen now explains priority: a hero on several auto-farm presets goes to the highest ready one each time he's home (t93 simulates a level 10 list taking him about once an hour, level 5s in between).
 - **0.1.231** Fixed alliance features showing "Couldn't reach the server" (since 0.1.227): a `//` note added to the middle of a line commented out the rest of it, so drawing rally lines in alliance chat threw an error, and the alliance sync reported any error as a lost connection. The sync now tells the two apart: a real connection problem still says so; a bug in the game says "Something in the game broke while showing the alliance (not your connection)" with the error, and logs it. New end-to-end test t91 (local server: sign in, alliance, rally, every alliance page, join).
 - **0.1.230** Marches on the alliance map (joining a rally, going to the Arena, and the single-player Arena) move at the hero's pace too: Intelligence, dragon gear and mounts, times your march-speed bonuses, up to 20x (it was march-speed bonuses only, up to 4x). Travel estimates on the march screen and the "too far" check use the hero you picked; the lists estimate with your fastest free hero. Server change: deploy the worker (it now accepts speeds up to 20x).
 - **0.1.229** Rallies travel from the launch city to the target and back at a hero's pace, like a normal march. They used to move with no hero at all (research and march-speed bonuses only, no Intelligence, dragon gear or mount), so they were up to several times slower. The call uses the caller's fastest hero at home in the launch city; when the caller joins their own rally with a faster hero, the rally speeds up to match (never slows down). The call screen names the hero. Server change: deploy the worker. Rallies already running keep their pace.
