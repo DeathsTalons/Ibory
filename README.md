@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.245
+Version 0.1.246
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,13 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.246** Cleanliness pass (review phase 4) and three fixes from the 0.1.243–245 review. Phone and worker; no save change, no schema change.
+  - **Fixes.** All heroes: a hero on a preset march from another city showed the viewing city's preset name (`ahWhere` reads the march line as the hero's own city). The map's Farm list pick (`MAPFARM`) is cleared when you switch cities (it is per city; it used to carry the number over). Removing a farm from a preset refreshes the map's farm summary. City names are escaped in the All heroes city picker. A catch-up "poll" that throws no longer logs once per 5 game-minutes of absence.
+  - **One place for each thing.** `mySide(hero)` / `myAttacker(t, hero)` build the attacking side (was pasted 8×; same key order, the Arena/rally `side` sent to the server is unchanged). `npcDef(base, t, f)` builds a scouted or generated defender (7×). `baseFight` / `baseLoot` / `baseReport` / `baseReturn` are the shared bones of the three AI-city fights (war camp, challenger city, bully stronghold). `adoptState(obj)` (with `adoptPrep` + `adoptMigrated`) swaps in a downloaded, pasted, file or safety-copy save (4×). One `visibilitychange` listener instead of five: leaving the app now catches the clock up and saves *before* the cloud copy is written. `HOUR` and `DAY` replace the mixed `3600e3`/`3600000` and `86400e3`/`86400000` spellings (`DAY_MS` folded in). Worker: one `UNITS` table (`SN_UNITS` was a copy), `backoff(tries, step)` for the five optimistic-lock sleeps, `verStore()` for the three versioned alliance rows (`aw_al`, `al_maps`, `al_state`).
+  - **Less work per tick.** The Reports list is only rebuilt when a report lands or the filter, search, page or a star changes (it filtered the whole log twice a second). The three item buffs' countdowns on the Items page tick in place (`gleft()` spans filled by `tickText`) instead of rebuilding the page every second. `achCheck` scans every city at most every 2 s and its total feeds the tab badge (`achTotal` ran a second scan). The Titles sheet's power figure uses the 3-second cache.
+  - **Gone.** 16 uncalled functions (`decoHave`, `medalChance`, `qtyAvg`, `renderReports`, `heroCountAll`, `rpWho`, `rpN`, `tradeRate`, `heroCard`, `friendByName`, `anyTech`, `repFavCount`, `boxText`, `tgStr`, `tgParse`, `tgGoalMax`), the first of two `maxTH`, `maxLv(type)` (it ignored its argument; `cityMax()`), `esc2` (a String cast, not an escaper), a dead `full` map in `fillRepList`, the 390 px media query (fully shadowed by the 420 px one), the double `.plus:disabled` rule; `--green` is defined once on `:root`.
+  - **Lint.** `node t/lint_comments.js ibory-phone/index.html scores-worker/worker.js` flags a `//` comment that looks like it swallowed code (the 0.1.231 bug; needs `npm i acorn` once). Test: `t/t105.py`.
+  - **Not changed, for Cody to decide:** when an AI army attacks a city you are reinforcing (`bullyWave`, `warAllyHit`, `chalAllyHit`) the defender is built *without* `fortBonus`, while your own attacks on the same bases include it. It looks like an oversight, but fixing it changes fight results.
 - **0.1.245** Hide all decorations. Phone only; no save change, no server change.
   - **Settings › Decorations: Shown / Hide all.** Hide all draws the plain map: no decoration pieces, roads, walls, gates or painted ground, and every valley, flat and city that was hidden under decorations shows again (`decoOff()`, `S.decoOff`; `decoHid` and `bgDraw` give way to it and drawMap skips the decoration pass, so nothing can be picked by tapping either). Nothing is removed: switch back and the map is as it was. Monsters still keep off decorated tiles. Placing a decoration while they're hidden turns them back on, with a toast. Kept in the save. Test: `t/t104.py`.
   - The map's Farm list row (0.1.243) has its own class (`mapfarmrow`) instead of sharing `maptools` with the zoom toolbar.
