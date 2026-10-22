@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.247
+Version 0.1.248
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,11 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.248** Gear tier upgrades from any city. Phone only; no save change (still 49), no server change.
+  - Tier upgrades already counted the best Workshop in any city since 0.1.247 (`upgWhy` → `craftWs()`), but a piece nobody wears could only be reached through the Armory on a Forge's page, so a city with no Forge couldn't upgrade it. The Heroes tab now has an **Armory** button beside All heroes: the same Armory as a sheet (`kind:"armory"`), from any city. Tapping a piece opens its menu (stars, tier, scrap) with **Back to the Armory**; scrapping returns there too; the slot filter works in the sheet.
+  - Wording: the tier line reads "(Workshop N in any city)"; the Armory hint says crafting and upgrades work from any city.
+  - Gear rows let the name shrink and wrap (`minmax(0,1fr)`), so a long name beside a full row of stars no longer pushes the row 5 px past a phone screen (Forge page and the new sheet).
+  - Test: `t/t107.py`.
 - **0.1.247** Craft anywhere; auto-fill borrows heroes instead of seating them. Phone only; **save version 49**; no server change.
   - **Gear crafting and reforging count your best Workshop in any city** (`craftWs()` = `maxB("workshop")` in `craftWhy` and `upgWhy`). Gear always belonged to the whole kingdom, but each city checked its own Workshop, so a city without one couldn't craft from a hero's gear menu. The message now reads "Needs a level N Workshop in any city".
   - **Auto-fill borrows a hero only when a job needs one, then lets go.** An empty mayor, trainer or researcher seat no longer holds a hero. When its job reads it, it borrows the best hero who is home in that city: once when a build, research or training batch starts (the batch keeps that time after he leaves), and continuously for the mayor's production bonus. Picks are made together, one job per hero (0.1.242's scoring; `autoPick`, cached per city on the heroes' stats, who is away and the seats; `borrowed(role)`). Borrowed heroes are never officers (`isOfficer`/`seatLocked` only see hand-picked seats), so marches and auto-farm presets always get them. `officer(role)` = `seatHolder(role)` or the borrowed hero; `mayor()`/`mayorActive()` go through it. Hand-picked seats are unchanged: locked, never borrowed for another job. The Offices panel marks a borrowed seat "auto, borrowed". `autoOffices()` now only lets go of seats handed out before this version (`h.autoSeat`).

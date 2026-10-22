@@ -346,8 +346,8 @@ select,input[type=number],input[type=text],input[type=search],input[type=time]{f
 .gslot.t4,.gearrow.t4{border-color:var(--t-mythic);box-shadow:inset 0 0 0 1px var(--t-mythic),0 0 8px rgba(44,192,209,.35)}
 .gslot.t1,.gearrow.t1{border-color:var(--t-rare)} .gslot.t2,.gearrow.t2{border-color:var(--t-epic)} .gslot.t3,.gearrow.t3{border-color:var(--t-legendary);box-shadow:inset 0 0 0 1px var(--t-legendary)}
 .gearlist{display:grid;gap:6px;margin-top:8px}
-.gearrow{display:grid;grid-template-columns:1fr auto;gap:0 10px;text-align:left;border:1px solid var(--line);border-left-width:4px;background:var(--panel2);border-radius:8px;padding:7px 10px;cursor:pointer}
-.gearrow .gn{font:700 .95rem var(--display)} .gearrow .gb{font-weight:700;text-align:right}
+.gearrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;text-align:left;border:1px solid var(--line);border-left-width:4px;background:var(--panel2);border-radius:8px;padding:7px 10px;cursor:pointer}
+.gearrow .gn{font:700 .95rem var(--display);overflow-wrap:anywhere;min-width:0} .gearrow .gb{font-weight:700;text-align:right}
 .hacts{margin:8px 0 10px;padding:10px 12px} .hacts .det{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel2)} .hacts .det[open]{padding-bottom:10px} .hacts .gearrow{cursor:default} .hacts .btnrow{flex-wrap:wrap} /* 0.1.238: the hero sheet's action block */
 @media (max-width:420px){ .gearslots{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .statgrid{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
@@ -834,7 +834,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.247";
+var APP_VERSION = "0.1.248";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var HOUR=3600e3, DAY=86400e3; // milliseconds; game time and real time both count in them
@@ -8115,7 +8115,7 @@ function viewHeroes(){
   if (!cap && !il && !S.heroes.length && !S.waiting.length)
     return '<div class="empty-state"><p>Build a Feasting Hall to house heroes and an Inn to hire them. Legendary heroes won on the wheel wait at the gate until you have room; lesser ones move on.</p><button class="btn" data-act="tab" data-tab="city">Go to city</button></div>';
   var mb=mayorBonus(), anyOff=OFFICES.some(function(o){ return officer(o[0]); }), ahN=ahAll().length;
-  if (ahN) h+='<div class="section"><div class="act"><span class="dur">'+ahN+' hero'+(ahN>1?'es':'')+(S.cities.length>1?' across '+S.cities.length+' cities':'')+'</span><button class="btn small" data-act="ah-open">All heroes</button></div></div>'; // 0.1.244
+  if (ahN) h+='<div class="section"><div class="act"><span class="dur">'+ahN+' hero'+(ahN>1?'es':'')+(S.cities.length>1?' across '+S.cities.length+' cities':'')+'</span><span class="btnrow"><button class="btn ghost small" data-act="armory-sheet">Armory</button><button class="btn small" data-act="ah-open">All heroes</button></span></div></div>'; // 0.1.244
   h+='<div class="section"><div class="shead"><h3>Offices</h3><span class="dur">'+OFFICES.filter(function(o){ return officer(o[0]); }).length+' of '+OFFICES.length+' filled</span></div>'+
     '<p class="hint">Four jobs, four heroes. A hero you seat yourself stays home (never in a march list); a seat auto-fill hands out doesn\u2019t hold its hero back. Officers earn experience while they serve. Appoint from a hero\u2019s page. The wall hero leads your troops whenever this city is attacked: with no wall hero, no hero leads the defense. The wall hero keeps working even when the treasury is empty.</p><div class="gearlist">'+
     OFFICES.map(function(o){ var oh=officer(o[0]), eff = o[0]==="mayor" ? 'production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster' : o[0]==="trainer" ? 'training '+pct(mb.train)+' faster' : o[0]==="wallHero" ? 'leading the defense' : 'research '+pct(1-1/(1+mb.research))+' faster';
@@ -8233,7 +8233,7 @@ function armorySection(){
   var list=S.gear.slice().sort(function(a,b){ return b.tier-a.tier || b.stars-a.stars; });
   if (armoryFilter!=="all") list=list.filter(function(g){ return g.slot===armoryFilter; });
   var h='<div class="section"><div class="shead"><h3>Armory</h3><span class="dur">'+S.gear.length+' pieces, '+fmt(S.items.gemD||0)+' Delicate, '+fmt(S.items.gemF||0)+' Flawless gems</span></div>'+
-    '<p class="hint">Gear is crafted in the Workshop from materials. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 9 stars \u00d71.5, 12 \u00d72, 15 \u00d72.5. Below 9 stars there is no bonus.</p>'+
+    '<p class="hint">Gear is crafted from materials with a Workshop in any city (on its page, or from a hero\u2019s gear slot), and its tier and stars can be upgraded from any city too. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 9 stars \u00d71.5, 12 \u00d72, 15 \u00d72.5. Below 9 stars there is no bonus.</p>'+
     '<div class="farmadd"><button class="chipbtn'+(armoryFilter==="all"?' on':'')+'" data-act="armory-filter" data-slot="all">All</button>'+GEAR_SLOTS.map(function(sl){ return '<button class="chipbtn'+(armoryFilter===sl.k?' on':'')+'" data-act="armory-filter" data-slot="'+sl.k+'">'+sl.name+'</button>'; }).join("")+'</div>';
   if (!list.length) h+='<p class="hint" style="margin-top:8px">Nothing here yet.</p>';
   h+='<div class="gearlist">'+list.slice(0,60).map(gearRow).join("")+'</div>'+(list.length>60?'<p class="hint">Showing the best 60.</p>':'');
@@ -8258,7 +8258,7 @@ function forgeControls(g){ // star and tier upgrades for one piece: shared by th
   var ut=g.tier+1;
   if (ut<GEAR_TIERS.length){
     var uw=upgWhy(g), ns=Math.max(0,g.stars-1);
-    h+='<div class="effect">Upgrade to <b>'+TIERS[GEAR_TIERS[ut]].name+' '+sl.name+'</b> with '+MAT_NEED[ut]+' '+ITEMS[MAT[ut]].name+' (Workshop '+MAT_WS[ut]+'): +'+Math.round(GEAR_BASE[ut]*(1+0.2*ns))+' '+STATN[gearStat(g)]+' at '+ns+' star'+(ns===1?'':'s')+'. The work costs it one star.</div>'+
+    h+='<div class="effect">Upgrade to <b>'+TIERS[GEAR_TIERS[ut]].name+' '+sl.name+'</b> with '+MAT_NEED[ut]+' '+ITEMS[MAT[ut]].name+' (Workshop '+MAT_WS[ut]+' in any city): +'+Math.round(GEAR_BASE[ut]*(1+0.2*ns))+' '+STATN[gearStat(g)]+' at '+ns+' star'+(ns===1?'':'s')+'. The work costs it one star.</div>'+
       '<div class="act"><span class="why">'+uw+'</span><button class="btn" data-act="gear-upgrade"'+(uw?' disabled':'')+'>'+(armed==="upg"?'Tap again to upgrade':'Upgrade tier')+'</button></div>';
   }
   if (forgeLog.length) h+='<ul class="log">'+forgeLog.slice(0,6).map(function(x){ return '<li>'+x+'</li>'; }).join("")+'</ul>';
@@ -8268,7 +8268,7 @@ function forgeSheet(g){
   var sl=slotOf(g), max=GEAR_MAX[g.tier], who=g.on?heroById(g.on):null;
   var h='<div class="head"><span class="ico">'+ICON.anvil+'</span><div><h2>'+gearName(g)+'</h2><div class="sub">'+starStr(g)+'  +'+gearVal(g)+' '+STATN[gearStat(g)]+(who?', worn by '+esc(who.name):'')+'</div></div></div>';
   h+=forgeControls(g);
-  h+='<div class="act"><button class="btn ghost danger small" data-act="gear-scrap">'+(armed==="scrap"?'Tap again to scrap for '+(GEAR_SCRAP[g.tier]+g.stars)+' Delicate Gems':'Scrap for gems')+'</button><button class="closebtn" data-act="close">Close</button></div>';
+  h+='<div class="act"><button class="btn ghost danger small" data-act="gear-scrap">'+(armed==="scrap"?'Tap again to scrap for '+(GEAR_SCRAP[g.tier]+g.stars)+' Delicate Gems':'Scrap for gems')+'</button><button class="closebtn" data-act="'+(sheetFor.back==="armory"?'armory-sheet':'close')+'">'+(sheetFor.back==="armory"?'Back to the Armory':'Close')+'</button></div>';
   return h;
 }
 var forgeLog=[], forgeGem="D", forgeN=1;
@@ -11784,6 +11784,8 @@ function renderSheetCore(){
     } else {
       h+='<p class="effect"><b>'+(S.lord?esc(S.lord):'You')+':</b> \u201c'+esc(sheetFor.said)+'\u201d</p><p class="effect"><b>'+esc(tq.ai.name.split(" ")[0])+':</b> \u201c'+esc(sheetFor.reply)+'\u201d</p><p class="hint">'+sheetFor.note+'</p><button class="closebtn" data-act="close">Close</button>';
     }
+  } else if (sheetFor.kind==="armory"){ // 0.1.248: the Armory from any city (it used to be only on a Forge's page)
+    h='<div class="head lbhead"><span class="ico">'+ICON.helm+'</span><div style="flex:1"><h2>Armory</h2><div class="sub">Every piece in the kingdom. Upgrade stars and tiers from any city.</div></div><button class="btn ghost small" data-act="close" aria-label="Close">\u2715</button></div>'+armorySection()+'<button class="closebtn" data-act="close">Close</button>';
   } else if (sheetFor.kind==="forge"){
     var fg=S.gear.filter(function(x){ return x.id===sheetFor.g; })[0]; if (!fg){ closeSheet(); return; }
     h=forgeSheet(fg);
@@ -12611,8 +12613,9 @@ document.addEventListener("click",function(e){
   if (act==="occ-go"){ occupyFlats(); return; }
   if (act==="map-find"){ var ft=document.getElementById("findtype").value, fl=+document.getElementById("findlvl").value, fq=findNearest(ft,fl);
     if (!fq){ toast("None found"); return; } selectTile(fq.id,true); return; }
-  if (act==="armory-filter"){ armoryFilter=a.dataset.slot; lastView=""; renderView(true); return; }
-  if (act==="forge-open"){ forgeLog=[]; openSheet({kind:"forge",g:+a.dataset.g}); return; }
+  if (act==="armory-filter"){ armoryFilter=a.dataset.slot; lastView=""; renderView(true); if (sheetFor && sheetFor.kind==="armory"){ lastSheet=""; renderSheet(); } return; }
+  if (act==="forge-open"){ forgeLog=[]; openSheet({kind:"forge",g:+a.dataset.g, back:sheetFor&&sheetFor.kind==="armory"?"armory":null}); return; }
+  if (act==="armory-sheet"){ openSheet({kind:"armory"}); return; }
   if (act==="gear-best"){ armed="best"; lastSheet=""; renderSheet(); return; }
   if (act==="gear-best-cancel"){ armed=null; lastSheet=""; renderSheet(); return; }
   if (act==="gear-best-go"){ var bh=heroById(sheetFor.id), bst=a.dataset.stat; if (!bh || !STATN[bst]) return; armed=null;
@@ -12659,7 +12662,7 @@ document.addEventListener("click",function(e){
     if (armed!=="scrap"){ armed="scrap"; lastSheet=""; renderSheet(); return; }
     var xg=S.gear.filter(function(x){ return x.id===sheetFor.g; })[0]; if (!xg) return;
     var got=GEAR_SCRAP[xg.tier]+xg.stars; S.items.gemD=(S.items.gemD||0)+got; S.gear=S.gear.filter(function(x){ return x!==xg; });
-    closeSheet(); toast("Scrapped for "+got+" Delicate Gems"); refresh(); return;
+    if (sheetFor.back==="armory") openSheet({kind:"armory"}); else closeSheet(); toast("Scrapped for "+got+" Delicate Gems"); refresh(); return;
   }
   if (act==="teleport"){
     var tt=a.dataset.tile, tq=TILE_BY[tt];
