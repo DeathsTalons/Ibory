@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.244
+Version 0.1.245
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,10 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.245** Hide all decorations. Phone only; no save change, no server change.
+  - **Settings › Decorations: Shown / Hide all.** Hide all draws the plain map: no decoration pieces, roads, walls, gates or painted ground, and every valley, flat and city that was hidden under decorations shows again (`decoOff()`, `S.decoOff`; `decoHid` and `bgDraw` give way to it and drawMap skips the decoration pass, so nothing can be picked by tapping either). Nothing is removed: switch back and the map is as it was. Monsters still keep off decorated tiles. Placing a decoration while they're hidden turns them back on, with a toast. Kept in the save. Test: `t/t104.py`.
+  - The map's Farm list row (0.1.243) has its own class (`mapfarmrow`) instead of sharing `maptools` with the zoom toolbar.
+  - Tests t60, t61 and t68 close the Hallow's Eve intro first (they had been failing on a fresh page since the event started; t68 may still log a blocked font request in a sandbox without internet).
 - **0.1.244** All heroes. Phone only; no save change, no server change.
   - An **All heroes** button at the top of the Heroes tab opens every hero from every city on one page: portrait, tier, level, star set, city, Politics / Attack / Intelligence (the stat you sort by is picked out, and Power, Troops killed, Battles led or Gear bonus is added when that's the sort), points to assign, and **where they are**: the march they lead (the same line as the march list, with a live "lands in / home in / leaves in" timer, or camped / on guard / hidden), a rally (its stage and timer), the Arena (on the way, fighting, coming home), reinforcing an alliance member, an office (Mayor, Trainer, Researcher, Wall hero; "(auto)" for an auto-filled seat), or at home.
   - **Sort by** Power, Level, Attack, Intelligence, Politics, Tier, Star set, Gear bonus, Troops killed, Battles led, City, Where or Name, then a second key; favourites first. **City** (all or one) and **Show** (everyone, at home, away, in office, points to assign). The choices are kept in the save (`S.ahv`, made on first use; older saves don't need a step).

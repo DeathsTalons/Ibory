@@ -703,6 +703,7 @@ body.bfmode #chatdock{display:none!important}
 .bigstat{font:700 1.6rem var(--display);color:var(--brass)}
 .maptools{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
 .maptools .btn{min-width:40px;white-space:nowrap}
+.mapfarmrow{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:nowrap}.mapfarmrow .btn{white-space:nowrap}
 .maptools .dpickbtn[aria-pressed="true"]{border-color:var(--brass);color:var(--brass);background:var(--brass-soft)}
 .mapview{position:relative;touch-action:none;overscroll-behavior:contain;margin-top:8px;border-radius:8px;border:1px solid var(--line);overflow:hidden;height:min(58vh,520px);contain:strict}
 @supports (height:1svh){ .mapview{height:min(58svh,520px)} }
@@ -835,7 +836,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.244";
+var APP_VERSION = "0.1.245";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var SAVE_V = 48; // the save format this build writes (the last migrate step sets s.v to it); newer saves are refused everywhere they can come in
@@ -2382,12 +2383,14 @@ function bgAt(id){ var l=S.deco&&S.deco.at[id]; if (!l) return ""; for (var i=0;
    or grassland under a settlement): no settlement, level, refill wash or outline. It still works and still opens its popup when tapped.
    S.decoHide: decorated tiles hide by themselves; S.deco.hide[id]: 1 always hide, 0 always show (set per tile or with the area box). */
 function decoHideable(q){ return !!q && (!!VTYPES[q.k] || q.k==="npc" || q.k==="ai" || q.k==="hc"); }
-function decoHid(q){ if (!decoHideable(q) || !S.deco) return false; var o=S.deco.hide&&S.deco.hide[q.id]; if (o===1) return true; if (o===0) return false; var l=S.deco.at[q.id]; return !!S.decoHide && !!(l&&l.length); }
+// 0.1.245: Settings → Decorations: Hidden draws the plain map (no pieces, roads, walls or ground paint) and shows every tile; nothing is removed
+function decoOff(){ return !!S.decoOff; }
+function decoHid(q){ if (decoOff() || !decoHideable(q) || !S.deco) return false; var o=S.deco.hide&&S.deco.hide[q.id]; if (o===1) return true; if (o===0) return false; var l=S.deco.at[q.id]; return !!S.decoHide && !!(l&&l.length); }
 function hideDraw(g, q, tx, ty, x, y, z){ var v=((tx*7919+ty*104729)>>>0)%3, kind=VTYPES[q.k]?q.k:"grass", bk=bgAt(q.id), px0=Math.floor(x), py0=Math.floor(y), cv=null;
   if (pixTiles() && (z>=8 || bk)) cv=bk?bgTile(bk,v):valTile(kind,v);
   if (cv){ g.imageSmoothingEnabled=false; g.drawImage(cv, px0, py0, Math.ceil(x+z)-px0, Math.ceil(y+z)-py0); g.imageSmoothingEnabled=true; }
   else { g.fillStyle=VTYPES[kind].col; g.fillRect(x,y,z,z); } }
-function bgDraw(g, q, tx, ty, x, y, z, detail){ var bk=bgAt(q.id); if (!bk || !pixTiles()) return false; /* 0.1.195: at every zoom, like the decorations on top of it */ var nums=mapNums();
+function bgDraw(g, q, tx, ty, x, y, z, detail){ var bk=bgAt(q.id); if (!bk || !pixTiles() || decoOff()) return false; /* 0.1.195: at every zoom, like the decorations on top of it */ var nums=mapNums();
   var ok=VTYPES[q.k]||q.k==="npc"||q.k==="ai"||q.k==="hc"; if (!ok) return false;
   var cv=bgTile(bk, ((tx*7919+ty*104729)>>>0)%3); if (!cv) return false; var px0=Math.floor(x), py0=Math.floor(y);
   g.imageSmoothingEnabled=false; g.drawImage(cv, px0, py0, Math.ceil(x+z)-px0, Math.ceil(y+z)-py0);
@@ -3638,7 +3641,7 @@ function mapFarmSummary(){ var ids=mapFarmIds(), c={}, order=[], nm={npc:["NPC c
   return fmt(ids.length)+" target"+(ids.length>1?"s":"")+": "+order.map(function(k){ return c[k]+" "+nm[k][c[k]>1?1:0]; }).join(", ")+". Outlined on the map, numbered in farm order."; }
 function mapFarmHtml(){ var ps=S.presets||[];
   var opts='<option value="-1">Off</option>'+ps.map(function(p,i){ var n=p.farm.length; return '<option value="'+i+'"'+(i===MAPFARM?' selected':'')+(n||i===MAPFARM?'':' disabled')+'>'+(i+1)+'. '+esc(p.name)+' ('+n+')</option>'; }).join("");
-  return '<div class="maptools" style="flex-wrap:nowrap"><label class="dur" for="mapfarm" style="white-space:nowrap">Farm list</label><select id="mapfarm" style="flex:1 1 auto;min-width:0">'+opts+'</select>'+
+  return '<div class="mapfarmrow"><label class="dur" for="mapfarm" style="white-space:nowrap">Farm list</label><select id="mapfarm" style="flex:1 1 auto;min-width:0">'+opts+'</select>'+
     (MAPFARM>=0 && mapFarmIds().length?'<button class="btn ghost small" data-act="map-farmfit" style="flex:0 0 auto">Show all</button>':'')+'</div>'+
     (MAPFARM>=0?'<p class="dur" id="mapfarmstat" style="margin:4px 0 0">'+esc(mapFarmSummary())+'</p>':''); }
 function mapFarmRefresh(){ var el=document.getElementById("mapfarmbox"); if (el) el.innerHTML=mapFarmHtml(); requestDraw(); }
@@ -3810,7 +3813,7 @@ function drawMap(){
     S.bm.forEach(function(b){ var xy=b.id.split(","), bx=+xy[0], by=+xy[1]; if (bx<x0||bx>x1||by<y0||by>y1) return; var px=(bx-mv.x)*z+1, py=(by-mv.y)*z;
       g.lineWidth=3; g.strokeStyle="rgba(0,0,0,.7)"; g.strokeText("\u2605",px,py); g.fillStyle="#ffd34d"; g.fillText("\u2605",px,py); });
     g.textAlign="center"; g.textBaseline="middle"; }
-  DECO_ANIM=false; DECO_HITS=[]; if (S.deco && z>=6){ g.textAlign="center"; g.textBaseline="middle"; var smooth=g.imageSmoothingEnabled; g.imageSmoothingEnabled=false; // decorations: drawn row by row from the top so lower ones stand in front; on one tile, back to front
+  DECO_ANIM=false; DECO_HITS=[]; if (S.deco && z>=6 && !decoOff()){ g.textAlign="center"; g.textBaseline="middle"; var smooth=g.imageSmoothingEnabled; g.imageSmoothingEnabled=false; // decorations: drawn row by row from the top so lower ones stand in front; on one tile, back to front
     var dlist=[], rlist=[]; for (var did in S.deco.at){ var dl0=S.deco.at[did]; if (!dl0 || !dl0.length) continue; var dxy=did.split(","), dx=+dxy[0], dy=+dxy[1]; if (dx<x0-DECO_REACH.x||dx>x1+DECO_REACH.x||dy<y0-1||dy>y1+DECO_REACH.y) continue; // a big piece is drawn while any of it can be on screen, not just its base tile
       var rk=""; dl0.forEach(function(e){ if (decoIsRoad(e)) rk=String(e).split("|")[0]; });
       if (rk && dx>=x0-2 && dx<=x1+2 && dy>=y0-1 && dy<=y1+4) rlist.push([dy,dx,rk]);
@@ -11709,6 +11712,7 @@ function renderSheetCore(){
       (alMine()?'<div><div class="h3" style="margin-bottom:6px">Watchtower alerts</div>'+wtTypeBtns()+'</div>':'')+
       '<div><div class="h3" style="margin-bottom:6px">Map tiles</div><div class="speeds"><button data-act="pix-set" data-v="on" aria-pressed="'+pixTiles()+'">Pixel art</button><button data-act="pix-set" data-v="off" aria-pressed="'+!pixTiles()+'">Plain colours</button></div><div class="hint">How valleys, flats, NPC cities, AI lords and historic cities look on your map.</div></div>'+
       '<div><div class="h3" style="margin-bottom:6px">Level numbers on the map</div><div class="speeds"><button data-act="nums-set" data-v="on" aria-pressed="'+mapNums()+'">Shown</button><button data-act="nums-set" data-v="off" aria-pressed="'+!mapNums()+'">Hidden</button></div><div class="hint">Hidden keeps the map clean for decorating; tap a tile to see its level.</div></div>'+
+      '<div><div class="h3" style="margin-bottom:6px">Decorations</div><div class="speeds"><button data-act="doff-set" data-v="off" aria-pressed="'+!decoOff()+'">Shown</button><button data-act="doff-set" data-v="on" aria-pressed="'+decoOff()+'">Hide all</button></div><div class="hint">Hide all shows the plain map: no decorations, roads, walls or painted ground, and every valley, flat and city under them shows again. Nothing is removed; switch back and your map is as you left it. Placing a decoration shows them again.</div></div>'+
       '<div><div class="h3" style="margin-bottom:6px">Decorated tiles</div><div class="speeds"><button data-act="dhide-set" data-v="off" aria-pressed="'+!S.decoHide+'">Show what\u2019s there</button><button data-act="dhide-set" data-v="on" aria-pressed="'+!!S.decoHide+'">Hide under decorations</button></div><div class="hint">Hide covers valleys, flats, NPC cities, AI lords and historic cities that have a decoration on them, so only the ground shows. They still work: tap one to attack it. Single tiles and areas can be set either way from Decorate.</div></div>'+
       '<div><div class="h3" style="margin-bottom:6px">World chat</div><div class="speeds"><button data-act="wc-set" data-v="on" aria-pressed="'+wcShown()+'">Shown</button><button data-act="wc-set" data-v="off" aria-pressed="'+!wcShown()+'">Hidden</button></div></div>'+
       (cbOn()?'<div><label for="dispname" class="sub">Your name (everywhere: high scores, chat, alliances)</label><input id="dispname" type="text" value="'+esc(myName())+'" maxlength="20"></div>'+
@@ -12144,6 +12148,7 @@ document.addEventListener("click",function(e){
   if (act==="gif-search"){ var gq=document.getElementById("gifq"); GIFS.q=gq?gq.value.trim():""; gifLoad(false); return; }
   if (act==="gif-more"){ gifLoad(true); return; }
   if (act==="dhide-set"){ S.decoHide=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); drawMap(); return; }
+  if (act==="doff-set"){ S.decoOff=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); miniDirty=true; drawMap(); return; }
   if (act==="nums-set"){ S.mapNums=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="pix-set"){ S.pixTiles=a.dataset.v==="on"; save(); lastSheet=""; renderSheet(); drawMap(); return; }
   if (act==="dpick"){ DPICK.on=!DPICK.on; a.setAttribute("aria-pressed", DPICK.on?"true":"false"); toast(DPICK.on?"Tap a decoration to see what it is and where it\u2019s placed":"Taps pick tiles again"); return; }
@@ -12159,7 +12164,8 @@ document.addEventListener("click",function(e){
   if (act==="clr-stop"){ CLR={on:false, a:"", b:""}; paintBar(); drawMap(); return; }
   if (act==="clr-go"){ var cg=decoClear(clrRect(), true); CLR={on:false, a:"", b:""}; toast(cg.n?"Cleared "+fmt(cg.n)+" decoration"+(cg.n===1?"":"s"):"Nothing to clear"); paintBar(); drawMap(); return; }
   if (act==="clr-all"){ var ca=decoClear(null,false); if (!ca.n){ toast("Nothing to clear"); return; } if (!confirm("Clear all "+fmt(ca.n)+" decorations on your map? Event pieces go back to your bag.")) return; decoClear(null,true); toast("Map cleared"); lastSheet=""; renderSheet(); renderTileInfo(); drawMap(); return; }
-  if (act==="deco-put"){ MOVE.e=""; var dk=a.dataset.k, dt=a.dataset.tile, dn=document.getElementById("decon"); if (!DECOS[dk] || !decoOwn(dk)) return; DECO_N=dn?+dn.value:1; if (!(DECO_N>=0)) DECO_N=1;
+  if (act==="deco-put"){ MOVE.e=""; var dk=a.dataset.k, dt=a.dataset.tile, dn=document.getElementById("decon"); if (!DECOS[dk] || !decoOwn(dk)) return;
+    if (decoOff()){ S.decoOff=false; toast("Decorations are shown again, so you can see what you place"); } DECO_N=dn?+dn.value:1; if (!(DECO_N>=0)) DECO_N=1;
     PAINT.k=dk; PAINT.n=DECO_N||Infinity; paintOne(dt);
     if (PAINT.k){ closeSheet(); MPOP.hide=true; renderTileInfo(); } else { lastSheet=""; renderSheet(); renderTileInfo(); } return; }
   if (act==="deco-layer"){ var Dl=decoS().at[a.dataset.tile]||[], li=+a.dataset.i, lj=li+(+a.dataset.d); if (lj<0||lj>=Dl.length) return; var lt=Dl[li]; Dl[li]=Dl[lj]; Dl[lj]=lt; save(); lastSheet=""; renderSheet(); drawMap(); return; }
