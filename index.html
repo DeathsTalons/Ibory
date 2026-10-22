@@ -834,11 +834,11 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.246";
+var APP_VERSION = "0.1.247";
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var HOUR=3600e3, DAY=86400e3; // milliseconds; game time and real time both count in them
-var SAVE_V = 48; // the save format this build writes (the last migrate step sets s.v to it); newer saves are refused everywhere they can come in
+var SAVE_V = 49; // the save format this build writes (the last migrate step sets s.v to it); newer saves are refused everywhere they can come in
 var RES = ["food","lumber","stone","iron","gold"];
 var RNAME = {food:"Food",lumber:"Lumber",stone:"Stone",iron:"Iron",gold:"Gold"};
 function tri(L){ return L*(L+1)/2; }
@@ -1891,7 +1891,8 @@ var OFFICE_OF={pol:"mayor", atk:"trainer", int:"researcher"};
 function isOfficer(h){ return !!h && (h.id===S.mayor || h.id===S.trainer || h.id===S.researcher || h.id===S.wallHero); }
 function seatLocked(h){ return isOfficer(h) && !(h.autoSeat && h.id!==S.wallHero); } // 0.1.239: kept home by an office; a seat auto-fill gave out (autoSeat) doesn't hold a hero back
 function officeOf(h){ for (var i=0;i<OFFICES.length;i++) if (h && S[OFFICES[i][0]]===h.id) return OFFICES[i]; return null; }
-function officer(role){ var id=S[role]; return id ? heroById(id) : null; }
+function seatHolder(role){ var id=S[role]; return id ? heroById(id) : null; } // a hero you seated yourself
+function officer(role){ return seatHolder(role) || borrowed(role); } // 0.1.247: or, with auto-fill on, the hero borrowed for this job right now
 function officerActive(role){ var o=officer(role); if (role==="wallHero") return o; return o && !(S.res.gold<=0 && salary()>0) ? o : null; } // the wall hero never stops: the captain goes down with the ship
 // the hero who leads this city's defense (every fight at home: AI lords, bullies, invasions, the sim's "my defense"). No wall hero = no hero leads.
 function wallHero(){ var h=officer("wallHero"); return h && !h.away ? h : null; }
@@ -1903,29 +1904,32 @@ function bestFor(stat){ return officerActive(OFFICE_OF[stat]); }
 // Returns the number of seats that changed (so callers can refresh).
 // A seat you picked by hand is locked: its hero can't march and auto-fill leaves it alone. A seat auto-fill gave out is soft (h.autoSeat):
 // the hero still marches; while away the seat goes to the next best free hero, and he gets it back when he's home and still the best.
-function autoOffices(){
-  if (!S.autoMayor) return 0; var changed=0, roles=["mayor","trainer","researcher"], stats={mayor:"pol",trainer:"atk",researcher:"int"};
-  // 0.1.242: the three seats are filled together, not one after another (the mayor used to grab the all-round hero first, so the best
-  // Attack hero ended up mayor and the trainer seat got the second best). Each candidate scores by stat relative to the best on offer
-  // for that seat, and the assignment with the highest total wins; a sitting holder gets a sliver extra so ties don't shuffle seats.
-  var open=[], locked={}; roles.forEach(function(r){ var cur=officer(r); if (cur && !cur.autoSeat && !cur.away){ locked[cur.id]=1; return; } open.push(r); });
-  if (!open.length) return 0;
-  var pool=S.heroes.filter(function(h){ return !h.away && h.id!==S.wallHero && !locked[h.id]; });
-  var top={}; open.forEach(function(r){ var st=stats[r], m=0; pool.forEach(function(h){ m=Math.max(m, hs(h,st)); }); top[r]=m||1; });
-  // candidates per seat: the best few by that stat (keeps the search tiny with big halls)
-  var cand={}; open.forEach(function(r){ var st=stats[r]; cand[r]=pool.slice().sort(function(a,b){ return hs(b,st)-hs(a,st); }).slice(0,5); });
-  var best=null, bestV=-1;
-  function score(r,h){ return hs(h,stats[r])/top[r] + (S[r]===h.id?0.001:0); }
-  (function pick(i, used, chosen, v){
-    if (i===open.length){ if (v>bestV){ bestV=v; best=chosen.slice(); } return; }
-    var r=open[i]; pick(i+1, used, chosen.concat([null]), v); // the seat may stay empty
-    cand[r].forEach(function(h){ if (used[h.id]) return; used[h.id]=1; pick(i+1, used, chosen.concat([h]), v+score(r,h)); delete used[h.id]; });
-  })(0, {}, [], 0);
-  open.forEach(function(r,i){ var h=best?best[i]:null, cur=officer(r);
-    if ((h&&h.id)!==(cur&&cur.id)){ if (cur) cur.autoSeat=false; S[r]=h?h.id:null; changed++; }
-    if (h) h.autoSeat=true; });
-  return changed;
-}
+// 0.1.247: auto-fill no longer holds seats. An empty mayor, trainer or researcher seat borrows the best hero home in this city at the moment
+// its job reads it (a build, research or training batch starting reads it once; production reads it as it accrues), and lets go straight away,
+// so the hero stays free for marches and auto-farm presets. Picks are made together, one job per hero (0.1.242's scoring); hand-picked
+// seats are untouched and their heroes aren't borrowed for other jobs. The wall hero is never borrowed.
+var AUTO_PICK={key:"", v:null};
+function autoPick(){
+  if (!S.autoMayor) return null; var roles=["mayor","trainer","researcher"], stats={mayor:"pol",trainer:"atk",researcher:"int"};
+  var key=C().id+"|"+S.mayor+"|"+S.trainer+"|"+S.researcher+"|"+S.wallHero+"|"+S.heroes.map(function(h){ return h.id+(h.away?"a":"")+":"+hs(h,"pol")+","+hs(h,"atk")+","+hs(h,"int"); }).join(";");
+  if (AUTO_PICK.key===key) return AUTO_PICK.v;
+  var open=roles.filter(function(r){ return !seatHolder(r); }), held={}; roles.forEach(function(r){ if (S[r]) held[S[r]]=1; });
+  var pool=S.heroes.filter(function(h){ return !h.away && h.id!==S.wallHero && !held[h.id]; }), out={};
+  if (open.length && pool.length){
+    var top={}; open.forEach(function(r){ var st=stats[r], m=0; pool.forEach(function(h){ m=Math.max(m, hs(h,st)); }); top[r]=m||1; });
+    var cand={}; open.forEach(function(r){ var st=stats[r]; cand[r]=pool.slice().sort(function(a,b){ return hs(b,st)-hs(a,st) || a.id-b.id; }).slice(0,5); });
+    var best=null, bestV=-1;
+    (function pick(i, used, chosen, v){
+      if (i===open.length){ if (v>bestV){ bestV=v; best=chosen.slice(); } return; }
+      var r=open[i]; pick(i+1, used, chosen.concat([null]), v);
+      cand[r].forEach(function(h){ if (used[h.id]) return; used[h.id]=1; pick(i+1, used, chosen.concat([h]), v+hs(h,stats[r])/top[r]); delete used[h.id]; });
+    })(0, {}, [], 0);
+    open.forEach(function(r,i){ if (best && best[i]) out[r]=best[i]; }); }
+  AUTO_PICK={key:key, v:out}; return out; }
+function borrowed(role){ if (role==="wallHero") return null; var p=autoPick(); return p&&p[role]||null; }
+// what's left of the old seat-holding auto-fill: seats it handed out before 0.1.247 (h.autoSeat) are let go
+function autoOffices(){ var changed=0; ["mayor","trainer","researcher"].forEach(function(r){ var h=seatHolder(r); if (h && h.autoSeat){ S[r]=null; changed++; } });
+  S.heroes.forEach(function(h){ if (h.autoSeat) delete h.autoSeat; }); return changed; }
 function trainTime(i){ var m=bestFor("atk"), t=U[i].t*1000*Math.pow(0.9,S.tech.militaryscience||0)*Math.pow(0.9975, m?hs(m,"atk"):0)/bTrain(); if (U[i].mech) t/= (1+0.1*(S.tech.metalcasting||0)); return t; }
 function barracksList(){ var out=[]; S.inside.forEach(function(x,i){ if (x && x.type==="barracks" && x.level>0) out.push(i); }); return out; }
 function trainingAt(slot){ for (var i=0;i<S.train.length;i++) if (S.train[i].slot===slot) return S.train[i]; return null; }
@@ -4407,11 +4411,13 @@ function loadGearSet(hr,i){ var st=gearSetOf(hr,i); if (!st) return null; var mo
 function makeGear(tier,slot,stat){ var g={id:S.nextGearId++, slot:slot||GEAR_POS[Math.floor(Math.random()*GEAR_POS.length)].type, tier:tier, stars:0, on:0, stat:STATN[stat]?stat:pick(["atk","pol","int"])}; S.gear.push(g); return g; }
 // gear is crafted in the Workshop from materials, not looted
 var MAT=["ore","ingot","mithril","starmetal","scale"], MAT_NEED=[3,3,3,3,3], MAT_WS=[1,3,6,9,10], craftTier=0;
-function craftWhy(t){ if (bLevel("workshop")<MAT_WS[t]) return "Needs Workshop "+MAT_WS[t]; if ((S.items[MAT[t]]||0)<MAT_NEED[t]) return "Needs "+MAT_NEED[t]+" "+ITEMS[MAT[t]].name; return ""; }
+// 0.1.247: gear is the kingdom's, so the best Workshop in any city counts for crafting and reforging, from any city
+function craftWs(){ return maxB("workshop"); }
+function craftWhy(t){ if (craftWs()<MAT_WS[t]) return "Needs a level "+MAT_WS[t]+" Workshop in any city"; if ((S.items[MAT[t]]||0)<MAT_NEED[t]) return "Needs "+MAT_NEED[t]+" "+ITEMS[MAT[t]].name; return ""; }
 function craftStatChips(){ return '<div class="farmadd"><span class="dur">Craft for:</span>'+["atk","pol","int"].map(function(k){ return '<button class="chipbtn'+(craftStat===k?' on':'')+'" data-act="craft-stat" data-v="'+k+'">'+STATN[k]+'</button>'; }).join("")+'</div>'; }
 function craftSection(){
   var h='<div class="section"><div class="shead"><h3>Hero Enhancement</h3><span class="dur">'+MAT.map(function(m){ return fmt(S.items[m]||0)+' '+ITEMS[m].name; }).join(", ")+'</span></div>'+
-    '<p class="hint">Every piece starts as Common, forged from 3 Rough Ore with a Workshop. Higher tiers are never made from scratch: take a Common piece to the Forge and reforge it up a tier with that tier\u2019s materials (Fine Ingots for Rare at Workshop 3, Mithril for Epic at 6, Star Metal for Legendary at 9, and Dragon Scales, carried only by monsters, for Mythic at 10). Each reforge costs the piece one star, so stars are worth adding after the climb, not before.</p>';
+    '<p class="hint">Every piece starts as Common, forged from 3 Rough Ore with a Workshop (in any city: gear can be crafted and reforged from every city, by your best Workshop). Higher tiers are never made from scratch: take a Common piece to the Forge and reforge it up a tier with that tier\u2019s materials (Fine Ingots for Rare at Workshop 3, Mithril for Epic at 6, Star Metal for Legendary at 9, and Dragon Scales, carried only by monsters, for Mythic at 10). Each reforge costs the piece one star, so stars are worth adding after the climb, not before.</p>';
   craftTier=0;
   var why=craftWhy(0);
   h+='<p class="hint">Each piece adds Attack, Politics or Intelligence: pick one before crafting. A hero wearing a full set of one stat gets far more of it than a mixed set.</p>'+craftStatChips();
@@ -4422,7 +4428,7 @@ function craftSection(){
 function upgWhy(g){
   var t=g.tier+1;
   if (t>=GEAR_TIERS.length) return "This piece is already Mythic";
-  if (bLevel("workshop")<MAT_WS[t]) return "Needs Workshop "+MAT_WS[t];
+  if (craftWs()<MAT_WS[t]) return "Needs a level "+MAT_WS[t]+" Workshop in any city";
   if ((S.items[MAT[t]]||0)<MAT_NEED[t]) return "Needs "+MAT_NEED[t]+" "+ITEMS[MAT[t]].name;
   return "";
 }
@@ -7090,9 +7096,9 @@ function reconcileHeroes(){ var busy={}; S.marches.forEach(function(m){ if (m.he
   S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ var b=!!busy[h.id]; if (!!h.away!==b) h.away=b; }); });
   (S.waiting||[]).forEach(function(h){ if (h.away) h.away=false; }); }
 function heroById(id){ for (var c=0;c<S.cities.length;c++){ var hs=S.cities[c].heroes; for (var i=0;i<hs.length;i++) if (hs[i].id===id) return hs[i]; } return null; }
-function mayor(){ return S.mayor ? heroById(S.mayor) : null; }
+function mayor(){ return officer("mayor"); }
 function salary(){ var s=0; S.heroes.forEach(function(h){ s += h.level*20; }); return s; }
-function mayorActive(){ var m=mayor(); return m && !(S.res.gold<=0 && salary()>0) ? m : null; }
+function mayorActive(){ return officerActive("mayor"); }
 function mayorBonus(){ var m=mayorActive(), t=officerActive("trainer"), r=officerActive("researcher"); return {prod: m? hs(m,"pol")*0.003 : 0, build: m? hs(m,"pol")/200 : 0, research: r? hs(r,"int")/200 : 0, train: t? 1-Math.pow(0.9975,hs(t,"atk")) : 0}; }
 function hallCap(){ var f=findUnique("feasting"); return f&&f.level>0 ? 4+f.level : 0; }
 function innLv(){ var n=findUnique("inn"); return n?n.level:0; }
@@ -7331,6 +7337,8 @@ function migrate(s){
   if (s.v===45){ s.alBox={food:0,lumber:0,stone:0,iron:0,gold:0}; s.alBoxDay={d:-1,used:0}; s.alArena=[]; s.alArenaDone={}; s.v=46; }
   if (s.v===46){ (s.gear||[]).forEach(function(g){ if (g.stars>5) g.stars=5; }); s.v=47; } // 0.1.49: the star odds were reworked, so every piece above 5 stars goes back to 5
   if (s.v===47){ s.me=s.me||{img:"",frame:"",city:"",march:""}; s.frames=s.frames||[]; s.v=48; } // 0.1.50: character image + cosmetic frames (what you own is topped up below)
+  if (s.v===48){ (s.cities||[]).forEach(function(c){ if (!c.autoMayor) return; ["mayor","trainer","researcher"].forEach(function(r){ var id=c[r]; if (!id) return; // 0.1.247: a seat auto-fill handed out (or one a hand-off bug turned into a lock) on a hero that an auto-farm preset names is let go
+      var h=(c.heroes||[]).filter(function(x){ return x.id===id; })[0]; if (h && (h.autoSeat || (c.presets||[]).some(function(pr){ return pr.auto && pr.hero===id; }))){ c[r]=null; delete h.autoSeat; } }); }); s.v=49; }
   if (!s.hc204){ s.hc204=1; // 0.1.204: historic cities now start with walls at the city's level; ones taken before this get them raised, and any wall upgrade at or below that level is refunded and dropped
     (s.cities||[]).forEach(function(cc){ var L=cc.fieldCap; if (!L || (cc.wall||0)>=L) return; cc.wall=L;
       cc.builds=(cc.builds||[]).filter(function(b){ if (!(b && b.where==="wall" && b.to<=L)) return true;
@@ -8111,10 +8119,10 @@ function viewHeroes(){
   h+='<div class="section"><div class="shead"><h3>Offices</h3><span class="dur">'+OFFICES.filter(function(o){ return officer(o[0]); }).length+' of '+OFFICES.length+' filled</span></div>'+
     '<p class="hint">Four jobs, four heroes. A hero you seat yourself stays home (never in a march list); a seat auto-fill hands out doesn\u2019t hold its hero back. Officers earn experience while they serve. Appoint from a hero\u2019s page. The wall hero leads your troops whenever this city is attacked: with no wall hero, no hero leads the defense. The wall hero keeps working even when the treasury is empty.</p><div class="gearlist">'+
     OFFICES.map(function(o){ var oh=officer(o[0]), eff = o[0]==="mayor" ? 'production +'+pct(mb.prod)+', buildings '+pct(1-1/(1+mb.build))+' faster' : o[0]==="trainer" ? 'training '+pct(mb.train)+' faster' : o[0]==="wallHero" ? 'leading the defense' : 'research '+pct(1-1/(1+mb.research))+' faster';
-      return '<div class="gearrow"><span class="gn">'+o[1]+'</span><span class="gb">'+(oh?esc(oh.name)+' ('+STATN[o[2]].slice(0,3)+' '+hs(oh,o[2])+')'+(oh.autoSeat&&o[0]!=="wallHero"?' <span class="dur">auto</span>':''):'vacant')+'</span><span class="dur" style="grid-column:1/-1">'+o[3]+' ('+STATN[o[2]]+').'+(oh?' Now: '+eff+'.':'')+'</span></div>'; }).join("")+'</div>';
+      return '<div class="gearrow"><span class="gn">'+o[1]+'</span><span class="gb">'+(oh?esc(oh.name)+' ('+STATN[o[2]].slice(0,3)+' '+hs(oh,o[2])+')'+(!seatHolder(o[0])?' <span class="dur">auto, borrowed</span>':''):'vacant')+'</span><span class="dur" style="grid-column:1/-1">'+o[3]+' ('+STATN[o[2]]+').'+(oh?' Now: '+eff+'.':'')+'</span></div>'; }).join("")+'</div>';
   if (anyOff && S.res.gold<=0 && salary()>0) h+='<p class="warn">Your treasury is empty, so your mayor, trainer and researcher have stopped working (the wall hero stays on the wall). Raise taxes or trade for gold.</p>';
   h+='<label class="chk" style="margin-top:8px"><input type="checkbox" id="automayor"'+(S.autoMayor?' checked':'')+'> Auto-fill each seat with the best free hero</label>'+
-    (S.autoMayor?'<p class="hint">Each seat is kept filled with the best free hero for its job (Politics for the mayor, Attack for the trainer, Intelligence for the researcher), one seat per hero. A seat marked <i>auto</i> doesn\u2019t keep its hero home: he still marches, the next best hero holds the seat while he\u2019s away, and he gets it back when he\u2019s home. A seat you pick yourself is locked (no marches) and auto-fill leaves it alone. The wall hero is always yours to pick.</p>':'<p class="hint">You pick every officer. An empty seat does no work: no mayor means no production bonus, no trainer means no training bonus, no researcher means no research bonus.</p>');
+    (S.autoMayor?'<p class="hint">An empty seat borrows the best hero who is home when its job needs one (Politics for the mayor, Attack for the trainer, Intelligence for the researcher), one job per hero, and lets go straight away: a build, research or training batch takes the borrowed hero\u2019s bonus when it starts, and production uses whoever is home right now. Borrowed heroes are never held back: they march and auto-farm as usual. A seat you pick yourself is locked (no marches) and its hero is never borrowed for another job. The wall hero is always yours to pick.</p>':'<p class="hint">You pick every officer. An empty seat does no work: no mayor means no production bonus, no trainer means no training bonus, no researcher means no research bonus.</p>');
   h+='</div>';
   h+='<div class="section"><div class="shead"><h3>Feasting Hall</h3><span class="dur">'+S.heroes.length+' / '+cap+' heroes'+(salary()?', salaries '+fmt(salary())+' gold/h':'')+'</span></div>';
   if (!cap) h+='<p class="hint">Build a Feasting Hall to keep heroes.</p>';

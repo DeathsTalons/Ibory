@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.246
+Version 0.1.247
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -20,10 +20,16 @@ A single-player, real-time remake of Evony Age 1, set in North March. One HTML f
 
 ## Saves
 Saves live in the phone's localStorage under `stonewatch-save-v1` (the old name is kept on purpose).
-Settings has save codes and Save to file / Load from file. Current save version: 48, `SAVE_V` in index.html (the last `migrate` step is `if (s.v===47){ ... s.v=48; }`).
+Settings has save codes and Save to file / Load from file. Current save version: 49, `SAVE_V` in index.html (the last `migrate` step is `if (s.v===48){ ... s.v=49; }`).
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.247** Craft anywhere; auto-fill borrows heroes instead of seating them. Phone only; **save version 49**; no server change.
+  - **Gear crafting and reforging count your best Workshop in any city** (`craftWs()` = `maxB("workshop")` in `craftWhy` and `upgWhy`). Gear always belonged to the whole kingdom, but each city checked its own Workshop, so a city without one couldn't craft from a hero's gear menu. The message now reads "Needs a level N Workshop in any city".
+  - **Auto-fill borrows a hero only when a job needs one, then lets go.** An empty mayor, trainer or researcher seat no longer holds a hero. When its job reads it, it borrows the best hero who is home in that city: once when a build, research or training batch starts (the batch keeps that time after he leaves), and continuously for the mayor's production bonus. Picks are made together, one job per hero (0.1.242's scoring; `autoPick`, cached per city on the heroes' stats, who is away and the seats; `borrowed(role)`). Borrowed heroes are never officers (`isOfficer`/`seatLocked` only see hand-picked seats), so marches and auto-farm presets always get them. `officer(role)` = `seatHolder(role)` or the borrowed hero; `mayor()`/`mayorActive()` go through it. Hand-picked seats are unchanged: locked, never borrowed for another job. The Offices panel marks a borrowed seat "auto, borrowed". `autoOffices()` now only lets go of seats handed out before this version (`h.autoSeat`).
+  - **The bug behind "auto roles pull heroes off auto-farm":** in 0.1.239–0.1.246, when a hero moved from one auto seat to another in the same pass (say trainer to mayor), the seat he left cleared his `autoSeat` mark after the new seat had set it, so he ended up holding a seat that looked hand-picked: locked home, out of every preset, and never let go. Gone with the seats.
+  - **Save step 48 → 49:** in a city with auto-fill on, a mayor, trainer or researcher seat is let go if its hero was auto-seated or is the named hero of an auto-farm preset there (the locked-by-the-bug case; a hand-picked officer can't march, so that preset could never run).
+  - Tests: `t/t106.py`; `t/t100.py` updated (it read hero ids out of auto seats).
 - **0.1.246** Cleanliness pass (review phase 4) and three fixes from the 0.1.243–245 review. Phone and worker; no save change, no schema change.
   - **Fixes.** All heroes: a hero on a preset march from another city showed the viewing city's preset name (`ahWhere` reads the march line as the hero's own city). The map's Farm list pick (`MAPFARM`) is cleared when you switch cities (it is per city; it used to carry the number over). Removing a farm from a preset refreshes the map's farm summary. City names are escaped in the All heroes city picker. A catch-up "poll" that throws no longer logs once per 5 game-minutes of absence.
   - **One place for each thing.** `mySide(hero)` / `myAttacker(t, hero)` build the attacking side (was pasted 8×; same key order, the Arena/rally `side` sent to the server is unchanged). `npcDef(base, t, f)` builds a scouted or generated defender (7×). `baseFight` / `baseLoot` / `baseReport` / `baseReturn` are the shared bones of the three AI-city fights (war camp, challenger city, bully stronghold). `adoptState(obj)` (with `adoptPrep` + `adoptMigrated`) swaps in a downloaded, pasted, file or safety-copy save (4×). One `visibilitychange` listener instead of five: leaving the app now catches the clock up and saves *before* the cloud copy is written. `HOUR` and `DAY` replace the mixed `3600e3`/`3600000` and `86400e3`/`86400000` spellings (`DAY_MS` folded in). Worker: one `UNITS` table (`SN_UNITS` was a copy), `backoff(tries, step)` for the five optimistic-lock sleeps, `verStore()` for the three versioned alliance rows (`aw_al`, `al_maps`, `al_state`).
