@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.250
+Version 0.1.251
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,12 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.251** Faster coming back, faster Help, and a lost night found. Phone and worker (**deploy the worker**: the alliance sync and Help are server changes); no save change (still 49), no schema change.
+  - **Hero stats from a gear index** (`gearIndex`, `gearChanged()`): every hero stat read (`gearBonus`, `starSet`) scanned the whole kingdom's gear. The catch-up after a night away reads hero stats tens of thousands of times (auto-fill picks since 0.1.247, production rates, auto-farm hero picks), so on a big game (10 cities, 120 heroes in full sets, ~2,000 pieces) an 8-hour catch-up took 95 s; now under 2 s. The index is rebuilt when gear changes (every equip, star, tier, scrap and dismiss calls `gearChanged()`; a new gear array, as after a load, also resets it; and every tap resets it as a safety net).
+  - **Auto-fill picks cached per city** (`AUTO_PICK[cityId]`): one shared entry meant every city evicted the next one's picks on each production tick.
+  - **A loaded game keeps its clock** (`adoptPrep`): a game pulled from the cloud (another device saved later), a save file or a save code used to have its clock reset to now, so the time since that copy was saved was skipped: nothing trained, nothing produced, "trained in the last hour" at 0 after a night on another device. Now that time is caught up like after any other reopening. A clock from the future is clamped to now.
+  - **Server:** `/al/sync` runs its independent reads side by side and reuses the alliance state it loaded (about 320 → 180 ms of D1 round trips at 10 ms each); `/al/help` writes all its helps in one batch instead of one round trip per project; a member's project changes are batched too, and the stale-project sweep runs every 10 minutes per instance instead of every sync.
+  - Tests: `t/t110.py`; worker `scores-worker/test-harness/t29.mjs`.
 - **0.1.250** Historic heroes by city tier. Phone only; no save change (still 49; new map keys `hhTaken`, `hhGot` start empty), no server change.
   - **No more random drop** (`HC_HERO_P` is gone). A historic city's hero joins, 100%, on the win that breaks its loyalty to 0 (your own march or your rally's waves), whether or not you have room for the city. Once per city.
   - **Level 12s** give one of the 40 historic heroes you don't own yet (never a duplicate; a hero you dismissed doesn't come back); nothing once you have all 40, and nothing from a 12 that already gave its hero under the old drop.
