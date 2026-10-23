@@ -834,7 +834,8 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.248";
+var APP_VERSION = "0.1.250";
+var HERO_ATK_DIV = 200; // Age 2 battle rules (0.1.249): a hero's Attack adds +0.5% troop attack per point (Age 1 was +1%: 100)
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var HOUR=3600e3, DAY=86400e3; // milliseconds; game time and real time both count in them
@@ -1025,6 +1026,13 @@ var SIM = (function () {
   // ---------------------------------------------------------------------------------------
   // §2.1 Unit base stats: [life, attack, defense(raw), speed, range]
   // ---------------------------------------------------------------------------------------
+  // Ruleset. Age 2 (default since 0.1.249) was measured against dxcalc.com/age2 with Leadership left out
+  // (every hero commands all of its troops); see SPEC-AGE2.md. opts.age1 runs the original Age-1 rules
+  // (golden.json is frozen against those).
+  var AGE1 = { rangedFloor: false, intLife: false, workerNoIW: false, medAll: false, trapMounted: false, trapZoneAll: false, logZoneAll: false, logAge2: false, trebAge2: false, towerAlive: false, wallRange: 0, fortPower: 0 };
+  var AGE2 = { rangedFloor: true, intLife: true, workerNoIW: true, medAll: true, trapMounted: true, trapZoneAll: true, logZoneAll: true, logAge2: true, trebAge2: true, towerAlive: true, wallRange: 3, fortPower: 2 };
+  var RULES = AGE2;
+
   var UNIT_BASE = [
     [100, 5, 50, 180, 10],      // 0 Worker
     [200, 50, 50, 200, 20],     // 1 Warrior
@@ -1117,14 +1125,16 @@ var SIM = (function () {
     var intel = f32(orDefault(hero.intel, 0));
 
     // §4 defense bracket: Y = f32( f32( f32(iw*5+100)/100 ) + f32(intel/100) )
-    var Y = f32(f32(f32(iw * 5 + 100) / 100) + f32(intel / 100));
+    // Age 2: Intelligence is flat life per troop (added last), not part of the defense bracket; Workers get no Iron Working
+    var Y = RULES.intLife ? f32(f32(iw * 5 + 100) / 100) : f32(f32(f32(iw * 5 + 100) / 100) + f32(intel / 100));
+    var Y0 = RULES.intLife ? 1 : Y;
 
     var out = [];
     var i, rec;
     // Step 1: base values and the damage-taken coefficient
     for (i = 0; i < NUM_TYPES; i++) {
       var base = UNIT_BASE[i];
-      var G = f32(Y * f32(base[2]));                       // G = f32( Y × f32(Dv) )
+      var G = f32(((RULES.workerNoIW && i === 0) ? Y0 : Y) * f32(base[2]));                       // G = f32( Y × f32(Dv) )
       var d = f32(f32(1000 - G * defM) / 1000);            // d = f32( f32(1000 − G×defM) / 1000 )
       out.push({
         life: f32(base[0]),
@@ -1144,7 +1154,7 @@ var SIM = (function () {
     // Step 2.2: Mechanical types
     for (i = 0; i < MECHANICAL.length; i++) {
       rec = out[MECHANICAL[i]];
-      rec.life = f32(rec.life * lifeM);
+      rec.life = RULES.medAll ? f32(f32(f32(rec.life * (med * 5 + 100)) * lifeM) / 100) : f32(rec.life * lifeM); // Age 2: Medicine heals every type
       rec.attack = f32(rec.attack * atkM);
       rec.speed = f32(f32(rec.speed * (hbr * 5 + 100)) / 100);
     }
@@ -1156,10 +1166,11 @@ var SIM = (function () {
     // Step 2.4: Mounted types (same formulas as Mechanical)
     for (i = 0; i < MOUNTED.length; i++) {
       rec = out[MOUNTED[i]];
-      rec.life = f32(rec.life * lifeM);
+      rec.life = RULES.medAll ? f32(f32(f32(rec.life * (med * 5 + 100)) * lifeM) / 100) : f32(rec.life * lifeM); // Age 2: Medicine heals every type
       rec.attack = f32(rec.attack * atkM);
       rec.speed = f32(f32(rec.speed * (hbr * 5 + 100)) / 100);
     }
+    if (RULES.intLife && intel > 0) for (i = 0; i < NUM_TYPES; i++) out[i].life = f32(out[i].life + intel);
     return out;
   }
 
@@ -1197,6 +1208,7 @@ var SIM = (function () {
   }
 
   function fightCore(attacker, defender, opts) {
+    RULES = (opts && opts.age1) ? AGE1 : AGE2;
     opts = opts || {};
     var rand = opts.rand || Math.random;                              // §5.1.1
     var wantLog = !!opts.log, wantTrace = !!opts.trace;
@@ -1210,6 +1222,11 @@ var SIM = (function () {
     var W = orDefault(defender.wallLevel, 0);
     var fb = orDefault(defender.fortBonus, 1);
     var da = orDefault((defender.research || {}).archery, 0);
+    // Age 2: the wall extends the reach of the defender's ranged troops (+3% per level, like the tower)
+    if (RULES.wallRange && W > 0) for (i = 0; i < RANGED.length; i++) {
+      var wr = cityStats[RANGED[i]];
+      wr.range = f32(f32(wr.range * (W * RULES.wallRange + 100)) / 100);
+    }
 
     // §5.1.4 tower stat record
     var towerStat = {
@@ -1308,9 +1325,9 @@ var SIM = (function () {
     var trapVolley = 0;
     if (traps > 0) {
       var r1 = rand();
-      trapVolley = trunc(traps * (5 + Math.floor(r1 * 5)) / 100);
+      trapVolley = defender.trapRate ? trunc(traps * defender.trapRate / 100) : trunc(traps * (5 + Math.floor(r1 * 5)) / 100); // a fixed rate when given
     }
-    var trapPower = defender.trapKillPower;
+    var trapPower = defender.trapKillPower || RULES.fortPower;
     if (!trapPower) {
       var r2 = rand();
       trapPower = 0.9 + Math.floor(r2 * 7) * 0.1;
@@ -1318,8 +1335,8 @@ var SIM = (function () {
     var abatisVolley = trunc(abatis / 10);
     var logVolley = trunc(logs / 10);
     var rockVolley = trunc(rocks / 10);
-    var logPower = orDefault(defender.logKillPower, DEFAULT_LOG_POWER);
-    var rockPower = orDefault(defender.rockKillPower, DEFAULT_ROCK_POWER);
+    var logPower = orDefault(defender.logKillPower, RULES.fortPower || DEFAULT_LOG_POWER);
+    var rockPower = orDefault(defender.rockKillPower, RULES.fortPower || DEFAULT_ROCK_POWER);
 
     // §5.1.14 kill-credit matrices
     var KA = zeroMatrix(12, 13);
@@ -1389,7 +1406,7 @@ var SIM = (function () {
       else m2 = 1;
       lastMod = m2;
       // k = ceil( f32( f32( f32( f32(attack×defense) × n ) × f32(m2) ) / life ) )
-      return Math.ceil(f32(f32(f32(f32(striker.stat.attack * ts.defense) * n) * f32(m2)) / ts.life));
+      return (RULES.rangedFloor ? Math.floor : Math.ceil)(f32(f32(f32(f32(striker.stat.attack * ts.defense) * n) * f32(m2)) / ts.life)); // Age 2 floors
     }
 
     /** §5.6.3 composite striker: sum of per-part results (parts with N > 0). */
@@ -1604,7 +1621,7 @@ var SIM = (function () {
     function trapStep(ev) {                                            // §5.7.1
       var zone = [], k;
       for (k = 0; k < NUM_TYPES; k++) {
-        if ((trapAll || k <= 5) && inFortZone(A[k], L - FORT_ZONE)) zone.push(A[k]);
+        if ((trapAll || k <= 5 || (RULES.trapMounted && (k === 7 || k === 8))) && inFortZone(A[k], RULES.trapZoneAll ? 0 : L - FORT_ZONE)) zone.push(A[k]); // Age 2: traps catch horses too, anywhere on the field
       }
       var cnt = zone.length;
       if (cnt > 0) {
@@ -1653,12 +1670,13 @@ var SIM = (function () {
     }
 
     function logStep(ev) {                                             // §5.7.3
-      var zoneStart = L >= 5000 ? L - 5000 : L - 1300;
+      var zoneStart = RULES.logZoneAll ? 0 : (L >= 5000 ? L - 5000 : L - 1300);
       var target = pickByPower(LOG_TARGETS, zoneStart);
       if (target === null) return;
       var used = Math.min(logs, logVolley);
       var ts = target.stat;
-      var killed = Math.floor(f32(f32(f32(used * logPower) * LOG_ATTACK) / f32((2 - ts.defense) * ts.life)));
+      var killed = RULES.logAge2 ? Math.floor(f32(f32(f32(used * logPower) * LOG_ATTACK) * ts.defense) / f32(ts.life)) // Age 2: armour helps directly
+        : Math.floor(f32(f32(f32(used * logPower) * LOG_ATTACK) / f32((2 - ts.defense) * ts.life)));
       var oldE = target.E;
       target.E = Math.max(target.E - killed, 0);
       var got = oldE - target.E;
@@ -1670,9 +1688,18 @@ var SIM = (function () {
     function rockStep(ev) {                                            // §5.7.4
       var all = [];
       for (var k = 0; k < NUM_TYPES; k++) all.push(k);
-      var target = pickByPower(all, L - FORT_ZONE);
+      var target = pickByPower(all, RULES.trebAge2 ? 0 : L - FORT_ZONE);
       if (target === null) return;
       var ts = target.stat;
+      if (RULES.trebAge2) { // Age 2: rocks kill like rolling logs (armour helps the target), and a volley that would wipe the stack spends only the rocks it needs
+        var oldE2 = target.E, per = f32(f32(ROCK_ATTACK * rockPower) * ts.defense) / ts.life, used2 = Math.min(rocks, rockVolley);
+        var killed2 = Math.floor(f32(used2 * per));
+        if (killed2 >= target.E) { used2 = Math.min(used2, Math.ceil(target.E / per)); target.E = 0; } else target.E = target.E - killed2;
+        rocks = rocks - used2;
+        var got2 = oldE2 - target.E; if (got2 > 0) KD[16][target.type] += got2;
+        if (wantTrace) ev.push({ s: "F", f: 4, t: target.type, got: got2 });
+        return;
+      }
       var tough = target.E * ts.life * ts.defense;
       var power = rockVolley * rockPower * ROCK_ATTACK;
       var oldE = target.E;
@@ -1761,6 +1788,7 @@ var SIM = (function () {
         if (D[i].N > 0) defenderAlive = true;
       }
       if (H > 0) defenderAlive = true;
+      if (RULES.towerAlive && tower.E > 0) defenderAlive = true; // Age 2: standing towers must be destroyed too
 
       if (wantTrace) {
         frame.eA = pluck(A, "E");
@@ -1830,7 +1858,8 @@ var SIM = (function () {
     return null;
   }
 
-  return { fight: fight, stats: stats, MELEE: MELEE, capFor: capFor, last: last };
+  function statsFor(side, age1) { RULES = age1 ? AGE1 : AGE2; return stats(side); }
+  return { fight: fight, stats: statsFor, MELEE: MELEE, capFor: capFor, last: last, AGE1: AGE1, AGE2: AGE2 };
 })();
 
 /* ---------- troops ---------- */
@@ -2669,7 +2698,7 @@ setInterval(function(){ try { var ev=evNow(); if (!ev || !EV_TRACK[ev.id] || sav
 var WIZ_LOOT={1:{items:{gemF:[2,12], s15:[1,4]}, res:1e6}, 2:{items:{gemF:[10,20], s60:[1,2]}, res:5e6}}; // a slain wizard, for every player who brought it down
 function wizRoll(L){ var W=WIZ_LOOT[L]||WIZ_LOOT[2], out={items:{}, res:{}}; for (var k in W.items) out.items[k]=qtyRoll(W.items[k]); RES.forEach(function(r){ out.res[r]=W.res; }); return out; }
 function wizRewardText(L){ return L===1 ? "2 to 12 Flawless Gems, 1 to 4 15-minute speed-ups and 1M of each resource" : "10 to 20 Flawless Gems, 1 to 2 1-hour speed-ups and 5M of each resource"; }
-function wizSide(hero){ return {research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack()+alFx("pveatk"))}; }
+function wizSide(hero){ return {research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/HERO_ATK_DIV+bAttack()+alFx("pveatk"))}; }
 // a march lands on a wizard
 function wizBattle(m){
   var q=TILE_BY[m.tile], L=q.L, hero=m.hero?heroById(m.hero):null, T=wizT(L), joins=[{t:m.t.slice(), side:wizSide(hero)}], f=sarFight(T,L,joins), v=null;
@@ -2789,7 +2818,7 @@ function aiBase(q){
   var t=p.w.map(function(w){ return Math.round(total*w); });
   var forts=[th>=2?Math.round(120*th*th*f):0, th>=3?Math.round(40*th*th*f):0, th>=4?Math.round(30*th*th*f):0, th>=5?Math.round(15*th*th*f):0, th>=8?Math.round(6*th*th*f):0];
   var cap=60000*Math.pow(th,1.6)*p.hoard, res={food:Math.round(cap*3), lumber:Math.round(cap), stone:Math.round(cap), iron:Math.round(cap), gold:Math.round(cap*0.5)};
-  return {t:t, f:forts, wall:th, r:{archery:tl, medicine:tl, iron_working:tl, horseback_riding:tl, compass:tl}, res:res, am:(1+0.05*tl+a.heroAtk/100)};
+  return {t:t, f:forts, wall:th, r:{archery:tl, medicine:tl, iron_working:tl, horseback_riding:tl, compass:tl}, res:res, am:(1+0.05*tl+a.heroAtk/HERO_ATK_DIV)};
 }
 function tileName(q){ if (q.k==="wiz") return "Level "+q.L+" "+WIZ[q.L].n; if (q.k==="chal"){ var cc=chalById(q.cid), cb=cc&&rosterById(cc.rid); return (cb?cb.name:"A challenger")+"\u2019s "+(q.seat?"seat":(cc&&cc.cities[q.j]&&cc.cities[q.j].capital?"capital":"city")); } if (q.k==="war"){ var wb=rosterById(W().enemies[q.eid].rid); return (wb?wb.name:"A rival")+"\u2019s war camp"; } if (q.k==="bully"){ var bb=S.alliance&&bullyOf(); return (bb?bb.name:"A bully")+"'s stronghold"; } if (q.k==="allycity"){ var pq=TILE_BY[q.ally]; return (pq&&pq.ai?pq.ai.name:"An ally")+"'s city"; } return q.k==="monster" ? "Tier "+q.L+" "+MONSTERS[q.mon] : q.k==="ai" ? q.ai.name : q.k==="home" ? S.cities[cityIndex(q.city)].name : q.k==="hc" ? (q.name ? q.name+" (level "+q.L+" historic)" : "Level 12 Historic City") : q.k==="npc" ? "Level "+q.L+" NPC city" : "Level "+q.L+" "+VTYPES[q.k].name; }
 function valleyTroops(L){ var v=[[50,0,0,0,0],[100,0,0,20,0],[200,50,0,50,0],[400,100,50,100,0],[800,200,100,200,50],[1500,400,200,400,100],[3000,800,400,800,200],[6000,1500,800,1500,400],[12000,3000,1500,3000,800],[40000,5000,2500,5000,1500]][L-1];
@@ -2816,8 +2845,8 @@ function baseOf(q){
   if (q.k==="monster") return monsterBase(q);
   if (q.k==="ai") return aiBase(q);
   if (q.k==="hc"){ var a10=NPC_RES[10], sc=Math.pow(1.5,(q.L-12)/2), r10={food:a10[0]*sc,lumber:a10[1]*sc,stone:a10[2]*sc,iron:a10[3]*sc,gold:a10[4]*sc};
-    var hh=HC_SET[q.L].hero; return {t:hcTroops(q), f:HC_FORTS.slice(), wall:10, r:{archery:10,medicine:10,iron_working:10,compass:10,horseback_riding:10}, res:r10, am:1+0.5+hh[0]/100, hint:hh[1], fb:2}; }
-  if (q.k==="npc"){ var a=NPC_RES[q.L], res={food:a[0],lumber:a[1],stone:a[2],iron:a[3],gold:a[4]}; var nh=npcHero(q.L); return {t:NPC[q.L].t.slice(), f:NPC[q.L].f.slice(), wall:q.L, r:npcSimResearch(q.L), res:res, am:1+0.05*q.L+nh[0]/100, hint:nh[1], fb:1+0.1*q.L}; }
+    var hh=HC_SET[q.L].hero; return {t:hcTroops(q), f:HC_FORTS.slice(), wall:10, r:{archery:10,medicine:10,iron_working:10,compass:10,horseback_riding:10}, res:r10, am:1+0.5+hh[0]/HERO_ATK_DIV, hint:hh[1], fb:2}; }
+  if (q.k==="npc"){ var a=NPC_RES[q.L], res={food:a[0],lumber:a[1],stone:a[2],iron:a[3],gold:a[4]}; var nh=npcHero(q.L); return {t:NPC[q.L].t.slice(), f:NPC[q.L].f.slice(), wall:q.L, r:npcSimResearch(q.L), res:res, am:1+0.05*q.L+nh[0]/HERO_ATK_DIV, hint:nh[1], fb:1+0.1*q.L}; }
   return {t:valleyTroops(q.L), f:[0,0,0,0,0], wall:0, r:{}, res:valleyRes(q.k,q.L)};
 }
 function regenT(q){ return q.k==="hc"?1*3.6e6:q.k==="ai"?24*3.6e6:REGEN_T; } // how long a hit garrison takes to grow back to full
@@ -2917,6 +2946,58 @@ function historicHero(q){
   var st=histStats(q.hero);
   return {id:S.nextHeroId++, name:name, tier:"historic", level:lv, xp:0, pol:st.pol, atk:st.atk, int:st.int, pts:0, base:{pol:st.pol, atk:st.atk, int:st.int}};
 }
+// 0.1.250: every level 14, 16 and 18 historic city holds its own hero, found nowhere else (design: historic-heroes-tiers.md). Level 12s give one of the 40 above
+// you don't own yet. The hero joins, 100%, on the win that breaks the city's loyalty to 0 (yours or your rally's), whether or not you have room for the city. Once per city.
+var HC_CITY_HERO={
+  "Babylon":{name:"Hammurabi", spec:"pol", pol:290, atk:191, int:191},
+  "Troy":{name:"Hector", spec:"atk", pol:191, atk:276, int:192},
+  "Sparta":{name:"Lysander", spec:"int", pol:186, atk:188, int:287},
+  "Alexandria":{name:"Ptolemy I Soter", spec:"pol", pol:265, atk:183, int:192},
+  "Jerusalem":{name:"Baldwin IV", spec:"atk", pol:190, atk:276, int:187},
+  "Persepolis":{name:"Darius the Great", spec:"pol", pol:280, atk:192, int:182},
+  "Memphis":{name:"Imhotep", spec:"int", pol:192, atk:185, int:281},
+  "Thebes":{name:"Thutmose III", spec:"atk", pol:186, atk:271, int:186},
+  "Nineveh":{name:"Ashurbanipal", spec:"int", pol:183, atk:187, int:269},
+  "Ur":{name:"Ur-Nammu", spec:"pol", pol:265, atk:185, int:185},
+  "Antioch":{name:"Seleucus I Nicator", spec:"atk", pol:186, atk:265, int:183},
+  "Damascus":{name:"Nur ad-Din", spec:"atk", pol:188, atk:269, int:183},
+  "Syracuse":{name:"Archimedes", spec:"int", pol:192, atk:190, int:281},
+  "Corinth":{name:"Periander", spec:"pol", pol:284, atk:188, int:188},
+  "Delphi":{name:"Croesus", spec:"pol", pol:277, atk:191, int:188},
+  "Knossos":{name:"Minos", spec:"pol", pol:283, atk:184, int:188},
+  "Petra":{name:"Aretas IV", spec:"pol", pol:278, atk:190, int:192},
+  "Palmyra":{name:"Odaenathus", spec:"atk", pol:192, atk:274, int:190},
+  "Tyre":{name:"Hiram I", spec:"pol", pol:272, atk:185, int:183},
+  "Sidon":{name:"Abdalonymus", spec:"pol", pol:286, atk:191, int:183},
+  "Susa":{name:"Shutruk-Nakhunte", spec:"atk", pol:184, atk:271, int:183},
+  "Ctesiphon":{name:"Shapur I", spec:"atk", pol:182, atk:268, int:192},
+  "Pompeii":{name:"Pliny the Elder", spec:"int", pol:184, atk:188, int:275},
+  "Ravenna":{name:"Stilicho", spec:"int", pol:182, atk:187, int:281},
+  "Milan":{name:"Francesco Sforza", spec:"atk", pol:191, atk:265, int:187},
+  "Aachen":{name:"Roland", spec:"atk", pol:182, atk:290, int:191},
+  "Toledo":{name:"Alfonso X the Wise", spec:"int", pol:186, atk:186, int:265},
+  "Cordoba":{name:"Abd al-Rahman III", spec:"pol", pol:284, atk:182, int:182},
+  "Kyiv":{name:"Olga of Kyiv", spec:"int", pol:190, atk:184, int:267},
+  "Novgorod":{name:"Alexander Nevsky", spec:"atk", pol:186, atk:268, int:185},
+  "Samarkand":{name:"Timur", spec:"atk", pol:183, atk:280, int:188},
+  "Mycenae":{name:"Agamemnon", spec:"atk", pol:186, atk:290, int:185},
+  "Rome":{name:"Romulus", spec:"atk", pol:253, atk:317, int:209},
+  "Athens":{name:"Theseus", spec:"atk", pol:213, atk:332, int:250},
+  "Carthage":{name:"Dido", spec:"pol", pol:331, atk:206, int:256},
+  "Constantinople":{name:"Theodora", spec:"int", pol:258, atk:212, int:325},
+  "Atlantis":{name:"Atlas", spec:"all", pol:350, atk:350, int:350, tier:"mythic"}};
+function hhGot(){ if (!S.map.hhGot) S.map.hhGot={}; return S.map.hhGot; } // names of the level 12 pool heroes already handed out (dismissing one doesn't make it come back)
+function hhOwned(name){ var all=S.heroes.concat(S.waiting||[]); S.cities.forEach(function(c){ all=all.concat(c.heroes||[], c.waiting||[]); }); return hhGot()[name] || all.some(function(h){ return h && h.name===name; }); }
+function hcHeroDue(q){ if (!S.map.hhTaken) S.map.hhTaken={}; if (S.map.hhTaken[q.id]) return null;
+  if (q.L===12){ if (S.map.heroTaken && S.map.heroTaken[q.id]) return null; // gave its hero under the old random drop
+    var left=HISTORIC.filter(function(n){ return !hhOwned(n); }); return left.length ? {pool:left} : null; }
+  return HC_CITY_HERO[q.name] ? {fixed:HC_CITY_HERO[q.name]} : null; }
+function hcHeroPreview(q){ var d=hcHeroDue(q); return !d ? "" : d.fixed ? d.fixed.name : "a historic hero"; }
+function hcHeroGive(q){ var d=hcHeroDue(q); if (!d) return null; var h;
+  if (d.fixed){ var f=d.fixed; h={id:S.nextHeroId++, name:f.name, tier:f.tier||"historic", level:1, xp:0, pol:f.pol, atk:f.atk, int:f.int, pts:0, base:{pol:f.pol, atk:f.atk, int:f.int}, fixedName:true}; }
+  else { var i=HISTORIC.indexOf(d.pool[Math.floor(Math.random()*d.pool.length)]); h=historicHero({hero:i}); hhGot()[h.name]=1; }
+  S.map.hhTaken[q.id]=true; if (S.heroes.length < hallCap()) S.heroes.push(h); else S.waiting.push(h);
+  return h; }
 // a conquered NPC or AI lord's city keeps its town: one of every building at the city's level, and its walls
 var CAP_SLOTS=["cottage","cottage","cottage","cottage","cottage","cottage","barracks","academy","rally","warehouse"], CAP_FIELDS=["farm","sawmill","quarry","ironmine"];
 // raises city c to at least one of each building at level L (and walls to L); plots being built or queued are left alone. Returns what changed.
@@ -3048,7 +3129,6 @@ function boxRules(q){ if (q.k==="hc") return [["medalbox3",BOX_DROP.hcSenior]]; 
 function boxRates(q){ var none=1, out=[]; boxRules(q).forEach(function(r){ out.push({k:r[0], p:none*r[1]}); none*=1-r[1]; }); return {list:out, none:none}; }
 function medalRates(q){ var w=medalWeights(q), sum=w.reduce(function(a,c){ return a+c; },0), bx=boxRates(q); if (!sum) return [];
   return w.map(function(x,i){ return {i:i, p:bx.none*MEDAL_RATE*x/sum}; }).filter(function(m){ return m.p>0; }); }
-var HC_HERO_P=function(L){ return L===12?0.1:0.2; }; // a historic city's hero: once per city, on a win
 function winDrops(q){
   if (q.k==="monster" && q.ev && VAMP_K[q.mon]) return vampDrops(q);
   var boxKey = rollMedalBox(q), drops=[], medal=-1;
@@ -3092,7 +3172,7 @@ function resolveMarch0(m){
     try { ALS.last=0; alSync(); } catch(e){} return true; }
   var q=TILE_BY[m.tile], cur=current(q), hero=m.hero?heroById(m.hero):null;
   var fullGar = (q.k!=="npc" && q.k!=="ai") || baseOf(q).t.every(function(v,i){ return cur.t[i]>=v; }); // an NPC or AI lord drops nothing but resources unless its troop garrison was full when the fight began
-  var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack()+alFx("pveatk"))}; // War Memorial: Hunter (map targets are all PvE)
+  var A={troops:m.t.slice(), research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/HERO_ATK_DIV+bAttack()+alFx("pveatk"))}; // War Memorial: Hunter (map targets are all PvE)
   var D=npcDef(cur);
   var gateClosed=false;
   var r=SIM.fight(A,D), won=r.result===1, xp=0, i;
@@ -3121,12 +3201,9 @@ function resolveMarch0(m){
   if (won && m.mission==="occupy" && VTYPES[q.k] && ownedIds().length < S.th){ S.map.owned[q.id]=C().id; S.map.ownedL[q.id]=q.L; S.map.ownedK=S.map.ownedK||{}; S.map.ownedK[q.id]=q.k; qbump("occupy"); delete S.map.hit[q.id]; occ=true; miniDirty=true; }
   var founded=null, histHero=null, loyNote="";
   if (won && m.mission==="occupy" && VTYPES[q.k] && !occ) loyNote=" Not held: "+C().name+" already holds "+ownedIds().length+" of "+S.th+" valleys and flats (Town Hall "+S.th+"), so the troops are coming home."; // 0.1.219
-  if (won && q.k==="hc" && !S.map.heroTaken[q.id] && Math.random() < HC_HERO_P(q.L)){
-    histHero=historicHero(q); S.map.heroTaken[q.id]=true;
-    if (S.heroes.length < hallCap()) S.heroes.push(histHero); else S.waiting.push(histHero);
-  }
   if (won && (m.mission==="attack"||m.mission==="conquer") && (q.k==="npc"||q.k==="hc"||q.k==="ai")){
     var nl=loyOf(q)-loyDrop(q,loyOf(q)); S.map.loy[q.id]={v:Math.max(0,nl), at:S.gt};
+    if (nl<=0 && q.k==="hc") histHero=hcHeroGive(q); // 0.1.250: a historic city's hero joins when its loyalty breaks
     var noCap=m.preset!=null && C().presets[m.preset] && C().presets[m.preset].noCap && q.k==="npc"; // 0.1.189: a farm preset can be told never to take NPC cities
     if (nl<=0){
       if (noCap) loyNote=" Loyalty broken; left standing (this preset doesn\u2019t capture NPC cities).";
@@ -3147,7 +3224,7 @@ function resolveMarch0(m){
   var rep={id:S.nextMarchId++, at:S.gt, tile:q.id, name:tileName(q), result:r.result, rounds:r.rounds, kb:r.kb, sent:m.t.slice(), left:r.attacker.slice(),
     had:cur.t.slice(), eleft:r.defender.slice(), forts:cur.f.slice(), fleft:r.forts.slice(), loot:loot, medal:medal, drops:drops, xp:xp, xpWait:xpWait, hero:hero?hero.name:null, occupied:occ, gate:gateClosed, lost:lost};
   addReport(rep);
-  if (histHero){ rep.historic=histHero.name; note("heroes",histHero.name+" was captured and joins you!"); }
+  if (histHero){ rep.historic=histHero.name; note("heroes",histHero.name+" joins you from "+rep.name+(S.waiting.indexOf(histHero)>=0?" and waits at the gate: free a place in your Feasting Hall":"")+"!"); }
   if (founded){ rep.founded=founded; note("march",(m.mission!=="found"?founded+" is yours! ":"A new city rises: "+founded+". ")+"Your troops stay on as its garrison."); return false; }
   if (m.mission==="found" && won){ RES.forEach(function(k){ loot[k]=(loot[k]||0)+10000; }); m.foundFail=true; }
   var msg = (gateClosed?"Gates shut! ":"")+(won ? "Victory at " : "Defeat at ")+rep.name+(lost?", lost "+fmt(lost):", no losses")+(medal>=0?". "+MEDALS[medal][1]+" medal!":"")+(drops.length?". Found "+drops.join(", "):"")+(won && !fullGar?". Garrison wasn’t full, so no drops, only resources":"")+(occ?". Valley taken.":"")+(ups?" "+hero.name+" reached level "+hero.level+".":"");
@@ -3298,7 +3375,7 @@ function farmClaimed(ignore){ // every NPC already sitting on any preset's list,
   return s;
 }
 // the attacking side of any fight this city sends: its research, hero stats, set bonuses and the city's attack/defence buffs (same shape the server expects)
-function mySide(hero){ return {research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack())}; }
+function mySide(hero){ return {research:simResearch(), hero:{intel:hsB(hero,"int")}, life_modifier:setLife(hero), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/HERO_ATK_DIV+bAttack())}; }
 function myAttacker(t, hero){ var A={troops:t}, sd=mySide(hero); for (var k in sd) A[k]=sd[k]; return A; }
 function farmAttacker(pr){ return myAttacker(pr.t.slice(), presetHero(pr)); }
 // what a fresh level-L NPC is worth to this preset: experience and plunder per visit, or ok:false if it can't win (cleanly, when the preset pauses on losses)
@@ -3486,7 +3563,7 @@ function cityDefense(c){
   return withCity(cityIndex(c.id), function(){ var m=wallHero();
     var helpT=S.alliance?allyHelpAt(C().id):[0,0,0,0,0,0,0,0,0,0,0,0];
     return {troops:S.gate==="closed"?[0,0,0,0,0,0,0,0,0,0,0,0]:S.troops.map(function(n,i){ return n+helpT[i]; }), fortifications:S.forts.slice(), wallLevel:S.wall||0, research:simResearch(), hero:{intel:hsB(m,"int",1)}, life_modifier:setLife(m,1),
-      defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(m,"atk",1)/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0), trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25}; });
+      defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(m,"atk",1)/HERO_ATK_DIV+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}; });
 }
 function wavePick(pool, frac, types){ return pool.map(function(n,i){ return (!types || types.indexOf(i)>=0) ? Math.floor(n*frac) : 0; }); }
 function oneEach(pool, arr){ pool.forEach(function(n,i){ if (n>0 && !arr[i] && i!==2 && i!==6) arr[i]=1; }); return arr; }
@@ -3987,7 +4064,7 @@ function occupyFlats(){
     var tm=travelMs(pr.t,q,phid,"occupy");
     if (S.res.food<marchFood(pr.t,"occupy",tm)){ why="not enough food for rations"; break; }
     if (sent===0){ // one check before anything leaves: would this army beat a flat of this level?
-      var cur=current(q), A={troops:pr.t.slice(), research:simResearch(), hero:{intel:hsB(ph,"int")}, life_modifier:setLife(ph), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(ph,"atk")/100+bAttack())}, wins=0;
+      var cur=current(q), A={troops:pr.t.slice(), research:simResearch(), hero:{intel:hsB(ph,"int")}, life_modifier:setLife(ph), defence_modifier:bDefend(), attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(ph,"atk")/HERO_ATK_DIV+bAttack())}, wins=0;
       for (var s=0;s<5;s++){ var r=SIM.fight(A,npcDef(cur)); if (r.result===1) wins++; }
       if (wins<5){ toast("That preset lost "+(5-wins)+" of 5 practice fights against a level "+o.lvl+" flat, so nothing was sent"); return; }
     }
@@ -4105,7 +4182,7 @@ function renderTileInfoBase(){
   if (q.k==="war"){ var wE=W().enemies[q.eid], wb2=rosterById(wE.rid), wf=friendOf(wb2); h+='<p class="hint">'+esc(wb2.name)+'\u2019s war camp: level '+wE.wall+' walls, full fortifications, a hero with '+wE.hero[0]+' Attack. Its field army is out raiding; the garrison rebuilds a little each day. Take the camp to knock '+esc(wb2.name)+' out of the war. Every troop you kill here scores.'+(wf?' <span style="color:var(--brass)">'+esc(wf.note)+'</span>':'')+'</p>'; }
   if (q.k==="bully"){ var bb2=bullyOf(), B2=S.alliance.bully; h+='<p class="hint">'+(bb2?esc(bb2.name)+'\u2019s stronghold: a fortified city with level '+B2.wall+' walls, a full set of fortifications and a hero with '+B2.hero[0]+' Attack. Its field army is out raiding your allies; the garrison stays home and nothing rebuilds while the bully is here, so you can wear it down over several attacks. Taking it ends the event for a large chunk of kingdom rep, its treasury, rare books and materials.':'')+'</p>'; }
   if (q.k==="hc") h+='<p class="hint">Today\u2019s garrison mix: '+comboText(q)+'. It changes daily. Historic cities recover within an hour, and are led by a powerful hero ('+HC_SET[q.L].hero[0]+' Attack, '+HC_SET[q.L].hero[1]+' Intelligence).'+
-    (S.map.heroTaken[q.id]?'':' The historic hero '+HISTORIC[q.hero]+' is said to be here.')+'</p>';
+    (hcHeroPreview(q)?' '+(q.L===12?'A historic hero':'The historic hero '+hcHeroPreview(q))+' is held here and joins whoever breaks its loyalty.':'')+'</p>';
   var intel=needScout(q)?intelOf(q):null, shown=cur;
   if (needScout(q) && !intel) h+='<div class="h3" style="margin-top:6px">Defenders</div><p class="hint">Unknown. Send scouts to see its army, fortifications and stockpile.</p>';
   else {
@@ -4344,7 +4421,7 @@ var GEAR_TIERS=["common","rare","epic","legendary","mythic"], GEAR_BASE=[3,6,10,
 // Each gem fewer than four takes off one step (Flawless 15 points, Delicate 25/3), never below 1%: one Flawless is 45% at 5 stars, one Delicate 40%.
 var GEM_4={D:[90,85,80,75,70,65,60,55,50,45,40,35,30,25,20], F:[95,94,93,92,91,90,83,77,70,63,57,50,43,37,30]}, GEM_STEP={D:25/3,F:15};
 var FAIL_TO=[0,0,1,1,2,3,4,4,5,0,0,0,0,0,0]; // star count after a failed attempt from each level
-var SET_TIERS=[[15,2.5],[12,2.0],[9,1.5]];
+var SET_TIERS=[[15,3.5],[12,2.5],[9,2.0],[6,1.4]]; // Age 2 star set life (0.1.249; was 9 x1.5, 12 x2, 15 x2.5)
 function starSet(h){ if (!h) return -1; var on=S.gear.filter(function(g){ return g.on===h.id; }), low=99; if (on.length<GEAR_POS.length) return -1; on.forEach(function(g){ low=Math.min(low,g.stars); }); return low; }
 function setLife(h,def){ var st=starSet(h), m=1; for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]){ m=SET_TIERS[i][1]; break; } return m*(1+alFx("life"))*(1+dgFx(h,def).life/100); }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
@@ -4449,7 +4526,7 @@ var ACH_PCT=0.01;
 function achStore(){ if (!S.ach) S.ach={tiles:0, kills:[0,0,0,0,0,0,0,0,0,0,0,0], trained:[0,0,0,0,0,0,0,0,0,0,0,0], medals:{}, caps:{}, seen:{}}; return S.ach; }
 function minAcross(arr){ return arr.reduce(function(a,b){ return Math.min(a,b); }, Infinity); }
 // only generals worth fielding count toward Court of Generals: legendary and historic, serving in your halls
-function eliteHeroCount(){ var n=0; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ if (h.tier==="legendary"||h.tier==="historic") n++; }); }); return n; }
+function eliteHeroCount(){ var n=0; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ if (h.tier==="legendary"||h.tier==="historic"||h.tier==="mythic") n++; }); }); return n; }
 function bestGearSet(){ var best=-1; S.cities.forEach(function(c){ (c.heroes||[]).forEach(function(h){ best=Math.max(best, starSet(h)); }); }); return Math.max(0,best); }
 function tech10Count(){ var n=0; for (var k in (S.techG||{})) if (S.techG[k]>=10) n++; return n; }
 var CAP_ORDER=[10,12,14,16,18];
@@ -4992,7 +5069,7 @@ function rfApply(d){ // acknowledgements, and troops that made it home
   if (done.length){ save(); alPost("/al/reinf/done",{ids:done}).catch(function(){}); }
 }
 function rfSide(ci, hid){ return withCity(ci, function(){ var h=hid?heroById(hid):null;
-  return {research:simResearch(), hero:{intel:hsB(h,"int",1)}, attack_modifier:1+0.05*(S.tech.militarytradition||0)+hsB(h,"atk",1)/100+bAttack(), defence_modifier:bDefend(), life_modifier:setLife(h,1), hn:h?h.name:"", ha:h?hs(h,"atk"):0}; }); }
+  return {research:simResearch(), hero:{intel:hsB(h,"int",1)}, attack_modifier:1+0.05*(S.tech.militarytradition||0)+hsB(h,"atk",1)/HERO_ATK_DIV+bAttack(), defence_modifier:bDefend(), life_modifier:setLife(h,1), hn:h?h.name:"", ha:h?hs(h,"atk"):0}; }); }
 function rfStatusTxt(x){ var now=Date.now(), mins=function(t){ var l=t-now; return l<60000?'under a minute':fmtT(Math.ceil(l/60000)*60000); };
   if (x.st==="go") return 'arriving in '+mins(x.arr); if (x.st==="stay") return x.locked?'holding the walls (invasion)':'stationed'; if (x.st==="back") return x.ret>now?'coming home in '+mins(x.ret):'home'; return x.st; }
 function rfTroops(t){ var a=[]; (t||[]).forEach(function(n,i){ if (n) a.push(fmt(n)+' '+uname(i,n)); }); return a.join(', ')||'none left'; }
@@ -5707,6 +5784,7 @@ function ryResults(Y){
           // 0.1.179: every rally wave that won, and every one that hit it already empty, knocks loyalty down like your own win would; at 0 the city is the caller's (it's on your map)
           var lhits=(r.fights||[]).filter(function(f){ return f.won; }).length+(r.idleN||0), lnote="", qname=tileName(q);
           if (lhits && (q.k==="npc"||q.k==="hc")){ var loy=loyOf(q); for (var li=0; li<lhits && loy>0; li++) loy-=loyDrop(q,loy); loy=Math.max(0,loy); S.map.loy[q.id]={v:loy, at:S.gt};
+            if (loy<=0 && q.k==="hc"){ var rhh=hcHeroGive(q); if (rhh) note("heroes",rhh.name+" joins you from "+qname+"!"); }
             if (loy<=0){ if (S.cities.length<cityCap()){ var rcc=captureCity(q, Z12()); lnote=" Its loyalty broke under "+lhits+" winning wave"+(lhits>1?"s":"")+": "+rcc.name+" is yours! It starts with no troops of its own."; }
               else lnote=" Its loyalty is broken ("+lhits+" winning waves), but your title has no room for another city."; }
             else lnote=" "+lhits+" winning wave"+(lhits>1?"s":"")+" took its loyalty down to "+Math.round(loy)+"."; }
@@ -6655,16 +6733,17 @@ var WC=[];
     goals:[{cap:vcap[L-1]}], rewards:[wcR(5000*L, 1000*L, L<=3?{s15:1}:L<=6?{s60:1,gemD:L}:{s150:1,gemD:2*L})]});
   for (L=1;L<=5;L++) WC.push({id:"n"+L, tier:"npc1", name:"Level "+L+" NPC city", kind:"npc", L:L, waves:1, ban:[],
     goals:[{cap:0}], rewards:[wcR(20000*L, 5000*L, {s150:1, gemD:5*L, ore:L})]});
-  var comm={6:3700,7:5600,8:7800,9:11100,10:25400}, mast={6:70,7:160,8:420,9:1700,10:2600};
+  var comm={6:360,7:550,8:1500,9:2800,10:4900}, mast={6:110,7:180,8:490,9:810,10:850}; // Age 2 caps (0.1.249)
   var mastRw={6:{gemF:15,mithril:1},7:{gemF:25,mithril:2},8:{gemF:40,mithril:2,starmetal:1},9:{gemF:60,starmetal:2},10:{gemF:100,starmetal:3}};
   for (L=6;L<=10;L++){ var n=L-5; WC.push({id:"n"+L, tier:"npc6", name:"Level "+L+" NPC city", kind:"npc", L:L, waves:4, ban:[],
     goals:[{cap:null},{cap:comm[L]},{cap:mast[L]}],
     rewards:[wcR(50000*L, 10000*L, {s150:1, gemD:10*n}), {res:QR(0,0,0,0,0), items:{s480:1, gemF:5*n, ingot:n}}, {res:QR(0,0,0,0,0), items:mastRw[L]}]}); }
 })();
-// 0.1.243: Historic city 12, one puzzle per daily garrison. Caps from war-college-tools/hc (best plan x1.1 at the decent and high reference gear,
+// 0.1.243: Historic city 12, one puzzle per daily garrison. 0.1.249: caps re-tuned for the Age 2 rules by war-college-tools/age2 (best plan x1.1 at the decent and high reference gear;
+// the notes below are 0.1.243 history). Caps were from war-college-tools/hc (best plan x1.1 at the decent and high reference gear,
 // cross-checked over 8 optimiser runs each); the Swordsman garrison's Commanding cap sits under what 100,000 plain Catapults lose at decent gear (56,447).
 var WC_HC_RW=[{medals:{justice:1}, items:{gemF:20, s480:1}}, {medals:{justice:1}, items:{gemF:50, s480:2}}, {medals:{justice:1}, items:{gemF:120, s480:3}}];
-[{id:"hc12a", name:"Pikemen, Cavalry and Rams", combo:[3,7,10], caps:[24000,8330]}, {id:"hc12b", name:"Swordsmen, Cavalry and Ballistas", combo:[4,7,9], caps:[55000,9080]}].forEach(function(d){
+[{id:"hc12a", name:"Pikemen, Cavalry and Rams", combo:[3,7,10], caps:[73100,10700]}, {id:"hc12b", name:"Swordsmen, Cavalry and Ballistas", combo:[4,7,9], caps:[179000,52800]}].forEach(function(d){
   WC.push({id:d.id, tier:"hc12", name:"Level 12 historic city: "+d.name, kind:"hc", L:12, combo:d.combo, waves:4, ban:[],
     goals:[{cap:null},{cap:d.caps[0]},{cap:d.caps[1]}], rewards:WC_HC_RW.map(function(r){ return {res:QR(0,0,0,0,0), items:r.items, medals:r.medals}; })}); });
 /* Tech Puzzles: a fixed army against a fixed NPC city. The player sets the research levels in "free" (0 to 10, at most B levels in total);
@@ -6672,18 +6751,18 @@ var WC_HC_RW=[{medals:{justice:1}, items:{gemF:20, s480:1}}, {medals:{justice:1}
    so that exactly one combination within the budget wins losing "cap" or fewer, with the War College seed. */
 var TP_NAME={military_tradition:"Military Tradition", iron_working:"Iron Working", medicine:"Medicine", compass:"Compass", horseback_riding:"Horseback Riding", archery:"Archery"};
 var TP_DATA=[
-{"id":"tp1","tier":"tech_e","name":"Drill 1: Ballista Line","L":4,"t":[0,0,0,0,0,0,0,0,0,2400,0,0],"free":["military_tradition","archery"],"base":{"iron_working":0,"medicine":0,"compass":0,"horseback_riding":0},"B":4,"cap":1050},
-{"id":"tp2","tier":"tech_e","name":"Drill 2: Archer Screen","L":3,"t":[0,1,0,0,0,4000,0,0,0,0,0,0],"free":["compass","archery"],"base":{"military_tradition":8,"iron_working":8,"medicine":8,"horseback_riding":8},"B":7,"cap":2750},
-{"id":"tp3","tier":"tech_e","name":"Drill 3: Three Warriors","L":4,"t":[0,3,0,0,0,0,0,0,0,400,0,0],"free":["military_tradition","archery"],"base":{"iron_working":10,"medicine":10,"compass":10,"horseback_riding":10},"B":7,"cap":3},
-{"id":"tp4","tier":"tech_e","name":"Drill 4: Catapult Battery","L":5,"t":[0,0,0,0,0,0,0,0,0,0,0,400],"free":["military_tradition","archery"],"base":{"iron_working":6,"medicine":6,"compass":6,"horseback_riding":6},"B":9,"cap":0},
-{"id":"tp5","tier":"tech_e","name":"Drill 5: Pike Wall","L":4,"t":[0,0,0,8000,0,0,0,400,0,0,0,0],"free":["compass","horseback_riding"],"base":{"military_tradition":4,"iron_working":4,"medicine":4,"archery":4},"B":13,"cap":7000},
-{"id":"tp6","tier":"tech_e","name":"Drill 6: Two Warriors","L":3,"t":[0,2,0,0,0,4000,0,0,0,0,0,0],"free":["military_tradition","archery"],"base":{"iron_working":5,"medicine":5,"compass":5,"horseback_riding":5},"B":14,"cap":3000},
-{"id":"tp7","tier":"tech_h","name":"Workshop 1: Sword and Bow","L":3,"t":[0,0,0,0,6000,600,0,0,0,0,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":8,"compass":8,"horseback_riding":8},"B":15,"cap":6000},
-{"id":"tp8","tier":"tech_h","name":"Workshop 2: Short Purse","L":4,"t":[0,0,0,0,8000,800,0,0,0,0,0,0],"free":["iron_working","medicine","compass"],"base":{"military_tradition":10,"horseback_riding":10,"archery":10},"B":9,"cap":7000},
-{"id":"tp9","tier":"tech_h","name":"Workshop 3: One Warrior","L":5,"t":[0,1,0,0,0,0,0,0,0,400,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":4,"compass":4,"horseback_riding":4},"B":22,"cap":13},
-{"id":"tp10","tier":"tech_h","name":"Workshop 4: Five Hundred Engines","L":5,"t":[0,0,0,0,0,0,0,0,0,500,0,0],"free":["iron_working","horseback_riding","archery"],"base":{"military_tradition":2,"medicine":2,"compass":2},"B":23,"cap":28},
-{"id":"tp11","tier":"tech_h","name":"Workshop 5: Iron Rain","L":5,"t":[0,0,0,0,10000,3000,0,0,0,0,0,0],"free":["military_tradition","iron_working","compass"],"base":{"medicine":10,"horseback_riding":10,"archery":10},"B":18,"cap":12000},
-{"id":"tp12","tier":"tech_h","name":"Workshop 6: Long Volley","L":7,"t":[0,3,0,0,0,15000,0,0,0,0,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":10,"compass":10,"horseback_riding":10},"B":16,"cap":13000}];
+{"id":"tp1","tier":"tech_e","name":"Drill 1: Ballista Line","L":4,"t":[0,0,0,0,0,0,0,0,0,2400,0,0],"free":["military_tradition","archery"],"base":{"iron_working":0,"medicine":0,"compass":0,"horseback_riding":0},"B":4,"cap":1100},
+{"id":"tp2","tier":"tech_e","name":"Drill 2: Archer Screen","L":3,"t":[0,1,0,0,0,5000,0,0,0,0,0,0],"free":["compass","archery"],"base":{"military_tradition":8,"iron_working":8,"medicine":8,"horseback_riding":8},"B":7,"cap":4000},
+{"id":"tp3","tier":"tech_e","name":"Drill 3: Three Warriors","L":4,"t":[0,3,0,0,0,0,0,0,0,400,0,0],"free":["military_tradition","archery"],"base":{"iron_working":10,"medicine":10,"compass":10,"horseback_riding":10},"B":8,"cap":15},
+{"id":"tp4","tier":"tech_e","name":"Drill 4: Catapult Battery","L":5,"t":[0,0,0,0,0,0,0,0,0,0,0,400],"free":["military_tradition","archery"],"base":{"iron_working":6,"medicine":6,"compass":6,"horseback_riding":6},"B":17,"cap":0},
+{"id":"tp5","tier":"tech_e","name":"Drill 5: Pike Wall","L":4,"t":[0,0,0,12000,0,0,0,600,0,0,0,0],"free":["compass","horseback_riding"],"base":{"military_tradition":4,"iron_working":4,"medicine":4,"archery":4},"B":14,"cap":7750},
+{"id":"tp6","tier":"tech_e","name":"Drill 6: Two Warriors","L":3,"t":[0,2,0,0,0,5000,0,0,0,0,0,0],"free":["military_tradition","archery"],"base":{"iron_working":5,"medicine":5,"compass":5,"horseback_riding":5},"B":15,"cap":3900},
+{"id":"tp7","tier":"tech_h","name":"Workshop 1: Sword and Bow","L":3,"t":[0,0,0,0,9000,900,0,0,0,0,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":8,"compass":8,"horseback_riding":8},"B":11,"cap":4400},
+{"id":"tp8","tier":"tech_h","name":"Workshop 2: Short Purse","L":4,"t":[0,0,0,0,10000,1000,0,0,0,0,0,0],"free":["iron_working","medicine","compass"],"base":{"military_tradition":10,"horseback_riding":10,"archery":10},"B":9,"cap":10000},
+{"id":"tp9","tier":"tech_h","name":"Workshop 3: One Warrior","L":5,"t":[0,1,0,0,0,0,0,0,0,500,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":4,"compass":4,"horseback_riding":4},"B":16,"cap":25},
+{"id":"tp10","tier":"tech_h","name":"Workshop 4: Five Hundred Engines","L":5,"t":[0,0,0,0,0,0,0,0,0,500,0,0],"free":["iron_working","horseback_riding","archery"],"base":{"military_tradition":6,"medicine":6,"compass":6},"B":10,"cap":22},
+{"id":"tp11","tier":"tech_h","name":"Workshop 5: Iron Rain","L":5,"t":[0,0,0,0,12500,3750,0,0,0,0,0,0],"free":["military_tradition","iron_working","compass"],"base":{"medicine":10,"horseback_riding":10,"archery":10},"B":14,"cap":14000},
+{"id":"tp12","tier":"tech_h","name":"Workshop 6: Long Volley","L":7,"t":[0,3,0,0,0,22500,0,0,0,0,0,0],"free":["military_tradition","iron_working","archery"],"base":{"medicine":10,"compass":10,"horseback_riding":10},"B":7,"cap":19000}];
 TP_DATA.forEach(function(d){ var hard=d.tier==="tech_h";
   WC.push({id:d.id, tier:d.tier, name:d.name, kind:"tech", L:d.L, waves:1, ban:[], t:d.t, free:d.free, base:d.base, B:d.B, tag:d.tag||"",
     goals:[{cap:d.cap}], rewards:[hard?{res:QR(0,0,0,0,0), items:{gemF:10+2*d.L, s480:1, ingot:1}}:wcR(20000*d.L, 5000*d.L, {s150:1, gemD:3*d.L})]}); });
@@ -6719,7 +6798,7 @@ function tpSheet(p){
   return h;
 }
 // Sieges: player-style cities, each built with one weak spot. Data generated from the tested designs (see README).
-var WC_SIEGES=[{"id":"ss_trebfort","tier":"siege_s","name":"Treb Fort (Outpost)","allow":[0,1,3,4,7,8,10],"waves":3,"caps":[270,200,110],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[1000,333,333,333,1000],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_trebfort","tier":"siege_m","name":"Treb Fort (Stronghold)","allow":[0,1,3,4,7,8,10],"waves":5,"caps":[null,490,300],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[2100,700,700,700,2100],"W":6,"r":{"military_tradition":8,"archery":8,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_trebfort","tier":"siege_l","name":"Treb Fort (Citadel)","allow":[0,1,3,4,7,8,10],"waves":6,"caps":[null,1700,950],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[5500,1833,1833,1833,5500],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_keep","tier":"siege_s","name":"Archer Keep (Outpost)","allow":[0,1,2,3,4,5],"waves":3,"caps":[2800,2100,1200],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,6000,0,3000,0,18000,0,0,0,0,0,0],"f":[1200,400,400,200,600],"W":4,"r":{"military_tradition":6,"archery":3,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_keep","tier":"siege_m","name":"Archer Keep (Stronghold)","allow":[0,1,2,3,4,5],"waves":5,"caps":[null,4800,3700],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,20000,0,10000,0,60000,0,0,0,0,0,0],"f":[3000,1000,1000,500,1500],"W":6,"r":{"military_tradition":8,"archery":3,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_keep","tier":"siege_l","name":"Archer Keep (Citadel)","allow":[0,1,2,3,4,5],"waves":6,"caps":[null,290000,72000],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,80000,0,40000,0,240000,0,0,0,0,0,0],"f":[8684,2894,2894,1447,4342],"W":10,"r":{"military_tradition":10,"archery":3,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_hedge","tier":"siege_s","name":"Pike Hedge (Outpost)","allow":[0,1,2,3,4,5,7,8],"waves":3,"caps":[5000,3700,950],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,36000,0,4500,0,0,0,0,0,0],"f":[724,2173,289,362,434],"W":4,"r":{"military_tradition":6,"archery":4,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_hedge","tier":"siege_m","name":"Pike Hedge (Stronghold)","allow":[0,1,2,3,4,5,7,8],"waves":5,"caps":[null,3600,2000],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,120000,0,15000,0,0,0,0,0,0],"f":[1521,4565,608,760,913],"W":6,"r":{"military_tradition":8,"archery":4,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_hedge","tier":"siege_l","name":"Pike Hedge (Citadel)","allow":[0,1,2,3,4,5,7,8],"waves":6,"caps":[null,320000,190000],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,480000,0,60000,0,0,0,0,0,0],"f":[3985,11956,1594,1992,2391],"W":10,"r":{"military_tradition":10,"archery":4,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_battery","tier":"siege_s","name":"Siege Battery (Outpost)","allow":[0,1,2,3,4,7,8],"waves":3,"caps":[16000,12000,6200],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,6000,0,0,0,0,0,0,0,2400,0,4500],"f":[400,0,120,0,240],"W":2,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_battery","tier":"siege_m","name":"Siege Battery (Stronghold)","allow":[0,1,2,3,4,7,8],"waves":5,"caps":[null,42000,21000],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,20000,0,0,0,0,0,0,0,8000,0,15000],"f":[545,0,163,0,327],"W":2,"r":{"military_tradition":8,"archery":8,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.9,"hint":100,"life":1,"fb":1.8}},{"id":"sl_battery","tier":"siege_l","name":"Siege Battery (Citadel)","allow":[0,1,2,3,4,7,8],"waves":6,"caps":[null,140000,86000],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,80000,0,0,0,0,0,0,0,32000,0,60000],"f":[545,0,163,0,327],"W":2,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_trapfield","tier":"siege_s","name":"Trap Field (Outpost)","allow":[0,1,3,4,5,7,8],"waves":3,"caps":[5100,3700,2000],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,4500,7500,0,0,0,0,0,0],"f":[5000,0,555,833,0],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.8,"hint":100,"life":1,"fb":1.6}},{"id":"sm_trapfield","tier":"siege_m","name":"Trap Field (Stronghold)","allow":[0,1,3,4,5,7,8],"waves":5,"caps":[null,14000,5600],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,15000,25000,0,0,0,0,0,0],"f":[18000,0,2000,3000,0],"W":8,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.95,"hint":100,"life":1,"fb":1.9}},{"id":"sl_trapfield","tier":"siege_l","name":"Trap Field (Citadel)","allow":[0,1,3,4,5,7,8],"waves":6,"caps":[null,49000,20000],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,60000,100000,0,0,0,0,0,0],"f":[27500,0,3055,4583,0],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":3,"hint":100,"life":1,"fb":2}},{"id":"ss_seat","tier":"siege_s","name":"Warlord's Seat (Outpost)","allow":[0,1,2,3,4,5,7,8],"waves":3,"caps":[14000,9900,1400],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,15000,6000,12000,0,3000,0,0,0,0],"f":[2000,1400,600,200,400],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":3.8,"hint":150,"life":1,"fb":1.6}},{"id":"sm_seat","tier":"siege_m","name":"Warlord's Seat (Stronghold)","allow":[0,1,2,3,4,5,7,8],"waves":5,"caps":[null,32000,3300],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,50000,20000,40000,0,10000,0,0,0,0],"f":[4285,3000,1285,428,857],"W":6,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":3.95,"hint":150,"life":1,"fb":1.9}},{"id":"sl_seat","tier":"siege_l","name":"Warlord's Seat (Citadel)","allow":[0,1,2,3,4,5,7,8],"waves":6,"caps":[null,360000,190000],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,200000,80000,160000,0,40000,0,0,0,0],"f":[11224,7857,3367,1122,2244],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":4,"hint":150,"life":1,"fb":2}}];
+var WC_SIEGES=[{"id":"ss_trebfort","tier":"siege_s","name":"Treb Fort (Outpost)","allow":[0,1,3,4,7,8,10],"waves":3,"caps":[360,280,120],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[1000,333,333,333,1000],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.05,"hint":100,"life":1,"fb":1.6}},{"id":"sm_trebfort","tier":"siege_m","name":"Treb Fort (Stronghold)","allow":[0,1,3,4,7,8,10],"waves":5,"caps":[null,650,300],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[2100,700,700,700,2100],"W":6,"r":{"military_tradition":8,"archery":8,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.15,"hint":100,"life":1,"fb":1.8}},{"id":"sl_trebfort","tier":"siege_l","name":"Treb Fort (Citadel)","allow":[0,1,3,4,7,8,10],"waves":6,"caps":[null,2000,860],"tag":"Gate shut. Only the wall, the traps and a ring of trebuchets fight.","hint":"Trebuchets crush siege engines and anything slow. Send something sturdy to take those stones first, then go for the wall.","spec":{"t":[0,0,0,0,0,0,0,0,0,0,0,0],"f":[5500,1833,1833,1833,5500],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":100,"life":1,"fb":2}},{"id":"ss_keep","tier":"siege_s","name":"Archer Keep (Outpost)","allow":[0,1,2,3,4,5],"waves":3,"caps":[11000,7700,1800],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,6000,0,3000,0,18000,0,0,0,0,0,0],"f":[1200,400,400,200,600],"W":4,"r":{"military_tradition":6,"archery":3,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.05,"hint":100,"life":1,"fb":1.6}},{"id":"sm_keep","tier":"siege_m","name":"Archer Keep (Stronghold)","allow":[0,1,2,3,4,5],"waves":5,"caps":[null,36000,17000],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,20000,0,10000,0,60000,0,0,0,0,0,0],"f":[3000,1000,1000,500,1500],"W":6,"r":{"military_tradition":8,"archery":3,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.15,"hint":100,"life":1,"fb":1.8}},{"id":"sl_keep","tier":"siege_l","name":"Archer Keep (Citadel)","allow":[0,1,2,3,4,5],"waves":6,"caps":[null,490000,160000],"tag":"Thousands of archers on the wall, but their Archery is poor.","hint":"Out-range them: your archers shoot first if your Archery is higher. Put a layer of single cheap troops in front so their arrows land on someone who doesn’t matter.","spec":{"t":[0,80000,0,40000,0,240000,0,0,0,0,0,0],"f":[8684,2894,2894,1447,4342],"W":10,"r":{"military_tradition":10,"archery":3,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":100,"life":1,"fb":2}},{"id":"ss_hedge","tier":"siege_s","name":"Pike Hedge (Outpost)","allow":[0,1,2,3,4,5,7,8],"waves":3,"caps":[5100,3400,1400],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,36000,0,4500,0,0,0,0,0,0],"f":[724,2173,289,362,434],"W":4,"r":{"military_tradition":6,"archery":4,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.05,"hint":100,"life":1,"fb":1.6}},{"id":"sm_hedge","tier":"siege_m","name":"Pike Hedge (Stronghold)","allow":[0,1,2,3,4,5,7,8],"waves":5,"caps":[null,9700,7000],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,120000,0,15000,0,0,0,0,0,0],"f":[1521,4565,608,760,913],"W":6,"r":{"military_tradition":8,"archery":4,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.15,"hint":100,"life":1,"fb":1.8}},{"id":"sl_hedge","tier":"siege_l","name":"Pike Hedge (Citadel)","allow":[0,1,2,3,4,5,7,8],"waves":6,"caps":[null,350000,160000],"tag":"A forest of pikes behind a wall of abatis.","hint":"Pikes and abatis are built to kill horses. They have almost no reach, so arrows win.","spec":{"t":[0,0,0,480000,0,60000,0,0,0,0,0,0],"f":[3985,11956,1594,1992,2391],"W":10,"r":{"military_tradition":10,"archery":4,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":100,"life":1,"fb":2}},{"id":"ss_battery","tier":"siege_s","name":"Siege Battery (Outpost)","allow":[0,1,2,3,4,7,8],"waves":3,"caps":[8100,5800,3000],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,6000,0,0,0,0,0,0,0,2400,0,4500],"f":[400,0,120,0,240],"W":2,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.05,"hint":100,"life":1,"fb":1.6}},{"id":"sm_battery","tier":"siege_m","name":"Siege Battery (Stronghold)","allow":[0,1,2,3,4,7,8],"waves":5,"caps":[null,21000,9900],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,20000,0,0,0,0,0,0,0,8000,0,15000],"f":[545,0,163,0,327],"W":2,"r":{"military_tradition":8,"archery":8,"medicine":8,"iron_working":8,"compass":8,"horseback_riding":8},"am":2.15,"hint":100,"life":1,"fb":1.8}},{"id":"sl_battery","tier":"siege_l","name":"Siege Battery (Citadel)","allow":[0,1,2,3,4,7,8],"waves":6,"caps":[null,96000,41000],"tag":"Catapults and ballistas on a low, thin wall.","hint":"Their guns out-range anything you can bring, so don’t trade shots. The wall is low and the traps are few: close the distance fast.","spec":{"t":[0,80000,0,0,0,0,0,0,0,32000,0,60000],"f":[545,0,163,0,327],"W":2,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":100,"life":1,"fb":2}},{"id":"ss_trapfield","tier":"siege_s","name":"Trap Field (Outpost)","allow":[0,1,3,4,5,7,8],"waves":3,"caps":[4100,3200,2300],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,4500,7500,0,0,0,0,0,0],"f":[5000,0,555,833,0],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.05,"hint":100,"life":1,"fb":1.6}},{"id":"sm_trapfield","tier":"siege_m","name":"Trap Field (Stronghold)","allow":[0,1,3,4,5,7,8],"waves":5,"caps":[null,11000,7700],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,15000,25000,0,0,0,0,0,0],"f":[18000,0,2000,3000,0],"W":8,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.2,"hint":100,"life":1,"fb":1.9}},{"id":"sl_trapfield","tier":"siege_l","name":"Trap Field (Citadel)","allow":[0,1,3,4,5,7,8],"waves":6,"caps":[null,45000,20000],"tag":"Every inch outside the wall is trapped. No abatis anywhere.","hint":"Traps and rolling logs only hurt troops on foot. Their archers are well trained, so horses are the way through.","spec":{"t":[0,0,0,0,60000,100000,0,0,0,0,0,0],"f":[27500,0,3055,4583,0],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":100,"life":1,"fb":2}},{"id":"ss_seat","tier":"siege_s","name":"Warlord's Seat (Outpost)","allow":[0,1,2,3,4,5,7,8],"waves":3,"caps":[12000,7100,3800],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,15000,6000,12000,0,3000,0,0,0,0],"f":[2000,1400,600,200,400],"W":4,"r":{"military_tradition":6,"archery":6,"medicine":6,"iron_working":6,"compass":6,"horseback_riding":6},"am":2.55,"hint":150,"life":1,"fb":1.6}},{"id":"sm_seat","tier":"siege_m","name":"Warlord's Seat (Stronghold)","allow":[0,1,2,3,4,5,7,8],"waves":5,"caps":[null,34000,14000],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,50000,20000,40000,0,10000,0,0,0,0],"f":[4285,3000,1285,428,857],"W":6,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.7,"hint":150,"life":1,"fb":1.9}},{"id":"sl_seat","tier":"siege_l","name":"Warlord's Seat (Citadel)","allow":[0,1,2,3,4,5,7,8],"waves":6,"caps":[null,330000,68000],"tag":"Pikes, archers, cavalry, abatis, trebuchets. A warlord who planned for everything.","hint":"No single army works here. Give each wave a different job, and let the early ones spend the defenses the later ones fear.","spec":{"t":[0,0,0,200000,80000,160000,0,40000,0,0,0,0],"f":[11224,7857,3367,1122,2244],"W":10,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.75,"hint":150,"life":1,"fb":2}}];
 var WC_SIEGE_RW={siege_s:[{gemD:20,s60:1},{gemF:5,ingot:1},{gemF:10,mithril:1}],
   siege_m:[{gemF:10,s150:1,ingot:2},{gemF:20,mithril:1},{gemF:30,mithril:2,starmetal:1}],
   siege_l:[{gemF:30,mithril:2},{gemF:50,starmetal:2},{gemF:100,starmetal:3,scale:1}],
@@ -6727,7 +6806,7 @@ var WC_SIEGE_RW={siege_s:[{gemD:20,s60:1},{gemF:5,ingot:1},{gemF:10,mithril:1}],
   den:[{gemF:20,s150:1,ingot:2,tome:1},{gemF:40,mithril:2,codex:1},{gemF:80,starmetal:2,annals:1}],
   precise_s:[{gemD:10,s15:1},{gemD:20,s60:1},{gemF:5,ingot:1}], precise_m:[{gemD:30,s150:1},{gemF:10,ingot:1},{gemF:20,mithril:1}], precise_l:[{gemF:20,s150:1},{gemF:30,mithril:1},{gemF:50,starmetal:1}]};
 // 0.1.241: Beast Hunts, Warlords' Camps and Precision Strikes (designed and threshold-checked on the engine; war-college-tools/wc in the dev bundle)
-var WC_EXTRA=[{"id": "b_troll1", "tier": "beast", "name": "Troll Warren I", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8], "waves": 1, "caps": [14158, 11798, 6486], "tag": "A horde of Warriors and Pikemen. No siege engines. Win with the fewest troops you can.", "spec": {"t": [0, 40000, 0, 15000, 0, 0, 0, 0, 0, 0, 0, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2, "hint": 0, "life": 1, "fb": 1}, "mode": "sent"}, {"id": "b_troll2", "tier": "beast", "name": "Troll Warren II", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8], "waves": 2, "caps": [45029, 37524, 23091], "tag": "A horde of Warriors and Pikemen. No siege engines. Win with the fewest troops you can.", "spec": {"t": [0, 120000, 0, 45000, 0, 0, 0, 0, 0, 0, 0, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2.5, "hint": 0, "life": 1, "fb": 1}, "mode": "sent"}, {"id": "b_troll3", "tier": "beast", "name": "Troll Warren III", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8], "waves": 3, "caps": [null, 4, 2], "tag": "A horde of Warriors and Pikemen. No siege engines.", "spec": {"t": [0, 320000, 0, 120000, 0, 0, 0, 0, 0, 0, 0, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 3, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_behemoth1", "tier": "beast", "name": "Behemoth Hollow I", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "waves": 1, "caps": [4881, 3814, 2156], "tag": "Swordsmen, with Battering Rams behind them. No Ballistas or Catapults. Win with the fewest troops you can.", "spec": {"t": [0, 0, 0, 0, 15000, 0, 0, 0, 0, 0, 3000, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2, "hint": 0, "life": 1, "fb": 1}, "mode": "sent"}, {"id": "b_behemoth2", "tier": "beast", "name": "Behemoth Hollow II", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "waves": 2, "caps": [14983, 10805, 7372], "tag": "Swordsmen, with Battering Rams behind them. No Ballistas or Catapults. Win with the fewest troops you can.", "spec": {"t": [0, 0, 0, 0, 45000, 0, 0, 0, 0, 0, 9000, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2.5, "hint": 0, "life": 1, "fb": 1}, "mode": "sent"}, {"id": "b_behemoth3", "tier": "beast", "name": "Behemoth Hollow III", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "waves": 3, "caps": [null, 3570, 318], "tag": "Swordsmen, with Battering Rams behind them. No Ballistas or Catapults.", "spec": {"t": [0, 0, 0, 0, 120000, 0, 0, 0, 0, 0, 24000, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 3, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_hydra1", "tier": "beast", "name": "Hydra Marsh I", "allow": [0, 1, 2, 3, 4, 5, 6, 9, 10, 11], "waves": 1, "caps": [3542, 2086, 888], "tag": "Archers, with Catapults behind them. No Cavalry or Cataphracts.", "spec": {"t": [0, 0, 0, 0, 0, 20000, 0, 0, 0, 0, 0, 1500], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_hydra2", "tier": "beast", "name": "Hydra Marsh II", "allow": [0, 1, 2, 3, 4, 5, 6, 9, 10, 11], "waves": 2, "caps": [null, 7787, 3292], "tag": "Archers, with Catapults behind them. No Cavalry or Cataphracts.", "spec": {"t": [0, 0, 0, 0, 0, 60000, 0, 0, 0, 0, 0, 4500], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2.5, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_hydra3", "tier": "beast", "name": "Hydra Marsh III", "allow": [0, 1, 2, 3, 4, 5, 6, 9, 10, 11], "waves": 3, "caps": [null, 24895, 10514], "tag": "Archers, with Catapults behind them. No Cavalry or Cataphracts.", "spec": {"t": [0, 0, 0, 0, 0, 160000, 0, 0, 0, 0, 0, 12000], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 3, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_wyvern1", "tier": "beast", "name": "Wyvern Crag I", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8], "waves": 1, "caps": [3900, 3301, 1651], "tag": "Cavalry and Cataphracts: fast, and they hit hard. No siege engines.", "spec": {"t": [0, 0, 0, 0, 0, 0, 0, 12000, 4000, 0, 0, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_wyvern2", "tier": "beast", "name": "Wyvern Crag II", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8], "waves": 2, "caps": [null, 12376, 6188], "tag": "Cavalry and Cataphracts: fast, and they hit hard. No siege engines.", "spec": {"t": [0, 0, 0, 0, 0, 0, 0, 36000, 12000, 0, 0, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 2.5, "hint": 0, "life": 1, "fb": 1}}, {"id": "b_wyvern3", "tier": "beast", "name": "Wyvern Crag III", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8], "waves": 3, "caps": [null, 48248, 24514], "tag": "Cavalry and Cataphracts: fast, and they hit hard. No siege engines.", "spec": {"t": [0, 0, 0, 0, 0, 0, 0, 96000, 32000, 0, 0, 0], "f": [0, 0, 0, 0, 0], "W": 0, "r": {"military_tradition": 10, "archery": 10, "medicine": 10, "iron_working": 10, "compass": 10, "horseback_riding": 10}, "am": 3, "hint": 0, "life": 1, "fb": 1}}, {"id": "d_brute", "tier": "den", "name": "Brute\u2019s Camp", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "waves": 5, "caps": [null, 27567, 13197], "tag": "A warlord\u2019s camp: a melee horde behind a level 9 wall and heavy fortifications. No Battering Rams or Catapults.", "spec": {"t": [0, 156000, 9000, 60000, 30000, 0, 0, 45000, 0, 0, 0, 0], "f": [20000, 10000, 6875, 4125, 2500], "W": 9, "r": {"military_tradition": 9, "archery": 9, "medicine": 9, "iron_working": 9, "compass": 9, "horseback_riding": 9}, "am": 2.71, "hint": 84, "life": 1, "fb": 1.9}}, {"id": "d_raider", "tier": "den", "name": "Raider\u2019s Camp", "allow": [0, 1, 2, 3, 4, 5, 6, 9, 11], "waves": 5, "caps": [null, 16558, 7193], "tag": "A warlord\u2019s camp: half of them horsemen, behind a level 9 wall. No Cavalry, Cataphracts or Battering Rams.", "spec": {"t": [0, 36000, 9000, 0, 30000, 45000, 0, 150000, 30000, 0, 0, 0], "f": [20000, 10000, 6875, 4125, 2500], "W": 9, "r": {"military_tradition": 9, "archery": 9, "medicine": 9, "iron_working": 9, "compass": 9, "horseback_riding": 9}, "am": 2.71, "hint": 84, "life": 1, "fb": 1.9}}, {"id": "d_tactician", "tier": "den", "name": "Tactician\u2019s Camp", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "waves": 5, "caps": [null, 52500, 24642], "tag": "A warlord\u2019s camp: archers, horse and a few engines, behind a level 9 wall. No Battering Rams or Catapults.", "spec": {"t": [0, 66000, 9000, 30000, 30000, 90000, 0, 30000, 15000, 21000, 9000, 0], "f": [20000, 10000, 6875, 4125, 2500], "W": 9, "r": {"military_tradition": 9, "archery": 9, "medicine": 9, "iron_working": 9, "compass": 9, "horseback_riding": 9}, "am": 2.71, "hint": 84, "life": 1, "fb": 1.9}}, {"id": "d_sieger", "tier": "den", "name": "Sieger\u2019s Camp", "allow": [0, 1, 2, 3, 4, 5, 6, 9, 11], "waves": 5, "caps": [null, 40285, 15069], "tag": "A warlord\u2019s camp bristling with Ballistas, Rams and Catapults, behind a level 9 wall. No Cavalry, Cataphracts or Battering Rams.", "spec": {"t": [0, 81000, 9000, 30000, 30000, 60000, 0, 15000, 0, 45000, 15000, 15000], "f": [20000, 10000, 6875, 4125, 2500], "W": 9, "r": {"military_tradition": 9, "archery": 9, "medicine": 9, "iron_working": 9, "compass": 9, "horseback_riding": 9}, "am": 2.71, "hint": 84, "life": 1, "fb": 1.9}}, {"id": "p_npc2", "tier": "precise", "name": "Level 2 NPC city, smallest army", "mode": "sent", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "waves": 1, "caps": [11, 7, 6], "tag": "One wave. Win with the fewest troops you can: losses don\u2019t matter, numbers do.", "npc": 2}, {"id": "p_npc4", "tier": "precise", "name": "Level 4 NPC city, smallest army", "mode": "sent", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "waves": 1, "caps": [95, 63, 47], "tag": "One wave. Win with the fewest troops you can: losses don\u2019t matter, numbers do.", "npc": 4}, {"id": "p_npc6", "tier": "precise", "name": "Level 6 NPC city, smallest army", "mode": "sent", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "waves": 1, "caps": [4040, 826, 206], "tag": "One wave. Win with the fewest troops you can: losses don\u2019t matter, numbers do.", "npc": 6}, {"id": "p_npc8", "tier": "precise", "name": "Level 8 NPC city, smallest army", "mode": "sent", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "waves": 1, "caps": [7733, 5967, 3686], "tag": "One wave. Win with the fewest troops you can: losses don\u2019t matter, numbers do.", "npc": 8}, {"id": "p_npc10", "tier": "precise", "name": "Level 10 NPC city, smallest army", "mode": "sent", "allow": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "waves": 1, "caps": [32177, 22369, 11808], "tag": "One wave. Win with the fewest troops you can: losses don\u2019t matter, numbers do.", "npc": 10}];
+var WC_EXTRA=[{"id":"b_troll1","tier":"beast","name":"Troll Warren I","allow":[0,1,2,3,4,5,6,7,8],"waves":1,"caps":[12438,9797,6165],"tag":"A horde of Warriors and Pikemen. No siege engines. Win with the fewest troops you can.","spec":{"t":[0,40000,0,15000,0,0,0,0,0,0,0,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":1.75,"hint":0,"life":1,"fb":1},"mode":"sent"},{"id":"b_troll2","tier":"beast","name":"Troll Warren II","allow":[0,1,2,3,4,5,6,7,8],"waves":2,"caps":[39320,31132,19613],"tag":"A horde of Warriors and Pikemen. No siege engines. Win with the fewest troops you can.","spec":{"t":[0,120000,0,45000,0,0,0,0,0,0,0,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.0,"hint":0,"life":1,"fb":1},"mode":"sent"},{"id":"b_troll3","tier":"beast","name":"Troll Warren III","allow":[0,1,2,3,4,5,6,7,8],"waves":3,"caps":[null,18107,18106],"tag":"A horde of Warriors and Pikemen. No siege engines.","spec":{"t":[0,320000,0,120000,0,0,0,0,0,0,0,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":0,"life":1,"fb":1}},{"id":"b_behemoth1","tier":"beast","name":"Behemoth Hollow I","allow":[0,1,2,3,4,5,6,7,8,10],"waves":1,"caps":[5853,4309,2725],"tag":"Swordsmen, with Battering Rams behind them. No Ballistas or Catapults. Win with the fewest troops you can.","spec":{"t":[0,0,0,0,15000,0,0,0,0,0,3000,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":1.75,"hint":0,"life":1,"fb":1},"mode":"sent"},{"id":"b_behemoth2","tier":"beast","name":"Behemoth Hollow II","allow":[0,1,2,3,4,5,6,7,8,10],"waves":2,"caps":[17114,13896,8254],"tag":"Swordsmen, with Battering Rams behind them. No Ballistas or Catapults. Win with the fewest troops you can.","spec":{"t":[0,0,0,0,45000,0,0,0,0,0,9000,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.0,"hint":0,"life":1,"fb":1},"mode":"sent"},{"id":"b_behemoth3","tier":"beast","name":"Behemoth Hollow III","allow":[0,1,2,3,4,5,6,7,8,10],"waves":3,"caps":[null,4057,1570],"tag":"Swordsmen, with Battering Rams behind them. No Ballistas or Catapults.","spec":{"t":[0,0,0,0,120000,0,0,0,0,0,24000,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":0,"life":1,"fb":1}},{"id":"b_hydra1","tier":"beast","name":"Hydra Marsh I","allow":[0,1,2,3,4,5,6,9,10,11],"waves":1,"caps":[2684,1615,744],"tag":"Archers, with Catapults behind them. No Cavalry or Cataphracts.","spec":{"t":[0,0,0,0,0,20000,0,0,0,0,0,1500],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":1.75,"hint":0,"life":1,"fb":1}},{"id":"b_hydra2","tier":"beast","name":"Hydra Marsh II","allow":[0,1,2,3,4,5,6,9,10,11],"waves":2,"caps":[null,5524,2537],"tag":"Archers, with Catapults behind them. No Cavalry or Cataphracts.","spec":{"t":[0,0,0,0,0,60000,0,0,0,0,0,4500],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.0,"hint":0,"life":1,"fb":1}},{"id":"b_hydra3","tier":"beast","name":"Hydra Marsh III","allow":[0,1,2,3,4,5,6,9,10,11],"waves":3,"caps":[null,17066,7605],"tag":"Archers, with Catapults behind them. No Cavalry or Cataphracts.","spec":{"t":[0,0,0,0,0,160000,0,0,0,0,0,12000],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":0,"life":1,"fb":1}},{"id":"b_wyvern1","tier":"beast","name":"Wyvern Crag I","allow":[0,1,2,3,4,5,6,7,8],"waves":1,"caps":[2734,1964,917],"tag":"Cavalry and Cataphracts: fast, and they hit hard. No siege engines.","spec":{"t":[0,0,0,0,0,0,0,12000,4000,0,0,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":1.75,"hint":0,"life":1,"fb":1}},{"id":"b_wyvern2","tier":"beast","name":"Wyvern Crag II","allow":[0,1,2,3,4,5,6,7,8],"waves":2,"caps":[null,8467,3659],"tag":"Cavalry and Cataphracts: fast, and they hit hard. No siege engines.","spec":{"t":[0,0,0,0,0,0,0,36000,12000,0,0,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.0,"hint":0,"life":1,"fb":1}},{"id":"b_wyvern3","tier":"beast","name":"Wyvern Crag III","allow":[0,1,2,3,4,5,6,7,8],"waves":3,"caps":[null,40164,13820],"tag":"Cavalry and Cataphracts: fast, and they hit hard. No siege engines.","spec":{"t":[0,0,0,0,0,0,0,96000,32000,0,0,0],"f":[0,0,0,0,0],"W":0,"r":{"military_tradition":10,"archery":10,"medicine":10,"iron_working":10,"compass":10,"horseback_riding":10},"am":2.25,"hint":0,"life":1,"fb":1}},{"id":"d_brute","tier":"den","name":"Brute’s Camp","allow":[0,1,2,3,4,5,6,7,8,9],"waves":5,"caps":[null,13581,5692],"tag":"A warlord’s camp: a melee horde behind a level 9 wall and heavy fortifications. No Battering Rams or Catapults.","spec":{"t":[0,156000,9000,60000,30000,0,0,45000,0,0,0,0],"f":[20000,10000,6875,4125,2500],"W":9,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.08,"hint":84,"life":1,"fb":1.9}},{"id":"d_raider","tier":"den","name":"Raider’s Camp","allow":[0,1,2,3,4,5,6,9,11],"waves":5,"caps":[null,13931,5663],"tag":"A warlord’s camp: half of them horsemen, behind a level 9 wall. No Cavalry, Cataphracts or Battering Rams.","spec":{"t":[0,36000,9000,0,30000,45000,0,150000,30000,0,0,0],"f":[20000,10000,6875,4125,2500],"W":9,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.08,"hint":84,"life":1,"fb":1.9}},{"id":"d_tactician","tier":"den","name":"Tactician’s Camp","allow":[0,1,2,3,4,5,6,7,8,9],"waves":5,"caps":[null,120531,51316],"tag":"A warlord’s camp: archers, horse and a few engines, behind a level 9 wall. No Battering Rams or Catapults.","spec":{"t":[0,66000,9000,30000,30000,90000,0,30000,15000,21000,9000,0],"f":[20000,10000,6875,4125,2500],"W":9,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.08,"hint":84,"life":1,"fb":1.9}},{"id":"d_sieger","tier":"den","name":"Sieger’s Camp","allow":[0,1,2,3,4,5,6,9,11],"waves":5,"caps":[null,115694,70702],"tag":"A warlord’s camp bristling with Ballistas, Rams and Catapults, behind a level 9 wall. No Cavalry, Cataphracts or Battering Rams.","spec":{"t":[0,81000,9000,30000,30000,60000,0,15000,0,45000,15000,15000],"f":[20000,10000,6875,4125,2500],"W":9,"r":{"military_tradition":9,"archery":9,"medicine":9,"iron_working":9,"compass":9,"horseback_riding":9},"am":2.08,"hint":84,"life":1,"fb":1.9}},{"id":"p_npc2","tier":"precise","name":"Level 2 NPC city, smallest army","mode":"sent","allow":[0,1,2,3,4,5,6,7,8,9,10,11],"waves":1,"caps":[15,10,8],"tag":"One wave. Win with the fewest troops you can: losses don’t matter, numbers do.","npc":2},{"id":"p_npc4","tier":"precise","name":"Level 4 NPC city, smallest army","mode":"sent","allow":[0,1,2,3,4,5,6,7,8,9,10,11],"waves":1,"caps":[140,95,71],"tag":"One wave. Win with the fewest troops you can: losses don’t matter, numbers do.","npc":4},{"id":"p_npc6","tier":"precise","name":"Level 6 NPC city, smallest army","mode":"sent","allow":[0,1,2,3,4,5,6,7,8,9,10,11],"waves":1,"caps":[3516,918,526],"tag":"One wave. Win with the fewest troops you can: losses don’t matter, numbers do.","npc":6},{"id":"p_npc8","tier":"precise","name":"Level 8 NPC city, smallest army","mode":"sent","allow":[0,1,2,3,4,5,6,7,8,9,10,11],"waves":1,"caps":[7301,5346,3093],"tag":"One wave. Win with the fewest troops you can: losses don’t matter, numbers do.","npc":8},{"id":"p_npc10","tier":"precise","name":"Level 10 NPC city, smallest army","mode":"sent","allow":[0,1,2,3,4,5,6,7,8,9,10,11],"waves":1,"caps":[31845,21945,13510],"tag":"One wave. Win with the fewest troops you can: losses don’t matter, numbers do.","npc":10}];
 WC_EXTRA.forEach(function(d){
   var ban=[]; for (var i=0;i<12;i++) if (d.allow.indexOf(i)<0) ban.push(i);
   var rw=d.tier==="beast"?WC_SIEGE_RW["beast"+d.waves]:d.tier==="den"?WC_SIEGE_RW.den:WC_SIEGE_RW[d.npc<=4?"precise_s":d.npc<=8?"precise_m":"precise_l"];
@@ -6745,10 +6824,10 @@ WC_SIEGES.forEach(function(d){
 function wcHc(p){ var set=HC_SET[p.L], t=[0,set.w,0,0,0,set.a,0,0,0,0,0,0], b=baseOf({k:"hc", L:p.L, x:0, y:0}); t[p.combo[0]]=set.ps; t[p.combo[1]]=set.cp; t[p.combo[2]]=set.m;
   return npcDef(b, t, b.f.slice()); }
 function wcDef(p){ if (p.kind==="tech") return wcBase("npc",p.L); if (p.kind==="hc") return wcHc(p); if (p.kind!=="siege") return wcBase(p.kind,p.L); var c=p.spec;
-  return {troops:c.t.slice(), fortifications:c.f.slice(), wallLevel:c.W, research:c.r, hero:{intel:c.hint}, life_modifier:c.life, defence_modifier:1, attack_modifier:c.am, fortBonus:c.fb, trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25}; }
+  return {troops:c.t.slice(), fortifications:c.f.slice(), wallLevel:c.W, research:c.r, hero:{intel:c.hint}, life_modifier:c.life, defence_modifier:1, attack_modifier:c.am, fortBonus:c.fb}; }
 function wcRuleText(p){ if (p.kind==="tech") return "fixed army"; if (p.kind!=="siege") return p.ban.length?"no siege engines":""; return "only "+p.allow.map(function(i){ return uname(i,2); }).join(", ").replace(/, ([^,]*)$/," and $1"); }
 // Defense puzzles: hold the city against fixed waves with a prestige budget. Data generated from the tested designs (see README).
-var WC_DEFS=[{"id":"ds_field","tier":"def_s","name":"Open Field (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":3,"budget":84000,"spec":{"R":8},"waves":[[0,0,0,0,3500,0,0,5250,0,0,0,0],[0,10500,0,5250,0,0,0,0,0,0,0,0]],"caps":[null,5,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dm_field","tier":"def_m","name":"Open Field (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":240000,"spec":{"R":8},"waves":[[0,0,0,0,10000,0,0,15000,0,0,0,0],[0,30000,0,15000,0,0,0,0,0,0,0,0],[0,0,0,0,10000,0,0,10000,4000,0,0,0]],"caps":[null,7,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dl_field","tier":"def_l","name":"Open Field (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":8,"budget":720000,"spec":{"R":8},"waves":[[0,0,0,0,30000,0,0,45000,0,0,0,0],[0,90000,0,45000,0,0,0,0,0,0,0,0],[0,0,0,0,30000,0,0,30000,12000,0,0,0],[0,0,0,0,45000,0,0,0,24000,0,1500,0]],"caps":[null,110,82],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"ds_horse","tier":"def_s","name":"Horse Lords (Skirmish)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":4,"budget":157500,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,8750,0,0,0,0],[0,0,0,0,0,0,0,5250,1750,0,0,0]],"caps":[null,4,0],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dm_horse","tier":"def_m","name":"Horse Lords (Assault)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":6,"budget":450000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,25000,0,0,0,0],[0,0,0,0,0,0,0,15000,5000,0,0,0],[0,0,0,0,0,0,0,0,10000,0,0,0]],"caps":[null,4,0],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dl_horse","tier":"def_l","name":"Horse Lords (Onslaught)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":9,"budget":1350000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,75000,0,0,0,0],[0,0,0,0,0,0,0,45000,15000,0,0,0],[0,0,0,0,0,0,0,0,30000,0,0,0],[0,0,0,0,0,0,0,60000,30000,0,0,0]],"caps":[null,790000,130000],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"ds_horde","tier":"def_s","name":"The Horde (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":131250,"spec":{"R":8},"waves":[[0,21000,0,0,7000,0,0,0,0,0,0,0],[0,0,0,7000,10500,0,0,0,0,0,0,0]],"caps":[null,64,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dm_horde","tier":"def_m","name":"The Horde (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":375000,"spec":{"R":8},"waves":[[0,60000,0,0,20000,0,0,0,0,0,0,0],[0,0,0,20000,30000,0,0,0,0,0,0,0],[0,40000,0,30000,0,0,0,0,0,0,0,0]],"caps":[null,64,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dl_horde","tier":"def_l","name":"The Horde (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1125000,"spec":{"R":8},"waves":[[0,180000,0,0,60000,0,0,0,0,0,0,0],[0,0,0,60000,90000,0,0,0,0,0,0,0],[0,120000,0,90000,0,0,0,0,0,0,0,0],[0,60000,0,60000,120000,0,0,0,0,0,0,0]],"caps":[null,120000,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"ds_train","tier":"def_s","name":"Siege Train (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":5,"budget":157500,"spec":{"R":8},"waves":[[0,7000,0,0,0,0,0,0,0,0,525,0],[0,3500,0,0,0,0,0,0,0,700,0,525]],"caps":[null,18000,8000],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dm_train","tier":"def_m","name":"Siege Train (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":7,"budget":450000,"spec":{"R":8},"waves":[[0,20000,0,0,0,0,0,0,0,0,1500,0],[0,10000,0,0,0,0,0,0,0,2000,0,1500],[0,0,0,10000,0,0,0,0,0,0,2000,1500]],"caps":[null,76000,88],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dl_train","tier":"def_l","name":"Siege Train (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":10,"budget":1350000,"spec":{"R":8},"waves":[[0,60000,0,0,0,0,0,0,0,0,4500,0],[0,30000,0,0,0,0,0,0,0,6000,0,4500],[0,0,0,30000,0,0,0,0,0,0,6000,4500],[0,0,0,0,30000,0,0,0,0,9000,0,6000]],"caps":[null,500000,200000],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"ds_arrows","tier":"def_s","name":"Arrow Storm (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":157500,"spec":{"R":8,"arch":10},"waves":[[0,1750,0,0,0,10500,0,0,0,0,0,0],[0,0,0,1750,0,10500,0,0,0,0,0,0]],"caps":[null,30000,13000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dm_arrows","tier":"def_m","name":"Arrow Storm (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":450000,"spec":{"R":8,"arch":10},"waves":[[0,5000,0,0,0,30000,0,0,0,0,0,0],[0,0,0,5000,0,30000,0,0,0,0,0,0],[0,0,0,0,5000,40000,0,0,0,0,0,0]],"caps":[null,200000,87000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dl_arrows","tier":"def_l","name":"Arrow Storm (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1350000,"spec":{"R":8,"arch":10},"waves":[[0,15000,0,0,0,90000,0,0,0,0,0,0],[0,0,0,15000,0,90000,0,0,0,0,0,0],[0,0,0,0,15000,120000,0,0,0,0,0,0],[0,15000,0,15000,0,120000,0,0,0,0,0,0]],"caps":[null,930000,490000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"ds_gates","tier":"def_s","name":"Shut Gates (Skirmish)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":5,"budget":105000,"spec":{"R":8},"waves":[[0,10500,0,0,0,0,0,0,0,0,350,0],[0,0,0,0,0,0,0,7000,0,0,0,0]],"caps":[null,2400,2100],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dm_gates","tier":"def_m","name":"Shut Gates (Assault)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":7,"budget":300000,"spec":{"R":8},"waves":[[0,30000,0,0,0,0,0,0,0,0,1000,0],[0,0,0,0,0,0,0,20000,0,0,0,0],[0,0,0,0,10000,0,0,0,0,1500,0,800]],"caps":[null,8600,7500],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dl_gates","tier":"def_l","name":"Shut Gates (Onslaught)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":10,"budget":900000,"spec":{"R":8},"waves":[[0,90000,0,0,0,0,0,0,0,0,3000,0],[0,0,0,0,0,0,0,60000,0,0,0,0],[0,0,0,0,30000,0,0,0,0,4500,0,2400],[0,0,0,0,0,0,0,0,15000,0,6000,0]],"caps":[null,55000,31000],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dx_engineers","tier":"def_x","name":"Engineers' Duel","allow":[0,9,10,11],"forts":"none","fallow":[],"W":5,"budget":500000,"spec":{"R":8},"waves":[[0,30000,0,0,10000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,15000,0,0,0,0],[0,0,0,10000,0,15000,0,0,0,0,0,0]],"caps":[null,99,76],"tag":"Only siege engines answer the call. The enemy brings a bit of everything.","hint":"Ballistas do the killing. One Ram in front takes the first hits, and one Catapult behind makes the battlefield long enough for the Ballistas to finish the job. More Rams or Catapults are wasted budget."},{"id":"dx_shortfield","tier":"def_x","name":"Short Field","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":250000,"spec":{"R":8,"arch":10},"waves":[[0,0,0,0,0,20000,0,8000,0,0,0,0],[0,5000,0,0,0,0,0,8000,0,2500,0,0]],"caps":[null,110000,45000],"tag":"Their archers have Archery 10, with cavalry and ballistas behind. You may build traps, abatis and logs.","hint":"A trap or abatis stretches the battlefield, and a long field helps whoever shoots better. Below Archery 10, build none: meet them with a wall of Warriors and some Pikemen, plus one each of Scout, Swordsman, Archer, Cataphract, Ballista and Catapult to draw volleys. With Archery 10 and strong gear, archers and traps start to win instead."},{"id":"dx_cuts","tier":"def_x","name":"Thousand Cuts","allow":[0,1,2,3,4,5,7,8],"forts":"build","fallow":[0,1,3,4],"W":6,"budget":75000,"spec":{"R":8},"waves":[[0,0,0,0,4000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,3000,0,0,0,0],[0,0,0,5000,0,0,0,0,0,0,0,0],[0,8000,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,4000,0,0,0,0],[0,0,0,0,6000,0,0,0,1500,0,0,0]],"caps":[null,2300,30],"tag":"Six small waves, one after another, on a tight budget. Nothing heals in between.","hint":"Archers do the killing, but every wave chips at them. Keep a reserve of about 1,300 Warriors to soak what gets through, and build a single abatis for field length."},{"id":"dx_skeleton","tier":"def_x","name":"Skeleton Crew","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":125000,"spec":{"R":8},"waves":[[0,60000,0,20000,0,0,0,0,0,0,0,0]],"caps":[null,92,0],"tag":"Eighty thousand infantry against a tiny budget. Every prestige point counts.","hint":"Spend nearly all of it. Archers do the killing behind one each of Worker, Warrior, Pikeman, Swordsman and Ram, with a few hundred Ballistas mixed in."}];
+var WC_DEFS=[{"id":"ds_field","tier":"def_s","name":"Open Field (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":3,"budget":84000,"spec":{"R":8},"waves":[[0,0,0,0,3500,0,0,5250,0,0,0,0],[0,10500,0,5250,0,0,0,0,0,0,0,0]],"caps":[null,7,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dm_field","tier":"def_m","name":"Open Field (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":240000,"spec":{"R":8},"waves":[[0,0,0,0,10000,0,0,15000,0,0,0,0],[0,30000,0,15000,0,0,0,0,0,0,0,0],[0,0,0,0,10000,0,0,10000,4000,0,0,0]],"caps":[null,78000,0],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"dl_field","tier":"def_l","name":"Open Field (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":8,"budget":720000,"spec":{"R":8},"waves":[[0,0,0,0,30000,0,0,45000,0,0,0,0],[0,90000,0,45000,0,0,0,0,0,0,0,0],[0,0,0,0,30000,0,0,30000,12000,0,0,0],[0,0,0,0,45000,0,0,0,24000,0,1500,0]],"caps":[null,350000,37000],"tag":"A mixed army in the open. Everything is allowed.","hint":"Archers do the killing, but they need a screen and room to shoot. One Worker and one Pikeman in front take the first blows, and a single trap stretches the battlefield so your archers get more volleys."},{"id":"ds_horse","tier":"def_s","name":"Horse Lords (Skirmish)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":4,"budget":157500,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,8750,0,0,0,0],[0,0,0,0,0,0,0,5250,1750,0,0,0]],"caps":[null,25000,4400],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dm_horse","tier":"def_m","name":"Horse Lords (Assault)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":6,"budget":450000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,25000,0,0,0,0],[0,0,0,0,0,0,0,15000,5000,0,0,0],[0,0,0,0,0,0,0,0,10000,0,0,0]],"caps":[null,120000,26000],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"dl_horse","tier":"def_l","name":"Horse Lords (Onslaught)","allow":[0,1,2,3,4,7,8,9,11],"forts":"build","fallow":[0,1,3],"W":9,"budget":1350000,"spec":{"R":8},"waves":[[0,0,0,0,0,0,0,75000,0,0,0,0],[0,0,0,0,0,0,0,45000,15000,0,0,0],[0,0,0,0,0,0,0,0,30000,0,0,0],[0,0,0,0,0,0,0,60000,30000,0,0,0]],"caps":[null,620000,260000],"tag":"Cavalry and cataphracts. Your archers are away on campaign.","hint":"Ballistas do the shooting now. Put one Worker and one Warrior in front of them, and build a single trap or abatis to stretch the field."},{"id":"ds_horde","tier":"def_s","name":"The Horde (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":131250,"spec":{"R":8},"waves":[[0,21000,0,0,7000,0,0,0,0,0,0,0],[0,0,0,7000,10500,0,0,0,0,0,0,0]],"caps":[null,77,76],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dm_horde","tier":"def_m","name":"The Horde (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":375000,"spec":{"R":8},"waves":[[0,60000,0,0,20000,0,0,0,0,0,0,0],[0,0,0,20000,30000,0,0,0,0,0,0,0],[0,40000,0,30000,0,0,0,0,0,0,0,0]],"caps":[null,76,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"dl_horde","tier":"def_l","name":"The Horde (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1125000,"spec":{"R":8},"waves":[[0,180000,0,0,60000,0,0,0,0,0,0,0],[0,0,0,60000,90000,0,0,0,0,0,0,0],[0,120000,0,90000,0,0,0,0,0,0,0,0],[0,60000,0,60000,120000,0,0,0,0,0,0,0]],"caps":[null,380000,0],"tag":"Endless infantry, and no time to build forts.","hint":"No forts, so build the screen from troops: one each of Worker, Warrior, Pikeman, Swordsman and Cataphract in front of a mass of archers. A single Catapult stretches the field the way a trap would."},{"id":"ds_train","tier":"def_s","name":"Siege Train (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":5,"budget":157500,"spec":{"R":8},"waves":[[0,7000,0,0,0,0,0,0,0,0,525,0],[0,3500,0,0,0,0,0,0,0,700,0,525]],"caps":[null,1,0],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dm_train","tier":"def_m","name":"Siege Train (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":7,"budget":450000,"spec":{"R":8},"waves":[[0,20000,0,0,0,0,0,0,0,0,1500,0],[0,10000,0,0,0,0,0,0,0,2000,0,1500],[0,0,0,10000,0,0,0,0,0,0,2000,1500]],"caps":[null,1,0],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"dl_train","tier":"def_l","name":"Siege Train (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,4],"W":10,"budget":1350000,"spec":{"R":8},"waves":[[0,60000,0,0,0,0,0,0,0,0,4500,0],[0,30000,0,0,0,0,0,0,0,6000,0,4500],[0,0,0,30000,0,0,0,0,0,0,6000,4500],[0,0,0,0,30000,0,0,0,0,9000,0,6000]],"caps":[null,1,0],"tag":"Rams and engines behind an infantry screen. Only traps and trebuchets can be built.","hint":"Their engines shoot from far away. Answer with your own: Catapults and Ballistas out-range theirs, and Archers deal with the screen."},{"id":"ds_arrows","tier":"def_s","name":"Arrow Storm (Skirmish)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":157500,"spec":{"R":8,"arch":10},"waves":[[0,1750,0,0,0,10500,0,0,0,0,0,0],[0,0,0,1750,0,10500,0,0,0,0,0,0]],"caps":[null,18000,8600],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dm_arrows","tier":"def_m","name":"Arrow Storm (Assault)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":6,"budget":450000,"spec":{"R":8,"arch":10},"waves":[[0,5000,0,0,0,30000,0,0,0,0,0,0],[0,0,0,5000,0,30000,0,0,0,0,0,0],[0,0,0,0,5000,40000,0,0,0,0,0,0]],"caps":[null,120000,57000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"dl_arrows","tier":"def_l","name":"Arrow Storm (Onslaught)","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":9,"budget":1350000,"spec":{"R":8,"arch":10},"waves":[[0,15000,0,0,0,90000,0,0,0,0,0,0],[0,0,0,15000,0,90000,0,0,0,0,0,0],[0,0,0,0,15000,120000,0,0,0,0,0,0],[0,15000,0,15000,0,120000,0,0,0,0,0,0]],"caps":[null,850000,370000],"tag":"Their archers out-range yours. No forts.","hint":"You can’t win the shooting match, so charge: cavalry crosses the field fastest. Single troops of other kinds (a Scout, a few Archers, a Ballista, a Catapult) each draw a volley that would have hit your horsemen."},{"id":"ds_gates","tier":"def_s","name":"Shut Gates (Skirmish)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":5,"budget":105000,"spec":{"R":8},"waves":[[0,10500,0,0,0,0,0,0,0,0,350,0],[0,0,0,0,0,0,0,7000,0,0,0,0]],"caps":[null,5700,4900],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dm_gates","tier":"def_m","name":"Shut Gates (Assault)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":7,"budget":300000,"spec":{"R":8},"waves":[[0,30000,0,0,0,0,0,0,0,0,1000,0],[0,0,0,0,0,0,0,20000,0,0,0,0],[0,0,0,0,10000,0,0,0,0,1500,0,800]],"caps":[null,21000,18000],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dl_gates","tier":"def_l","name":"Shut Gates (Onslaught)","allow":[],"forts":"shut","fallow":[0,1,2,3,4],"W":10,"budget":900000,"spec":{"R":8},"waves":[[0,90000,0,0,0,0,0,0,0,0,3000,0],[0,0,0,0,0,0,0,60000,0,0,0,0],[0,0,0,0,30000,0,0,0,0,4500,0,2400],[0,0,0,0,0,0,0,0,15000,0,6000,0]],"caps":[null,120000,83000],"tag":"The gate stays shut. Only fortifications fight.","hint":"Archer’s Towers do most of the work. A handful of traps (about ten) helps them shoot longer."},{"id":"dx_engineers","tier":"def_x","name":"Engineers' Duel","allow":[0,9,10,11],"forts":"none","fallow":[],"W":5,"budget":500000,"spec":{"R":8},"waves":[[0,30000,0,0,10000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,15000,0,0,0,0],[0,0,0,10000,0,15000,0,0,0,0,0,0]],"caps":[null,74000,25000],"tag":"Only siege engines answer the call. The enemy brings a bit of everything.","hint":"Ballistas do the killing. One Ram in front takes the first hits, and one Catapult behind makes the battlefield long enough for the Ballistas to finish the job. More Rams or Catapults are wasted budget."},{"id":"dx_shortfield","tier":"def_x","name":"Short Field","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"build","fallow":[0,1,3],"W":5,"budget":250000,"spec":{"R":8,"arch":10},"waves":[[0,0,0,0,0,20000,0,8000,0,0,0,0],[0,5000,0,0,0,0,0,8000,0,2500,0,0]],"caps":[null,34000,79],"tag":"Their archers have Archery 10, with cavalry and ballistas behind. You may build traps, abatis and logs.","hint":"A trap or abatis stretches the battlefield, and a long field helps whoever shoots better. Below Archery 10, build none: meet them with a wall of Warriors and some Pikemen, plus one each of Scout, Swordsman, Archer, Cataphract, Ballista and Catapult to draw volleys. With Archery 10 and strong gear, archers and traps start to win instead."},{"id":"dx_cuts","tier":"def_x","name":"Thousand Cuts","allow":[0,1,2,3,4,5,7,8],"forts":"build","fallow":[0,1,3,4],"W":6,"budget":75000,"spec":{"R":8},"waves":[[0,0,0,0,4000,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,3000,0,0,0,0],[0,0,0,5000,0,0,0,0,0,0,0,0],[0,8000,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,4000,0,0,0,0],[0,0,0,0,6000,0,0,0,1500,0,0,0]],"caps":[null,1,0],"tag":"Six small waves, one after another, on a tight budget. Nothing heals in between.","hint":"Archers do the killing, but every wave chips at them. Keep a reserve of about 1,300 Warriors to soak what gets through, and build a single abatis for field length."},{"id":"dx_skeleton","tier":"def_x","name":"Skeleton Crew","allow":[0,1,2,3,4,5,7,8,9,10,11],"forts":"none","fallow":[],"W":4,"budget":125000,"spec":{"R":8},"waves":[[0,60000,0,20000,0,0,0,0,0,0,0,0]],"caps":[null,30000,18000],"tag":"Eighty thousand infantry against a tiny budget. Every prestige point counts.","hint":"Spend nearly all of it. Archers do the killing behind one each of Worker, Warrior, Pikeman, Swordsman and Ram, with a few hundred Ballistas mixed in."}];
 var WC_DEF_RW={def_s:[{gemD:20,s60:1},{gemF:5,ingot:1},{gemF:10,mithril:1}],
   def_m:[{gemF:10,s150:1,ingot:2},{gemF:20,mithril:1},{gemF:30,mithril:2,starmetal:1}],
   def_l:[{gemF:30,mithril:2},{gemF:50,starmetal:2},{gemF:100,starmetal:3,scale:1}],
@@ -6766,7 +6845,7 @@ function wcdCap(p){ return 1000*tri(p.dz.W); }
 var wcdDraft={};
 function wcdDraftOf(p){ if (!wcdDraft[p.id]) wcdDraft[p.id]={t:[0,0,0,0,0,0,0,0,0,0,0,0], f:[0,0,0,0,0], hero:0}; return wcdDraft[p.id]; }
 function wcdFoe(p,w){ var R=p.dz.spec.R, ar=p.dz.spec.arch!=null?p.dz.spec.arch:R;
-  return {troops:p.dz.waves[w].slice(), research:{military_tradition:R, iron_working:R, medicine:R, compass:R, horseback_riding:R, archery:ar}, hero:{intel:100}, life_modifier:1, defence_modifier:1, attack_modifier:1+0.05*R+1.5}; }
+  return {troops:p.dz.waves[w].slice(), research:{military_tradition:R, iron_working:R, medicine:R, compass:R, horseback_riding:R, archery:ar}, hero:{intel:100}, life_modifier:1, defence_modifier:1, attack_modifier:1+0.05*R+150/HERO_ATK_DIV}; } // their hero: Attack 150
 function wcdWaveText(p,w){ var t=p.dz.waves[w], parts=[]; for (var i=0;i<12;i++) if (t[i]) parts.push(fmt(t[i])+" "+uname(i,t[i])); return parts.join(", "); }
 function wcdRuleText(p){ var z=p.dz, f=z.forts==="shut"?"gate shut, forts only":z.forts==="none"?"no forts":"forts: "+z.fallow.map(function(i){ return FORTN[i]; }).join(", ");
   var ban=z.forts==="shut"?"":(z.allow.indexOf(5)<0?"no Archers · ":""); return ban+f; }
@@ -6784,7 +6863,7 @@ function wcdRun(p){
   var d=wcdDraftOf(p), why=wcdWhy(p,d); if (why){ toast(why); return; }
   var hero=d.hero?heroById(d.hero):null, shut=p.dz.forts==="shut";
   var D={troops:shut?[0,0,0,0,0,0,0,0,0,0,0,0]:d.t.slice(), fortifications:d.f.slice(), wallLevel:p.dz.W, research:simResearch(), hero:{intel:hsB(hero,"int",1)}, life_modifier:setLife(hero,1), defence_modifier:bDefend(),
-    attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk",1)/100+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0), trapKillPower:1.25, logKillPower:1.25, rockKillPower:1.25};
+    attack_modifier:(1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk",1)/HERO_ATK_DIV+bAttack()), fortBonus:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)};
   var r0=wcRng(WC_SEED), rec=[], r=function(){ var v=r0(); rec.push(v); return v; }, rp=[], lost=0, log=[], held=true;
   for (var w=0; w<p.dz.waves.length; w++){
     var A=wcdFoe(p,w), b=D.troops.slice(), bf=D.fortifications.slice(), rs=rec.length, snapA=JSON.stringify(A), snapD=JSON.stringify(D), o=SIM.fight(A,D,{rand:r}), l=0, k=0, i;
@@ -8233,7 +8312,7 @@ function armorySection(){
   var list=S.gear.slice().sort(function(a,b){ return b.tier-a.tier || b.stars-a.stars; });
   if (armoryFilter!=="all") list=list.filter(function(g){ return g.slot===armoryFilter; });
   var h='<div class="section"><div class="shead"><h3>Armory</h3><span class="dur">'+S.gear.length+' pieces, '+fmt(S.items.gemD||0)+' Delicate, '+fmt(S.items.gemF||0)+' Flawless gems</span></div>'+
-    '<p class="hint">Gear is crafted from materials with a Workshop in any city (on its page, or from a hero\u2019s gear slot), and its tier and stars can be upgraded from any city too. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 9 stars \u00d71.5, 12 \u00d72, 15 \u00d72.5. Below 9 stars there is no bonus.</p>'+
+    '<p class="hint">Gear is crafted from materials with a Workshop in any city (on its page, or from a hero\u2019s gear slot), and its tier and stars can be upgraded from any city too. Stars raise a piece\u2019s stat, and a hero wearing all 16 pieces gets a star set bonus to troop life based on their lowest-starred piece: 6 stars \u00d71.4, 9 \u00d72, 12 \u00d72.5, 15 \u00d73.5. Below 6 stars there is no bonus.</p>'+
     '<div class="farmadd"><button class="chipbtn'+(armoryFilter==="all"?' on':'')+'" data-act="armory-filter" data-slot="all">All</button>'+GEAR_SLOTS.map(function(sl){ return '<button class="chipbtn'+(armoryFilter===sl.k?' on':'')+'" data-act="armory-filter" data-slot="'+sl.k+'">'+sl.name+'</button>'; }).join("")+'</div>';
   if (!list.length) h+='<p class="hint" style="margin-top:8px">Nothing here yet.</p>';
   h+='<div class="gearlist">'+list.slice(0,60).map(gearRow).join("")+'</div>'+(list.length>60?'<p class="hint">Showing the best 60.</p>':'');
@@ -8597,7 +8676,7 @@ function warLaunch(i){
   if (!allies.length || Math.random()<0.5){
     var city=S.cities[Math.floor(Math.random()*S.cities.length)];
     S.aiWar.push({id:S.nextMarchId++, ai:E.tile, name:b.name, pers:bullyStyleName(b), iq:b.iq, city:city.id, label:"War party", plan:"assault",
-      t:t, r:warResearch(E), am:1+0.05*E.tech+E.hero[0]/100+warLeader(E), dep:S.gt, arr:S.gt+lead, phase:"out", war:true, eid:i});
+      t:t, r:warResearch(E), am:1+0.05*E.tech+E.hero[0]/HERO_ATK_DIV+warLeader(E), dep:S.gt, arr:S.gt+lead, phase:"out", war:true, eid:i});
     A_log(b.name+" sent a war party at "+city.name+".");
   } else {
     var q=allies[Math.floor(Math.random()*allies.length)];
@@ -8614,7 +8693,7 @@ function warAllyHit(j){
   var cur=current(q), guards=guardsAt(q.id), mine=[0,0,0,0,0,0,0,0,0,0,0,0];
   guards.forEach(function(m){ m.t.forEach(function(n,i){ mine[i]+=n; }); });
   var dt=cur.t.map(function(n,i){ return n+mine[i]; });
-  var r=SIM.fight({troops:p.t, research:warResearch(E), attack_modifier:1+0.05*E.tech+E.hero[0]/100+warLeader(E)},
+  var r=SIM.fight({troops:p.t, research:warResearch(E), attack_modifier:1+0.05*E.tech+E.hero[0]/HERO_ATK_DIV+warLeader(E)},
                   {troops:dt, fortifications:cur.f, wallLevel:cur.wall, research:cur.r, attack_modifier:cur.am||1, hero:{intel:cur.hint||0}});
   var held=r.result!==1, myLost=[0,0,0,0,0,0,0,0,0,0,0,0], allyLost=[0,0,0,0,0,0,0,0,0,0,0,0];
   for (var i=0;i<12;i++){ var tot=dt[i]; if (!tot) continue; var ratio=r.defender[i]/tot;
@@ -8641,7 +8720,7 @@ function warDefended(w, before, r){
 function warBase(i){
   var E=W().enemies[i], tr=Math.round(E.treasury/5);
   return {t:E.garrison.slice(), f:E.forts.slice(), wall:E.wall, r:warResearch(E), res:{food:tr,lumber:tr,stone:tr,iron:tr,gold:tr},
-    am:1+0.05*E.tech+E.hero[0]/100+warLeader(E), hint:E.hero[1], fb:1+0.1*E.tech};
+    am:1+0.05*E.tech+E.hero[0]/HERO_ATK_DIV+warLeader(E), hint:E.hero[1], fb:1+0.1*E.tech};
 }
 // an AI city fight (war camp, challenger city, bully stronghold): the attack itself, then kills, hero experience and the hero's record
 function baseFight(m, hero, base){
@@ -8772,7 +8851,7 @@ function chalWhy(rid){
   return "";
 }
 function chalResearch(c){ return {archery:c.tech, medicine:c.tech, iron_working:c.tech, horseback_riding:c.tech, compass:c.tech}; }
-function chalAm(c){ return 1+0.05*c.tech+c.hero[0]/100; }
+function chalAm(c){ return 1+0.05*c.tech+c.hero[0]/HERO_ATK_DIV; }
 function chalArmy(c){ var t=[0,0,0,0,0,0,0,0,0,0,0,0]; c.cities.forEach(function(x){ x.garrison.forEach(function(n,i){ t[i]+=n; }); }); return t; }
 function hcTileOf(id){ var p=id.split(","); return tileAt(+p[0],+p[1]); }
 // would this army take the city right now?
@@ -8827,7 +8906,7 @@ function chalBase(q){
   if (q.seat){ var tr=Math.round(c.treasury/5);
     return {t:c.garrison.slice(), f:c.forts.slice(), wall:10, r:chalResearch(c), res:{food:tr,lumber:tr,stone:tr,iron:tr,gold:tr}, am:chalAm(c), hint:c.hero[1], fb:1+0.1*c.tech}; }
   var x=c.cities[q.j], t2=Math.round(x.treasury/5);
-  return {t:x.garrison.slice(), f:x.forts.slice(), wall:x.wall, r:chalResearch(c), res:{food:t2,lumber:t2,stone:t2,iron:t2,gold:t2}, am:1+0.05*c.tech+x.hero[0]/100, hint:x.hero[1], fb:1+0.1*c.tech};
+  return {t:x.garrison.slice(), f:x.forts.slice(), wall:x.wall, r:chalResearch(c), res:{food:t2,lumber:t2,stone:t2,iron:t2,gold:t2}, am:1+0.05*c.tech+x.hero[0]/HERO_ATK_DIV, hint:x.hero[1], fb:1+0.1*c.tech};
 }
 // you hit one of their cities, or their seat
 function chalCityBattle(m){
@@ -9013,7 +9092,7 @@ function bfCap(p){ var B=BF().b[0]; return Math.round(p.rally*10000*(B.owner===p
 function bfOut(pi){ return BF().m.filter(function(m){ return m.p===pi; }).length; }
 function bfGar(B){ var t=Z12(); for (var k in B.gar) B.gar[k].forEach(function(n,i){ t[i]+=n; }); return t; }
 function bfSide(p, h){
-  if (h) return {troops:null, research:p.r, attack_modifier:bfAm(p)-p.am+(p.amBase!=null?p.amBase:p.am)+(h.atk||0)/100, defence_modifier:p.dm||1, life_modifier:h.life||1, hero:{intel:h.int||0}};
+  if (h) return {troops:null, research:p.r, attack_modifier:bfAm(p)-p.am+(p.amBase!=null?p.amBase:p.am)+(h.atk||0)/HERO_ATK_DIV, defence_modifier:p.dm||1, life_modifier:h.life||1, hero:{intel:h.int||0}};
   return {troops:null, research:p.r, attack_modifier:bfAm(p), defence_modifier:p.dm||1, life_modifier:p.life||1, hero:{intel:p.hint||0}}; }
 function bfMyPts(){ return BF().p[0].pts; }
 function bfTeamPts(team){ var s2=0; BF().p.forEach(function(p){ if (p.team===team) s2+=p.pts; }); return s2; }
@@ -9114,7 +9193,7 @@ function bfRecallMarch(id){
   var dep=m.dep!=null?m.dep:bf.t, gone=Math.max(1000, bf.t-dep); m.back=true; m.dep=bf.t; m.arr=bf.t+gone; return true;
 }
 function bfDefender(B){
-  if (B.owner<0) return {troops:(B.neutral||Z12()).slice(), fortifications:B.forts.slice(), wallLevel:B.wall, research:npcSimResearch(10), attack_modifier:1+0.5+npcHero(10)[0]/100, hero:{intel:npcHero(10)[1]}, fortBonus:2};
+  if (B.owner<0) return {troops:(B.neutral||Z12()).slice(), fortifications:B.forts.slice(), wallLevel:B.wall, research:npcSimResearch(10), attack_modifier:1+0.5+npcHero(10)[0]/HERO_ATK_DIV, hero:{intel:npcHero(10)[1]}, fortBonus:2};
   var top=-1, best=-1; for (var k in B.gar){ var n=sumT(B.gar[k]); if (n>best){ best=n; top=+k; } }
   var lead=BF().p[top], d=bfSide(lead); d.troops=bfGar(B); d.fortifications=B.forts.slice(); d.wallLevel=B.wall; d.fortBonus=2; return d;
 }
@@ -9189,7 +9268,7 @@ function bfEnter(cityIdx, allyIds){
   withCity(cityIdx, function(){
     var hero=null, best=-1; (S.heroes||[]).forEach(function(h){ var a=hs(h,"atk"); if (a>best){ best=a; hero=h; } });
     var cp=S.troops.slice(); cp[0]=0; cp[6]=0; // workers and transporters stay home
-    me={name:"You", team:0, slot:0, kind:"me", city:S.name, reserve:cp, r:simResearch(), am:1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/100+bAttack(),
+    me={name:"You", team:0, slot:0, kind:"me", city:S.name, reserve:cp, r:simResearch(), am:1+0.05*(S.tech.militarytradition||0)+hsB(hero,"atk")/HERO_ATK_DIV+bAttack(),
       dm:bDefend(), life:hero?setLife(hero):1, hint:hsB(hero,"int"), hero:hero?hero.name:null, rally:Math.max(1,bLevel("rally")), iq:200, pts:0, beacon:bLevel("beacon"),
       amBase:1+0.05*(S.tech.militarytradition||0)+bAttack(), inf:S.tech.informatics||0,
       heroes:(S.heroes||[]).map(function(h){ return {id:h.id, name:h.name, atk:hsB(h,"atk"), int:hsB(h,"int"), life:setLife(h)}; }).sort(function(a,b){ return b.atk-a.atk; })};
@@ -9205,7 +9284,7 @@ function bfEnter(cityIdx, allyIds){
     var am=bullyMix(b,"atk"), dm=bullyMix(b,"def"), mix=am.map(function(v,i){ return (v+dm[i])/2; });
     var size=ours/3*(1+Math.random()*0.15)*bullySizeMul(b), res=mix.map(function(v){ return Math.round(size*v); });
     bf.p.push({name:b.name, team:1, slot:k, kind:"foe", rid:b.id, reserve:res, mix:mix, r:{archery:10,medicine:10,iron_working:10,horseback_riding:10,compass:10},
-      am:1+0.5+camp.hero[0]/100, hint:camp.hero[1], rally:10, iq:Math.max(150,b.iq), leader:f&&f.leader?f.leader:0, pts:0});
+      am:1+0.5+camp.hero[0]/HERO_ATK_DIV, hint:camp.hero[1], rally:10, iq:Math.max(150,b.iq), leader:f&&f.leader?f.leader:0, pts:0});
   }
   BF_B.forEach(function(d){ bf.b.push({owner:-1, gar:{}, neutral:NPC[10].t.slice(), forts:NPC[10].f.slice(), wall:10, held:[0,0]}); });
   var T=0; bf.p.forEach(function(p){ T+=ptsOf(p.reserve); }); bf.T=T;
@@ -9645,7 +9724,7 @@ function invCityPack(ci){
       logi:S.tech.logistics||0, mach:S.tech.machinery||0, buffA:bAttack(), buffD:bDefend(),
       mult:(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))*bMarch(), smult:bScout(),
       heroes:(S.heroes||[]).filter(function(h){ return !h.away; }).map(function(h){ return {id:h.id, name:h.name, atk:hsB(h,"atk"), int:hsB(h,"int"), life:setLife(h), mnt:mountSpd(h)}; }),
-      def:{amod:1+0.05*(S.tech.militarytradition||0)+hsB(m,"atk",1)/100+bAttack(), dmod:bDefend(), life:setLife(m,1), int:hsB(m,"int",1), fb:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}};
+      def:{amod:1+0.05*(S.tech.militarytradition||0)+hsB(m,"atk",1)/HERO_ATK_DIV+bAttack(), dmod:bDefend(), life:setLife(m,1), int:hsB(m,"int",1), fb:1+0.1*(S.tech.engineering||0)+0.1*(S.tech.ancientmasonry||0)}};
   });
   return o;
 }
@@ -10164,7 +10243,7 @@ function bullyBase(){
   if (!B.garrison) buildCamp(B, b, 0);
   var tr=Math.round(B.treasury/5);
   return {t:B.garrison.slice(), f:B.forts.slice(), wall:B.wall, r:{archery:B.tech,medicine:B.tech,iron_working:B.tech,horseback_riding:B.tech,compass:B.tech},
-    res:{food:tr,lumber:tr,stone:tr,iron:tr,gold:tr}, am:1+0.05*B.tech+B.hero[0]/100, hint:B.hero[1], fb:1+0.1*B.tech};
+    res:{food:tr,lumber:tr,stone:tr,iron:tr,gold:tr}, am:1+0.05*B.tech+B.hero[0]/HERO_ATK_DIV, hint:B.hero[1], fb:1+0.1*B.tech};
 }
 // you attacked the bully's camp
 var BULLY_LOOT={books:{tome:0.5, codex:0.35, annals:0.15}, mats:{mithril:0.75, starmetal:0.25}}; // taking a stronghold: one of each group, by weight
@@ -10420,7 +10499,8 @@ function dtPlaces(b){ var P=[], gt=Math.min(12,2+(S.th||1));
     note:"An NPC city drops medals and items only if its troop garrison was full when you hit it; otherwise you get just its resources."});
   P.push({id:"ai", g:"Map", n:"AI lords", u:"per win at full garrison", lvs:dtRange(1,10).map(function(L){ return {id:String(L), t:"Town Hall "+L, L:L}; }), rows:function(L){ return dtFight(dtT("ai",L), b); },
     note:"Like NPC cities, an AI lord drops items only if its garrison was full when you hit it."});
-  P.push({id:"hc", g:"Map", n:"Historic cities", u:"per win", lvs:lv([12,14,16,18]), rows:function(L){ return dtFight(dtT("hc",L), b, [{k:"h:historic", p:HC_HERO_P(L), n:1, note:"once per city: after that, never again from it"}]); }});
+  P.push({id:"hc", g:"Map", n:"Historic cities", u:"per win", lvs:lv([12,14,16,18]), rows:function(L){ return dtFight(dtT("hc",L), b); },
+    note:"Every historic city's hero joins you when you (or your rally) break its loyalty: a level 12 gives one of the 40 you don't have yet, every level 14, 16 and 18 its own hero. Once per city."});
   P.push({id:"monster", g:"Map", n:"Monsters", u:"per kill", lvs:lv([1,2,3]), rows:function(L){ return dtFight(dtT("monster",L), b); },
     note:"Wyverns, trolls, hydras and behemoths, drawn to a level 14 historic city for the day."});
   P.push({id:"wiz", g:"Map", n:"Wizards", u:"per kill, for everyone who brought it down", lvs:[1,2].map(function(L){ return {id:String(L), t:WIZ[L].n, L:L}; }),
@@ -11174,7 +11254,7 @@ function initSim(){ if (S.loSkip) LOW.skip=S.loSkip; // a clean slate: no troops
 function setPreset(L){
   sim.def.preset=L;
   if (L==="custom") return;
-  var n=NPC[+L]; sim.def.t=n.t.slice(); sim.def.f=n.f.slice(); sim.def.wall=+L; sim.def.r=npcSimResearch(+L); var nh2=npcHero(+L); sim.def.r.military_tradition=0; sim.def.hatk=Math.round(+L*5+nh2[0]); sim.def.hint=nh2[1]; sim.def.eng=+L;
+  var n=NPC[+L]; sim.def.t=n.t.slice(); sim.def.f=n.f.slice(); sim.def.wall=+L; sim.def.r=npcSimResearch(+L); var nh2=npcHero(+L); sim.def.r.military_tradition=0; sim.def.hatk=Math.round(+L*5*HERO_ATK_DIV/100+nh2[0]); sim.def.hint=nh2[1]; sim.def.eng=+L;
 }
 function simInput(side,key,idx,val){
   var v='<input type="number" inputmode="decimal" min="0" data-sim="'+side+'" data-key="'+key+'"'+(idx!=null?' data-idx="'+idx+'"':'')+' value="'+(val?val:"")+'" placeholder="0">';
@@ -11211,7 +11291,7 @@ function viewWar(){
 }
 function simSide(x, isDef){
   var o={troops:x.t.map(function(v){return Math.max(0,Math.floor(+v||0));}), research:{}, hero:{intel:+x.hint||0},
-    life_modifier:Math.max(1,+x.life||1), attack_modifier:(1+0.05*(+x.r.military_tradition||0)+(+x.hatk||0)/100)};
+    life_modifier:Math.max(1,+x.life||1), attack_modifier:(1+0.05*(+x.r.military_tradition||0)+(+x.hatk||0)/HERO_ATK_DIV)};
   SIMK.forEach(function(k){ o.research[k]=Math.max(0,Math.min(20,+x.r[k]||0)); });
   if (isDef){ o.fortifications=x.f.map(function(v){return Math.max(0,Math.floor(+v||0));}); o.wallLevel=Math.max(0,Math.min(10,Math.floor(+x.wall||0))); o.fortBonus=1+0.1*(x.eng||0); }
   return o;
@@ -11856,7 +11936,7 @@ function renderSheetCore(){
     h+=heroActionsHtml(hr); // 0.1.238: office, experience books, reset points and dismiss, together at the top
     h+='<div class="effect">'+(hr.level>=HERO_MAX?'Max level':'Experience '+fmt(hr.xp)+' / '+fmt(need))+'. Salary '+fmt(hr.level*20)+' gold/h.</div>';
     h+='<div class="statgrid">';
-    [["pol","Politics","Production and building speed as mayor"],["atk","Attack","Training speed as trainer, +1% troop attack per point in battle"],["int","Intelligence","Research speed as researcher; in battle every troop's defense +1% per point (damage taken can drop by half at most), and marches 1% faster per point"]].forEach(function(s){
+    [["pol","Politics","Production and building speed as mayor"],["atk","Attack","Training speed as trainer, +0.5% troop attack per point in battle"],["int","Intelligence","Research speed as researcher; in battle every troop gets +1 life per point, and marches 1% faster per point"]].forEach(function(s){
       h+='<div><b>'+s[1]+'</b><div class="sub">'+s[2]+'</div></div><span class="sv">'+hs(hr,s[0])+(gearBonus(hr,s[0])?'<div class="dur" style="font:400 .78rem var(--body)">'+hr[s[0]]+' + '+gearBonus(hr,s[0])+' gear</div>':'')+'</span><span class="ptbtns"><button class="plus" data-act="pt" data-stat="'+s[0]+'" aria-label="Add a point to '+s[1]+'"'+(hr.pts?'':' disabled')+'>+</button><button class="plus all" data-act="ptall" data-stat="'+s[0]+'" aria-label="Add all points to '+s[1]+'"'+(hr.pts?'':' disabled')+'>All</button></span>';
     });
     h+='</div>'+(hr.pts?'<p class="sub" style="color:var(--brass)">'+hr.pts+' point'+(hr.pts>1?'s':'')+' to assign.</p>':'');
@@ -12374,7 +12454,7 @@ document.addEventListener("click",function(e){
   if (act==="ally-sim"){ if (bestBeacon()<7) return;
     var B=S.alliance.bully, bb=bullyOf(); if (!B||!B.next||!bb) return; var tq=TILE_BY[B.next.target], tc=current(tq), mine=[0,0,0,0,0,0,0,0,0,0,0,0];
     guardsAt(tq.id).forEach(function(m){ m.t.forEach(function(n,i){ mine[i]+=n; }); });
-    if (!sim) initSim(); sim.atk.t=B.next.t.slice(); sim.atk.r={military_tradition:0,iron_working:B.tech,medicine:B.tech,compass:B.tech,horseback_riding:B.tech,archery:B.tech}; sim.atk.hatk=Math.round(5*B.tech+bb.iq/2); sim.atk.hint=0;
+    if (!sim) initSim(); sim.atk.t=B.next.t.slice(); sim.atk.r={military_tradition:0,iron_working:B.tech,medicine:B.tech,compass:B.tech,horseback_riding:B.tech,archery:B.tech}; sim.atk.hatk=Math.round(5*B.tech*HERO_ATK_DIV/100+bb.iq/2); sim.atk.hint=0;
     sim.def.preset="custom"; sim.def.t=tc.t.map(function(n,i){ return n+mine[i]; }); sim.def.f=tc.f.slice(); sim.def.wall=tc.wall; sim.def.r={military_tradition:0,iron_working:tc.r.iron_working||0,medicine:tc.r.medicine||0,compass:0,horseback_riding:0,archery:tc.r.archery||0}; sim.def.hatk=Math.round(((tc.am||1)-1)*100); sim.def.eng=0; sim.def.hint=0; simOut=null;
     tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
@@ -12854,7 +12934,7 @@ document.addEventListener("click",function(e){
   if (act==="map-sim"){
     var mq=TILE_BY[a.dataset.tile], mc=needScout(mq)?intelOf(mq):current(mq); if (!mc){ toast("Scout it first: you don\u2019t know what\u2019s defending it"); return; } if (!sim) initSim();
     sim.atk.t=S.troops.slice(); sim.def.preset="custom"; sim.def.t=mc.t.slice(); sim.def.f=mc.f.slice(); sim.def.wall=mc.wall;
-    sim.def.r={military_tradition:0,iron_working:mc.r.iron_working||0,medicine:mc.r.medicine||0,compass:0,horseback_riding:0,archery:mc.r.archery||0}; sim.def.hatk=Math.round(((mc.am||1)-1)*100); sim.def.eng=Math.round(((mc.fb||1)-1)*10); sim.def.hint=mc.hint||0; simOut=null;
+    sim.def.r={military_tradition:0,iron_working:mc.r.iron_working||0,medicine:mc.r.medicine||0,compass:0,horseback_riding:0,archery:mc.r.archery||0}; sim.def.hatk=Math.round(((mc.am||1)-1)*HERO_ATK_DIV); sim.def.eng=Math.round(((mc.fb||1)-1)*10); sim.def.hint=mc.hint||0; simOut=null;
     tab="war"; lastView=""; renderView(true); window.scrollTo({top:0}); return;
   }
   if (act==="fort-max"){ var fi=+a.dataset.f; fortAmt[fi]=fortMax(fi); var fin=document.getElementById("ft-amt-"+fi); if (fin) fin.value=fortAmt[fi]; updateFortRow(fi); return; }

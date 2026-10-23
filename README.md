@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.248
+Version 0.1.250
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,19 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.250** Historic heroes by city tier. Phone only; no save change (still 49; new map keys `hhTaken`, `hhGot` start empty), no server change.
+  - **No more random drop** (`HC_HERO_P` is gone). A historic city's hero joins, 100%, on the win that breaks its loyalty to 0 (your own march or your rally's waves), whether or not you have room for the city. Once per city.
+  - **Level 12s** give one of the 40 historic heroes you don't own yet (never a duplicate; a hero you dismissed doesn't come back); nothing once you have all 40, and nothing from a 12 that already gave its hero under the old drop.
+  - **Every level 14, 16 and 18 city has its own hero** (`HC_CITY_HERO`, by city name): 32 at level 14 (182-192 in every stat, specialty 265-290), 4 at level 16 (205-215, a second stat 250-270, specialty 315-335: Romulus, Theseus, Dido, Theodora) and **Atlas** for Atlantis, the first **Mythic** hero (350 in all three). They keep their names. Old saves: heroes already taken from 14s/16s/Atlantis stay; each city still gives its new hero once.
+  - The city card names the hero waiting there; the Drop tables explain the rule. Portraits for the 37 new heroes come later (drawn portraits until then).
+  - Test: `t/t109.py` (also checks the level 5 NPC Ballista farm at Archery 8 / Horseback Riding 5-6 stays lossless).
+- **0.1.249** Age 2 battle rules (Leadership left out). Phone and worker (**deploy the worker**: server fights use the engine and hero Attack); no save change (still 49), no schema change.
+  - **Engine** (`t/engine/new-engine.js`, `SPEC-AGE2.md`): measured against dxcalc.com/age2 with every hero covering all its troops. 1,498 measured fights: the winner agrees in all, casualties and rounds match to the troop in 1,466 (`node t/engine/age2/regress.mjs`). Age 1 stays behind `opts.age1` and the 5,000 golden fights still match.
+  - Rules: hero **Intelligence is +1 life per troop** (no longer a defense bonus); **Medicine heals every troop type**; Workers ignore Iron Working; ranged volleys round down; a **wall gives the defender's ranged troops +3% range per level**; traps catch Cavalry and Cataphracts anywhere on the field; rolling logs and trebuchets reach the whole field and armour counts directly; a trebuchet volley that would wipe a stack spends only the rocks it needs; **standing Archer's Towers keep the defender alive**; fort kill powers 2.0 (the fixed 1.25 is gone).
+  - **Hero Attack +0.5% per point** (`HERO_ATK_DIV = 200`; index.html, worker, baked puzzle specs). **Star sets: 6 stars x1.4, 9 x2, 12 x2.5, 15 x3.5** (`SET_TIERS`). Help texts updated.
+  - Result: Sax's one-tap (115k Ballistas, 865-Attack hero) now fails on every level 14 historic city garrison, as on dxcalc.
+  - **War College re-tuned** for the new rules (`war-college-tools/age2/`, README inside): all 83 battle puzzles from the design doc's reference gear (Victory mid x1.3, Commanding decent x1.1, Masterful high x1.1); the 12 Tech Puzzles refit (all had become unsolvable or ambiguous; same armies, a few scaled up, new budgets and caps). Valleys and NPC 1-5 unchanged. Already earned ratings are kept.
+  - Tests: `t/t108.py` (new: rules, Sax's tap, all 241 War College reference plans replayed in the game, tech solutions); `t/t102.py` reads the Age 2 HC 12 results.
 - **0.1.248** Gear tier upgrades from any city. Phone only; no save change (still 49), no server change.
   - Tier upgrades already counted the best Workshop in any city since 0.1.247 (`upgWhy` → `craftWs()`), but a piece nobody wears could only be reached through the Armory on a Forge's page, so a city with no Forge couldn't upgrade it. The Heroes tab now has an **Armory** button beside All heroes: the same Armory as a sheet (`kind:"armory"`), from any city. Tapping a piece opens its menu (stars, tier, scrap) with **Back to the Armory**; scrapping returns there too; the slot filter works in the sheet.
   - Wording: the tier line reads "(Workshop N in any city)"; the Armory hint says crafting and upgrades work from any city.
