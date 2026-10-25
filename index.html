@@ -834,7 +834,7 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.251";
+var APP_VERSION = "0.1.253";
 var HERO_ATK_DIV = 200; // Age 2 battle rules (0.1.249): a hero's Attack adds +0.5% troop attack per point (Age 1 was +1%: 100)
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
@@ -11278,7 +11278,7 @@ function viewWar(){
   var a=sim.atk, d=sim.def, opts='';
   for (var L=1;L<=10;L++) opts+='<option value="'+L+'"'+(d.preset===String(L)?' selected':'')+'>Level '+L+' NPC city</option>';
   opts+='<option value="custom"'+(d.preset==="custom"?' selected':'')+'>Custom defender</option>';
-  var h='<div class="section"><h3>Battle simulator</h3><p class="hint">The real Age 1 battlefield, up to 100 rounds.</p>'+
+  var h='<div class="section"><h3>Battle simulator</h3><p class="hint">The game\u2019s own battle engine (Age 2 rules, the same one every fight uses), up to 100 rounds.</p>'+
     '<select id="npcsel" aria-label="Defender" style="margin-top:8px">'+opts+'</select>'+
     '<div class="simbtns"><button class="btn ghost small" data-act="sim-mine">My army</button><button class="btn ghost small" data-act="sim-myres">My research</button><button class="btn ghost small" data-act="sim-mydef">My city defends</button></div>'+
     '<table class="simtab"><colgroup><col><col style="width:32%"><col style="width:32%"></colgroup><thead><tr><th>Unit</th><th>You</th><th>Enemy</th></tr></thead><tbody>';

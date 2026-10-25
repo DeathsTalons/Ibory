@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.251
+Version 0.1.253
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,8 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.253** War Room label. The Battle Simulator and layer optimizer already ran the Age 2 engine since 0.1.249 (same `SIM.fight`, hero Attack /200, fort powers 2.0), but the simulator still said "The real Age 1 battlefield"; it now says it runs the game's own engine with Age 2 rules. Phone only.
+- **0.1.252** (worker only; the phone stays 0.1.251) Trading Post shipments and reinforcements to a member who goes by a different in-game name than their login said "They're not in your alliance". The phone sends the in-game name, members are stored under the login name, and `/al/trade/send` and `/al/reinf/send` looked the name up directly instead of through `toKey` (in-game name to login, as every other alliance action does). The resources were refunded on the phone, so nothing was lost. Test: `scores-worker/test-harness/t30.mjs`.
 - **0.1.251** Faster coming back, faster Help, and a lost night found. Phone and worker (**deploy the worker**: the alliance sync and Help are server changes); no save change (still 49), no schema change.
   - **Hero stats from a gear index** (`gearIndex`, `gearChanged()`): every hero stat read (`gearBonus`, `starSet`) scanned the whole kingdom's gear. The catch-up after a night away reads hero stats tens of thousands of times (auto-fill picks since 0.1.247, production rates, auto-farm hero picks), so on a big game (10 cities, 120 heroes in full sets, ~2,000 pieces) an 8-hour catch-up took 95 s; now under 2 s. The index is rebuilt when gear changes (every equip, star, tier, scrap and dismiss calls `gearChanged()`; a new gear array, as after a load, also resets it; and every tap resets it as a safety net).
   - **Auto-fill picks cached per city** (`AUTO_PICK[cityId]`): one shared entry meant every city evicted the next one's picks on each production tick.
