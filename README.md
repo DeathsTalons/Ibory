@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.254
+Version 0.1.256
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,13 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.256** "Equip best unworn" on a hero's gear. Phone only; no save change.
+  - Next to "Equip best gear", pick a stat and the hero puts on the best pieces for it that nobody else is wearing: spare pieces and their own (`equipBest(hr, stat, true)`). Nothing is taken from another hero; "Equip best gear" still takes pieces of that stat from anyone. The button is greyed out when there are no spare pieces.
+  - Test: `t/t113.py`.
+- **0.1.255** Gear lists say what each piece gives. Phone only; no save change.
+  - The gear picker (a hero's slot: Equip / Swap it for) showed only "+20"; it now says "+20 Intelligence" (a Warhorse also shows its march speed), and so does the "Wearing ..." line above it (`gearBuffTxt`).
+  - Piece rows in the picker and the Armory get their own layout (`.gearpiece`): name, then stars, each across the row, then the bonus and who wears it. A 12 to 15-star piece used to squeeze the name to a few letters a line.
+  - Test: `t/t112.py`.
 - **0.1.254** Idle Barracks at a glance. Phone only; no save change.
   - **All cities:** a red "N idle Barracks" badge on each city's card, a line under its resources saying how many of its Barracks are idle and why (the same reason the Barracks page gives, or "auto-train is off"), and a summary at the top listing every city with idle Barracks; tap a name to go there. With none idle it says "Every Barracks is training."
   - **City bar:** a red dot on each city with an idle Barracks, and on ALL when any city has one (`cityIdleBarracks()`; idle = a levelled Barracks with no batch, the same rule as `trainingAt`). The bar now also redraws on every game tick that changes something, so the dots follow batches finishing on any tab.
