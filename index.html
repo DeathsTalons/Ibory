@@ -838,8 +838,9 @@ textarea{font:.8rem/1.3 ui-monospace,Menlo,monospace;width:100%;margin-top:8px;p
 <script>
 (function(){
 "use strict";
-var APP_VERSION = "0.1.256";
-var HERO_ATK_DIV = 200; // Age 2 battle rules (0.1.249): a hero's Attack adds +0.5% troop attack per point (Age 1 was +1%: 100)
+var APP_VERSION = "0.2.1";
+var SITE_URL = "https://iborygame.com"; // 0.1.258: the website (landing page, privacy policy, account page); the game lives at SITE_URL/play/
+var HERO_ATK_DIV = 200; // battle rules (0.1.249): a hero's Attack adds +0.5% troop attack per point (the classic rules were +1%: 100)
 var DISCORD_URL = "https://discord.gg/H8gErENmWe";
 var SAVE_KEY = "stonewatch-save-v1";
 var HOUR=3600e3, DAY=86400e3; // milliseconds; game time and real time both count in them
@@ -1896,10 +1897,10 @@ var NPC = { // troops [worker,warrior,scout,pike,sword,archer,transporter,cav,ca
   10:{t:[0,400000,0,0,0,0,0,0,0,0,0,0],f:[11000,5500,3666,2200,1375]}
 };
 function npcResearch(L){ return {archery:L,medicine:L,iron_working:L,compass:L,horseback_riding:L}; }
-// NPC heroes per dxcalc's presets: attack/intelligence 33/33 at levels 1-2, 33/3 at 3-4, 44/44 from level 5 up; NPCs also research Military Tradition to their level
+// NPC heroes per the reference presets: attack/intelligence 33/33 at levels 1-2, 33/3 at 3-4, 44/44 from level 5 up; NPCs also research Military Tradition to their level
 function npcHero(L){ return L>=5 ? [44,44] : L>=3 ? [33,3] : [33,33]; }
 function bLevel(type){ if (type==="townhall") return S.th; if (type==="walls") return S.wall||0; var m=0; S.inside.concat(S.fields).forEach(function(x){ if (x && x.type===type && x.level>m) m=x.level; }); return m; }
-// Age 1 building prerequisites (Town Hall, Walls, Workshop, Forge, Stable, Barracks, Academy from the old wiki; Feasting Hall and Marketplace assumed)
+// Building prerequisites (Town Hall, Walls, Workshop, Forge, Stable, Barracks, Academy from the old wiki; Feasting Hall and Marketplace assumed)
 function beaconLv(){ return bLevel("beacon"); }
 function bestBeacon(){ return maxB("beacon"); } // ally warnings come through your whole realm's signal network
 function waveDesc(t, bl){ // what a beacon of this level can make out of an incoming army
@@ -2052,7 +2053,7 @@ var BOX_W = [30,25,18,12,7,4,2.5,1,0.5];
 function rollMedal(){ var sum=BOX_W.reduce(function(a,b){return a+b;},0), r=Math.random()*sum; for (var i=0;i<9;i++){ r-=BOX_W[i]; if (r<0) return i; } return 0; }
 function medalIcon(i,size){ size=size||26; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2h3l1 5-3 0zM16 2h-3l-1 5 3 0z" fill="'+MEDAL_COL[i]+'" opacity=".6"/><circle cx="12" cy="15" r="7" fill="'+MEDAL_COL[i]+'"/><circle cx="12" cy="15" r="4.6" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.2"/><path d="M12 12.3l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z" fill="rgba(0,0,0,.3)"/></svg>'; }
 function totalTH(){ return S.cities.reduce(function(a,c){ return a+(c.th||1); },0) || 1; }
-function addPrestige(n){ S.prestige += Math.floor(n/totalTH()); } // Age 1: experience / sum of all Town Hall levels, rounded down
+function addPrestige(n){ S.prestige += Math.floor(n/totalTH()); } // experience / sum of all Town Hall levels, rounded down
 function addPrestigeFlat(n){ S.prestige += n; }
 function reqChecks(q, isTitle){
   var out=[];
@@ -2829,7 +2830,7 @@ function valleyTroops(L){ var v=[[50,0,0,0,0],[100,0,0,20,0],[200,50,0,50,0],[40
   return [0,v[0],0,v[1],v[2],v[3],0,v[4],0,0,0,0]; }
 function valleyRes(k,L){ var o={}, big=L*L*15000, main=VTYPES[k].res; RES.forEach(function(x){ o[x]=Math.round(big*0.05); }); if (main) o[main]=big; else { o.food=big/2; o.gold=big/10; } return o; }
 var HC_FORTS=[22000,11000,6666,6000,5000];
-// dxcalc historic city presets: [warriors, pike/sword, archers, cav/cataphract, siege] and hero attack/intelligence
+// historic city presets: [warriors, pike/sword, archers, cav/cataphract, siege] and hero attack/intelligence
 var HC_SET={12:{w:1120000,ps:162666,a:42807,cp:108444,m:14640,combos:[[3,7,10],[4,7,9]],hero:[635,335]},
   14:{w:2800000,ps:406666,a:171228,cp:271111,m:36600,combos:[[3,7,10],[3,8,10],[4,8,10]],hero:[735,435]},
   16:{w:7000000,ps:1016665,a:428070,cp:677777,m:91500,combos:[[3,8,11],[4,8,11]],hero:[935,635]},
@@ -2873,7 +2874,7 @@ function marchSpeed(t){ var r=simResearch(), s=Infinity; t.forEach(function(n,i)
 function travelMs(t,q,heroId,mission){ var sp=marchSpeed(t), h=heroId?heroById(heroId):null;
   var ab=bMarch()*(mission==="scout"?bScout():1);
   return sp ? Math.max(1, tdist(q))*36000/sp*1000/(1+0.1*(S.tech.cartography||0)+0.1*(S.tech.imperialroads||0))/(1+hs(h,"int")/100)/(1+dgFx(h).spd/100)/(1+mountSpd(h))/ab : 0; }
-// Age 1 medal sources: Cross L1-2 valleys (grasslands), Rose L1-4 (hills, lakes), Lion L2-5 valleys & L2-5 NPCs,
+// medal sources: Cross L1-2 valleys (grasslands), Rose L1-4 (hills, lakes), Lion L2-5 valleys & L2-5 NPCs,
 // Honor L5-6 valleys & L2-4 NPCs, Courage L6-7 valleys & L3-5 NPCs, Wisdom L6-8 valleys (swamps) & L5+ NPCs,
 // Freedom L5+ NPCs, Justice & Nation L10 NPCs (Nation also from L9-10 hills and grasslands). Valleys and AI lords no longer drop Freedom or Justice.
 // After late 2009 the drop rate was a little under 1% per battle.
@@ -4270,7 +4271,7 @@ function cargoTotal(){ return RES.reduce(function(a,k){ return a+(marchDraft.car
 function marchFood(t, mission, travel){ var up=0; t.forEach(function(n,i){ up+=n*U[i].up; }); up*=rationMult(); var legs=(mission==="reinforce"||mission==="found"||mission==="station")?1:2; return Math.ceil(up*travel/3.6e6*legs); }
 var ENS_MULT={ensign:1.25, msize50:1.5, msize100:2};
 function ensKey(v){ return v===true ? "ensign" : (ENS_MULT[v] ? v : ""); } // old saves kept ensign as true
-function armyCap(ens, hero){ return Math.floor((10000*rallyLv()+alFx("marchsize"))*(ENS_MULT[ensKey(ens)]||1)*(1+(hero?dgFx(hero).size:0)/100)); } // Age 1: army size is limited to 10,000 x Rally Spot level
+function armyCap(ens, hero){ return Math.floor((10000*rallyLv()+alFx("marchsize"))*(ENS_MULT[ensKey(ens)]||1)*(1+(hero?dgFx(hero).size:0)/100)); } // army size is limited to 10,000 x Rally Spot level
 function scoutWhy(d){ if (!(d.t[2]>0)) return "Send at least one scout"; if (d.t.some(function(n,i){ return i!==2 && n>0; })) return "Scout missions take scouts only"; return ""; }
 function marchWhy(){
   var d=marchDraft, n=d.t.reduce(function(a,b){return a+b;},0);
@@ -4421,11 +4422,11 @@ function posInfo(k){ for (var i=0;i<GEAR_POS.length;i++) if (GEAR_POS[i].k===k) 
 function wornAt(h,k){ return S.gear.filter(function(x){ return x.on===h.id && posOf(x)===k; })[0]; }
 function mountSpd(h){ if (!h || !S.gear) return 0; var g=wornAt(h,"mount"); return g ? MOUNT_SPD[g.tier] : 0; }
 var GEAR_TIERS=["common","rare","epic","legendary","mythic"], GEAR_BASE=[3,6,10,16,24], GEAR_MAX=[9,12,14,15,15], GEAR_SCRAP=[2,5,10,20,40];
-// success % with FOUR gems, indexed by the current star count (Age 2 anchors: Flawless 95 at 0, 90 at 5, 50 at 11; Delicate 70 at 4, 65 at 5, 60 at 6; the rest continues the same drop per star).
+// success % with FOUR gems, indexed by the current star count (anchors: Flawless 95 at 0, 90 at 5, 50 at 11; Delicate 70 at 4, 65 at 5, 60 at 6; the rest continues the same drop per star).
 // Each gem fewer than four takes off one step (Flawless 15 points, Delicate 25/3), never below 1%: one Flawless is 45% at 5 stars, one Delicate 40%.
 var GEM_4={D:[90,85,80,75,70,65,60,55,50,45,40,35,30,25,20], F:[95,94,93,92,91,90,83,77,70,63,57,50,43,37,30]}, GEM_STEP={D:25/3,F:15};
 var FAIL_TO=[0,0,1,1,2,3,4,4,5,0,0,0,0,0,0]; // star count after a failed attempt from each level
-var SET_TIERS=[[15,3.5],[12,2.5],[9,2.0],[6,1.4]]; // Age 2 star set life (0.1.249; was 9 x1.5, 12 x2, 15 x2.5)
+var SET_TIERS=[[15,3.5],[12,2.5],[9,2.0],[6,1.4]]; // star set life (0.1.249; was 9 x1.5, 12 x2, 15 x2.5)
 function starSet(h){ if (!h) return -1; var e=gearIndex()[h.id]; return e && e.n>=GEAR_POS.length ? e.low : -1; }
 function setLife(h,def){ var st=starSet(h), m=1; for (var i=0;i<SET_TIERS.length;i++) if (st>=SET_TIERS[i][0]){ m=SET_TIERS[i][1]; break; } return m*(1+alFx("life"))*(1+dgFx(h,def).life/100); }
 function nextSetTier(st){ for (var i=SET_TIERS.length-1;i>=0;i--) if (st<SET_TIERS[i][0]) return SET_TIERS[i]; return null; }
@@ -6178,12 +6179,52 @@ function chatAgo(t){ var s=Math.max(0,Math.floor((Date.now()-t)/1000)), m=Math.f
   return s<45?"just now":m<1?"1 min ago":m<60?m+" min ago":h<24?h+" h"+(m%60?" "+(m%60)+" min":"")+" ago":d===1?"1 day ago":d+" days ago"; }
 function chatMsgAt(ch, id){ var L=ch==="w"?(WCH&&WCH.lines):ch==="a"?ALS.chat:DMS.lines; if (!L) return 0; for (var i=L.length-1;i>=0;i--) if (String(L[i].id)===String(id)) return L[i].at||0; return 0; }
 function chatAgoHtml(ch, id){ var at=chatMsgAt(ch,id); return at ? '<div class="rxago">Sent '+chatAgo(at)+' · '+esc(alTime(at))+'</div>' : ''; }
+// 0.1.257: is this chat line your own? (unknown lines count as yours, so Report only shows on lines we can see)
+function chatMine(ch, id){ var L=ch==="w"?(WCH&&WCH.lines):ch==="a"?ALS.chat:DMS.lines; if (!L) return true;
+  for (var i=L.length-1;i>=0;i--) if (String(L[i].id)===String(id)) return ch==="d" ? !!L[i].me : isMe(L[i].name);
+  return true; }
+function chatMsgOf(ch, id){ var L=ch==="w"?(WCH&&WCH.lines):ch==="a"?ALS.chat:DMS.lines; if (!L) return null; for (var i=L.length-1;i>=0;i--) if (String(L[i].id)===String(id)) return L[i]; return null; }
+/* ---------- reporting (0.1.257): a chat line, a private message or a player goes to the admin's Reports tab ---------- */
+var AB_WHY={msg:[["abuse","Harassment or hate"],["sexual","Sexual content"],["spam","Spam or scam"],["cheat","Cheating"],["other","Something else"]],
+  p:[["name","Offensive name or picture"],["abuse","Harassment or hate"],["sexual","Sexual content"],["cheat","Cheating"],["other","Something else"]]};
+function abuseSheet(){ var sf=sheetFor, isP=sf.ch==="p", m=isP?null:chatMsgOf(sf.ch,sf.id), who=isP?sf.nm:(m?(sf.ch==="d"?m.name:chatName(m.name)):"");
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1;min-width:0"><h2>Report</h2><div class="sub">'+(isP?'Player: <b>'+esc(who)+'</b>':esc(who||"")+(m?': “'+esc(chatPlain(m.text).slice(0,120))+'”':''))+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  if (!cbOn()) return h+'<p class="hint">Sign in to your cloud save in Settings to report.</p><button class="closebtn" data-act="close">Close</button>';
+  if (!isP && !m) return h+'<p class="hint">That message is gone.</p><button class="closebtn" data-act="close">Close</button>';
+  h+='<p class="hint">What’s wrong? The admin reads every report and can remove messages, pictures and players. '+(isP?'':'A copy of the message goes with it. ')+'The player isn’t told who reported them.</p>';
+  h+=AB_WHY[isP?"p":"msg"].map(function(w,i){ return '<label class="ntrow"><input type="radio" name="abwhy" value="'+w[0]+'"'+(i===0?' checked':'')+'> '+w[1]+'</label>'; }).join("");
+  h+='<div style="margin-top:6px"><label for="abnote" class="sub">Anything else the admin should know (optional)</label><input id="abnote" type="text" maxlength="300" autocomplete="off"></div>';
+  if (sf.ch==="d") h+='<label class="ntrow"><input type="checkbox" id="abblock" checked> Also block them</label>';
+  return h+'<div class="btnrow" style="margin-top:8px"><button class="btn small" data-act="ab-send"'+(sf.busy?' disabled':'')+'>Send report</button></div><button class="closebtn" data-act="close">Cancel</button>'; }
+function abuseSend(){ var sf=sheetFor; if (!sf || sf.kind!=="abuse" || sf.busy) return; var w=document.querySelector('input[name="abwhy"]:checked'), n=document.getElementById("abnote"), bl=document.getElementById("abblock");
+  var body={ch:sf.ch, why:w?w.value:"other", note:n?n.value.trim():""}; if (sf.ch==="p") body.k=sf.k||sf.nm; else body.id=+sf.id;
+  var blockToo=sf.ch==="d" && bl && bl.checked; sf.busy=true; lastSheet=""; renderSheet();
+  alPost("/rep/send",body).then(function(d){ sf.busy=false; if (d.error){ toast(d.error); lastSheet=""; renderSheet(); return; }
+    closeSheet(); RXSEL=""; rxRefresh(); toast("Reported. Thanks: the admin will take a look."); if (blockToo && DMS.open) dmBlock(true); })
+  .catch(function(){ sf.busy=false; toast("Couldn’t reach the server"); lastSheet=""; renderSheet(); }); }
+/* ---------- deleting your account (0.1.257): needs the password; the game on this device stays and keeps playing single player ---------- */
+function cbDelSheet(){ var sf=sheetFor;
+  var h='<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1;min-width:0"><h2>Delete your account</h2><div class="sub">'+esc((S.cloud&&S.cloud.name)||"")+'</div></div><button class="btn ghost small" data-act="close" aria-label="Close">✕</button></div>';
+  if (sf.done) return h+'<p class="hint">Your account is deleted. The game on this device is still here and keeps playing single player. You can make a new account any time in Settings.</p><button class="closebtn" data-act="close">OK</button>';
+  h+='<p class="why">This deletes your account from the Ibory server for good: both cloud saves, your high-score rows, profile and hero pictures, chat and private messages, alliance membership, invasions, War Marks and cosmetics. It can’t be undone.</p>'+
+    '<p class="hint">The game on this device is not touched. Want to keep a copy? Use <b>Save to file</b> in Settings first.</p>'+
+    '<div><label for="cbdelpass" class="sub">Your password</label><input id="cbdelpass" type="password" maxlength="64" autocomplete="current-password" style="width:100%"></div>'+
+    (sf.err?'<p class="why" style="margin:6px 0 0">'+esc(sf.err)+'</p>':'')+
+    '<div class="btnrow" style="margin-top:8px"><button class="btn ghost small danger" data-act="cb-del"'+(sf.busy?' disabled':'')+'>'+(armed==="cbdel"?'Tap again: delete for good':'Delete my account')+'</button></div><button class="closebtn" data-act="close">Cancel</button>';
+  return h; }
+function cbDelete(){ var sf=sheetFor; if (!sf || sf.kind!=="cbdel" || sf.busy || !S.cloud) return; var pi=document.getElementById("cbdelpass"), pw=pi?pi.value:"";
+  if (!pw){ sf.err="Enter your password"; armed=null; lastSheet=""; renderSheet(); return; }
+  sf.busy=true; sf.err=""; lastSheet=""; renderSheet(); var keepPw=pw;
+  cbPost("/backup/delete",{name:S.cloud.name, pass:pw}).then(function(r){ return r.json(); }).then(function(d){ sf.busy=false; armed=null;
+    if (!d || !d.ok){ sf.err=(d&&d.error)||"Couldn’t delete the account"; lastSheet=""; renderSheet(); var p2=document.getElementById("cbdelpass"); if (p2) p2.value=keepPw; return; }
+    pushStop(); S.cloud={}; if (S.lb){ S.lb.on=false; S.lb.needAcct=0; } CB.found=null; CB.conflict=null; CB.msg="Account deleted."; CB.good=true; save(); sf.done=true; lastSheet=""; renderSheet(); })
+  .catch(function(){ sf.busy=false; armed=null; sf.err="Couldn’t reach the server. Check your connection."; lastSheet=""; renderSheet(); }); }
 function rxSysAttr(ch, id){ return id ? ' data-act="rx-sel" data-sys="1" data-ch="'+ch+'" data-id="'+id+'"' : ''; }
 function rxSysTail(ch, id){ return id && RXSEL===ch+":"+id ? chatAgoHtml(ch,id) : ''; }
 function rxTail(ch, id){ var L=RX[ch][id]||[], sel=RXSEL===ch+":"+id, h="";
   if (L.length) h+='<div class="rxs">'+L.map(function(r){ return '<button class="rxc'+(r[2]?' on':'')+'" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+esc(r[0])+'" title="'+esc(r[3])+'" aria-label="'+esc(r[0])+' '+r[1]+(r[2]?', including you':'')+'">'+esc(r[0])+' '+r[1]+'</button>'; }).join("")+'</div>';
   if (sel) h+=chatAgoHtml(ch,id)+'<div class="rxbar">'+RX_QUICK.map(function(q){ return '<button class="rxq" data-act="rx-tog" data-ch="'+ch+'" data-id="'+id+'" data-e="'+q+'" aria-label="React '+q+'">'+q+'</button>'; }).join("")+
-    '<input id="rxin" type="text" autocomplete="off" enterkeyhint="send" placeholder="Any emoji" aria-label="Type any emoji"><button class="btn small" data-act="rx-any" data-ch="'+ch+'" data-id="'+id+'">React</button><button class="link" data-act="rx-close">Close</button>'+
+    '<input id="rxin" type="text" autocomplete="off" enterkeyhint="send" placeholder="Any emoji" aria-label="Type any emoji"><button class="btn small" data-act="rx-any" data-ch="'+ch+'" data-id="'+id+'">React</button><button class="link" data-act="rx-close">Close</button>'+(chatMine(ch,id)?'':'<button class="link" data-act="ab-open" data-ch="'+ch+'" data-id="'+id+'">Report</button>')+
     (L.length?'<div class="rxwho">'+L.map(function(r){ return esc(r[0])+' '+esc(r[3]); }).join(" \u00b7 ")+'</div>':'')+'</div>';
   return h; }
 function rxMsgAttr(ch, id){ return ' data-act="rx-sel" data-ch="'+ch+'" data-id="'+id+'"'; }
@@ -6690,7 +6731,8 @@ function cbSection(){
         (inf.older?'<button class="btn ghost small danger" data-act="cb-restore" data-v="older">'+(armed==="cbr-older"?'Tap again to replace this game':'Restore older copy')+'</button>':'')+
         '<button class="btn ghost small" data-act="cb-signout">'+(armed==="cbout"?'Tap again to sign out':'Sign out')+'</button>'+
         '<button class="btn ghost small" data-act="cb-outothers"'+(CB.busy?' disabled':'')+'>'+(armed==="cboth"?'Tap again: sign out everywhere else':'Sign out of other devices')+'</button></div>'+
-        '<p class="dur" style="margin:4px 0 0">The older copy is at least most of a day older than the latest, in case a backup ever goes wrong.</p>';
+        '<p class="dur" style="margin:4px 0 0">The older copy is at least most of a day older than the latest, in case a backup ever goes wrong.</p>'+
+        '<div class="btnrow" style="margin-top:8px"><button class="btn ghost small danger" data-act="cb-del-open">Delete account</button></div>';
     }
   }
   if (CB.msg) h+='<p class="'+(CB.good?'dur':'why')+'" style="margin:6px 0 0">'+esc(CB.msg)+'</p>';
@@ -6759,13 +6801,13 @@ var WC=[];
     goals:[{cap:vcap[L-1]}], rewards:[wcR(5000*L, 1000*L, L<=3?{s15:1}:L<=6?{s60:1,gemD:L}:{s150:1,gemD:2*L})]});
   for (L=1;L<=5;L++) WC.push({id:"n"+L, tier:"npc1", name:"Level "+L+" NPC city", kind:"npc", L:L, waves:1, ban:[],
     goals:[{cap:0}], rewards:[wcR(20000*L, 5000*L, {s150:1, gemD:5*L, ore:L})]});
-  var comm={6:360,7:550,8:1500,9:2800,10:4900}, mast={6:110,7:180,8:490,9:810,10:850}; // Age 2 caps (0.1.249)
+  var comm={6:360,7:550,8:1500,9:2800,10:4900}, mast={6:110,7:180,8:490,9:810,10:850}; // caps (0.1.249)
   var mastRw={6:{gemF:15,mithril:1},7:{gemF:25,mithril:2},8:{gemF:40,mithril:2,starmetal:1},9:{gemF:60,starmetal:2},10:{gemF:100,starmetal:3}};
   for (L=6;L<=10;L++){ var n=L-5; WC.push({id:"n"+L, tier:"npc6", name:"Level "+L+" NPC city", kind:"npc", L:L, waves:4, ban:[],
     goals:[{cap:null},{cap:comm[L]},{cap:mast[L]}],
     rewards:[wcR(50000*L, 10000*L, {s150:1, gemD:10*n}), {res:QR(0,0,0,0,0), items:{s480:1, gemF:5*n, ingot:n}}, {res:QR(0,0,0,0,0), items:mastRw[L]}]}); }
 })();
-// 0.1.243: Historic city 12, one puzzle per daily garrison. 0.1.249: caps re-tuned for the Age 2 rules by war-college-tools/age2 (best plan x1.1 at the decent and high reference gear;
+// 0.1.243: Historic city 12, one puzzle per daily garrison. 0.1.249: caps re-tuned for the 0.1.249 battle rules by the dev tools (best plan x1.1 at the decent and high reference gear;
 // the notes below are 0.1.243 history). Caps were from war-college-tools/hc (best plan x1.1 at the decent and high reference gear,
 // cross-checked over 8 optimiser runs each); the Swordsman garrison's Commanding cap sits under what 100,000 plain Catapults lose at decent gear (56,447).
 var WC_HC_RW=[{medals:{justice:1}, items:{gemF:20, s480:1}}, {medals:{justice:1}, items:{gemF:50, s480:2}}, {medals:{justice:1}, items:{gemF:120, s480:3}}];
@@ -8482,7 +8524,7 @@ function scoutHide(q, troops){
 }
 function AL(){ return S.alliance; }
 function devHash(t){ var h=5381; for (var i=0;i<t.length;i++) h=(((h<<5)+h)+t.charCodeAt(i))>>>0; return h; }
-function realmName(){ return (S&&typeof S.realm==="string"&&S.realm)||"North March"; }
+function realmName(){ return (S&&typeof S.realm==="string"&&S.realm)||"The Fallen Kingdom"; } // 0.2.1: the default name (was North March)
 function allyName(){ var a=S&&S.alliance; return (a&&a.name)||(realmName()+" Pact"); }
 function allyIdx(id){ var a=AL().allies; for (var i=0;i<a.length;i++) if (a[i].id===id) return i; return -1; }
 function isAlly(id){ return !!S.alliance && allyIdx(id)>=0; }
@@ -9371,7 +9413,7 @@ function bfEnd(why){
 }
 // the Field Surgeon's Kit, used outside the battlefield
 /* ---------- medic camp (in the Rally Spot) ---------- */
-// Age 1 rule: after every battle a share of your fallen are only wounded, set by Medicine. They wait in the
+// rule: after every battle a share of your fallen are only wounded, set by Medicine. They wait in the
 // Rally Spot's Medic Camp and can be healed for gold, or they die. Numbers below are educated guesses.
 var WOUND_BASE=0.20, WOUND_PER_MED=0.02, WOUND_MAX=0.5, WOUND_LIFE=24*HOUR, HEAL_GOLD_F=0.005;
 var HEAL_GOLD=U.map(function(u){ var t=0; for (var k in u.cost) t+=u.cost[k]; return Math.max(1, Math.round(t*HEAL_GOLD_F)); });
@@ -10370,7 +10412,7 @@ function QR(f,l,s,i,g){ return {food:f||0,lumber:l||0,stone:s||0,iron:i||0,gold:
 var QUESTS=[];
 (function(){
   function add(cat,id,name,goal,check,rw){ QUESTS.push({cat:cat,id:id,name:name,goal:goal,check:check,rw:rw}); }
-  // Domain Expansion: Town Hall levels (resources from the Age 1 quest table, plus speed-ups; a few medals at 5 and 10)
+  // Domain Expansion: Town Hall levels (resources from the classic quest table, plus speed-ups; a few medals at 5 and 10)
   for (var L=2; L<=10; L++) (function(L){ var m=Math.pow(2,Math.min(L,6)-2);
     var rw={res:QR(2500*m,6500*m,5500*m,2500*m,1000*m), items:L<=4?{s15:2}:L<=7?{s60:2}:{s480:1}};
     if (L===5) rw.medals={cross:4,rose:2};
@@ -10672,7 +10714,7 @@ function playerSheet(){
   var pf=(d.pu||d.fr)&&d.ck ? {img: d.pu ? LB_URL+"/me/img?k="+encodeURIComponent(d.ck)+"&v="+d.pu : "", frame:d.fr} : {};
   var row=function(l,v){ return '<div class="merow"><span>'+l+'</span><b>'+v+'</b></div>'; };
   h+='<div class="mehead">'+avatarHtml(pf,nm)+'<div style="display:grid;gap:4px;min-width:0"><b style="font:700 1.1rem var(--display);overflow-wrap:anywhere">'+esc(nm)+'</b>'+(d.alliance?'<span class="dur">['+esc(d.alliance.tag)+'] '+esc(d.alliance.name)+(d.alliance.rank?' · '+esc(d.alliance.rank):'')+'</span>':'<span class="dur">No alliance</span>')+'</div></div>';
-  if (dmOn() && !isMe(nm) && (d.ck||nm)) h+='<div class="btnrow" style="margin:6px 0"><button class="btn small" data-act="dm-with" data-k="'+esc(d.ck||"")+'" data-nm="'+esc(nm)+'">Send a message</button></div>';
+  if (dmOn() && !isMe(nm) && (d.ck||nm)) h+='<div class="btnrow" style="margin:6px 0"><button class="btn small" data-act="dm-with" data-k="'+esc(d.ck||"")+'" data-nm="'+esc(nm)+'">Send a message</button>'+(cbOn()?'<button class="btn ghost small" data-act="ab-open" data-ch="p" data-k="'+esc(d.ck||"")+'" data-nm="'+esc(nm)+'">Report</button>':'')+'</div>';
   if (!d.found){ return h+'<p class="hint">This player hasn’t sent any scores to the high scores yet, so there’s nothing more to show.</p>'; }
   var rows='';
   if (d.hero){ var st=String(d.hero.st||"").split(",").map(Number); rows+=row("Top hero",(d.hero.hid&&d.hero.hu?heroPortrait({id:d.hero.hid, name:d.hero.name, tier:"legendary"},40,{k:d.ck, hu:d.hero.hu})+' ':'')+esc(d.hero.name)+' <span class="dur">level '+d.hero.lv+'</span>'); if (st.length>=3 && st.every(isFinite)) rows+=row("Hero stats",'Attack '+fmt(st[1])+' · Intelligence '+fmt(st[2])+' · Politics '+fmt(st[0])); }
@@ -11018,7 +11060,7 @@ function viewTitlesBody(t,nt,nr){
     '<div class="act" style="margin-top:6px"><div><div class="bigstat">'+fmt(S.prestige)+'</div><span class="dur">prestige</span></div><div style="text-align:right"><div class="bigstat">'+S.cities.length+' / '+fmt(cityCap())+'</div><span class="dur">cities allowed'+(hasHC(18)?' (Atlantis: one per historic city on the map)':'')+'</span></div></div>'+
     '<p class="hint" style="margin-top:8px">Prestige comes from every building level, research level and trained troop in all your cities, and never goes down. Found new cities on Flats from the Map.</p>'+powerHtml()+'</div>';
   h+='<div class="section"><h3>Medal case</h3><div class="medals">'+MEDALS.map(function(m,i){ return '<div class="medal">'+medalIcon(i)+'<b>'+(S.medals[m[0]]||0)+'</b><span>'+m[1]+'</span></div>'; }).join("")+'</div>'+
-    '<p class="hint" style="margin-top:8px">Medals are rare, just like the original: under 1% of victories drop one. Low valleys give Cross and Rose, mid valleys and low NPC cities give Lion, Honor and Courage, high valleys give Wisdom and Nation, level 5+ NPCs add Freedom, and Justice comes only from level 10 NPCs and historic cities. Valleys and AI lords never drop Freedom or Justice. Tap any target on the map to see what it drops. Level 5 to 9 NPC cities sometimes drop a Junior Medal Box instead, level 10s a Medium or Senior one, and historic cities a Senior one.</p></div>';
+    '<p class="hint" style="margin-top:8px">Medals are rare: under 1% of victories drop one. Low valleys give Cross and Rose, mid valleys and low NPC cities give Lion, Honor and Courage, high valleys give Wisdom and Nation, level 5+ NPCs add Freedom, and Justice comes only from level 10 NPCs and historic cities. Valleys and AI lords never drop Freedom or Justice. Tap any target on the map to see what it drops. Level 5 to 9 NPC cities sometimes drop a Junior Medal Box instead, level 10s a Medium or Senior one, and historic cities a Senior one.</p></div>';
   h+='<div class="section"><h3>'+(nr?'Next rank: '+nr.name:'Highest rank reached')+'</h3>'+(nr?questCard(nr,false,"rankup","Promote to "+nr.name):'<p class="hint">You are a General. Only titles remain.</p>')+'</div>';
   h+='<div class="section"><h3>'+(nt?'Next title: '+nt.name:'Highest title reached')+'</h3>'+(nt?'<p class="hint">Allows '+nt.cities+' cities.</p>'+questCard(nt,true,"titleup","Run for "+nt.name):'<p class="hint">You are Prinzessin. Ten cities are yours to rule.</p>')+'</div>';
   h+='<details class="section"><summary>All titles</summary><div class="ladder">'+TITLES.map(function(x,i){ return '<span class="'+(i===S.title?'cur':'')+'">'+x.name+'</span><span class="dur">'+(i?fmt(x.prestige)+' prestige, '+fmt(x.gold)+' gold, '+MEDALS.filter(function(m){return x.m[m[0]];}).map(function(m){return x.m[m[0]]+' '+m[1];}).join(" + "):'Starting title')+'</span><span>'+x.cities+' '+(x.cities===1?'city':'cities')+'</span>'; }).join("")+'</div></details>';
@@ -11291,7 +11333,7 @@ function viewWar(){
   var a=sim.atk, d=sim.def, opts='';
   for (var L=1;L<=10;L++) opts+='<option value="'+L+'"'+(d.preset===String(L)?' selected':'')+'>Level '+L+' NPC city</option>';
   opts+='<option value="custom"'+(d.preset==="custom"?' selected':'')+'>Custom defender</option>';
-  var h='<div class="section"><h3>Battle simulator</h3><p class="hint">The game\u2019s own battle engine (Age 2 rules, the same one every fight uses), up to 100 rounds.</p>'+
+  var h='<div class="section"><h3>Battle simulator</h3><p class="hint">The game\u2019s own battle engine (the same one every fight uses), up to 100 rounds.</p>'+
     '<select id="npcsel" aria-label="Defender" style="margin-top:8px">'+opts+'</select>'+
     '<div class="simbtns"><button class="btn ghost small" data-act="sim-mine">My army</button><button class="btn ghost small" data-act="sim-myres">My research</button><button class="btn ghost small" data-act="sim-mydef">My city defends</button></div>'+
     '<table class="simtab"><colgroup><col><col style="width:32%"><col style="width:32%"></colgroup><thead><tr><th>Unit</th><th>You</th><th>Enemy</th></tr></thead><tbody>';
@@ -11807,7 +11849,7 @@ function renderSheetCore(){
         '<div class="hint">'+(nameNext()>Date.now()?'You can change it again on '+cbWhen(nameNext())+'.':(S.cloud.info&&S.cloud.info.renamed?'Once every 30 days.':'Your first change is free; after that, once every 30 days.'))+' Your login name stays <b>'+esc(S.cloud.name)+'</b>.</div>'
         :'<div><label for="lordname" class="sub">Your name</label><input id="lordname" type="text" value="'+esc(S.lord||"")+'" maxlength="20" placeholder="What the realm calls you"></div><div class="hint">Sign in to an account (above) and this becomes your name on the high scores, in chat and in alliances too.</div>')+
       '<div><label for="allyname" class="sub">Kingdom name</label><input id="allyname" data-ren="ally" type="text" value="'+esc((AL()&&AL().name)||"")+'" maxlength="28" placeholder="'+esc(realmName()+" Pact")+'"></div>'+
-      '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="North March"></div>'+
+      '<div><label for="realmname" class="sub">Map name</label><input id="realmname" data-ren="realm" type="text" value="'+esc(S.realm||"")+'" maxlength="28" placeholder="The Fallen Kingdom"></div>'+
       '<div><label for="cn" class="sub">City name</label><input id="cn" type="text" value="'+esc(S.name)+'" maxlength="24"></div>'+
       '<details class="det" data-det="notif"'+(DET.notif?' open':'')+'><summary><b>Notifications</b> <span class="dur">'+NOTE_TYPES.filter(function(t){ return noteOn(t[0]); }).length+' of '+NOTE_TYPES.length+' on'+(S.phoneNotif?', phone on':'')+'</span></summary>'+
         '<p class="hint">Pick which pop-ups the game shows. Everything still happens and still lands in your reports; this only hides the message.</p>'+
@@ -11821,6 +11863,7 @@ function renderSheetCore(){
       (saveUi==="import"?'<textarea id="saveinput" rows="4" placeholder="Paste a save code"></textarea><div class="btnrow"><button class="btn small danger" data-act="save-import">'+(armed==="import"?"Tap again to replace this game":"Load this save")+'</button><span class="why" id="importmsg"></span></div>':'')+'</div>'+
       '<details class="det" data-det="gift"'+(DET.gift?' open':'')+'><summary><b>Gift codes</b> <span class="dur">packages and early access</span></summary><div class="farmadd"><input id="giftcode" type="text" autocomplete="off" autocapitalize="off" placeholder="Gift code" style="width:auto;flex:1"><button class="btn ghost small" data-act="gift-redeem">Redeem</button></div><span class="why" id="giftmsg"></span></details>'+
       '<div class="sub">Join the Discord: <a href="'+DISCORD_URL+'" target="_blank" rel="noopener">'+DISCORD_URL.replace(/^https?:\/\//,"")+'</a></div>'+
+      '<div class="sub"><a href="'+SITE_URL+'/privacy.html" target="_blank" rel="noopener">Privacy policy</a> \u00b7 <a href="'+SITE_URL+'/account.html" target="_blank" rel="noopener">Your account on the web</a></div>'+
       '<div class="act">'+(armed==="reset"?'<div class="resetbox" style="flex:1"><p class="why">This erases your game on this device. A safety copy is kept first. Type RESET to confirm.</p><input id="resetword" type="text" autocomplete="off" autocapitalize="characters" placeholder="Type RESET"><div class="btnrow" style="margin-top:6px"><button class="btn danger" data-act="reset">Erase my city</button><button class="btn ghost" data-act="reset-cancel">Cancel</button></div></div>':'<button class="btn ghost danger" data-act="reset">Start a new city</button>')+'<button class="closebtn" data-act="close">Done</button></div>';
   } else if (sheetFor.kind==="march"){
     if (sheetBody.contains(document.activeElement) && (document.activeElement.tagName==="INPUT"||document.activeElement.tagName==="SELECT") && lastSheet) return;
@@ -11829,6 +11872,14 @@ function renderSheetCore(){
     if (!ARW.v){ closeSheet(); return; } h=arwSheet();
   } else if (sheetFor.kind==="replay"){
     if (!RP){ closeSheet(); return; } h=rpSheet();
+  } else if (sheetFor.kind==="abuse"){
+    if (sheetBody.contains(document.activeElement) && document.activeElement.tagName==="INPUT" && lastSheet) return;
+    h=abuseSheet();
+  } else if (sheetFor.kind==="moved"){
+    h=movedSheet();
+  } else if (sheetFor.kind==="cbdel"){
+    if (sheetBody.contains(document.activeElement) && document.activeElement.tagName==="INPUT" && lastSheet) return;
+    h=cbDelSheet();
   } else if (sheetFor.kind==="cbconflict"){
     h=cbConflictSheet();
   } else if (sheetFor.kind==="cbask"){
@@ -12228,6 +12279,12 @@ document.addEventListener("click",function(e){
   if (act==="open-link"){ e.preventDefault(); var lu=a.dataset.u||""; if (!/^https?:\/\//i.test(lu)) return; if (window.confirm("Open this link in your browser?\n\n"+linkHost(lu)+"\n\nOnly open links from players you trust.")) { try { window.open(lu,"_blank","noopener,noreferrer"); } catch(x){} } return; }
   if (act==="rx-sel"){ if (e.target.closest(".rxbar") || window.getSelection && String(window.getSelection())) return; var rk=a.dataset.ch+":"+a.dataset.id; RXSEL=RXSEL===rk?"":rk; rxRefresh(); return; }
   if (act==="rx-close"){ RXSEL=""; rxRefresh(); return; }
+  if (act==="ab-open"){ if (!cbOn()){ toast("Sign in to your cloud save first"); return; } openSheet({kind:"abuse", ch:a.dataset.ch, id:a.dataset.id, k:a.dataset.k||"", nm:a.dataset.nm||""}); return; }
+  if (act==="ab-send"){ abuseSend(); return; }
+  if (act==="moved-later"){ try { sessionStorage.setItem("ibory-moved", String(Date.now())); } catch(e){} closeSheet(); return; }
+  if (act==="moved-save"){ try { sessionStorage.setItem("ibory-moved", String(Date.now())); } catch(e){} closeSheet(); DET.cloud=true; goPage("settings"); setTimeout(function(){ var d=document.querySelector('details[data-det="cloud"]'); if (d){ d.open=true; d.scrollIntoView({block:"start"}); } }, 120); return; }
+  if (act==="cb-del-open"){ armed=null; openSheet({kind:"cbdel"}); return; }
+  if (act==="cb-del"){ if (armed!=="cbdel"){ armed="cbdel"; var kp=document.getElementById("cbdelpass"), kv=kp?kp.value:""; lastSheet=""; renderSheet(); var k2=document.getElementById("cbdelpass"); if (k2) k2.value=kv; return; } cbDelete(); return; }
   if (act==="img-open"){ var iu=a.dataset.u; if (a.classList.contains("blur")){ CIMG_SEEN[iu]=1; a.classList.remove("blur"); return; } openSheet({kind:"img", u:iu}); return; }
   if (act==="img-report"){ alPost("/img/report",{id:a.dataset.id}).then(function(d){ toast(d.error||"Reported. Thanks: the admin will take a look."); }).catch(function(){ toast("Couldn\u2019t reach the server"); }); return; }
   if (act==="chat-pic"){ chatPicPick(a.dataset.tgt); return; }
@@ -12316,7 +12373,10 @@ document.addEventListener("click",function(e){
   if (act==="tab"){ if (bfOn()) return; closeSheet(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); arrange=null; warArmed=false; chalArmed=false; bfArmed=false; farmArmed=false; if (a.dataset.tab!=="items") itemsNote=""; tab=a.dataset.tab; lastView=""; renderView(true); window.scrollTo({top:0});
     return; }
   if (act==="tabscroll"){ var nv=document.getElementById("tabs"); nv.scrollLeft += (+a.dataset.dir)*nv.clientWidth*0.7; setTimeout(updateTabArrows,350); return; }
-  if (act==="city-go"){ closeSheet(); farmArmed=false; MAPFARM=-1; S.cur=+a.dataset.city; mv.init=false; document.getElementById("cityname").textContent=S.name; selTile=null; lastView=""; refresh(); window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
+  if (act==="city-go"){ // 0.2.1: from the map, stay put: same view, same tile picked, same scroll (so "Switch to X to build here" lands on the Establish button)
+    var cgStay=tab==="map", cgY=window.scrollY; closeSheet(); farmArmed=false; MAPFARM=-1; S.cur=+a.dataset.city; if (!cgStay){ mv.init=false; selTile=null; }
+    document.getElementById("cityname").textContent=S.name; lastView=""; refresh();
+    if (cgStay){ window.scrollTo({top:cgY}); requestDraw(); } else window.scrollTo({top:0}); toast("Now viewing "+S.name); return; }
   if (act==="close"){ sheetBack(); return; }
   if (act==="settings"){ goPage("settings"); return; }
   if (act==="lb-open"){ var fresh=!S.lb; lbAutoJoin(); if (fresh && lbOn()) lbSync(true); goPage("lb"); setTimeout(function(){ lbFetch(); }, fresh&&lbOn()?1200:0); return; }
@@ -13246,6 +13306,18 @@ document.addEventListener("change",function(e){ markDirty();
 var toastEl=document.getElementById("toast"), toastTimer;
 function toast(msg){ toastEl.textContent=msg; toastEl.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ toastEl.classList.remove("show"); },3400); }
 
+/* ---------- the move to iborygame.com (0.1.258): the old GitHub address says where to go and how to bring the game along ---------- */
+function oldHome(){ return /\.github\.io$/i.test(location.hostname); }
+function movedSheet(){
+  return '<div class="head"><span class="ico">'+ICON.crest+'</span><div style="flex:1;min-width:0"><h2>Ibory has moved</h2><div class="sub">New home: iborygame.com/play</div></div></div>'+
+    '<p>Saves stay with the web address, so bring your game with you:</p>'+
+    '<ol style="margin:6px 0 10px;padding-left:20px"><li><b>Make a cloud save</b> here first: Settings, Account and cloud save (or use Save to file).</li><li>Open <b>iborygame.com/play</b> in Chrome and install it from there.</li><li>Sign in with the same username and password, and your game comes back.</li></ol>'+
+    '<p class="hint">This address keeps working for now, but new versions go to iborygame.com.</p>'+
+    '<div class="btnrow"><button class="btn small" data-act="moved-save">Go to cloud save</button><a class="btn ghost small" href="'+SITE_URL+'/play/" target="_blank" rel="noopener" style="text-decoration:none">Open iborygame.com</a></div>'+
+    '<button class="closebtn" data-act="moved-later">Later</button>'; }
+function movedMaybe(){ if (!oldHome()) return; var t=0; try { t=+sessionStorage.getItem("ibory-moved")||0; } catch(e){} if (t) return;
+  if (sheet.open){ setTimeout(movedMaybe, 4000); return; } openSheet({kind:"moved"}); }
+
 /* ---------- boot ---------- */
 document.getElementById("cityname").textContent=S.name;
 genMap();
@@ -13263,6 +13335,9 @@ refresh();
 function capFixToast(){ if (!S.capFixed || !S.capFixed.length) return; var cf=S.capFixed; delete S.capFixed; save();
   toast("Conquered cities fixed: "+cf.map(function(x){ return x.name+" got "+x.n+" building"+(x.n>1?"s":"")+" at level "+x.L; }).join("; ")+"."); }
 setTimeout(capFixToast, 1500);
+setTimeout(movedMaybe, 2500);
+// 0.2.1: games that never named their map kept the old default alliance name; it follows the new map name
+if (!S.realm){ try { var al0=AL(); if (al0 && al0.name==="North March Pact"){ al0.name=realmName()+" Pact"; save(); } } catch(e){} }
 
 setInterval(function(){
   if (document.hidden){ // 0.1.235: in the background only the game clock runs (so finished jobs still notify); no drawing, no polling, no per-tick work

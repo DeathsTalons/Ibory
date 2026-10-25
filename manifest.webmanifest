@@ -1,7 +1,7 @@
 {
   "name": "Ibory",
   "short_name": "Ibory",
-  "description": "A single-player, real-time remake of Evony Age 1 set in North March.",
+  "description": "A slow, punishing, real-time medieval strategy game. Build cities, raise heroes, farm valleys and siege historic cities, alone or with an alliance.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -9,8 +9,28 @@
   "background_color": "#252a27",
   "theme_color": "#252a27",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./index.html",
+  "categories": [
+    "games",
+    "strategy"
   ]
 }
