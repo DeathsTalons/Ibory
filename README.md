@@ -1,6 +1,6 @@
 # Ibory (phone app)
 
-Version 0.1.253
+Version 0.1.254
 
 A single-player, real-time remake of Evony Age 1, set in North March. One HTML file, no build step.
 
@@ -24,6 +24,10 @@ Settings has save codes and Save to file / Load from file. Current save version:
 
 ## Release notes
 ### Since 0.1.75 (what is known; 0.1.76 to 0.1.94 were not itemised here, see ../design-docs and ../HANDOFF.md)
+- **0.1.254** Idle Barracks at a glance. Phone only; no save change.
+  - **All cities:** a red "N idle Barracks" badge on each city's card, a line under its resources saying how many of its Barracks are idle and why (the same reason the Barracks page gives, or "auto-train is off"), and a summary at the top listing every city with idle Barracks; tap a name to go there. With none idle it says "Every Barracks is training."
+  - **City bar:** a red dot on each city with an idle Barracks, and on ALL when any city has one (`cityIdleBarracks()`; idle = a levelled Barracks with no batch, the same rule as `trainingAt`). The bar now also redraws on every game tick that changes something, so the dots follow batches finishing on any tab.
+  - Test: `t/t111.py`.
 - **0.1.253** War Room label. The Battle Simulator and layer optimizer already ran the Age 2 engine since 0.1.249 (same `SIM.fight`, hero Attack /200, fort powers 2.0), but the simulator still said "The real Age 1 battlefield"; it now says it runs the game's own engine with Age 2 rules. Phone only.
 - **0.1.252** (worker only; the phone stays 0.1.251) Trading Post shipments and reinforcements to a member who goes by a different in-game name than their login said "They're not in your alliance". The phone sends the in-game name, members are stored under the login name, and `/al/trade/send` and `/al/reinf/send` looked the name up directly instead of through `toKey` (in-game name to login, as every other alliance action does). The resources were refunded on the phone, so nothing was lost. Test: `scores-worker/test-harness/t30.mjs`.
 - **0.1.251** Faster coming back, faster Help, and a lost night found. Phone and worker (**deploy the worker**: the alliance sync and Help are server changes); no save change (still 49), no schema change.
